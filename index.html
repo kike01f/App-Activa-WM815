@@ -3413,31 +3413,18 @@
             margin-bottom: 1.75rem;
         }
         .login-brand-icon {
-            width: 56px;
-            height: 56px;
+            width: 95px;
+            height: 95px;
             margin: 0 auto 1.25rem;
             display: flex;
             align-items: center;
             justify-content: center;
-            border-radius: 16px;
-            background: linear-gradient(145deg, rgba(117, 187, 33, 0.28) 0%, rgba(117, 187, 33, 0.08) 100%);
-            border: 1px solid rgba(117, 187, 33, 0.4);
-            color: var(--primary-light);
-            box-shadow: 0 8px 28px -8px rgba(117, 187, 33, 0.35);
-            animation: login-icon-pulse 3s ease-in-out infinite;
         }
-        @keyframes login-icon-pulse {
-            0%, 100% { box-shadow: 0 8px 28px -8px rgba(117, 187, 33, 0.35); transform: scale(1); }
-            50% { box-shadow: 0 12px 36px -6px rgba(117, 187, 33, 0.5); transform: scale(1.03); }
-        }
-        .login-brand-icon svg {
-            width: 28px;
-            height: 28px;
-            stroke: currentColor;
-            fill: none;
-            stroke-width: 1.75;
-            stroke-linecap: round;
-            stroke-linejoin: round;
+        .login-brand-icon img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            filter: brightness(0) invert(1);
         }
         .login-brand h1 {
             animation: login-fade-up 0.75s cubic-bezier(0.22, 1, 0.36, 1) 0.12s both;
@@ -3773,9 +3760,9 @@
             <div class="login-box">
                 <div class="login-brand">
                     <div class="login-brand-icon" aria-hidden="true">
-                        <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        <img src="https://img.mailinblue.com/8323725/images/content_library/original/6844749040dd0f16c5341248.png" alt="WM818" style="width: 100%; height: 100%; object-fit: contain;">
                     </div>
-                    <h1>Gestión WM</h1>
+                    <h1>Gestión de Comunidad</h1>
                     <p class="subtitle">Administración — Inicie sesión para continuar</p>
                 </div>
                 <form id="loginForm">
@@ -18135,7 +18122,7 @@
                     '<div class="sec">Detalle de registros</div>' +
                     '<table class="tbl"><thead><tr><th style="width:96px">Fecha</th><th>Observación</th><th class="postv-estado-th">Estado</th><th style="min-width:220px">URLs evidencia</th></tr></thead><tbody>' +
                     filasDetalle + '</tbody></table>' +
-                    '<div class="foot"><strong>Gestión WM</strong> · Generado el ' + escXml(fechaEmision) + '. Importación sugerida: Fecha, Observación, Estado (opcional), URLs evidencia.</div>' +
+                    '<div class="foot"><strong>Gestión de Comunidad</strong> · Generado el ' + escXml(fechaEmision) + '. Importación sugerida: Fecha, Observación, Estado (opcional), URLs evidencia.</div>' +
                     '</body></html>';
 
                 var nombreArchivo = 'Postventa_' + limpiarNombre(comunidad) + '_' + fechaArchivo + '.xls';
