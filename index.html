@@ -130,17 +130,16 @@
             width: 100%;
         }
 
-        /* Animación elegante al cargar la app */
+        /* Solo opacidad: si el .container tuviera transform, position:fixed del menú lateral
+           quedaría anclado al contenedor y el menú no cubriría bien la pantalla (igual que index). */
         body.app-loading .container {
             opacity: 0;
-            transform: translateY(8px);
         }
         body .container {
-            transition: opacity 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94), transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+            transition: opacity 0.45s cubic-bezier(0.25, 0.46, 0.45, 0.94);
         }
         body.app-ready .container {
             opacity: 1;
-            transform: translateY(0);
         }
 
         /* Entrada del Panel de Control: suave y elegante */
@@ -3750,6 +3749,15 @@
         </div>
     </div>
     <div class="container" id="appContainer" style="display: none;">
+        <div class="notif-bell-wrap" id="notifBellWrap" title="Actividad reciente">
+            <button type="button" class="notif-bell" id="notifBell" aria-label="Ver notificaciones">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
+                    <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
+                </svg>
+                <span class="notif-badge empty" id="notifBadge">0</span>
+            </button>
+        </div>
         <div class="tabs" id="tabsMenu">
             <button class="tab-button active" data-tab="dashboard">
                 <span>
@@ -3890,15 +3898,6 @@
             <button class="menu-toggle-btn" id="menuToggleBtn" title="Mostrar/Ocultar Menú">
                 ☰
             </button>
-            <div class="notif-bell-wrap" id="notifBellWrap" title="Actividad reciente">
-                <button type="button" class="notif-bell" id="notifBell" aria-label="Ver notificaciones">
-                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                        <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
-                        <path d="M13.73 21a2 2 0 0 1-3.46 0"/>
-                    </svg>
-                    <span class="notif-badge empty" id="notifBadge">0</span>
-                </button>
-            </div>
             <!-- Aviso visible en todos los módulos cuando se consulta un mes archivado (solo lectura) -->
             <div id="avisoSoloLecturaMesArchivado" style="display: none; margin: 0 0 1rem 0; padding: 0.625rem 1rem; background: linear-gradient(90deg, rgba(245, 158, 11, 0.12) 0%, rgba(251, 191, 36, 0.08) 100%); border: 1px solid rgba(245, 158, 11, 0.35); border-radius: 8px; font-size: 0.875rem; color: #422006; font-weight: 600;">
                 📋 Consultando mes archivado (solo lectura). Los datos no se pueden editar. Para editar, reabra el mes desde el Panel de Control.
@@ -25552,21 +25551,18 @@
         }
 
         async function inicializarApp() {
-            // Mostrar la app de inmediato (sin esperar tema) para que no haya atraso visual
+            // Misma secuencia que index: menú e iconos en el siguiente frame; visibilidad en paralelo
             requestAnimationFrame(function() {
                 document.body.classList.remove('app-loading');
                 document.body.classList.add('app-ready');
             });
-            // Cargar tema en paralelo (no bloquea la primera pintada)
             cargarTema().catch(function() {});
-            // Inicializar iconos del menú
+            window.promiseVisibilidadModulos = actualizarVisibilidadModulos().catch(function(e) {
+                console.error('Visibilidad módulos:', e);
+            });
+            requestAnimationFrame(function() {
             inicializarIconosMenu();
-            
-            // Inicializar iconos de títulos de módulos
             inicializarIconosTitulosModulos();
-            
-            // Actualizar visibilidad de módulos al iniciar
-            await actualizarVisibilidadModulos();
             try {
                 const menuToggleBtn = document.getElementById('menuToggleBtn');
                 const tabsMenu = document.getElementById('tabsMenu');
@@ -26448,6 +26444,7 @@
                     mostrarToast('Error al inicializar la aplicación. Por favor, recarga la página.', 'error', 'Error', 5000);
                 }
             }
+            });
         }
 
         // ============================================
