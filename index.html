@@ -1864,79 +1864,58 @@
         #ocupacion .resumen-ocupacion-map .resumen-item.pct { background: rgba(117, 187, 33, 0.1); border-color: rgba(117, 187, 33, 0.3); }
         #ocupacion .resumen-ocupacion-map .resumen-item .valor { font-size: 1.5rem; font-weight: 700; }
         #ocupacion .resumen-ocupacion-map .resumen-item .etiqueta { font-size: 0.75rem; color: var(--text-tertiary); }
-        /* Vista fija: el mapa se escala para caber sin scroll (JS: ajustarMapaOcupacionAVista) */
-        #ocupacionMapaVista {
-            width: 100%;
-            height: clamp(300px, calc(100vh - 240px), 78vh);
-            min-height: 300px;
-            overflow: hidden;
-            position: relative;
-            border-radius: 14px;
-            background: var(--bg-tertiary);
-            border: 1px solid var(--border-color);
-        }
-        #ocupacionMapaEscala {
-            position: absolute;
-            left: 0;
-            right: 0;
-            top: 4px;
-            width: 100%;
-            box-sizing: border-box;
-            padding: 0 6px;
-            transform-origin: top center;
-            will-change: transform;
-        }
+        /* Mapa del edificio: mismo tamaño y comportamiento que index.html (.building-map-edificio) */
         #ocupacion .building-map-edificio {
             display: flex;
             flex-direction: column-reverse;
-            gap: 10px;
-            padding: 14px 12px 14px 68px;
-            margin: 0 auto;
+            gap: 8px;
+            padding: 14px 14px 14px 62px;
             width: 100%;
             max-width: 100%;
             box-sizing: border-box;
             background: linear-gradient(120deg, var(--bg-tertiary) 60%, rgba(117, 187, 33, 0.08) 100%);
-            border-radius: 14px;
+            border-radius: 12px;
+            max-height: 52vh;
+            overflow-y: auto;
+            overflow-x: auto;
             border: 1px solid var(--border-color);
         }
         #ocupacion .building-map-edificio .floor-row {
             display: grid;
-            grid-template-columns: repeat(15, minmax(0, 1fr));
-            width: 100%;
-            gap: 5px;
-            padding: 8px;
+            grid-template-columns: repeat(15, 1fr);
+            gap: 3px;
+            padding: 7px;
             background: var(--bg-secondary);
-            border-radius: 8px;
+            border-radius: 6px;
             border: 1.5px solid var(--border-color);
             position: relative;
         }
         #ocupacion .building-map-edificio .floor-row::before {
             content: attr(data-floor);
             position: absolute;
-            left: -58px;
+            left: -48px;
             top: 50%;
             transform: translateY(-50%);
             background: linear-gradient(90deg, var(--primary), var(--primary-dark));
             color: white;
-            padding: 5px 11px;
+            padding: 3px 8px;
             border-radius: 8px;
-            font-size: 0.875rem;
+            font-size: 0.75rem;
             font-weight: 700;
         }
         #ocupacion .building-map-edificio .unit-cell {
             aspect-ratio: 1;
-            min-width: 0;
             border: 2px solid var(--border-color);
-            border-radius: 6px;
+            border-radius: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: clamp(0.65rem, 0.35rem + 1.1vw, 0.95rem);
+            font-size: 0.65rem;
             font-weight: 700;
             cursor: pointer;
             background: var(--bg-primary);
             color: var(--text-tertiary);
-            min-height: 0;
+            min-height: 20px;
             transition: all 0.2s;
         }
         #ocupacion .building-map-edificio .unit-cell.occupied.habitacional {
@@ -1965,7 +1944,7 @@
             border-color: transparent !important;
             cursor: default;
             visibility: hidden;
-            min-height: 0;
+            min-height: 20px;
             pointer-events: none;
         }
         #ocupacion .building-map-edificio .unit-cell.occupied.new-resident {
@@ -1974,9 +1953,9 @@
             border-color: #9b59b6 !important;
         }
         #ocupacion .building-map-edificio .unit-cell.occupied.rental-contract {
-            border: 3px solid #ffa502 !important;
-            outline: 2px solid rgba(255, 165, 2, 0.55);
-            outline-offset: -2px;
+            border: 2px solid #ffa502 !important;
+            outline: 1.5px solid rgba(255, 165, 2, 0.6);
+            outline-offset: -1px;
         }
         #ocupacion .building-map-edificio .unit-cell:hover {
             filter: brightness(1.1);
@@ -5343,11 +5322,7 @@
                 <div style="margin-bottom: 10px;">
                     <input type="text" id="buildingMapFilterOcupacion" class="form-input" placeholder="🔍 Filtrar por número de unidad, uso, residente, estacionamiento, bodega..." style="width: 100%; max-width: 400px; padding: 0.5rem 0.75rem; font-size: 0.875rem;">
                 </div>
-                <div id="ocupacionMapaVista" aria-label="Mapa del edificio ajustado a la pantalla">
-                    <div id="ocupacionMapaEscala">
-                        <div class="building-map-edificio" id="buildingMapOcupacion"></div>
-                    </div>
-                </div>
+                <div class="building-map-edificio" id="buildingMapOcupacion"></div>
                 <div style="margin-top: 15px; display: flex; justify-content: flex-end;">
                     <a href="vinculacion-comunidad.html#building" target="_blank" rel="noopener" class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 12px; text-decoration: none;">
                         📄 PDF AssetPlan — Arrendatarios 2 sem. (abre Vinculación)
@@ -7036,8 +7011,6 @@
                         }
                     } else if (tabName === 'ocupacion') {
                         if (typeof cargarUnidadesOcupacion === 'function') cargarUnidadesOcupacion();
-                        setTimeout(function() { if (typeof scheduleAjustarMapaOcupacion === 'function') scheduleAjustarMapaOcupacion(); }, 200);
-                        setTimeout(function() { if (typeof scheduleAjustarMapaOcupacion === 'function') scheduleAjustarMapaOcupacion(); }, 500);
                     } else if (tabName === 'personalizacion') {
                         if (typeof cargarPersonalizacion === 'function') {
                             cargarPersonalizacion();
@@ -17567,43 +17540,7 @@
             });
         }
 
-        var _ajustarMapaOcupacionTimer = null;
-        function ajustarMapaOcupacionAVista() {
-            var vista = document.getElementById('ocupacionMapaVista');
-            var escala = document.getElementById('ocupacionMapaEscala');
-            var map = document.getElementById('buildingMapOcupacion');
-            if (!vista || !escala || !map) return;
-            escala.style.transform = 'scale(1)';
-            escala.style.width = '100%';
-            map.style.width = '100%';
-            map.style.maxWidth = '100%';
-            var vh = Math.max(vista.clientHeight - 8, 1);
-            var mh = map.offsetHeight || map.scrollHeight;
-            if (mh < 1) return;
-            var s = mh > vh ? (vh / mh) * 0.98 : 1;
-            if (s > 1) s = 1;
-            escala.style.transform = 'scale(' + s + ')';
-            escala.style.transformOrigin = 'top center';
-        }
-        function scheduleAjustarMapaOcupacion() {
-            clearTimeout(_ajustarMapaOcupacionTimer);
-            _ajustarMapaOcupacionTimer = setTimeout(function() {
-                requestAnimationFrame(function() {
-                    requestAnimationFrame(function() { ajustarMapaOcupacionAVista(); });
-                });
-            }, 15);
-        }
-
         function updateBuildingMapOcupacion() {
-            var vistaInit = document.getElementById('ocupacionMapaVista');
-            if (vistaInit && !vistaInit._ocupacionMapaResize) {
-                vistaInit._ocupacionMapaResize = true;
-                var refit = function() { scheduleAjustarMapaOcupacion(); };
-                window.addEventListener('resize', refit);
-                if (typeof ResizeObserver !== 'undefined') {
-                    try { new ResizeObserver(refit).observe(vistaInit); } catch (e) {}
-                }
-            }
             var buildingMap = document.getElementById('buildingMapOcupacion');
             var filterInput = document.getElementById('buildingMapFilterOcupacion');
             if (!buildingMap) return;
@@ -17725,7 +17662,6 @@
                 filterEl._ocupacionBound = true;
                 filterEl.addEventListener('input', function() { updateBuildingMapOcupacion(); });
             }
-            scheduleAjustarMapaOcupacion();
         }
 
         function showUnitDetailModalOcupacion(unit) {
