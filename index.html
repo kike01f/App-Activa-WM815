@@ -460,26 +460,6 @@
             box-sizing: border-box;
         }
 
-        /* Tarjetas resumen Postventa (más compactas) */
-        #postventaStatsWrap.postventa-stats-compact {
-            grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)) !important;
-            gap: 0.45rem !important;
-            margin-bottom: 1rem !important;
-        }
-        #postventaStatsWrap.postventa-stats-compact .summary-box {
-            padding: 0.45rem 0.55rem !important;
-            margin-bottom: 0 !important;
-            border-radius: var(--radius) !important;
-        }
-        #postventaStatsWrap.postventa-stats-compact .summary-box .amount {
-            font-size: 1.05rem !important;
-            letter-spacing: -0.02em;
-            line-height: 1.15;
-        }
-        #postventaStatsWrap.postventa-stats-compact .summary-box:hover {
-            transform: translateY(-1px) scale(1.01);
-        }
-
         @keyframes slideInRight {
             from {
                 opacity: 0;
@@ -5411,84 +5391,85 @@
 
         <!-- MÓDULO POSTVENTA -->
         <div id="postventa" class="tab-content">
-            <div style="margin-bottom: 1.5rem;">
-                <h2 id="tituloPostventa" style="margin: 0; color: var(--gray-900); font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 0.75rem;">
-                    <span style="display: inline-flex; align-items: center; width: 1.75rem; height: 1.75rem;"></span> Postventa
+            <div style="margin-bottom: 0.85rem;">
+                <h2 id="tituloPostventa" style="margin: 0; color: var(--gray-900); font-size: 1.35rem; font-weight: 700; display: flex; align-items: center; gap: 0.65rem;">
+                    <span style="display: inline-flex; align-items: center; width: 1.5rem; height: 1.5rem;"></span> Postventa
                 </h2>
-                <p style="color: var(--gray-600); font-size: 0.875rem; margin: 0.5rem 0 0 0;">Seguimiento de observaciones, evidencias y estados por registro.</p>
             </div>
 
-            <div class="form-section" style="margin-bottom: 1rem;">
-                <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700;">Registrar o editar registro</h3>
+            <div id="postventaCumplimientoWrap" style="display: none !important;" aria-hidden="true"></div>
+
+            <div class="form-section" style="margin-bottom: 0.75rem; padding: 0.55rem 0.85rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem;">
+                <div id="postventaStatsWrap" style="font-size: 0.8125rem; line-height: 1.45; color: var(--text-primary); flex: 1; min-width: 200px;"></div>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;">
+                    <button type="button" class="btn btn-primary" id="btnExportarExcelPostventa" style="padding: 0.4rem 0.75rem; font-size: 0.8125rem;">📊 Excel</button>
+                    <label class="btn btn-secondary" style="cursor: pointer; margin: 0; padding: 0.4rem 0.75rem; font-size: 0.8125rem;">
+                        <input type="file" id="inputImportPostventa" accept=".xlsx,.xls" style="display: none;">
+                        📥 Importar
+                    </label>
+                </div>
+            </div>
+
+            <div class="form-section" style="margin-bottom: 0.75rem; padding: 0.65rem 0.9rem;">
+                <h3 style="margin: 0 0 0.45rem 0; font-size: 0.9375rem; font-weight: 700;">Nuevo o editar registro</h3>
                 <form id="formPostventa">
                     <input type="hidden" id="postventaEditId" value="">
-                    <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.5rem;">
-                        <div class="form-group" style="margin-bottom: 0.5rem;">
-                            <label for="postventaFecha" style="margin-bottom: 0.25rem; font-size: 0.875rem;">Fecha *</label>
-                            <input type="date" id="postventaFecha" required class="form-input" style="padding: 0.5rem; font-size: 0.875rem; max-width: 200px;">
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: flex-end; margin-bottom: 0.4rem;">
+                        <div class="form-group" style="margin: 0;">
+                            <label for="postventaFecha" style="font-size: 0.72rem; margin-bottom: 0.15rem;">Fecha *</label>
+                            <input type="date" id="postventaFecha" required class="form-input" style="padding: 0.4rem 0.5rem; font-size: 0.8125rem; width: auto;">
                         </div>
-                        <div class="form-group" style="margin-bottom: 0.5rem;">
-                            <label for="postventaEstado" style="margin-bottom: 0.25rem; font-size: 0.875rem;">Estado *</label>
-                            <select id="postventaEstado" required class="form-input" style="padding: 0.5rem; font-size: 0.875rem; max-width: 320px;">
+                        <div class="form-group" style="margin: 0;">
+                            <label for="postventaEstado" style="font-size: 0.72rem; margin-bottom: 0.15rem;">Estado *</label>
+                            <select id="postventaEstado" required class="form-input" style="padding: 0.4rem 0.5rem; font-size: 0.8125rem; min-width: 150px;">
                                 <option value="pendiente">⚠️ Pendiente</option>
                                 <option value="en_proceso">🔄 En proceso</option>
                                 <option value="terminado">✅ Terminado</option>
                                 <option value="no_aplica">❌ No Aplica</option>
                             </select>
                         </div>
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0.5rem;">
-                        <label for="postventaObservacion" style="margin-bottom: 0.25rem; font-size: 0.875rem;">Observación *</label>
-                        <textarea id="postventaObservacion" rows="3" required class="form-input" placeholder="Observación o seguimiento..." spellcheck="true" lang="es" style="width: 100%; padding: 0.5rem; font-size: 0.875rem; line-height: 1.4;"></textarea>
-                    </div>
-                    <div class="form-group" style="margin-bottom: 0.5rem;">
-                        <label for="postventaEvidencias" style="margin-bottom: 0.25rem; font-size: 0.875rem;">Evidencia (imagen o video)</label>
-                        <input type="file" id="postventaEvidencias" multiple accept="image/*,video/*" style="padding: 0.5rem; font-size: 0.875rem; width: 100%; max-width: 480px;">
-                        <small style="color: var(--gray-500); font-size: 0.75rem; margin-top: 0.25rem; display: block;">Varios archivos mediante Storage. Sin Storage, adjunte URLs vía importación Excel.</small>
-                    </div>
-                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem;">
-                        <button type="submit" class="btn btn-primary" id="btnGuardarPostventa" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Guardar registro</button>
-                        <button type="button" class="btn btn-secondary" id="btnCancelarEdicionPostventa" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Limpiar / Cancelar edición</button>
+                        <div class="form-group" style="margin: 0; flex: 1; min-width: 160px;">
+                            <label for="postventaObservacion" style="font-size: 0.72rem; margin-bottom: 0.15rem;">Observación *</label>
+                            <textarea id="postventaObservacion" rows="2" required class="form-input" placeholder="Texto…" spellcheck="true" lang="es" style="width: 100%; padding: 0.4rem 0.5rem; font-size: 0.8125rem; line-height: 1.35; min-height: 2.5rem;"></textarea>
+                        </div>
+                        <div class="form-group" style="margin: 0;">
+                            <label for="postventaEvidencias" style="font-size: 0.72rem; margin-bottom: 0.15rem;">Evidencia</label>
+                            <input type="file" id="postventaEvidencias" multiple accept="image/*,video/*" style="padding: 0.25rem 0; font-size: 0.75rem; max-width: 200px;">
+                        </div>
+                        <button type="submit" class="btn btn-primary" id="btnGuardarPostventa" style="padding: 0.4rem 0.75rem; font-size: 0.8125rem;">Guardar</button>
+                        <button type="button" class="btn btn-secondary" id="btnCancelarEdicionPostventa" style="padding: 0.4rem 0.65rem; font-size: 0.8125rem;">Limpiar</button>
                     </div>
                 </form>
             </div>
 
-            <div class="form-section" style="margin-bottom: 1rem;">
-                <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700;">Importar y exportar</h3>
-                <p style="color: var(--gray-600); font-size: 0.8rem; margin: 0 0 0.75rem 0; line-height: 1.45;">
-                    Genere un reporte Excel con resumen y detalle. Importe registros desde .xlsx / .xls (Fecha, Observación, Estado opcional, URLs evidencia).
-                </p>
-                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
-                    <button type="button" class="btn btn-primary" id="btnExportarExcelPostventa" style="padding: 0.5rem 1rem; font-size: 0.875rem;">📊 Exportar Excel</button>
-                    <label class="btn btn-secondary" style="cursor: pointer; margin: 0; padding: 0.5rem 1rem; font-size: 0.875rem;">
-                        <input type="file" id="inputImportPostventa" accept=".xlsx,.xls" style="display: none;">
-                        📥 Importar desde Excel
-                    </label>
+            <div class="table-section" style="margin-top: 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.45rem;">
+                    <h3 style="margin: 0; font-size: 1.05rem;">Registros</h3>
+                    <span id="postventaFiltroContador" style="font-size: 0.8rem; color: var(--gray-600);"></span>
                 </div>
-            </div>
-
-            <div id="postventaStatsWrap" class="postventa-stats-compact" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 0.45rem; margin-bottom: 1rem;"></div>
-
-            <div id="postventaCumplimientoWrap" class="form-section" style="display: none !important;" aria-hidden="true"></div>
-
-            <div class="form-section" style="margin-bottom: 1rem;">
-                <h3 style="margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 700;">Estado masivo</h3>
-                <p style="color: var(--gray-600); font-size: 0.8rem; margin: 0 0 0.75rem 0;">Marque filas en la tabla y aplique un estado a todas.</p>
-                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem;">
-                    <select id="postventaBulkEstado" class="form-input" style="padding: 0.5rem 0.75rem; font-size: 0.875rem; min-width: 220px; max-width: 100%;">
-                        <option value="pendiente">⚠️ Pendiente</option>
-                        <option value="en_proceso">🔄 En proceso</option>
-                        <option value="terminado">✅ Terminado</option>
-                        <option value="no_aplica">❌ No Aplica</option>
-                    </select>
-                    <button type="button" class="btn btn-primary" id="btnPostventaAplicarEstado" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Aplicar a seleccionadas</button>
-                    <button type="button" class="btn btn-secondary" id="btnPostventaDeselectAll" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Quitar selección</button>
-                </div>
-            </div>
-
-            <div class="table-section">
-                <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
-                    <h3 style="margin: 0;">Registros</h3>
+                <div class="form-section" style="margin-bottom: 0.5rem; padding: 0.5rem 0.75rem;">
+                    <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.4rem 0.5rem;">
+                        <input type="search" id="postventaFiltroBuscar" class="form-input" title="Buscar en observación o fecha" placeholder="🔍 Buscar…" autocomplete="off" style="padding: 0.38rem 0.5rem; font-size: 0.8125rem; flex: 1; min-width: 120px; max-width: 220px;">
+                        <select id="postventaFiltroEstado" class="form-input" title="Filtrar por estado" style="padding: 0.38rem 0.45rem; font-size: 0.8125rem; min-width: 118px;">
+                            <option value="todos">Estado: todos</option>
+                            <option value="pendiente">⚠️ Pend.</option>
+                            <option value="en_proceso">🔄 Proc.</option>
+                            <option value="terminado">✅ Term.</option>
+                            <option value="no_aplica">❌ N/A</option>
+                        </select>
+                        <input type="date" id="postventaFiltroDesde" class="form-input" title="Desde" style="padding: 0.38rem 0.4rem; font-size: 0.8125rem; width: auto;">
+                        <input type="date" id="postventaFiltroHasta" class="form-input" title="Hasta" style="padding: 0.38rem 0.4rem; font-size: 0.8125rem; width: auto;">
+                        <button type="button" class="btn btn-secondary" id="btnPostventaLimpiarFiltros" style="padding: 0.35rem 0.55rem; font-size: 0.75rem;" title="Limpiar búsqueda y filtros">Limpiar</button>
+                        <span style="align-self: center; color: var(--border-color); user-select: none;">|</span>
+                        <select id="postventaBulkEstado" class="form-input" title="Estado para filas marcadas" style="padding: 0.38rem 0.45rem; font-size: 0.8125rem; min-width: 118px;">
+                            <option value="pendiente">⚠️ Pend.</option>
+                            <option value="en_proceso">🔄 Proc.</option>
+                            <option value="terminado">✅ Term.</option>
+                            <option value="no_aplica">❌ N/A</option>
+                        </select>
+                        <button type="button" class="btn btn-primary" id="btnPostventaAplicarEstado" style="padding: 0.35rem 0.6rem; font-size: 0.75rem;">Aplicar</button>
+                        <button type="button" class="btn btn-secondary" id="btnPostventaDeselectAll" style="padding: 0.35rem 0.5rem; font-size: 0.75rem;">Quitar ✓</button>
+                    </div>
                 </div>
                 <div style="overflow-x: auto;">
                     <table id="tablaPostventa" style="width: 100%; border-collapse: collapse; background: var(--bg-primary); border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); transition: background-color 0.3s ease;">
@@ -6384,7 +6365,8 @@
             espacios: 'Espacios Comunes', multas: 'Multas', morosos: 'Morosos',
             lecturasAguaCaliente: 'Lecturas Agua', caja: 'Caja Chica', mantenciones: 'Mantenciones',
             'visitas-extraordinarias': 'Visitas Extraordinarias', pagosAseo: 'Pagos Aseo', 'pagos-aseo': 'Pagos Aseo',
-            nomina: 'Nómina', 'nomina-reemplazos': 'Reemplazos Nómina', insumos: 'Insumos'
+            nomina: 'Nómina', 'nomina-reemplazos': 'Reemplazos Nómina', insumos: 'Insumos',
+            postventa: 'Postventa'
         };
         const NOTIF_ICONOS = {
             mudanzas: '\uD83D\uDCE6',
@@ -6400,7 +6382,8 @@
             pagosAseo: '\uD83E\uDDF9',
             nomina: '\uD83D\uDC77',
             'nomina-reemplazos': '\uD83D\uDD04',
-            insumos: '\uD83D\uDCCB'
+            insumos: '\uD83D\uDCCB',
+            postventa: '\uD83D\uDCCB'
         };
         const NOTIF_LIMIT = 80;
 
@@ -15846,6 +15829,30 @@
             'postventa': { nombre: 'Postventa', icono: '📋', tab: 'postventa' }
         };
 
+        /** Pestaña asociada a cada tarjeta del panel de control (clic → ir al módulo). */
+        function dashboardTarjetaTabPorTitulo(title) {
+            if (!title) return null;
+            var map = {
+                'Mudanzas': 'mudanzas',
+                'Aperturas': 'aperturas',
+                'Tarjetas/TAG': 'tarjetas',
+                'Espacios': 'espacios',
+                'Multas': 'multas',
+                'Morosos': 'morosos',
+                'Caja Chica': 'caja',
+                'Mantenciones': 'mantenciones',
+                'Proveedores': 'mantenciones',
+                'Aseos Pendientes': 'pagos-aseo',
+                'Pedido de Insumos': 'insumos',
+                'Lecturas Agua Caliente': 'lecturasAgua',
+                'Última Nómina': 'nomina',
+                'Postventa': 'postventa',
+                'Balance Neto': 'dashboard'
+            };
+            return map[title] || null;
+        }
+        window.dashboardTarjetaTabPorTitulo = dashboardTarjetaTabPorTitulo;
+
         // Función para obtener módulos visibles (por defecto todos)
         async function obtenerModulosVisibles() {
             try {
@@ -17680,34 +17687,11 @@
                 });
                 var total = Array.isArray(registrosPostventa) ? registrosPostventa.length : 0;
                 if (total === 0) {
-                    wrap.innerHTML = '<div class="summary-box" style="grid-column:1/-1;background:linear-gradient(135deg,#64748b 0%,#475569 100%);color:#fff;margin-bottom:0;text-align:center;padding:0.65rem 0.85rem;"><div style="font-size:0.78rem;opacity:0.95">Sin registros</div><div style="font-size:0.7rem;opacity:0.88;margin-top:0.2rem">Agregue o importe Excel.</div></div>';
+                    wrap.innerHTML = '<span style="color:var(--gray-600)">Sin registros — importe Excel o agregue abajo.</span>';
                     cum.innerHTML = '<p style="margin:0;color:var(--gray-600);font-size:0.875rem;">Sin datos de cumplimiento hasta que existan registros.</p>';
                     return;
                 }
-                var grad = {
-                    total: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
-                    pendiente: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
-                    en_proceso: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
-                    terminado: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
-                    no_aplica: 'linear-gradient(135deg, #64748b 0%, #475569 100%)'
-                };
-                var cards = [
-                    { k: 'total', label: 'Total registros', v: total },
-                    { k: 'pendiente', label: 'Pendiente', v: st.pendiente },
-                    { k: 'en_proceso', label: 'En proceso', v: st.en_proceso },
-                    { k: 'terminado', label: 'Terminado', v: st.terminado },
-                    { k: 'no_aplica', label: 'No aplica', v: st.no_aplica }
-                ];
-                wrap.innerHTML = cards.map(function (x) {
-                    var cant = Number(x.v);
-                    if (!isFinite(cant)) cant = 0;
-                    var pct = total > 0 ? Math.round((cant * 100) / total) : 0;
-                    var pie = x.k === 'total' ? '100% del universo' : (String(pct) + '% del total');
-                    return '<div class="summary-box" style="background:' + grad[x.k] + ';color:#fff;margin-bottom:0;">' +
-                        '<div style="font-size:0.68rem;opacity:0.9;margin-bottom:0.2rem;line-height:1.2;">' + escHtml(x.label) + '</div>' +
-                        '<div class="amount">' + cant + '</div>' +
-                        '<div style="font-size:0.65rem;opacity:0.85;margin-top:0.2rem;line-height:1.2;">' + escHtml(pie) + '</div></div>';
-                }).join('');
+                wrap.innerHTML = '<strong style="font-size:0.9rem">' + total + '</strong> total · ⚠️ ' + st.pendiente + ' · 🔄 ' + st.en_proceso + ' · ✅ ' + st.terminado + ' · ❌ ' + st.no_aplica;
                 var terminado = st.terminado;
                 var aplicables = total - st.no_aplica;
                 var pctTotal = total ? Math.round(100 * terminado / total) : 0;
@@ -17720,12 +17704,56 @@
                     '<div style="color:var(--gray-600);margin-top:0.35rem;">Registros abiertos (pendiente o en proceso): <strong>' + abiertos + '</strong></div></div>';
             }
 
+            function postventaObtenerListaFiltrada(sorted) {
+                var qEl = document.getElementById('postventaFiltroBuscar');
+                var estEl = document.getElementById('postventaFiltroEstado');
+                var desdeEl = document.getElementById('postventaFiltroDesde');
+                var hastaEl = document.getElementById('postventaFiltroHasta');
+                var q = qEl ? String(qEl.value || '').trim().toLowerCase() : '';
+                var est = estEl ? (estEl.value || 'todos') : 'todos';
+                var desde = desdeEl && desdeEl.value ? desdeEl.value : '';
+                var hasta = hastaEl && hastaEl.value ? hastaEl.value : '';
+                return sorted.filter(function (r) {
+                    var k = r.estado;
+                    if (k !== 'pendiente' && k !== 'en_proceso' && k !== 'terminado' && k !== 'no_aplica') k = 'pendiente';
+                    if (est !== 'todos' && k !== est) return false;
+                    if (q) {
+                        var obs = String(postventaCorregirOrtografiaObservacion(r.observacion || '')).toLowerCase();
+                        var fe = String(r.fecha || '').toLowerCase();
+                        var feDMY = fe;
+                        var m = fe.match(/^(\d{4})-(\d{2})-(\d{2})/);
+                        if (m) feDMY = m[3] + '-' + m[2] + '-' + m[1];
+                        if (obs.indexOf(q) === -1 && fe.indexOf(q) === -1 && feDMY.indexOf(q) === -1) return false;
+                    }
+                    var fStr = String(r.fecha || '');
+                    if (desde && fStr && fStr < desde) return false;
+                    if (hasta && fStr && fStr > hasta) return false;
+                    return true;
+                });
+            }
+
             function renderTablaPostventa() {
                 var tbody = document.getElementById('tbodyPostventa');
                 if (!tbody) return;
-                var list = registrosPostventa.slice().sort(function (a, b) {
+                var sorted = registrosPostventa.slice().sort(function (a, b) {
                     return (b.fecha || '').localeCompare(a.fecha || '') || String(b.id || '').localeCompare(String(a.id || ''));
                 });
+                var list = postventaObtenerListaFiltrada(sorted);
+                var cnt = document.getElementById('postventaFiltroContador');
+                if (cnt) {
+                    if (!sorted.length) cnt.textContent = '';
+                    else if (list.length === sorted.length) cnt.textContent = sorted.length + ' registro' + (sorted.length !== 1 ? 's' : '');
+                    else cnt.textContent = 'Mostrando ' + list.length + ' de ' + sorted.length;
+                }
+                if (!list.length && sorted.length) {
+                    tbody.innerHTML = '<tr><td colspan="6" style="text-align:center;padding:1.25rem 0.75rem;color:var(--gray-600);font-size:0.875rem;">Ningún registro coincide con los filtros. <button type="button" class="btn btn-secondary btn-sm" id="postventaLimpiarFiltrosMsg" style="margin-left:0.35rem;">Limpiar filtros</button></td></tr>';
+                    var btnM = document.getElementById('postventaLimpiarFiltrosMsg');
+                    if (btnM) btnM.addEventListener('click', function () { window.postventaLimpiarFiltrosYRender(); });
+                    var selAll = document.getElementById('postventaSelectAll');
+                    if (selAll) { selAll.checked = false; selAll.indeterminate = false; }
+                    actualizarEstadisticasPostventa();
+                    return;
+                }
                 tbody.innerHTML = list.map(function (r) {
                     var ev = (r.evidencias || []).map(function (e) {
                         var u = escHtml(e.url);
@@ -17770,8 +17798,25 @@
                     if (ids.indexOf(r.id) !== -1) r.estado = estado;
                 });
                 await guardarPostventaFirestore();
+                postventaResetFiltros();
                 renderTablaPostventa();
                 mostrarAlerta('Estado actualizado en ' + ids.length + ' registro(s).', 'Postventa');
+            };
+
+            function postventaResetFiltros() {
+                var b = document.getElementById('postventaFiltroBuscar');
+                var e = document.getElementById('postventaFiltroEstado');
+                var d = document.getElementById('postventaFiltroDesde');
+                var h = document.getElementById('postventaFiltroHasta');
+                if (b) b.value = '';
+                if (e) e.value = 'todos';
+                if (d) d.value = '';
+                if (h) h.value = '';
+            }
+
+            window.postventaLimpiarFiltrosYRender = function () {
+                postventaResetFiltros();
+                renderTablaPostventa();
             };
 
             function limpiarFormPostventa() {
@@ -17786,7 +17831,7 @@
                 if (est) est.value = 'pendiente';
                 if (file) file.value = '';
                 var gb = document.getElementById('btnGuardarPostventa');
-                if (gb) gb.textContent = 'Guardar registro';
+                if (gb) gb.textContent = 'Guardar';
             }
 
             window.cargarPostventa = async function () {
@@ -17851,9 +17896,31 @@
                         var sa = document.getElementById('postventaSelectAll');
                         if (sa) { sa.checked = false; sa.indeterminate = false; }
                     });
+                    var pvFilTimer;
+                    var pvBus = document.getElementById('postventaFiltroBuscar');
+                    if (pvBus && !pvBus.dataset.pvFilBound) {
+                        pvBus.dataset.pvFilBound = '1';
+                        pvBus.addEventListener('input', function () {
+                            clearTimeout(pvFilTimer);
+                            pvFilTimer = setTimeout(function () { renderTablaPostventa(); }, 220);
+                        });
+                    }
+                    ['postventaFiltroEstado', 'postventaFiltroDesde', 'postventaFiltroHasta'].forEach(function (fid) {
+                        var fel = document.getElementById(fid);
+                        if (fel && !fel.dataset.pvFilBound) {
+                            fel.dataset.pvFilBound = '1';
+                            fel.addEventListener('change', function () { renderTablaPostventa(); });
+                        }
+                    });
+                    var btnLf = document.getElementById('btnPostventaLimpiarFiltros');
+                    if (btnLf && !btnLf.dataset.pvFilBound) {
+                        btnLf.dataset.pvFilBound = '1';
+                        btnLf.addEventListener('click', function () { window.postventaLimpiarFiltrosYRender(); });
+                    }
                 }
                 var fechaInp = document.getElementById('postventaFecha');
                 if (fechaInp && !fechaInp.value) fechaInp.value = new Date().toISOString().slice(0, 10);
+                postventaResetFiltros();
                 renderTablaPostventa();
             };
 
@@ -17901,6 +17968,7 @@
                 var idx = registrosPostventa.findIndex(function (x) { return x.id === id; });
                 if (idx >= 0) registrosPostventa[idx] = rec; else registrosPostventa.push(rec);
                 await guardarPostventaFirestore();
+                postventaResetFiltros();
                 renderTablaPostventa();
                 limpiarFormPostventa();
                 mostrarAlerta('Registro guardado.', 'Postventa');
@@ -17918,7 +17986,7 @@
                 if (o) o.value = r.observacion || '';
                 if (est) est.value = POSTVENTA_ESTADOS[r.estado] ? r.estado : 'pendiente';
                 var gb = document.getElementById('btnGuardarPostventa');
-                if (gb) gb.textContent = 'Actualizar registro';
+                if (gb) gb.textContent = 'Actualizar';
                 window.scrollTo({ top: document.getElementById('postventa').offsetTop - 20, behavior: 'smooth' });
             };
 
@@ -17934,6 +18002,7 @@
                 }
                 registrosPostventa = registrosPostventa.filter(function (x) { return x.id !== rid; });
                 await guardarPostventaFirestore();
+                postventaResetFiltros();
                 renderTablaPostventa();
                 limpiarFormPostventa();
             };
@@ -18131,6 +18200,7 @@
                         n++;
                     }
                     await guardarPostventaFirestore();
+                    postventaResetFiltros();
                     renderTablaPostventa();
                     var msg = 'Importados: ' + n + ' registro(s). Hoja: "' + sheetName + '".';
                     if (omitidas.length) {
@@ -23590,6 +23660,30 @@
             promesas.push(obtenerDatosMes('lecturasAguaCaliente').then(d => modulosData.lecturasAguaCaliente = d));
             
             await Promise.all(promesas);
+
+            let postventaPend = 0;
+            let postventaProc = 0;
+            let postventaAtencion = 0;
+            let postventaActividad = 0;
+            if (modulosVisibles.includes('postventa')) {
+                let pvRegs = [];
+                if (firebaseInitialized && db) {
+                    try {
+                        const pvSnap = await db.collection('comunidad').doc('postventa').get();
+                        if (pvSnap.exists) {
+                            const pvd = pvSnap.data();
+                            if (Array.isArray(pvd.registros)) pvRegs = pvd.registros;
+                        }
+                    } catch (pvE) { console.warn('Dashboard postventa:', pvE); }
+                }
+                postventaActividad = pvRegs.length;
+                pvRegs.forEach(function (r) {
+                    if (!r) return;
+                    if (r.estado === 'pendiente') postventaPend++;
+                    else if (r.estado === 'en_proceso') postventaProc++;
+                });
+                postventaAtencion = postventaPend + postventaProc;
+            }
             
             const { mudanzas, aperturas, tarjetas, espacios, multas, morosos, caja, mantenciones, proveedores, pagosAseo, insumos, lecturasAguaCaliente } = modulosData;
 
@@ -24218,6 +24312,28 @@
                 });
             }
 
+            if (modulosVisibles.includes('postventa') && postventaAtencion > 0) {
+                const esAlta = postventaAtencion >= 8;
+                stats.push({
+                    title: 'Postventa',
+                    value: postventaAtencion,
+                    subtitle: `${postventaPend} pendiente(s) · ${postventaProc} en proceso`,
+                    icon: 'postventa',
+                    iconClass: esAlta ? 'danger' : 'warning',
+                    gradient: esAlta
+                        ? 'linear-gradient(135deg, rgba(220, 38, 38, 0.15) 0%, rgba(220, 38, 38, 0.05) 100%)'
+                        : 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%)',
+                    semaforo: esAlta ? 'rojo' : 'amarillo'
+                });
+            }
+
+            stats.forEach(function (st) {
+                if (!st.onClickTab) {
+                    var t = dashboardTarjetaTabPorTitulo(st.title);
+                    if (t) st.onClickTab = t;
+                }
+            });
+
             // Exponer datos para Panel de Control 2 (gráficos interactivos y tarjetas)
             const mudanzasIngreso = mudanzas.filter(m => m.movimiento === 'ingreso').length;
             const mudanzasSalida = mudanzas.filter(m => m.movimiento === 'salida').length;
@@ -24246,9 +24362,24 @@
                     mantenciones: mantenciones.length,
                     pagosAseo: pagosAseo.length,
                     insumos: insumos.length,
-                    lecturasAgua: (lecturasAguaCaliente || []).length
+                    lecturasAgua: (lecturasAguaCaliente || []).length,
+                    postventa: postventaActividad
                 }
             };
+
+            try {
+                if (modulosVisibles.includes('postventa') && postventaAtencion > 0) {
+                    var _pvSig = 'pv_' + postventaPend + '_' + postventaProc;
+                    if (sessionStorage.getItem('notif_postventa_sig') !== _pvSig) {
+                        sessionStorage.setItem('notif_postventa_sig', _pvSig);
+                        if (typeof registrarMovimiento === 'function') {
+                            registrarMovimiento('alerta', 'postventa', 'Postventa: ' + postventaPend + ' pendiente(s) y ' + postventaProc + ' en proceso. Revisar el módulo.');
+                        }
+                    }
+                } else {
+                    sessionStorage.removeItem('notif_postventa_sig');
+                }
+            } catch (_pvN) { /* ignore */ }
 
             const statsDiv = document.getElementById('dashboardStats');
             if (statsDiv) {
@@ -24302,11 +24433,18 @@
                 else if (stat.title === 'Última Nómina') iconoTipo = 'nomina';
                 else if (stat.title === 'Proveedores') iconoTipo = 'proveedores';
                 else if (stat.title === 'Balance Neto') iconoTipo = 'dashboard';
+                else if (stat.title === 'Postventa') iconoTipo = 'postventa';
                 
                 const iconoSVG = obtenerIconoSVG(iconoTipo);
+                const _bg = stat.gradient || 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)';
+                const _tab = stat.onClickTab ? String(stat.onClickTab).replace(/\\/g, '').replace(/'/g, '') : '';
+                const _cardStyle = `background: ${_bg}; animation-delay: ${index * 0.1}s; position: relative;${_tab ? ' cursor: pointer;' : ''}`;
+                const _cardClick = _tab
+                    ? ` role="button" tabindex="0" onclick="if(typeof window.showTab==='function')window.showTab('${_tab}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();if(typeof window.showTab==='function')window.showTab('${_tab}');}" title="Ir al módulo"`
+                    : '';
                 
                 return `
-                <div class="dashboard-card" style="background: ${stat.gradient || 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)'}; animation-delay: ${index * 0.1}s; position: relative;">
+                <div class="dashboard-card" style="${_cardStyle}"${_cardClick}>
                     ${semaforoHTML}
                     <div class="dashboard-card-header">
                         <div class="dashboard-card-icon ${stat.iconClass}" style="width: 2.5rem; height: 2.5rem; font-size: 1.25rem; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">${iconoSVG}</div>
@@ -24335,7 +24473,7 @@
             }, 300);
             
             // Actualizar expresión de Arturito según el estado del dashboard
-            actualizarExpresionArturito(mantencionesVencidas, balanceNeto, totalMudanzas, totalAperturas);
+            actualizarExpresionArturito(mantencionesVencidas, balanceNeto, totalMudanzas, totalAperturas, postventaAtencion);
             
             // Cargar tendencias mensuales y alertas automáticas después (no bloquean la carga inicial)
             if (!window.mesEnConsulta) {
@@ -24394,6 +24532,7 @@
                     docIds.push(key + '_' + mesConsulta);
                 }
             });
+            if (modulosVisibles.indexOf('postventa') !== -1) docIds.push('postventa');
             docIds.push('lecturasAguaCaliente_' + mesConsulta);
             if (modulosVisibles.indexOf('mantenciones') !== -1) docIds.push('proveedores');
             window._dashboardUnsubscribes = [];
@@ -24443,6 +24582,26 @@
                     balanceNetoEl.style.color = ((d.balanceNeto || 0) >= 0 ? 'white' : '#fecaca');
                 }
 
+                var kpiRowEl = document.getElementById('dashboard2KpiRow');
+                if (kpiRowEl && !kpiRowEl.dataset.tabClickBound) {
+                    kpiRowEl.dataset.tabClickBound = '1';
+                    var kpiTabList = ['dashboard', 'caja', 'dashboard'];
+                    var kpiHintList = ['Ver panel de control', 'Ir a Caja chica', 'Ver panel de control'];
+                    var kpiNodes = kpiRowEl.querySelectorAll('.dashboard2-kpi');
+                    for (var kix = 0; kix < kpiNodes.length && kix < kpiTabList.length; kix++) {
+                        (function (tabGo, hint) {
+                            kpiNodes[kix].style.cursor = 'pointer';
+                            kpiNodes[kix].setAttribute('title', hint);
+                            kpiNodes[kix].setAttribute('role', 'button');
+                            kpiNodes[kix].setAttribute('tabindex', '0');
+                            kpiNodes[kix].onclick = function () { if (typeof window.showTab === 'function') window.showTab(tabGo); };
+                            kpiNodes[kix].onkeydown = function (ke) {
+                                if (ke.key === 'Enter' || ke.key === ' ') { ke.preventDefault(); if (typeof window.showTab === 'function') window.showTab(tabGo); }
+                            };
+                        })(kpiTabList[kix], kpiHintList[kix]);
+                    }
+                }
+
                 var mesEl = document.getElementById('dashboard2MesTexto');
                 if (mesEl) mesEl.textContent = d.nombreMes || '';
 
@@ -24472,10 +24631,12 @@
                                 semaforoHTML = '<div class="dashboard2-card-semaforo" style="background:' + colorSemaforo + '"></div>';
                             }
                             var iconTipo = stat.icon || 'dashboard';
-                            if (stat.title === 'Mudanzas') iconTipo = 'mudanzas'; else if (stat.title === 'Aperturas') iconTipo = 'aperturas'; else if (stat.title === 'Tarjetas/TAG') iconTipo = 'tarjetas'; else if (stat.title === 'Espacios') iconTipo = 'espacios'; else if (stat.title === 'Multas') iconTipo = 'multas'; else if (stat.title === 'Morosos') iconTipo = 'morosos'; else if (stat.title === 'Caja Chica') iconTipo = 'caja'; else if (stat.title === 'Mantenciones') iconTipo = 'mantenciones'; else if (stat.title === 'Aseos Pendientes') iconTipo = 'aseo'; else if (stat.title === 'Última Nómina') iconTipo = 'nomina'; else if (stat.title === 'Proveedores') iconTipo = 'proveedores';
+                            if (stat.title === 'Mudanzas') iconTipo = 'mudanzas'; else if (stat.title === 'Aperturas') iconTipo = 'aperturas'; else if (stat.title === 'Tarjetas/TAG') iconTipo = 'tarjetas'; else if (stat.title === 'Espacios') iconTipo = 'espacios'; else if (stat.title === 'Multas') iconTipo = 'multas'; else if (stat.title === 'Morosos') iconTipo = 'morosos'; else if (stat.title === 'Caja Chica') iconTipo = 'caja'; else if (stat.title === 'Mantenciones') iconTipo = 'mantenciones'; else if (stat.title === 'Aseos Pendientes') iconTipo = 'aseo'; else if (stat.title === 'Última Nómina') iconTipo = 'nomina'; else if (stat.title === 'Proveedores') iconTipo = 'proveedores'; else if (stat.title === 'Postventa') iconTipo = 'postventa'; else if (stat.title === 'Lecturas Agua Caliente') iconTipo = 'agua'; else if (stat.title === 'Pedido de Insumos') iconTipo = 'insumos';
                             var iconoSVG = typeof obtenerIconoSVG === 'function' ? obtenerIconoSVG(iconTipo) : '';
                             var sub = stat.subtitle ? '<div class="dashboard2-card-sub">' + stat.subtitle + '</div>' : '';
-                            return '<div class="dashboard2-card ' + (stat.iconClass || '') + '">' + semaforoHTML + '<div class="dashboard2-card-icon-wrap">' + iconoSVG + '</div><div class="dashboard2-card-title">' + (stat.title || '') + '</div><div class="dashboard2-card-value">' + valorFinalMostrar + '</div>' + sub + '</div>';
+                            var tabId = (stat.onClickTab && String(stat.onClickTab).replace(/\\/g, '').replace(/'/g, '')) || '';
+                            var tabPost = tabId ? ' style="cursor:pointer" role="button" tabindex="0" onclick="if(typeof window.showTab===\'function\')window.showTab(\'' + tabId + '\')" onkeydown="if(event.key===\'Enter\'||event.key===\' \'){event.preventDefault();if(typeof window.showTab===\'function\')window.showTab(\'' + tabId + '\');}" title="Ir al módulo"' : '';
+                            return '<div class="dashboard2-card ' + (stat.iconClass || '') + '"' + tabPost + '>' + semaforoHTML + '<div class="dashboard2-card-icon-wrap">' + iconoSVG + '</div><div class="dashboard2-card-title">' + (stat.title || '') + '</div><div class="dashboard2-card-value">' + valorFinalMostrar + '</div>' + sub + '</div>';
                         }).join('');
                         gridEl.innerHTML = cardsHTML;
                     } else {
@@ -24541,8 +24702,8 @@
             };
             // Actividad por módulo (doughnut) - registros
             var act = d.actividad || {};
-            var modLabels = ['Mudanzas','Aperturas','Tarjetas','Espacios','Multas','Morosos','Caja','Mantenciones','Pagos Aseo','Insumos','Lecturas Agua'];
-            var modKeys = ['mudanzas','aperturas','tarjetas','espacios','multas','morosos','caja','mantenciones','pagosAseo','insumos','lecturasAgua'];
+            var modLabels = ['Mudanzas','Aperturas','Tarjetas','Espacios','Multas','Morosos','Caja','Mantenciones','Pagos Aseo','Insumos','Lecturas Agua','Postventa'];
+            var modKeys = ['mudanzas','aperturas','tarjetas','espacios','multas','morosos','caja','mantenciones','pagosAseo','insumos','lecturasAgua','postventa'];
             var modData = modKeys.map(function(k){ return act[k] || 0; });
             var hasAct = modData.some(function(v){ return v > 0; });
             var modDataChart = hasAct ? modData : [1];
@@ -24555,7 +24716,7 @@
                         labels: modLabelsChart,
                         datasets: [{
                             data: modDataChart,
-                            backgroundColor: hasAct ? colores.concat(['rgba(107, 114, 128, 0.88)', 'rgba(156, 163, 175, 0.88)']) : ['rgba(209, 213, 219, 0.7)'],
+                            backgroundColor: hasAct ? colores.concat(['rgba(107, 114, 128, 0.88)', 'rgba(156, 163, 175, 0.88)', 'rgba(168, 85, 247, 0.88)', 'rgba(45, 212, 191, 0.88)']) : ['rgba(209, 213, 219, 0.7)'],
                             borderWidth: 2,
                             borderColor: '#ffffff',
                             hoverOffset: hoverOffset
@@ -24889,8 +25050,17 @@
                 obtenerDatosMes('caja'),
                 obtenerDatosMes('nomina'),
                 obtenerDatosMes('insumos'),
-                obtenerDatosMes('lecturasAguaCaliente')
-            ]).then(async ([morosos, mantenciones, pagosAseo, proveedores, mudanzas, aperturas, tarjetas, espacios, multas, caja, nomina, insumos, lecturasAgua]) => {
+                obtenerDatosMes('lecturasAguaCaliente'),
+                (async function () {
+                    if (!firebaseInitialized || !db) return [];
+                    try {
+                        var _s = await db.collection('comunidad').doc('postventa').get();
+                        if (!_s.exists) return [];
+                        var _d = _s.data();
+                        return Array.isArray(_d.registros) ? _d.registros : [];
+                    } catch (_e) { return []; }
+                })()
+            ]).then(async ([morosos, mantenciones, pagosAseo, proveedores, mudanzas, aperturas, tarjetas, espacios, multas, caja, nomina, insumos, lecturasAgua, pvRegs]) => {
                 // Cargar métricas en paralelo solo si es necesario
                 let metricasActual = null;
                 let metricasAnterior = null;
@@ -24912,12 +25082,22 @@
                     verificarPedidoCerrado('nomina', mesActual)
                 ]);
                 
+                var pvP = 0, pvE = 0;
+                (Array.isArray(pvRegs) ? pvRegs : []).forEach(function (r) {
+                    if (!r) return;
+                    if (r.estado === 'pendiente') pvP++;
+                    else if (r.estado === 'en_proceso') pvE++;
+                });
+                var modVisPv = await obtenerModulosVisibles();
+                var incluyePostventa = Array.isArray(modVisPv) && modVisPv.indexOf('postventa') !== -1;
+                
                 // Procesar recordatorios con TODOS los datos
                 const recordatorios = await procesarRecordatorios(
                     morosos, mantenciones, pagosAseo, proveedores, 
                     mudanzas, aperturas, tarjetas, espacios, multas, caja, nomina, insumos, lecturasAgua,
                     metricasActual, metricasAnterior, diasRestantes,
-                    insumosCerrado, nominaCerrada
+                    insumosCerrado, nominaCerrada,
+                    incluyePostventa ? pvP : 0, incluyePostventa ? pvE : 0
                 );
                 
                 // Actualizar la vista con los recordatorios
@@ -24948,7 +25128,7 @@
         }
         
         // Función para procesar recordatorios (MEJORADA - analiza todos los módulos)
-        async function procesarRecordatorios(morosos, mantenciones, pagosAseo, proveedores, mudanzas, aperturas, tarjetas, espacios, multas, caja, nomina, insumos, lecturasAgua, metricasActual, metricasAnterior, diasRestantes, insumosCerrado = false, nominaCerrada = false) {
+        async function procesarRecordatorios(morosos, mantenciones, pagosAseo, proveedores, mudanzas, aperturas, tarjetas, espacios, multas, caja, nomina, insumos, lecturasAgua, metricasActual, metricasAnterior, diasRestantes, insumosCerrado = false, nominaCerrada = false, postventaPend = 0, postventaProc = 0) {
             const recordatorios = [];
             
             // ============================================
@@ -24959,6 +25139,15 @@
                     tipo: 'urgente',
                     mensaje: `⏰ Faltan ${diasRestantes} día${diasRestantes > 1 ? 's' : ''} para el cierre de mes. Verifica que todos los registros estén completos antes de generar el reporte`,
                     icono: '⏰'
+                });
+            }
+            
+            var pvTotal = (Number(postventaPend) || 0) + (Number(postventaProc) || 0);
+            if (pvTotal > 0) {
+                recordatorios.push({
+                    tipo: pvTotal >= 6 ? 'urgente' : 'importante',
+                    mensaje: `📋 Postventa: ${postventaPend} observación(es) pendiente(s) y ${postventaProc} en proceso. Revisar el módulo Postventa.`,
+                    icono: '📋'
                 });
             }
             
@@ -25731,9 +25920,10 @@
         }
         
         // Función para actualizar la expresión de Arturito según el estado del dashboard
-        function actualizarExpresionArturito(mantencionesVencidas, balanceNeto, totalMudanzas, totalAperturas) {
+        function actualizarExpresionArturito(mantencionesVencidas, balanceNeto, totalMudanzas, totalAperturas, postventaAtencion) {
             const arturito = document.getElementById('arturitoDashboard2') || document.getElementById('arturitoDashboard');
             if (!arturito) return;
+            var pvAt = (postventaAtencion == null || postventaAtencion === '') ? 0 : Number(postventaAtencion) || 0;
             
             // Remover todas las clases de expresión, reacción y estado de color
             arturito.className = 'arturito-dashboard';
@@ -25747,6 +25937,13 @@
                 expresion = 'expression-sad';
                 reaccion = 'react-pulse';
                 estadoColor = 'estado-rojo';
+            } else if (pvAt >= 8) {
+                expresion = 'expression-sad';
+                reaccion = 'react-pulse';
+                estadoColor = 'estado-rojo';
+            } else if (pvAt > 0) {
+                expresion = 'expression-think';
+                estadoColor = 'estado-amarillo';
             } else if (balanceNeto < 0) {
                 expresion = 'expression-think';
                 estadoColor = 'estado-amarillo';
