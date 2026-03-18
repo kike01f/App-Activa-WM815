@@ -6104,6 +6104,16 @@
         function showApp() {
             if (loginScreen) loginScreen.classList.add('hidden');
             if (appContainer) appContainer.style.display = 'flex';
+            /* Igual que index tras personalización: re-pintar iconos cuando el contenedor ya es visible.
+               En iOS/WebKit, SVG inyectados con #appContainer en display:none suelen no rasterizar bien. */
+            requestAnimationFrame(function () {
+                requestAnimationFrame(function () {
+                    try {
+                        if (typeof inicializarIconosMenu === 'function') inicializarIconosMenu();
+                        if (typeof inicializarIconosTitulosModulos === 'function') inicializarIconosTitulosModulos();
+                    } catch (e) { console.warn('Iconos menú (showApp):', e); }
+                });
+            });
         }
 
         (function loginMobileHints() {
@@ -25555,6 +25565,14 @@
                     const iconSpan = button.querySelector('span:first-child');
                     if (iconSpan) {
                         iconSpan.innerHTML = obtenerIconoSVG(iconoTipo);
+                        var svg = iconSpan.querySelector('svg');
+                        if (svg) {
+                            svg.setAttribute('class', 'menu-icon');
+                            svg.setAttribute('width', '20');
+                            svg.setAttribute('height', '20');
+                            svg.setAttribute('focusable', 'false');
+                            svg.setAttribute('aria-hidden', 'true');
+                        }
                     }
                 }
             });
