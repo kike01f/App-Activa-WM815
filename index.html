@@ -23663,7 +23663,6 @@
 
             let postventaPend = 0;
             let postventaProc = 0;
-            let postventaAtencion = 0;
             let postventaActividad = 0;
             if (modulosVisibles.includes('postventa')) {
                 let pvRegs = [];
@@ -23682,7 +23681,6 @@
                     if (r.estado === 'pendiente') postventaPend++;
                     else if (r.estado === 'en_proceso') postventaProc++;
                 });
-                postventaAtencion = postventaPend + postventaProc;
             }
             
             const { mudanzas, aperturas, tarjetas, espacios, multas, morosos, caja, mantenciones, proveedores, pagosAseo, insumos, lecturasAguaCaliente } = modulosData;
@@ -24312,19 +24310,37 @@
                 });
             }
 
-            if (modulosVisibles.includes('postventa') && postventaAtencion > 0) {
-                const esAlta = postventaAtencion >= 8;
-                stats.push({
-                    title: 'Postventa',
-                    value: postventaAtencion,
-                    subtitle: `${postventaPend} pendiente(s) · ${postventaProc} en proceso`,
-                    icon: 'postventa',
-                    iconClass: esAlta ? 'danger' : 'warning',
-                    gradient: esAlta
-                        ? 'linear-gradient(135deg, rgba(220, 38, 38, 0.15) 0%, rgba(220, 38, 38, 0.05) 100%)'
-                        : 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%)',
-                    semaforo: esAlta ? 'rojo' : 'amarillo'
-                });
+            if (modulosVisibles.includes('postventa')) {
+                if (postventaPend > 0) {
+                    const esAlta = postventaPend >= 8;
+                    const subPend = postventaProc > 0
+                        ? `Por atender: ${postventaPend} · En curso: ${postventaProc}`
+                        : (postventaPend === 1 ? '1 observación esperando gestión' : postventaPend + ' observaciones esperando gestión');
+                    stats.push({
+                        title: 'Postventa',
+                        value: postventaPend,
+                        subtitle: subPend,
+                        icon: 'postventa',
+                        iconClass: esAlta ? 'danger' : 'warning',
+                        gradient: esAlta
+                            ? 'linear-gradient(135deg, rgba(220, 38, 38, 0.15) 0%, rgba(220, 38, 38, 0.05) 100%)'
+                            : 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%)',
+                        semaforo: esAlta ? 'rojo' : 'amarillo'
+                    });
+                } else if (postventaProc > 0) {
+                    const np = postventaProc;
+                    stats.push({
+                        title: 'Postventa',
+                        value: np,
+                        subtitle: np === 1
+                            ? 'Observación en curso de gestión'
+                            : np + ' observaciones en curso de gestión',
+                        icon: 'postventa',
+                        iconClass: 'info',
+                        gradient: 'linear-gradient(135deg, rgba(59, 130, 246, 0.22) 0%, rgba(37, 99, 235, 0.08) 100%)',
+                        semaforo: 'azul'
+                    });
+                }
             }
 
             stats.forEach(function (st) {
@@ -24368,12 +24384,12 @@
             };
 
             try {
-                if (modulosVisibles.includes('postventa') && postventaAtencion > 0) {
-                    var _pvSig = 'pv_' + postventaPend + '_' + postventaProc;
+                if (modulosVisibles.includes('postventa') && postventaPend > 0) {
+                    var _pvSig = 'pvpend_' + postventaPend;
                     if (sessionStorage.getItem('notif_postventa_sig') !== _pvSig) {
                         sessionStorage.setItem('notif_postventa_sig', _pvSig);
                         if (typeof registrarMovimiento === 'function') {
-                            registrarMovimiento('alerta', 'postventa', 'Postventa: ' + postventaPend + ' pendiente(s) y ' + postventaProc + ' en proceso. Revisar el módulo.');
+                            registrarMovimiento('alerta', 'postventa', 'Postventa: ' + postventaPend + ' observación(es) pendiente(s). Revisar el módulo.');
                         }
                     }
                 } else {
@@ -24415,7 +24431,7 @@
                 // Determinar color del semáforo si existe
                 let semaforoHTML = '';
                 if (stat.semaforo) {
-                    const colorSemaforo = stat.semaforo === 'verde' ? '#10b981' : stat.semaforo === 'amarillo' ? '#f59e0b' : '#ef4444';
+                    const colorSemaforo = stat.semaforo === 'verde' ? '#10b981' : stat.semaforo === 'amarillo' ? '#f59e0b' : stat.semaforo === 'azul' ? '#3b82f6' : '#ef4444';
                     semaforoHTML = `<div style="position: absolute; top: 0.75rem; right: 0.75rem; width: 10px; height: 10px; border-radius: 50%; background: ${colorSemaforo}; box-shadow: 0 0 6px ${colorSemaforo}; animation: pulse 2s infinite;"></div>`;
                 }
                 
@@ -24473,7 +24489,7 @@
             }, 300);
             
             // Actualizar expresión de Arturito según el estado del dashboard
-            actualizarExpresionArturito(mantencionesVencidas, balanceNeto, totalMudanzas, totalAperturas, postventaAtencion);
+            actualizarExpresionArturito(mantencionesVencidas, balanceNeto, totalMudanzas, totalAperturas, postventaPend, postventaProc);
             
             // Cargar tendencias mensuales y alertas automáticas después (no bloquean la carga inicial)
             if (!window.mesEnConsulta) {
@@ -24627,7 +24643,7 @@
                             var valorFinalMostrar = esMoneda && typeof valorNumerico === 'number' ? fmtCard(valorNumerico) : valorMostrar;
                             var semaforoHTML = '';
                             if (stat.semaforo) {
-                                var colorSemaforo = stat.semaforo === 'verde' ? '#10b981' : stat.semaforo === 'amarillo' ? '#f59e0b' : '#ef4444';
+                                var colorSemaforo = stat.semaforo === 'verde' ? '#10b981' : stat.semaforo === 'amarillo' ? '#f59e0b' : stat.semaforo === 'azul' ? '#3b82f6' : '#ef4444';
                                 semaforoHTML = '<div class="dashboard2-card-semaforo" style="background:' + colorSemaforo + '"></div>';
                             }
                             var iconTipo = stat.icon || 'dashboard';
@@ -25142,11 +25158,18 @@
                 });
             }
             
-            var pvTotal = (Number(postventaPend) || 0) + (Number(postventaProc) || 0);
-            if (pvTotal > 0) {
+            var pvP = Number(postventaPend) || 0;
+            var pvPr = Number(postventaProc) || 0;
+            if (pvP > 0) {
                 recordatorios.push({
-                    tipo: pvTotal >= 6 ? 'urgente' : 'importante',
-                    mensaje: `📋 Postventa: ${postventaPend} observación(es) pendiente(s) y ${postventaProc} en proceso. Revisar el módulo Postventa.`,
+                    tipo: pvP >= 6 ? 'urgente' : 'importante',
+                    mensaje: `📋 Postventa: ${pvP} observación(es) pendiente(s) de atención. Revisar el módulo Postventa.` + (pvPr > 0 ? ` Además ${pvPr} en proceso.` : ''),
+                    icono: '📋'
+                });
+            } else if (pvPr > 0) {
+                recordatorios.push({
+                    tipo: 'info',
+                    mensaje: `📋 Postventa: ${pvPr} observación(es) en proceso de gestión.`,
                     icono: '📋'
                 });
             }
@@ -25920,30 +25943,36 @@
         }
         
         // Función para actualizar la expresión de Arturito según el estado del dashboard
-        function actualizarExpresionArturito(mantencionesVencidas, balanceNeto, totalMudanzas, totalAperturas, postventaAtencion) {
+        function actualizarExpresionArturito(mantencionesVencidas, balanceNeto, totalMudanzas, totalAperturas, postventaPend, postventaProc) {
             const arturito = document.getElementById('arturitoDashboard2') || document.getElementById('arturitoDashboard');
             if (!arturito) return;
-            var pvAt = (postventaAtencion == null || postventaAtencion === '') ? 0 : Number(postventaAtencion) || 0;
+            var pvP = (postventaPend == null || postventaPend === '') ? 0 : Number(postventaPend) || 0;
+            var pvPr = (postventaProc == null || postventaProc === '') ? 0 : Number(postventaProc) || 0;
             
             // Remover todas las clases de expresión, reacción y estado de color
             arturito.className = 'arturito-dashboard';
             
             // Determinar expresión y color de mascota (rojo / amarillo / verde)
-            let expresion = 'expression-smile'; // Por defecto sonriente
+            let expresion = 'expression-smile';
             let reaccion = '';
-            let estadoColor = 'estado-verde'; // verde = bien, amarillo = precaución, rojo = alerta
+            let estadoColor = 'estado-verde';
+            var arturitoColorNormalSinFeliz = false;
             
             if (mantencionesVencidas > 0) {
                 expresion = 'expression-sad';
                 reaccion = 'react-pulse';
                 estadoColor = 'estado-rojo';
-            } else if (pvAt >= 8) {
+            } else if (pvP >= 8) {
                 expresion = 'expression-sad';
                 reaccion = 'react-pulse';
                 estadoColor = 'estado-rojo';
-            } else if (pvAt > 0) {
+            } else if (pvP > 0) {
                 expresion = 'expression-think';
                 estadoColor = 'estado-amarillo';
+            } else if (pvPr > 0) {
+                expresion = 'expression-content';
+                estadoColor = 'estado-verde';
+                arturitoColorNormalSinFeliz = true;
             } else if (balanceNeto < 0) {
                 expresion = 'expression-think';
                 estadoColor = 'estado-amarillo';
@@ -25955,7 +25984,7 @@
                 expresion = 'expression-content';
                 estadoColor = 'estado-verde';
             }
-            if (estadoColor === 'estado-verde') expresion = 'expression-happy';
+            if (estadoColor === 'estado-verde' && !arturitoColorNormalSinFeliz) expresion = 'expression-happy';
             
             arturito.classList.add(estadoColor);
             // Aplicar clases
