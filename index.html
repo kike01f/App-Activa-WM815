@@ -1867,13 +1867,13 @@
         #ocupacion .building-map-edificio {
             display: flex;
             flex-direction: column-reverse;
-            gap: 4px;
-            padding: 8px 8px 8px 44px;
+            gap: 6px;
+            padding: 10px 10px 10px 48px;
             margin-left: 0;
             background: linear-gradient(120deg, var(--bg-tertiary) 60%, rgba(117, 187, 33, 0.08) 100%);
-            border-radius: 10px;
-            max-width: 560px;
-            max-height: 38vh;
+            border-radius: 12px;
+            max-width: 720px;
+            max-height: 46vh;
             overflow-y: auto;
             overflow-x: auto;
             border: 1px solid var(--border-color);
@@ -1881,39 +1881,39 @@
         #ocupacion .building-map-edificio .floor-row {
             display: grid;
             grid-template-columns: repeat(15, 1fr);
-            gap: 2px;
-            padding: 4px;
+            gap: 3px;
+            padding: 5px;
             background: var(--bg-secondary);
-            border-radius: 4px;
+            border-radius: 6px;
             border: 1px solid var(--border-color);
             position: relative;
         }
         #ocupacion .building-map-edificio .floor-row::before {
             content: attr(data-floor);
             position: absolute;
-            left: -36px;
+            left: -42px;
             top: 50%;
             transform: translateY(-50%);
             background: linear-gradient(90deg, var(--primary), var(--primary-dark));
             color: white;
-            padding: 2px 6px;
-            border-radius: 4px;
-            font-size: 0.65rem;
+            padding: 3px 7px;
+            border-radius: 6px;
+            font-size: 0.7rem;
             font-weight: 700;
         }
         #ocupacion .building-map-edificio .unit-cell {
             aspect-ratio: 1;
-            border: 1px solid var(--border-color);
-            border-radius: 3px;
+            border: 1.5px solid var(--border-color);
+            border-radius: 4px;
             display: flex;
             align-items: center;
             justify-content: center;
-            font-size: 0.55rem;
+            font-size: 0.6rem;
             font-weight: 700;
             cursor: pointer;
             background: var(--bg-primary);
             color: var(--text-tertiary);
-            min-height: 14px;
+            min-height: 18px;
             transition: all 0.2s;
         }
         #ocupacion .building-map-edificio .unit-cell.occupied.habitacional {
@@ -1942,7 +1942,7 @@
             border-color: transparent !important;
             cursor: default;
             visibility: hidden;
-            min-height: 14px;
+            min-height: 18px;
             pointer-events: none;
         }
         #ocupacion .building-map-edificio .unit-cell.occupied.new-resident {
@@ -1952,7 +1952,7 @@
         }
         #ocupacion .building-map-edificio .unit-cell.occupied.rental-contract {
             border: 2px solid #ffa502 !important;
-            outline: 1px solid rgba(255, 165, 2, 0.6);
+            outline: 1.5px solid rgba(255, 165, 2, 0.6);
             outline-offset: -1px;
         }
         #ocupacion .building-map-edificio .unit-cell:hover {
@@ -1962,23 +1962,23 @@
         #ocupacion .leyenda-mapa-edificio {
             display: flex;
             flex-wrap: wrap;
-            gap: 8px;
-            margin-bottom: 8px;
-            padding: 8px;
+            gap: 10px;
+            margin-bottom: 10px;
+            padding: 10px;
             background: var(--bg-secondary);
-            border-radius: 6px;
+            border-radius: 8px;
             border: 1px solid var(--border-color);
         }
         #ocupacion .leyenda-mapa-edificio .leyenda-item {
             display: flex;
             align-items: center;
             gap: 6px;
-            font-size: 0.75rem;
+            font-size: 0.8125rem;
         }
         #ocupacion .leyenda-mapa-edificio .leyenda-cuadro {
-            width: 12px;
-            height: 12px;
-            border-radius: 2px;
+            width: 13px;
+            height: 13px;
+            border-radius: 3px;
         }
 
         /* Fallback: contenido clonado (grid + cards del panel principal) */
