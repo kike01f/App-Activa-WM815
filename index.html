@@ -460,6 +460,26 @@
             box-sizing: border-box;
         }
 
+        /* Tarjetas resumen Postventa (más compactas) */
+        #postventaStatsWrap.postventa-stats-compact {
+            grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)) !important;
+            gap: 0.45rem !important;
+            margin-bottom: 1rem !important;
+        }
+        #postventaStatsWrap.postventa-stats-compact .summary-box {
+            padding: 0.45rem 0.55rem !important;
+            margin-bottom: 0 !important;
+            border-radius: var(--radius) !important;
+        }
+        #postventaStatsWrap.postventa-stats-compact .summary-box .amount {
+            font-size: 1.05rem !important;
+            letter-spacing: -0.02em;
+            line-height: 1.15;
+        }
+        #postventaStatsWrap.postventa-stats-compact .summary-box:hover {
+            transform: translateY(-1px) scale(1.01);
+        }
+
         @keyframes slideInRight {
             from {
                 opacity: 0;
@@ -3905,6 +3925,12 @@
                 </span>
                 <span>Ocupación</span>
             </button>
+            <button class="tab-button" data-tab="postventa">
+                <span>
+                    <svg class="menu-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14l4-4h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 10H6.17L5 14.17V5h14v8z"/><path fill="currentColor" d="M7 9h10v2H7zm0-3h7v2H7z" opacity="0.7"/></svg>
+                </span>
+                <span>Postventa</span>
+            </button>
             <button class="tab-button" data-tab="personalizacion">
                 <span>
                     <svg class="menu-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
@@ -5381,6 +5407,105 @@
                     </a>
                 </div>
             </section>
+        </div>
+
+        <!-- MÓDULO POSTVENTA -->
+        <div id="postventa" class="tab-content">
+            <div style="margin-bottom: 1.5rem;">
+                <h2 id="tituloPostventa" style="margin: 0; color: var(--gray-900); font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 0.75rem;">
+                    <span style="display: inline-flex; align-items: center; width: 1.75rem; height: 1.75rem;"></span> Postventa
+                </h2>
+                <p style="color: var(--gray-600); font-size: 0.875rem; margin: 0.5rem 0 0 0;">Seguimiento de observaciones, evidencias y estados por registro.</p>
+            </div>
+
+            <div class="form-section" style="margin-bottom: 1rem;">
+                <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700;">Registrar o editar registro</h3>
+                <form id="formPostventa">
+                    <input type="hidden" id="postventaEditId" value="">
+                    <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <div class="form-group" style="margin-bottom: 0.5rem;">
+                            <label for="postventaFecha" style="margin-bottom: 0.25rem; font-size: 0.875rem;">Fecha *</label>
+                            <input type="date" id="postventaFecha" required class="form-input" style="padding: 0.5rem; font-size: 0.875rem; max-width: 200px;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0.5rem;">
+                            <label for="postventaEstado" style="margin-bottom: 0.25rem; font-size: 0.875rem;">Estado *</label>
+                            <select id="postventaEstado" required class="form-input" style="padding: 0.5rem; font-size: 0.875rem; max-width: 320px;">
+                                <option value="pendiente">⚠️ Pendiente</option>
+                                <option value="en_proceso">🔄 En proceso</option>
+                                <option value="terminado">✅ Terminado</option>
+                                <option value="no_aplica">❌ No Aplica</option>
+                            </select>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0.5rem;">
+                        <label for="postventaObservacion" style="margin-bottom: 0.25rem; font-size: 0.875rem;">Observación *</label>
+                        <textarea id="postventaObservacion" rows="3" required class="form-input" placeholder="Observación o seguimiento..." spellcheck="true" lang="es" style="width: 100%; padding: 0.5rem; font-size: 0.875rem; line-height: 1.4;"></textarea>
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0.5rem;">
+                        <label for="postventaEvidencias" style="margin-bottom: 0.25rem; font-size: 0.875rem;">Evidencia (imagen o video)</label>
+                        <input type="file" id="postventaEvidencias" multiple accept="image/*,video/*" style="padding: 0.5rem; font-size: 0.875rem; width: 100%; max-width: 480px;">
+                        <small style="color: var(--gray-500); font-size: 0.75rem; margin-top: 0.25rem; display: block;">Varios archivos mediante Storage. Sin Storage, adjunte URLs vía importación Excel.</small>
+                    </div>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; margin-top: 0.5rem;">
+                        <button type="submit" class="btn btn-primary" id="btnGuardarPostventa" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Guardar registro</button>
+                        <button type="button" class="btn btn-secondary" id="btnCancelarEdicionPostventa" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Limpiar / Cancelar edición</button>
+                    </div>
+                </form>
+            </div>
+
+            <div class="form-section" style="margin-bottom: 1rem;">
+                <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700;">Importar y exportar</h3>
+                <p style="color: var(--gray-600); font-size: 0.8rem; margin: 0 0 0.75rem 0; line-height: 1.45;">
+                    Genere un reporte Excel con resumen y detalle. Importe registros desde .xlsx / .xls (Fecha, Observación, Estado opcional, URLs evidencia).
+                </p>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+                    <button type="button" class="btn btn-primary" id="btnExportarExcelPostventa" style="padding: 0.5rem 1rem; font-size: 0.875rem;">📊 Exportar Excel</button>
+                    <label class="btn btn-secondary" style="cursor: pointer; margin: 0; padding: 0.5rem 1rem; font-size: 0.875rem;">
+                        <input type="file" id="inputImportPostventa" accept=".xlsx,.xls" style="display: none;">
+                        📥 Importar desde Excel
+                    </label>
+                </div>
+            </div>
+
+            <div id="postventaStatsWrap" class="postventa-stats-compact" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(128px, 1fr)); gap: 0.45rem; margin-bottom: 1rem;"></div>
+
+            <div id="postventaCumplimientoWrap" class="form-section" style="display: none !important;" aria-hidden="true"></div>
+
+            <div class="form-section" style="margin-bottom: 1rem;">
+                <h3 style="margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 700;">Estado masivo</h3>
+                <p style="color: var(--gray-600); font-size: 0.8rem; margin: 0 0 0.75rem 0;">Marque filas en la tabla y aplique un estado a todas.</p>
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem;">
+                    <select id="postventaBulkEstado" class="form-input" style="padding: 0.5rem 0.75rem; font-size: 0.875rem; min-width: 220px; max-width: 100%;">
+                        <option value="pendiente">⚠️ Pendiente</option>
+                        <option value="en_proceso">🔄 En proceso</option>
+                        <option value="terminado">✅ Terminado</option>
+                        <option value="no_aplica">❌ No Aplica</option>
+                    </select>
+                    <button type="button" class="btn btn-primary" id="btnPostventaAplicarEstado" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Aplicar a seleccionadas</button>
+                    <button type="button" class="btn btn-secondary" id="btnPostventaDeselectAll" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Quitar selección</button>
+                </div>
+            </div>
+
+            <div class="table-section">
+                <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; flex-wrap: wrap; margin-bottom: 0.75rem;">
+                    <h3 style="margin: 0;">Registros</h3>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table id="tablaPostventa" style="width: 100%; border-collapse: collapse; background: var(--bg-primary); border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); transition: background-color 0.3s ease;">
+                        <thead>
+                            <tr style="background: linear-gradient(135deg, #75bb21 0%, #5a9219 100%); color: white;">
+                                <th style="padding: 0.75rem; text-align: center; font-weight: 600; width: 52px;" title="Seleccionar filas"><input type="checkbox" id="postventaSelectAll" aria-label="Seleccionar todos" style="width: 1.1rem; height: 1.1rem; cursor: pointer;"></th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Fecha</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Observación</th>
+                                <th style="padding: 0.75rem; text-align: center; font-weight: 600; white-space: nowrap;">Estado</th>
+                                <th style="padding: 0.75rem; text-align: center; font-weight: 600;">Evidencias</th>
+                                <th style="padding: 0.75rem; text-align: center; font-weight: 600; width: 160px;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyPostventa"></tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <!-- MÓDULO 11: PERSONALIZACIÓN -->
@@ -7083,6 +7208,8 @@
                         }
                     } else if (tabName === 'ocupacion') {
                         if (typeof cargarUnidadesOcupacion === 'function') cargarUnidadesOcupacion();
+                    } else if (tabName === 'postventa') {
+                        if (typeof window.cargarPostventa === 'function') window.cargarPostventa();
                     } else if (tabName === 'personalizacion') {
                         if (typeof cargarPersonalizacion === 'function') {
                             cargarPersonalizacion();
@@ -15715,7 +15842,8 @@
             'pagos-aseo': { nombre: 'Pagos Aseo', icono: '🧹', tab: 'pagos-aseo' },
             'nomina': { nombre: 'Nómina Mensual', icono: '💼', tab: 'nomina' },
             'lecturas-agua': { nombre: 'Lecturas Agua Caliente', icono: '💧', tab: 'lecturasAgua' },
-            'ocupacion': { nombre: 'Ocupación', icono: '🏢', tab: 'ocupacion' }
+            'ocupacion': { nombre: 'Ocupación', icono: '🏢', tab: 'ocupacion' },
+            'postventa': { nombre: 'Postventa', icono: '📋', tab: 'postventa' }
         };
 
         // Función para obtener módulos visibles (por defecto todos)
@@ -17382,6 +17510,640 @@
         };
 
         window.vinculacionUnits = window.vinculacionUnits || [];
+
+        // ========== MÓDULO POSTVENTA ==========
+        (function () {
+            var POSTVENTA_DOC = 'postventa';
+            var POSTVENTA_LS = 'postventa-registros';
+            var POSTVENTA_ESTADOS = {
+                pendiente: { label: 'Pendiente', emoji: '⚠️' },
+                terminado: { label: 'Terminado', emoji: '✅' },
+                en_proceso: { label: 'En proceso', emoji: '🔄' },
+                no_aplica: { label: 'No Aplica', emoji: '❌' }
+            };
+            var registrosPostventa = [];
+            var postventaListenersBound = false;
+
+            function postventaEstadoFromText(t) {
+                var s = String(t || '').trim().toLowerCase();
+                if (s.indexOf('terminado') !== -1 || s.indexOf('✅') !== -1) return 'terminado';
+                if (s.indexOf('proceso') !== -1 || s.indexOf('🔄') !== -1) return 'en_proceso';
+                if (s.indexOf('no aplica') !== -1 || s.indexOf('no_aplica') !== -1 || s.indexOf('❌') !== -1) return 'no_aplica';
+                if (s.indexOf('pendiente') !== -1 || s.indexOf('⚠️') !== -1) return 'pendiente';
+                return 'pendiente';
+            }
+            function postventaEstadoLabel(codigo) {
+                var e = POSTVENTA_ESTADOS[codigo] || POSTVENTA_ESTADOS.pendiente;
+                return e.emoji + ' ' + e.label;
+            }
+            function postventaEstadoEmoji(codigo) {
+                var e = POSTVENTA_ESTADOS[codigo] || POSTVENTA_ESTADOS.pendiente;
+                return e.emoji || '';
+            }
+            /** Texto estado para Excel: emoji + etiqueta en minúsculas */
+            function postventaEstadoExcelLabel(codigo) {
+                var m = {
+                    pendiente: '⚠️ pendiente',
+                    en_proceso: '🔄 en proceso',
+                    terminado: '✅ terminado',
+                    no_aplica: '❌ no aplica'
+                };
+                return m[codigo] || m.pendiente;
+            }
+            /** Corrección ortográfica suave en observaciones (tildes frecuentes y espacios) */
+            function postventaCorregirOrtografiaObservacion(s) {
+                if (s == null || s === '') return '';
+                var t = String(s).replace(/\u00A0/g, ' ').replace(/\r\n/g, '\n').replace(/[ \t]+/g, ' ').replace(/ *\n */g, '\n').trim();
+                var fixes = [
+                    ['tambien', 'también'], ['ademas', 'además'], ['despues', 'después'], ['atencion', 'atención'],
+                    ['informacion', 'información'], ['instalacion', 'instalación'], ['reparacion', 'reparación'],
+                    ['observacion', 'observación'], ['situacion', 'situación'], ['solucion', 'solución'],
+                    ['revision', 'revisión'], ['inspeccion', 'inspección'], ['ejecucion', 'ejecución'],
+                    ['mantencion', 'mantención'], ['construccion', 'construcción'], ['habitacion', 'habitación'],
+                    ['verificacion', 'verificación'], ['coordinacion', 'coordinación'], ['operacion', 'operación'],
+                    ['finalizacion', 'finalización'], ['programacion', 'programación'], ['comunicacion', 'comunicación'],
+                    ['notificacion', 'notificación'], ['ubicacion', 'ubicación'], ['reclamacion', 'reclamación'],
+                    ['segun', 'según'], ['numero', 'número'], ['telefono', 'teléfono'], ['unicamente', 'únicamente'],
+                    ['ningun', 'ningún'], ['algun', 'algún'], ['dia', 'día'], ['asi mismo', 'así mismo']
+                ];
+                fixes.forEach(function (pair) {
+                    var a = pair[0], b = pair[1];
+                    var re = new RegExp('\\b' + a.replace(/[.*+?^${}()|[\]\\]/g, '\\$&') + '\\b', 'gi');
+                    t = t.replace(re, function (m) {
+                        if (m.length > 1 && m === m.toUpperCase()) return b.toUpperCase();
+                        if (m[0] >= 'A' && m[0] <= 'Z' && m[1] && m[1] >= 'a' && m[1] <= 'z') return b.charAt(0).toUpperCase() + b.slice(1);
+                        return b;
+                    });
+                });
+                return t;
+            }
+            function escHtml(s) {
+                return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+            }
+            function postventaFechaImport(v) {
+                if (v == null || v === '') return '';
+                if (v instanceof Date && !isNaN(v.getTime())) {
+                    return v.toISOString().slice(0, 10);
+                }
+                if (typeof v === 'number' && !isNaN(v)) {
+                    var utc = Math.round((v - 25569) * 86400 * 1000);
+                    var d = new Date(utc);
+                    if (!isNaN(d.getTime())) return d.toISOString().slice(0, 10);
+                }
+                var str = String(v).trim();
+                if (/^\d{4}-\d{2}-\d{2}$/.test(str)) return str;
+                var p = str.split(/[\/\-\.]/);
+                if (p.length === 3) {
+                    if (p[0].length === 4) return p[0] + '-' + String(p[1]).padStart(2, '0') + '-' + String(p[2]).padStart(2, '0');
+                    if (p[2].length === 4) return p[2] + '-' + String(p[1]).padStart(2, '0') + '-' + String(p[0]).padStart(2, '0');
+                }
+                return str.slice(0, 10);
+            }
+            function safeFileName(n) {
+                return String(n || 'archivo').replace(/[^a-zA-Z0-9._-]/g, '_').slice(0, 120);
+            }
+
+            async function guardarPostventaFirestore() {
+                if (firebaseInitialized && db) {
+                    try {
+                        await db.collection('comunidad').doc(POSTVENTA_DOC).set({
+                            registros: registrosPostventa,
+                            updatedAt: firebase.firestore.FieldValue.serverTimestamp()
+                        }, { merge: true });
+                    } catch (e) {
+                        console.error('Postventa Firestore:', e);
+                    }
+                }
+                try {
+                    localStorage.setItem(POSTVENTA_LS, JSON.stringify(registrosPostventa));
+                } catch (e) { /* ignore */ }
+            }
+
+            function postventaNormHead(s) {
+                return String(s == null ? '' : s).trim().toLowerCase()
+                    .normalize('NFD').replace(/[\u0300-\u036f]/g, '')
+                    .replace(/\./g, ' ').replace(/\s+/g, ' ').trim();
+            }
+            function postventaCeldaCoincide(nh, patrones) {
+                for (var p = 0; p < patrones.length; p++) {
+                    var pat = patrones[p];
+                    if (nh === pat || nh.indexOf(pat) === 0) return true;
+                    if (pat.length >= 4 && nh.indexOf(pat) !== -1) return true;
+                }
+                return false;
+            }
+            /** Devuelve { filaHeader, idxFecha, idxObs, idxEstado, idxUrls, error } */
+            function postventaDetectarColumnas(aoa) {
+                var patronFecha = ['fecha', 'date', 'f registro', 'fecha registro', 'dia', 'fecha reg', 'f. registro'];
+                var patronObs = ['observacion', 'observaciones', 'descripcion', 'comentario', 'detalle', 'notas', 'nota', 'obs', 'descrip', 'comentarios', 'texto', 'descripcion del'];
+                var patronEst = ['estado', 'status', 'situacion', 'etapa', 'avance'];
+                var patronUrl = ['urls evidencia', 'urls_evidencia', 'url evidencia', 'evidencias', 'urls', 'link', 'links', 'url', 'adjunto', 'archivo'];
+                var mejor = null;
+                for (var r = 0; r < Math.min(15, aoa.length); r++) {
+                    var fila = aoa[r] || [];
+                    var celdas = fila.map(function (c) { return postventaNormHead(c); });
+                    var idxF = -1, idxO = -1, idxE = -1, idxU = -1;
+                    for (var c = 0; c < celdas.length; c++) {
+                        var nh = celdas[c];
+                        if (!nh) continue;
+                        if (idxF < 0 && postventaCeldaCoincide(nh, patronFecha)) idxF = c;
+                        else if (idxO < 0 && postventaCeldaCoincide(nh, patronObs)) idxO = c;
+                        else if (idxE < 0 && postventaCeldaCoincide(nh, patronEst)) idxE = c;
+                        else if (idxU < 0 && postventaCeldaCoincide(nh, patronUrl)) idxU = c;
+                    }
+                    if (idxF >= 0 && idxO >= 0) {
+                        mejor = { filaHeader: r, idxFecha: idxF, idxObs: idxO, idxEstado: idxE, idxUrls: idxU };
+                        break;
+                    }
+                }
+                if (!mejor) {
+                    return {
+                        error: 'No se encontraron columnas obligatorias.\n\n' +
+                            'La primera fila de títulos debe incluir al menos:\n' +
+                            '• Fecha (o Date, Fecha registro, etc.)\n' +
+                            '• Observación (o Descripción, Comentario, Detalle, etc.)\n\n' +
+                            'Opcional: Estado, URLs / evidencias.'
+                    };
+                }
+                return mejor;
+            }
+
+            function actualizarEstadisticasPostventa() {
+                var wrap = document.getElementById('postventaStatsWrap');
+                var cum = document.getElementById('postventaCumplimientoWrap');
+                if (!wrap || !cum) return;
+                var st = { pendiente: 0, en_proceso: 0, terminado: 0, no_aplica: 0 };
+                registrosPostventa.forEach(function (r) {
+                    var k = r.estado;
+                    if (k !== 'pendiente' && k !== 'en_proceso' && k !== 'terminado' && k !== 'no_aplica') k = 'pendiente';
+                    st[k] = (st[k] || 0) + 1;
+                });
+                var total = Array.isArray(registrosPostventa) ? registrosPostventa.length : 0;
+                if (total === 0) {
+                    wrap.innerHTML = '<div class="summary-box" style="grid-column:1/-1;background:linear-gradient(135deg,#64748b 0%,#475569 100%);color:#fff;margin-bottom:0;text-align:center;padding:0.65rem 0.85rem;"><div style="font-size:0.78rem;opacity:0.95">Sin registros</div><div style="font-size:0.7rem;opacity:0.88;margin-top:0.2rem">Agregue o importe Excel.</div></div>';
+                    cum.innerHTML = '<p style="margin:0;color:var(--gray-600);font-size:0.875rem;">Sin datos de cumplimiento hasta que existan registros.</p>';
+                    return;
+                }
+                var grad = {
+                    total: 'linear-gradient(135deg, #6366f1 0%, #4f46e5 100%)',
+                    pendiente: 'linear-gradient(135deg, #f59e0b 0%, #d97706 100%)',
+                    en_proceso: 'linear-gradient(135deg, #3b82f6 0%, #2563eb 100%)',
+                    terminado: 'linear-gradient(135deg, #10b981 0%, #059669 100%)',
+                    no_aplica: 'linear-gradient(135deg, #64748b 0%, #475569 100%)'
+                };
+                var cards = [
+                    { k: 'total', label: 'Total registros', v: total },
+                    { k: 'pendiente', label: 'Pendiente', v: st.pendiente },
+                    { k: 'en_proceso', label: 'En proceso', v: st.en_proceso },
+                    { k: 'terminado', label: 'Terminado', v: st.terminado },
+                    { k: 'no_aplica', label: 'No aplica', v: st.no_aplica }
+                ];
+                wrap.innerHTML = cards.map(function (x) {
+                    var cant = Number(x.v);
+                    if (!isFinite(cant)) cant = 0;
+                    var pct = total > 0 ? Math.round((cant * 100) / total) : 0;
+                    var pie = x.k === 'total' ? '100% del universo' : (String(pct) + '% del total');
+                    return '<div class="summary-box" style="background:' + grad[x.k] + ';color:#fff;margin-bottom:0;">' +
+                        '<div style="font-size:0.68rem;opacity:0.9;margin-bottom:0.2rem;line-height:1.2;">' + escHtml(x.label) + '</div>' +
+                        '<div class="amount">' + cant + '</div>' +
+                        '<div style="font-size:0.65rem;opacity:0.85;margin-top:0.2rem;line-height:1.2;">' + escHtml(pie) + '</div></div>';
+                }).join('');
+                var terminado = st.terminado;
+                var aplicables = total - st.no_aplica;
+                var pctTotal = total ? Math.round(100 * terminado / total) : 0;
+                var pctApl = aplicables > 0 ? Math.round(100 * terminado / aplicables) : 0;
+                var abiertos = st.pendiente + st.en_proceso;
+                cum.innerHTML = '<div style="font-size:1rem;font-weight:700;color:#3f6212;margin-bottom:0.65rem;">📊 Cumplimiento</div>' +
+                    '<div style="line-height:1.6;color:var(--text-primary);font-size:0.875rem;">' +
+                    '<div><strong>Terminado / total:</strong> ' + pctTotal + '% <span style="opacity:0.85;">(' + terminado + ' de ' + total + ')</span></div>' +
+                    '<div><strong>Terminado / aplicables</strong> (sin «No aplica»): ' + pctApl + '% <span style="opacity:0.85;">(' + terminado + ' de ' + aplicables + ')</span></div>' +
+                    '<div style="color:var(--gray-600);margin-top:0.35rem;">Registros abiertos (pendiente o en proceso): <strong>' + abiertos + '</strong></div></div>';
+            }
+
+            function renderTablaPostventa() {
+                var tbody = document.getElementById('tbodyPostventa');
+                if (!tbody) return;
+                var list = registrosPostventa.slice().sort(function (a, b) {
+                    return (b.fecha || '').localeCompare(a.fecha || '') || String(b.id || '').localeCompare(String(a.id || ''));
+                });
+                tbody.innerHTML = list.map(function (r) {
+                    var ev = (r.evidencias || []).map(function (e) {
+                        var u = escHtml(e.url);
+                        var ic = e.tipo === 'video' ? '🎬' : '🖼️';
+                        return '<a href="' + u + '" target="_blank" rel="noopener" style="margin-right:0.35rem;">' + ic + '</a>';
+                    }).join('') || '—';
+                    var rid = escHtml(r.id);
+                    return '<tr data-pv-id="' + rid + '"><td style="text-align:center;vertical-align:middle;"><input type="checkbox" class="postventa-row-cb" value="' + rid + '" aria-label="Seleccionar fila" style="width:1.1rem;height:1.1rem;cursor:pointer;"></td><td style="white-space:nowrap;vertical-align:middle;">' + escHtml(r.fecha) + '</td><td style="max-width:320px;line-height:1.4;vertical-align:middle;">' + escHtml(postventaCorregirOrtografiaObservacion(r.observacion)) + '</td><td style="text-align:center;white-space:nowrap;vertical-align:middle;font-size:0.875rem;">' + escHtml(postventaEstadoLabel(r.estado)) + '</td><td style="text-align:center;vertical-align:middle;">' + ev + '</td><td style="text-align:center;vertical-align:middle;white-space:nowrap;"><button type="button" class="btn btn-secondary btn-sm" style="margin:2px;" data-pv-edit="' + rid + '">Editar</button> <button type="button" class="btn btn-danger btn-sm" style="margin:2px;" data-pv-del="' + rid + '">Borrar</button></td></tr>';
+                }).join('');
+                var selAll = document.getElementById('postventaSelectAll');
+                if (selAll) { selAll.checked = false; selAll.indeterminate = false; }
+                tbody.querySelectorAll('[data-pv-edit]').forEach(function (btn) {
+                    btn.addEventListener('click', function () { window.editarPostventa(btn.getAttribute('data-pv-edit')); });
+                });
+                tbody.querySelectorAll('[data-pv-del]').forEach(function (btn) {
+                    btn.addEventListener('click', function () { window.eliminarPostventa(btn.getAttribute('data-pv-del')); });
+                });
+                actualizarEstadisticasPostventa();
+            }
+
+            function postventaSyncSelectAllState() {
+                var selAll = document.getElementById('postventaSelectAll');
+                var cbs = document.querySelectorAll('#tbodyPostventa .postventa-row-cb');
+                if (!selAll || !cbs.length) return;
+                var n = cbs.length;
+                var checked = 0;
+                cbs.forEach(function (cb) { if (cb.checked) checked++; });
+                selAll.checked = checked === n;
+                selAll.indeterminate = checked > 0 && checked < n;
+            }
+
+            window.aplicarEstadoMasivoPostventa = async function () {
+                var sel = document.getElementById('postventaBulkEstado');
+                var estado = sel ? sel.value : 'pendiente';
+                var ids = [];
+                document.querySelectorAll('#tbodyPostventa .postventa-row-cb:checked').forEach(function (cb) { ids.push(cb.value); });
+                if (!ids.length) {
+                    mostrarAlerta('Marque al menos una fila con la casilla de la izquierda.', 'Postventa');
+                    return;
+                }
+                registrosPostventa.forEach(function (r) {
+                    if (ids.indexOf(r.id) !== -1) r.estado = estado;
+                });
+                await guardarPostventaFirestore();
+                renderTablaPostventa();
+                mostrarAlerta('Estado actualizado en ' + ids.length + ' registro(s).', 'Postventa');
+            };
+
+            function limpiarFormPostventa() {
+                var eid = document.getElementById('postventaEditId');
+                var f = document.getElementById('postventaFecha');
+                var o = document.getElementById('postventaObservacion');
+                var est = document.getElementById('postventaEstado');
+                var file = document.getElementById('postventaEvidencias');
+                if (eid) eid.value = '';
+                if (f) f.value = '';
+                if (o) o.value = '';
+                if (est) est.value = 'pendiente';
+                if (file) file.value = '';
+                var gb = document.getElementById('btnGuardarPostventa');
+                if (gb) gb.textContent = 'Guardar registro';
+            }
+
+            window.cargarPostventa = async function () {
+                registrosPostventa = [];
+                if (firebaseInitialized && db) {
+                    try {
+                        var snap = await db.collection('comunidad').doc(POSTVENTA_DOC).get();
+                        if (snap.exists) {
+                            var d = snap.data();
+                            if (Array.isArray(d.registros)) registrosPostventa = d.registros;
+                        }
+                    } catch (e) { console.error(e); }
+                }
+                if (registrosPostventa.length === 0) {
+                    try {
+                        var raw = localStorage.getItem(POSTVENTA_LS);
+                        if (raw) registrosPostventa = JSON.parse(raw) || [];
+                    } catch (e) { /* ignore */ }
+                }
+                var postvCorrObs = false;
+                for (var pi = 0; pi < registrosPostventa.length; pi++) {
+                    var pr = registrosPostventa[pi];
+                    if (!pr) continue;
+                    var obsAnt = pr.observacion == null ? '' : String(pr.observacion);
+                    var obsNuevo = postventaCorregirOrtografiaObservacion(obsAnt);
+                    if (obsNuevo !== obsAnt) {
+                        pr.observacion = obsNuevo;
+                        postvCorrObs = true;
+                    }
+                }
+                if (postvCorrObs) {
+                    try { await guardarPostventaFirestore(); } catch (eObs) { /* ignore */ }
+                }
+                if (!postventaListenersBound) {
+                    postventaListenersBound = true;
+                    var form = document.getElementById('formPostventa');
+                    if (form) form.addEventListener('submit', function (e) { e.preventDefault(); window.guardarRegistroPostventa(); });
+                    var bx = document.getElementById('btnExportarExcelPostventa');
+                    if (bx) bx.addEventListener('click', function () { window.exportarExcelPostventa(); });
+                    var bc = document.getElementById('btnCancelarEdicionPostventa');
+                    if (bc) bc.addEventListener('click', limpiarFormPostventa);
+                    var inp = document.getElementById('inputImportPostventa');
+                    if (inp) inp.addEventListener('change', function (ev) { window.importarExcelPostventa(ev); });
+                    var tblPv = document.getElementById('tablaPostventa');
+                    if (tblPv && !tblPv.dataset.postventaDelegacion) {
+                        tblPv.dataset.postventaDelegacion = '1';
+                        tblPv.addEventListener('change', function (e) {
+                            var t = e.target;
+                            if (t && t.id === 'postventaSelectAll') {
+                                document.querySelectorAll('#tbodyPostventa .postventa-row-cb').forEach(function (cb) { cb.checked = t.checked; });
+                                t.indeterminate = false;
+                            } else if (t && t.classList && t.classList.contains('postventa-row-cb')) {
+                                postventaSyncSelectAllState();
+                            }
+                        });
+                    }
+                    var btnBulk = document.getElementById('btnPostventaAplicarEstado');
+                    if (btnBulk) btnBulk.addEventListener('click', function () { window.aplicarEstadoMasivoPostventa(); });
+                    var btnDes = document.getElementById('btnPostventaDeselectAll');
+                    if (btnDes) btnDes.addEventListener('click', function () {
+                        document.querySelectorAll('#tbodyPostventa .postventa-row-cb').forEach(function (cb) { cb.checked = false; });
+                        var sa = document.getElementById('postventaSelectAll');
+                        if (sa) { sa.checked = false; sa.indeterminate = false; }
+                    });
+                }
+                var fechaInp = document.getElementById('postventaFecha');
+                if (fechaInp && !fechaInp.value) fechaInp.value = new Date().toISOString().slice(0, 10);
+                renderTablaPostventa();
+            };
+
+            window.guardarRegistroPostventa = async function () {
+                var fecha = (document.getElementById('postventaFecha') || {}).value;
+                var obs = (document.getElementById('postventaObservacion') || {}).value;
+                var estado = (document.getElementById('postventaEstado') || {}).value || 'pendiente';
+                var editId = (document.getElementById('postventaEditId') || {}).value;
+                var fileInp = document.getElementById('postventaEvidencias');
+                if (!fecha || !String(obs || '').trim()) {
+                    mostrarAlerta('Complete fecha y observación.', 'Postventa');
+                    return;
+                }
+                var id = editId || ('pv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 9));
+                var evidencias = [];
+                var exist = registrosPostventa.find(function (x) { return x.id === id; });
+                if (exist && Array.isArray(exist.evidencias)) evidencias = exist.evidencias.slice();
+
+                if (fileInp && fileInp.files && fileInp.files.length) {
+                    if (!storage || !firebaseInitialized) {
+                        mostrarAlerta('Firebase Storage no está disponible. Los archivos no se adjuntaron. Use exportación/importación con URLs o configure Storage.', 'Postventa');
+                    } else {
+                        mostrarProgreso('Subiendo evidencias', 'Subiendo…', fileInp.files.length);
+                        for (var i = 0; i < fileInp.files.length; i++) {
+                            var file = fileInp.files[i];
+                            var path = 'postventa/' + id + '/' + safeFileName(file.name);
+                            try {
+                                var url = await subirArchivoStorage(file, path);
+                                if (url) {
+                                    evidencias.push({
+                                        url: url,
+                                        storagePath: path,
+                                        tipo: (file.type && file.type.indexOf('video') === 0) ? 'video' : 'imagen',
+                                        nombre: file.name
+                                    });
+                                }
+                            } catch (e) { console.error(e); }
+                        }
+                        ocultarProgreso();
+                    }
+                    fileInp.value = '';
+                }
+
+                var rec = { id: id, fecha: fecha, observacion: postventaCorregirOrtografiaObservacion(String(obs).trim()), estado: estado, evidencias: evidencias };
+                var idx = registrosPostventa.findIndex(function (x) { return x.id === id; });
+                if (idx >= 0) registrosPostventa[idx] = rec; else registrosPostventa.push(rec);
+                await guardarPostventaFirestore();
+                renderTablaPostventa();
+                limpiarFormPostventa();
+                mostrarAlerta('Registro guardado.', 'Postventa');
+            };
+
+            window.editarPostventa = function (rid) {
+                var r = registrosPostventa.find(function (x) { return x.id === rid; });
+                if (!r) return;
+                var eid = document.getElementById('postventaEditId');
+                var f = document.getElementById('postventaFecha');
+                var o = document.getElementById('postventaObservacion');
+                var est = document.getElementById('postventaEstado');
+                if (eid) eid.value = r.id;
+                if (f) f.value = r.fecha || '';
+                if (o) o.value = r.observacion || '';
+                if (est) est.value = POSTVENTA_ESTADOS[r.estado] ? r.estado : 'pendiente';
+                var gb = document.getElementById('btnGuardarPostventa');
+                if (gb) gb.textContent = 'Actualizar registro';
+                window.scrollTo({ top: document.getElementById('postventa').offsetTop - 20, behavior: 'smooth' });
+            };
+
+            window.eliminarPostventa = async function (rid) {
+                var ok = await confirmarAccion('¿Eliminar este registro de postventa y sus archivos en Storage (si aplica)?', 'Eliminar');
+                if (!ok) return;
+                var r = registrosPostventa.find(function (x) { return x.id === rid; });
+                if (r && r.evidencias && storage && firebaseInitialized) {
+                    for (var j = 0; j < r.evidencias.length; j++) {
+                        var ev = r.evidencias[j];
+                        if (ev.storagePath) try { await eliminarArchivoStorage(ev.storagePath); } catch (e) { /* ignore */ }
+                    }
+                }
+                registrosPostventa = registrosPostventa.filter(function (x) { return x.id !== rid; });
+                await guardarPostventaFirestore();
+                renderTablaPostventa();
+                limpiarFormPostventa();
+            };
+
+            window.exportarExcelPostventa = async function () {
+                var st = { pendiente: 0, en_proceso: 0, terminado: 0, no_aplica: 0 };
+                registrosPostventa.forEach(function (r) {
+                    var k = r.estado;
+                    if (k !== 'pendiente' && k !== 'en_proceso' && k !== 'terminado' && k !== 'no_aplica') k = 'pendiente';
+                    st[k]++;
+                });
+                var total = registrosPostventa.length;
+                var aplicables = total - st.no_aplica;
+                var pctTotal = total ? Math.round(100 * st.terminado / total) : 0;
+                var pctApl = aplicables > 0 ? Math.round(100 * st.terminado / aplicables) : 0;
+                var abiertos = st.pendiente + st.en_proceso;
+
+                var comunidad = 'Comunidad';
+                try {
+                    if (typeof obtenerPersonalizacion === 'function') {
+                        var pers = await obtenerPersonalizacion();
+                        if (pers && pers.comunidad) comunidad = pers.comunidad;
+                    }
+                } catch (e1) { /* ignore */ }
+                if (!comunidad || comunidad === 'Comunidad') {
+                    try { comunidad = localStorage.getItem('nombreComunidad') || comunidad; } catch (e2) { /* ignore */ }
+                }
+
+                function escXml(s) {
+                    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                }
+                function postventaFechaReporteDMY(f) {
+                    if (f == null || f === '') return '';
+                    var str = String(f).trim();
+                    var iso = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
+                    if (iso) return String(iso[3]).padStart(2, '0') + '-' + String(iso[2]).padStart(2, '0') + '-' + iso[1];
+                    var dmy = str.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})/);
+                    if (dmy) return String(dmy[1]).padStart(2, '0') + '-' + String(dmy[2]).padStart(2, '0') + '-' + dmy[3];
+                    var d = new Date(str);
+                    if (!isNaN(d.getTime())) {
+                        return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
+                    }
+                    return str;
+                }
+                var hoy = new Date();
+                var fechaEmision = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
+                var fechaArchivo = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + String(hoy.getDate()).padStart(2, '0');
+                var limpiarNombre = function (str) {
+                    return String(str || '').replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
+                };
+
+                var list = registrosPostventa.slice().sort(function (a, b) {
+                    return (b.fecha || '').localeCompare(a.fecha || '') || String(b.id || '').localeCompare(String(a.id || ''));
+                });
+                var filasDetalle = '';
+                list.forEach(function (r) {
+                    var urls = (r.evidencias || []).map(function (e) { return e.url; }).join(' | ');
+                    filasDetalle += '<tr><td>' + escXml(postventaFechaReporteDMY(r.fecha)) + '</td><td>' + escXml(postventaCorregirOrtografiaObservacion(r.observacion)) + '</td><td class="postv-estado-td">' + escXml(postventaEstadoExcelLabel(r.estado)) + '</td><td style="font-size:10px;word-break:break-all;">' + escXml(urls) + '</td></tr>';
+                });
+                if (!filasDetalle) {
+                    filasDetalle = '<tr><td colspan="4" class="text-center" style="padding:24px;color:#6b7280;">No hay registros en el módulo Postventa.</td></tr>';
+                }
+
+                var htmlExcel = '<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40" lang="es"><head><meta charset="UTF-8"><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>Postventa - ' + escXml(comunidad) + '</title><style>' +
+                    '@page{margin:1.2cm}body{font-family:Calibri,Arial,sans-serif;margin:0;padding:18px 20px;color:#1f2937;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+                    '.band-title{font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:0.92}' +
+                    '.band-main{font-size:24px;font-weight:700;margin:6px 0 4px}' +
+                    '.band-sub{font-size:14px;font-weight:400;opacity:0.95}' +
+                    '.sec{font-size:14px;font-weight:700;color:#3f6212;margin:26px 0 10px;padding-bottom:6px;border-bottom:2px solid #75BB21}' +
+                    '.tbl{width:100%;border-collapse:collapse;font-size:11px}' +
+                    '.tbl th{background:#5a9219;color:#fff;padding:10px 10px;text-align:left;font-weight:600;border:1px solid #4a7a15}' +
+                    '.tbl th.c,.tbl td.c{text-align:center}' +
+                    '.tbl td{padding:9px 10px;border:1px solid #d1d5db;vertical-align:top}' +
+                    '.tbl tbody tr:nth-child(even) td{background:#f9fafb}' +
+                    '.meta td{background:#f3f4f6;font-size:12px;padding:12px 14px;border:1px solid #d1d5db}' +
+                    '.meta b{display:block;color:#374151;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}' +
+                    '.cumpl td{background:#ecfccb;border:1px solid #84cc16;padding:14px 16px;font-size:12px;line-height:1.65;color:#365314}' +
+                    '.foot{margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#6b7280;line-height:1.5}' +
+                    '.postv-estado-th,.postv-estado-td{min-width:118px;max-width:200px;text-align:left!important;vertical-align:middle!important;padding:8px 10px!important;font-size:11px;mso-number-format:\\@;font-family:Calibri,Arial,sans-serif}' +
+                    '</style></head><body>' +
+                    '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:20px"><tr><td style="background:#5a9219;color:#fff;padding:20px 24px;border:1px solid #4a7a15">' +
+                    '<div class="band-title">Reporte</div><div class="band-main">Postventa</div><div class="band-sub">' + escXml(comunidad) + '</div></td></tr></table>' +
+                    '<table width="100%" class="meta" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:22px"><tr>' +
+                    '<td width="34%" style="vertical-align:top"><b>Fecha de emisión</b>' + escXml(fechaEmision) + '</td>' +
+                    '<td width="33%" style="vertical-align:top"><b>Total registros</b>' + total + '</td>' +
+                    '<td width="33%" style="vertical-align:top"><b>Ítems abiertos</b>' + abiertos + '</td></tr></table>' +
+                    '<div class="sec">Estadísticas por estado</div>' +
+                    '<table class="tbl" style="margin-bottom:18px;max-width:560px"><thead><tr><th>Estado</th><th class="c" style="width:90px">Cantidad</th><th class="c" style="width:100px">% del total</th></tr></thead><tbody>' +
+                    '<tr><td>⚠️ pendiente</td><td class="c">' + st.pendiente + '</td><td class="c">' + (total ? ((100 * st.pendiente / total).toFixed(1)) : '0') + '%</td></tr>' +
+                    '<tr><td>🔄 en proceso</td><td class="c">' + st.en_proceso + '</td><td class="c">' + (total ? ((100 * st.en_proceso / total).toFixed(1)) : '0') + '%</td></tr>' +
+                    '<tr><td>✅ terminado</td><td class="c">' + st.terminado + '</td><td class="c">' + (total ? ((100 * st.terminado / total).toFixed(1)) : '0') + '%</td></tr>' +
+                    '<tr><td>❌ no aplica</td><td class="c">' + st.no_aplica + '</td><td class="c">' + (total ? ((100 * st.no_aplica / total).toFixed(1)) : '0') + '%</td></tr>' +
+                    '</tbody></table>' +
+                    '<table width="100%" class="cumpl" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:22px"><tr><td>' +
+                    '<strong style="color:#3f6212">Cumplimiento</strong><br>' +
+                    'Terminado / total: <strong>' + pctTotal + '%</strong> (' + st.terminado + ' de ' + total + ')<br>' +
+                    'Terminado / aplicables (sin «No aplica»): <strong>' + pctApl + '%</strong> (' + st.terminado + ' de ' + aplicables + ')<br>' +
+                    'Pendientes o en proceso: <strong>' + abiertos + '</strong></td></tr></table>' +
+                    '<div class="sec">Detalle de registros</div>' +
+                    '<table class="tbl"><thead><tr><th style="width:96px">Fecha</th><th>Observación</th><th class="postv-estado-th">Estado</th><th style="min-width:220px">URLs evidencia</th></tr></thead><tbody>' +
+                    filasDetalle + '</tbody></table>' +
+                    '<div class="foot"><strong>Gestión WM</strong> · Generado el ' + escXml(fechaEmision) + '. Importación sugerida: Fecha, Observación, Estado (opcional), URLs evidencia.</div>' +
+                    '</body></html>';
+
+                var nombreArchivo = 'Postventa_' + limpiarNombre(comunidad) + '_' + fechaArchivo + '.xls';
+                try {
+                    var BOM = '\uFEFF';
+                    var blob = new Blob([BOM + htmlExcel], { type: 'application/vnd.ms-excel;charset=utf-8' });
+                    var url = window.URL.createObjectURL(blob);
+                    var link = document.createElement('a');
+                    link.href = url;
+                    link.download = nombreArchivo;
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    setTimeout(function () {
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(url);
+                    }, 150);
+                    mostrarAlerta('Reporte Excel descargado.', 'Postventa');
+                } catch (err) {
+                    console.error(err);
+                    mostrarAlerta('Error al generar el archivo.', 'Error');
+                }
+            };
+
+            window.importarExcelPostventa = async function (ev) {
+                var file = ev.target.files && ev.target.files[0];
+                ev.target.value = '';
+                if (!file || typeof XLSX === 'undefined') {
+                    if (!file) return;
+                    mostrarAlerta('Librería Excel no cargada.', 'Error');
+                    return;
+                }
+                try {
+                    var buf = await file.arrayBuffer();
+                    var wb = XLSX.read(buf, { type: 'array', cellDates: true });
+                    var det = null;
+                    var aoa = null;
+                    var sheetName = '';
+                    for (var si = 0; si < wb.SheetNames.length; si++) {
+                        var sn = wb.SheetNames[si];
+                        var wss = wb.Sheets[sn];
+                        var tryAoa = XLSX.utils.sheet_to_json(wss, { header: 1, defval: '', raw: false });
+                        if (!tryAoa || !tryAoa.length) continue;
+                        var tryDet = postventaDetectarColumnas(tryAoa);
+                        if (!tryDet.error) {
+                            aoa = tryAoa;
+                            det = tryDet;
+                            sheetName = sn;
+                            break;
+                        }
+                        if (!det) det = tryDet;
+                    }
+                    if (!aoa || !det || det.error) {
+                        mostrarAlerta((det && det.error) ? det.error : 'Ninguna hoja tiene columnas Fecha y Observación.', 'Columnas requeridas');
+                        return;
+                    }
+                    var h = det.filaHeader;
+                    var iF = det.idxFecha, iO = det.idxObs, iE = det.idxEstado, iU = det.idxUrls;
+                    var n = 0;
+                    var omitidas = [];
+                    for (var r = h + 1; r < aoa.length; r++) {
+                        var fila = aoa[r] || [];
+                        var fecha = fila[iF];
+                        var obs = fila[iO];
+                        var est = iE >= 0 ? fila[iE] : '';
+                        var urls = iU >= 0 ? fila[iU] : '';
+                        var fStr = fecha != null && fecha !== '' ? String(fecha).trim() : '';
+                        var oStr = obs != null && obs !== '' ? String(obs).trim() : '';
+                        if (!fStr && !oStr) continue;
+                        if (!fStr || !oStr) {
+                            omitidas.push('Fila ' + (r + 1) + ': faltan Fecha u Observación (ambas obligatorias).');
+                            continue;
+                        }
+                        var fechaNorm = postventaFechaImport(fecha);
+                        if (!fechaNorm) {
+                            omitidas.push('Fila ' + (r + 1) + ': fecha no válida ("' + fStr.slice(0, 40) + '").');
+                            continue;
+                        }
+                        var evidencias = String(urls || '').split('|').map(function (s) { return s.trim(); }).filter(Boolean).map(function (url) {
+                            return {
+                                url: url,
+                                tipo: /\.(mp4|webm|mov|m4v)(\?|$)/i.test(url) ? 'video' : 'imagen',
+                                nombre: 'importado'
+                            };
+                        });
+                        registrosPostventa.push({
+                            id: 'pv_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8) + '_' + r,
+                            fecha: fechaNorm,
+                            observacion: postventaCorregirOrtografiaObservacion(oStr),
+                            estado: postventaEstadoFromText(est),
+                            evidencias: evidencias
+                        });
+                        n++;
+                    }
+                    await guardarPostventaFirestore();
+                    renderTablaPostventa();
+                    var msg = 'Importados: ' + n + ' registro(s). Hoja: "' + sheetName + '".';
+                    if (omitidas.length) {
+                        msg += '\n\nOmitidas ' + omitidas.length + ' fila(s):\n' + omitidas.slice(0, 12).join('\n');
+                        if (omitidas.length > 12) msg += '\n… y ' + (omitidas.length - 12) + ' más.';
+                    }
+                    mostrarAlerta(msg, 'Postventa — importación');
+                } catch (e) {
+                    console.error(e);
+                    mostrarAlerta('Error al leer el Excel: ' + (e.message || 'desconocido'), 'Error');
+                }
+            };
+        })();
 
         async function cargarUnidadesOcupacion() {
             try {
@@ -22343,7 +23105,8 @@
                 'insumos': '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M19 7h-3V6c0-2.76-2.24-5-5-5S6 3.24 6 6v1H3c-1.1 0-2 .9-2 2v11c0 1.1.9 2 2 2h16c1.1 0 2-.9 2-2V9c0-1.1-.9-2-2-2zM8 6c0-1.66 1.34-3 3-3s3 1.34 3 3v1H8V6zm11 14H5V9h14v11z"/><path fill="currentColor" d="M9 11h6v6H9z" opacity="0.2"/><path fill="currentColor" d="M10 12h4v1h-4zm0 2h4v1h-4z" opacity="0.5"/></svg>',
                 'agua': '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/><path fill="currentColor" d="M12 2L2 12l10 10 10-10L12 2zm0 2.83L19.17 12 12 19.17 4.83 12 12 4.83z" opacity="0.3"/><path fill="currentColor" d="M12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/><circle fill="currentColor" cx="12" cy="12" r="2" opacity="0.6"/></svg>',
                 'personalizacion': '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
-                'ocupacion': '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>'
+                'ocupacion': '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>',
+                'postventa': '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14l4-4h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 10H6.17L5 14.17V5h14v8z"/><path fill="currentColor" d="M7 9h10v2H7zm0-3h7v2H7z" opacity="0.7"/></svg>'
             };
             
             // Mapeo de emojis a tipos
@@ -25556,6 +26319,7 @@
                 'insumos': 'insumos',
                 'lecturasAgua': 'agua',
                 'ocupacion': 'ocupacion',
+                'postventa': 'postventa',
                 'personalizacion': 'personalizacion'
             };
             
@@ -25592,7 +26356,8 @@
                 'tituloMantenciones': 'mantenciones',
                 'tituloPagosAseo': 'aseo',
                 'tituloNomina': 'nomina',
-                'tituloInsumos': 'insumos'
+                'tituloInsumos': 'insumos',
+                'tituloPostventa': 'postventa'
             };
             
             Object.entries(titulosModulos).forEach(([idTitulo, iconoTipo]) => {
