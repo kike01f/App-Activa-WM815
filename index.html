@@ -3245,9 +3245,15 @@
                 radial-gradient(ellipse 120% 80% at 20% -20%, rgba(148, 163, 184, 0.12), transparent 50%),
                 radial-gradient(ellipse 90% 70% at 100% 50%, rgba(100, 116, 139, 0.1), transparent 45%),
                 radial-gradient(ellipse 60% 50% at 0% 100%, rgba(71, 85, 105, 0.12), transparent 40%);
-            background-size: auto;
-            background-position: center;
+            background-size: 165% 165%, 155% 155%, 145% 145%;
+            background-position: 32% 28%, 68% 52%, 12% 88%;
             background-repeat: no-repeat;
+            animation: login-bg-drift 72s ease-in-out infinite;
+        }
+        @keyframes login-bg-drift {
+            0%, 100% { background-position: 28% 22%, 72% 48%, 8% 92%; }
+            33% { background-position: 52% 38%, 42% 58%, 72% 35%; }
+            66% { background-position: 18% 55%, 88% 32%, 45% 78%; }
         }
         .login-screen-photo {
             position: absolute;
@@ -3260,26 +3266,43 @@
             position: absolute;
             left: 50%;
             top: 50%;
-            width: 100%;
-            height: 100%;
-            min-width: 100%;
-            min-height: 100%;
-            transform: translate(-50%, -50%);
+            z-index: 1;
+            width: 118%;
+            height: 118%;
+            min-width: 118%;
+            min-height: 118%;
+            max-width: none;
+            transform: translate3d(-50%, -50%, 0);
             object-fit: cover;
             object-position: center center;
             transform-origin: center center;
             -webkit-backface-visibility: hidden;
             backface-visibility: hidden;
-            animation: login-kenburns 32s ease-in-out infinite alternate;
+            filter: contrast(1.04) saturate(1.03);
+            will-change: transform;
+            animation: login-photo-live 88s ease-in-out infinite;
         }
         @supports (image-rendering: high-quality) {
             .login-screen-photo__img {
                 image-rendering: high-quality;
             }
         }
-        @keyframes login-kenburns {
-            0% { transform: translate(-50%, -50%) scale(1); }
-            100% { transform: translate(calc(-50% - 0.6%), calc(-50% - 0.4%)) scale(1.028); }
+        @keyframes login-photo-live {
+            0%, 100% {
+                transform: translate3d(-50%, -50%, 0) scale(1.01);
+            }
+            18% {
+                transform: translate3d(calc(-50% + 2.2%), calc(-50% - 1.8%), 0) scale(1.04);
+            }
+            38% {
+                transform: translate3d(calc(-50% - 2%), calc(-50% + 1.4%), 0) scale(1.055);
+            }
+            58% {
+                transform: translate3d(calc(-50% - 1%), calc(-50% - 2.2%), 0) scale(1.035);
+            }
+            78% {
+                transform: translate3d(calc(-50% + 1.6%), calc(-50% + 1.8%), 0) scale(1.02);
+            }
         }
         #loginScreen::before {
             content: '';
@@ -3288,24 +3311,48 @@
             z-index: 1;
             background: linear-gradient(165deg, rgba(8, 12, 18, 0.78) 0%, rgba(12, 18, 28, 0.68) 45%, rgba(8, 14, 22, 0.82) 100%);
             pointer-events: none;
-            animation: login-overlay-pulse 12s ease-in-out infinite alternate;
+            animation: login-overlay-pulse 18s ease-in-out infinite alternate, login-overlay-breathe 32s ease-in-out infinite;
+            transform-origin: center center;
         }
         @keyframes login-overlay-pulse {
             0% { opacity: 1; }
-            100% { opacity: 0.92; }
+            100% { opacity: 0.9; }
+        }
+        @keyframes login-overlay-breathe {
+            0%, 100% { transform: scale(1); }
+            50% { transform: scale(1.015); }
         }
         #loginScreen::after {
             content: '';
             position: absolute;
-            inset: 0;
+            inset: -8%;
             z-index: 2;
             background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 256 256' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+            background-size: 220px 220px;
             pointer-events: none;
             opacity: 1;
+            will-change: transform;
+            animation: login-grain-drift 52s ease-in-out infinite;
+        }
+        @keyframes login-grain-drift {
+            0%, 100% { transform: translate(0, 0) rotate(0deg); }
+            25% { transform: translate(18px, -14px) rotate(0.4deg); }
+            50% { transform: translate(-10px, 12px) rotate(-0.3deg); }
+            75% { transform: translate(12px, 8px) rotate(0.2deg); }
         }
         @media (prefers-reduced-motion: reduce) {
-            .login-screen-photo__img { animation: none !important; transform: translate(-50%, -50%) scale(1) !important; }
-            #loginScreen::before { animation: none; }
+            #loginScreen { animation: none !important; background-size: auto; background-position: center; }
+            .login-screen-photo__img {
+                animation: none !important;
+                transform: translate3d(-50%, -50%, 0) scale(1) !important;
+                filter: contrast(1.02) saturate(1.02) !important;
+                width: 100% !important;
+                height: 100% !important;
+                min-width: 100% !important;
+                min-height: 100% !important;
+            }
+            #loginScreen::before { animation: none !important; transform: none !important; }
+            #loginScreen::after { animation: none !important; transform: none !important; inset: 0; }
             .login-box { animation: none !important; }
             .login-brand-icon { animation: none !important; }
             .login-box h1 { animation: none !important; }
@@ -3728,7 +3775,7 @@
 <body class="app-loading">
     <div id="loginScreen">
         <div class="login-screen-photo" aria-hidden="true">
-            <img class="login-screen-photo__img" src="https://img.mailinblue.com/8323725/images/content_library/original/69ba261f18850cebd86809d3.png" alt="" decoding="async" fetchpriority="high">
+            <img class="login-screen-photo__img" src="https://lh3.googleusercontent.com/sitesv/APaQ0SR7snprx1H9E_vOMkMw2mklgL2vcYIb1WuFIUSTvvP4eu0r5_wLXdos1_rx38wdo76zzO0Js4CQmLuCJMilsn1MoT9SqdcdK_vpetuPtlalpwp8z-ZZT-r4ss-ILmqggHnnbD8vxrbQFVmPM_RLocFWDfUia2FGwwhfBJa05utpQc9e13jta13yb-mgPtrBHsrXxj6X0fa6OuGIbmRVC3nO3PGSA5Yneg=w1280" alt="" decoding="async" fetchpriority="high">
         </div>
         <div class="login-screen-stack">
             <div id="loginMobileHint" class="login-mobile-hint" hidden role="alert">
