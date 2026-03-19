@@ -4441,6 +4441,7 @@
                                 <select id="tarjetaTipo" style="padding: 0.5rem; font-size: 0.875rem;">
                                     <option value="">Seleccione...</option>
                                     <option value="sin-cobro">Sin Cobro</option>
+                                    <option value="cambio-falla">Cambio por Falla (Sin Cobro)</option>
                                     <option value="tag">TAG Vehicular ($5.000)</option>
                                     <option value="tarjeta">Tarjeta de Acceso ($10.000)</option>
                                 </select>
@@ -8983,6 +8984,42 @@
             try {
                 console.log('🔍 Buscando correo para departamento:', departamento, 'nombre:', nombreResidente);
                 
+                // PRIORIDAD 1: Buscar por nombre del residente en los campos del formulario (más específico)
+                if (nombreResidente) {
+                    var nombreInputs = document.querySelectorAll('.input-nombre-residente');
+                    for (var i = 0; i < nombreInputs.length; i++) {
+                        var nombreInput = nombreInputs[i];
+                        var nombreValue = (nombreInput.value || '').trim();
+                        if (nombreValue && nombreValue.toString().trim().toLowerCase() === nombreResidente.toString().trim().toLowerCase()) {
+                            var emailGuardado = nombreInput.getAttribute('data-residente-email');
+                            if (emailGuardado && emailGuardado.trim() !== '') {
+                                console.log('✅ Correo encontrado en campo de nombre del formulario:', emailGuardado);
+                                return {
+                                    nombre: nombreResidente,
+                                    correo: emailGuardado.trim()
+                                };
+                            }
+                        }
+                    }
+                }
+                
+                // PRIORIDAD 2: Buscar por departamento en los campos del formulario (solo si no hay nombre específico)
+                var deptoInputs = document.querySelectorAll('.input-unidad-residente');
+                for (var i = 0; i < deptoInputs.length; i++) {
+                    var deptoInput = deptoInputs[i];
+                    var deptoValue = (deptoInput.value || '').trim();
+                    if (deptoValue && deptoValue.toString().trim().toLowerCase() === departamento.toString().trim().toLowerCase()) {
+                        var emailGuardado = deptoInput.getAttribute('data-residente-email');
+                        if (emailGuardado && emailGuardado.trim() !== '') {
+                            console.log('✅ Correo encontrado en campo del formulario:', emailGuardado);
+                            return {
+                                nombre: nombreResidente || 'Residente',
+                                correo: emailGuardado.trim()
+                            };
+                        }
+                    }
+                }
+                
                 // Primero intentar obtener de window.vinculacionUnits (estructura de Vinculación Comunidad)
                 if (window.vinculacionUnits && Array.isArray(window.vinculacionUnits)) {
                     console.log('📋 Total unidades en vinculacionUnits:', window.vinculacionUnits.length);
@@ -8996,7 +9033,24 @@
                         console.log('✅ Unidad encontrada:', unidad.unitNumber, 'Residentes:', unidad.residents?.length || 0);
                         
                         if (unidad.residents && Array.isArray(unidad.residents)) {
-                            // Buscar el primer residente con correo (priorizar Propietario, luego Arrendatario)
+                            // PRIORIDAD 1: Buscar por nombre específico si se proporciona (más preciso)
+                            if (nombreResidente) {
+                                const residentePorNombre = unidad.residents.find(r => 
+                                    r && r.name && 
+                                    r.name.toString().trim().toLowerCase() === nombreResidente.toString().trim().toLowerCase() &&
+                                    r.email && r.email.trim() !== ''
+                                );
+                                
+                                if (residentePorNombre) {
+                                    console.log('✅ Correo encontrado por nombre específico:', residentePorNombre.email, 'para:', residentePorNombre.name);
+                                    return {
+                                        nombre: residentePorNombre.name,
+                                        correo: residentePorNombre.email.trim()
+                                    };
+                                }
+                            }
+                            
+                            // PRIORIDAD 2: Si no se encontró por nombre, buscar el primer residente con correo (priorizar Propietario, luego Arrendatario)
                             const residentesConCorreo = unidad.residents.filter(r => r && r.email && r.email.trim() !== '');
                             
                             console.log('📧 Residentes con correo:', residentesConCorreo.length);
@@ -9007,7 +9061,7 @@
                                 const arrendatario = residentesConCorreo.find(r => r.type === 'Arrendatario');
                                 const residenteSeleccionado = propietario || arrendatario || residentesConCorreo[0];
                                 
-                                console.log('✅ Correo encontrado:', residenteSeleccionado.email, 'para:', residenteSeleccionado.name);
+                                console.log('✅ Correo encontrado (fallback por tipo):', residenteSeleccionado.email, 'para:', residenteSeleccionado.name);
                                 
                                 return {
                                     nombre: residenteSeleccionado.name || nombreResidente || 'Residente',
@@ -9015,23 +9069,6 @@
                                 };
                             } else {
                                 console.log('⚠️ Unidad encontrada pero ningún residente tiene correo registrado');
-                            }
-                            
-                            // Si hay residentes pero sin correo, buscar por nombre si se proporciona
-                            if (nombreResidente) {
-                                const residentePorNombre = unidad.residents.find(r => 
-                                    r && r.name && 
-                                    r.name.toString().trim().toLowerCase() === nombreResidente.toString().trim().toLowerCase() &&
-                                    r.email && r.email.trim() !== ''
-                                );
-                                
-                                if (residentePorNombre) {
-                                    console.log('✅ Correo encontrado por nombre:', residentePorNombre.email);
-                                    return {
-                                        nombre: residentePorNombre.name,
-                                        correo: residentePorNombre.email.trim()
-                                    };
-                                }
                             }
                         }
                     } else {
@@ -9047,20 +9084,7 @@
                     if (ocupacion && Array.isArray(ocupacion) && ocupacion.length > 0) {
                         console.log('📋 Buscando en ocupacion-residentes:', ocupacion.length, 'registros');
                         
-                        const residente = ocupacion.find(r => 
-                            r && r.departamento && 
-                            r.departamento.toString().trim().toLowerCase() === departamento.toString().trim().toLowerCase()
-                        );
-                        
-                        if (residente && residente.correo) {
-                            console.log('✅ Correo encontrado en ocupacion-residentes:', residente.correo);
-                            return {
-                                nombre: residente.nombre || nombreResidente || 'Residente',
-                                correo: residente.correo
-                            };
-                        }
-                        
-                        // Buscar por nombre si se proporciona
+                        // PRIORIDAD 1: Buscar por nombre específico si se proporciona (más preciso)
                         if (nombreResidente) {
                             const residentePorNombre = ocupacion.find(r => 
                                 r && r.nombre && 
@@ -9075,6 +9099,20 @@
                                     correo: residentePorNombre.correo
                                 };
                             }
+                        }
+                        
+                        // PRIORIDAD 2: Buscar por departamento (fallback)
+                        const residente = ocupacion.find(r => 
+                            r && r.departamento && 
+                            r.departamento.toString().trim().toLowerCase() === departamento.toString().trim().toLowerCase()
+                        );
+                        
+                        if (residente && residente.correo) {
+                            console.log('✅ Correo encontrado en ocupacion-residentes (fallback por depto):', residente.correo);
+                            return {
+                                nombre: residente.nombre || nombreResidente || 'Residente',
+                                correo: residente.correo
+                            };
                         }
                     } else {
                         console.log('⚠️ ocupacion-residentes está vacío o no es un array');
@@ -10857,6 +10895,21 @@
             </td>
           </tr>
           <tr>
+            <td class="content-padding" style="padding: 0 28px 10px 28px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f0f7ff; border: 1px solid #1976d2; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 12px 14px;">
+                    <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 700; color: #1976d2; text-transform: uppercase; letter-spacing: 0.04em;">Procedimiento de TAG y Tarjetas</p>
+                    <p style="margin: 0 0 6px 0; font-size: 13px; color: #333333; line-height: 1.6;"><strong>1. Asignación:</strong> Un TAG por espacio asignado; se entrega solo al propietario o arrendatario registrado.</p>
+                    <p style="margin: 0 0 6px 0; font-size: 13px; color: #333333; line-height: 1.6;"><strong>2. Uso:</strong> Personal e intransferible. No prestar, no ingresar vehículos no registrados ni usar para vehículos ajenos.</p>
+                    <p style="margin: 0 0 6px 0; font-size: 13px; color: #333333; line-height: 1.6;"><strong>3. Pérdida o daño:</strong> Informar de inmediato a edificio.wm815@gmail.com. Reposición: $5.000 (se carga en el gasto común del mes siguiente).</p>
+                    <p style="margin: 0; font-size: 13px; color: #333333; line-height: 1.6;"><strong>4. Desactivación:</strong> Por mal uso, término de arriendo o cuando el residente deja de habitar la unidad.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
             <td style="padding: 14px 28px 18px 28px; text-align: center; border-top: 1px solid #eeeeee; background-color: #fafafa; border-radius: 0 0 12px 12px;">
               <p style="margin: 0; font-size: 12px; color: #888888;">Documento generado por administración. Comprobante informativo.</p>
             </td>
@@ -10987,12 +11040,14 @@
         function precioUnitarioTipo(tipo) {
             if (tipo === 'tag') return 5000;
             if (tipo === 'tarjeta') return 10000;
+            if (tipo === 'cambio-falla') return 0; // Cambio por falla sin cobro
             return 0;
         }
 
         function tipoTextoFromValue(tipo) {
             if (tipo === 'tag') return 'TAG Vehicular';
             if (tipo === 'tarjeta') return 'Tarjeta de Acceso';
+            if (tipo === 'cambio-falla') return 'Cambio por Falla';
             return 'Sin Cobro';
         }
 
@@ -22495,7 +22550,8 @@
                 residents.forEach(function(r) {
                     if (!r || !r.name) return;
                     var tipo = (r.type === 'Propietario') ? 'propietario' : 'arrendatario';
-                    out.push({ unitNumber: unitNumber, name: r.name.trim(), tipo: tipo });
+                    var email = (r.email && r.email.trim()) ? r.email.trim() : '';
+                    out.push({ unitNumber: unitNumber, name: r.name.trim(), tipo: tipo, email: email });
                 });
             });
             return out;
@@ -22531,6 +22587,7 @@
                 opt.setAttribute('data-unit', o.unitNumber);
                 opt.setAttribute('data-name', o.name);
                 opt.setAttribute('data-tipo', o.tipo || '');
+                opt.setAttribute('data-email', o.email || '');
                 opt.innerHTML = '<span class="opt-unidad">' + (o.unitNumber || '') + '</span><span class="opt-nombre">' + (o.name || '') + '</span>';
                 listEl.appendChild(opt);
             });
@@ -22582,8 +22639,14 @@
                     var deptoEl = document.getElementById(deptoId);
                     var nombreEl = document.getElementById(nombreId);
                     if (deptoEl) deptoEl._skipBlurAutocomplete = true;
-                    if (deptoEl) deptoEl.value = opt.getAttribute('data-unit') || '';
-                    if (nombreEl) nombreEl.value = opt.getAttribute('data-name') || '';
+                    if (deptoEl) {
+                        deptoEl.value = opt.getAttribute('data-unit') || '';
+                        deptoEl.setAttribute('data-residente-email', opt.getAttribute('data-email') || '');
+                    }
+                    if (nombreEl) {
+                        nombreEl.value = opt.getAttribute('data-name') || '';
+                        nombreEl.setAttribute('data-residente-email', opt.getAttribute('data-email') || '');
+                    }
                     if (tipoId) {
                         var tipoEl = document.getElementById(tipoId);
                         if (tipoEl && tipoEl.tagName === 'SELECT') tipoEl.value = opt.getAttribute('data-tipo') || '';
@@ -23544,6 +23607,17 @@
                     } else {
                         html += `<p style="color: var(--gray-500); font-style: italic; padding: 1rem;">No se registraron ventas de tarjetas durante este período.</p>`;
                     }
+                    html += `
+                        <div style="margin-top: 1rem; padding: 1rem; background: #f0f7ff; border: 1px solid #1976d2; border-radius: 8px;">
+                            <h3 style="margin: 0 0 0.75rem 0; font-size: 0.9375rem; font-weight: 700; color: #1976d2;">Procedimiento de TAG y Tarjetas</h3>
+                            <div style="font-size: 0.8125rem; color: #333333; line-height: 1.7;">
+                                <p style="margin: 0 0 0.5rem 0;"><strong>1. Asignación:</strong> Un TAG por espacio asignado; se entrega solo al propietario o arrendatario registrado.</p>
+                                <p style="margin: 0 0 0.5rem 0;"><strong>2. Uso:</strong> Personal e intransferible. No prestar, no ingresar vehículos no registrados ni usar para vehículos ajenos.</p>
+                                <p style="margin: 0 0 0.5rem 0;"><strong>3. Pérdida o daño:</strong> Informar de inmediato a edificio.wm815@gmail.com. Reposición: $5.000 (se carga en el gasto común del mes siguiente).</p>
+                                <p style="margin: 0;"><strong>4. Desactivación:</strong> Por mal uso, término de arriendo o cuando el residente deja de habitar la unidad.</p>
+                            </div>
+                        </div>
+                    `;
                     html += `</div>`;
                 }
                 
