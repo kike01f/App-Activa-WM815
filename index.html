@@ -22,8 +22,6 @@
     <!-- Chart.js y plugin para mostrar % en tortas -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
-    <!-- html2pdf.js para convertir HTML a PDF -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2pdf.js/0.10.1/html2pdf.bundle.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -12592,243 +12590,6 @@
             }
         }
         
-        // Función DEPRECADA - usar generarReporteHTMLComoAdjunto en su lugar
-        async function generarReportePDFComoAdjunto(htmlReporte, nombreArchivo) {
-            try {
-                console.log('🔄 Iniciando generación de PDF como adjunto:', nombreArchivo);
-                
-                if (!htmlReporte || htmlReporte.trim().length === 0) {
-                    console.error('❌ HTML del reporte está vacío');
-                    return null;
-                }
-                
-                // Verificar que html2pdf esté disponible
-                if (typeof html2pdf === 'undefined' || !html2pdf) {
-                    console.error('❌ html2pdf no está disponible. Verifica que la librería esté cargada.');
-                    return null;
-                }
-                
-                // Crear un elemento temporal para renderizar el HTML
-                const tempDiv = document.createElement('div');
-                tempDiv.style.position = 'absolute';
-                tempDiv.style.left = '-9999px';
-                tempDiv.style.top = '-9999px';
-                tempDiv.style.width = '210mm'; // A4 width
-                tempDiv.style.padding = '20px';
-                tempDiv.style.backgroundColor = '#ffffff';
-                
-                // Usar los estilos CSS completos de descargarReporteHTML para mejor renderizado
-                // Extraer solo el contenido del body del HTML del reporte
-                const htmlCompleto = `
-                    <!DOCTYPE html>
-                    <html lang="es">
-                    <head>
-                        <meta charset="UTF-8">
-                        <meta name="viewport" content="width=device-width, initial-scale=1.0">
-                        <title>Reporte PDF</title>
-                        <style>
-                            @media print {
-                                @page {
-                                    size: A4;
-                                    margin: 0.7cm;
-                                }
-                                body {
-                                    margin: 0;
-                                    padding: 0.25rem;
-                                    font-size: 9pt;
-                                    line-height: 1.3;
-                                }
-                            }
-                            body {
-                                font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
-                                max-width: 210mm;
-                                margin: 0 auto;
-                                padding: 1rem;
-                                background: white;
-                                color: #000;
-                                font-size: 11pt;
-                                line-height: 1.5;
-                            }
-                            .reporte-header {
-                                text-align: center;
-                                border-bottom: 1.5px solid rgba(117, 187, 33, 0.4);
-                                padding-bottom: 0.4rem;
-                                margin-bottom: 0.5rem;
-                            }
-                            .reporte-header h1 {
-                                font-size: 1.2rem;
-                                font-weight: 700;
-                                margin: 0 0 0.1rem 0;
-                                color: #1f2937;
-                            }
-                            .reporte-header p {
-                                font-size: 0.7rem;
-                                color: #6b7280;
-                                margin: 0.08rem 0;
-                            }
-                            .reporte-section {
-                                margin-bottom: 0.75rem;
-                            }
-                            .reporte-section h2 {
-                                font-size: 1rem;
-                                font-weight: 600;
-                                color: rgba(117, 187, 33, 0.8);
-                                border-bottom: 1.5px solid rgba(117, 187, 33, 0.2);
-                                padding-bottom: 0.25rem;
-                                margin-bottom: 0.5rem;
-                            }
-                            .reporte-table {
-                                width: 100%;
-                                border-collapse: collapse;
-                                margin-bottom: 0.4rem;
-                                font-size: 8pt;
-                                table-layout: auto;
-                                word-wrap: break-word;
-                            }
-                            .reporte-table th {
-                                background: #f3f4f6;
-                                padding: 0.35rem 0.4rem;
-                                text-align: left;
-                                font-weight: 600;
-                                font-size: 0.7rem;
-                                border: 1px solid #e5e7eb;
-                                word-wrap: break-word;
-                                white-space: normal;
-                                vertical-align: top;
-                            }
-                            .reporte-table td {
-                                padding: 0.35rem 0.4rem;
-                                border: 1px solid #e5e7eb;
-                                word-wrap: break-word;
-                                overflow-wrap: break-word;
-                                font-size: 0.7rem;
-                                line-height: 1.3;
-                                vertical-align: top;
-                                white-space: normal;
-                            }
-                            .reporte-table tr:nth-child(even) {
-                                background: #f9fafb;
-                            }
-                            .reporte-footer {
-                                margin-top: 1.5rem;
-                                padding-top: 0.75rem;
-                                border-top: 1px solid #e5e7eb;
-                                text-align: center;
-                                font-size: 0.7rem;
-                                color: #6b7280;
-                            }
-                            img {
-                                max-width: 100%;
-                                height: auto;
-                            }
-                        </style>
-                    </head>
-                    <body>
-                        ${htmlReporte}
-                    </body>
-                    </html>
-                `;
-                
-                tempDiv.innerHTML = htmlCompleto;
-                document.body.appendChild(tempDiv);
-                
-                console.log('📄 Elemento temporal creado, generando PDF...');
-                
-                // Esperar un momento para que el DOM se renderice
-                await new Promise(resolve => setTimeout(resolve, 500));
-                
-                // Configuración para html2pdf
-                const opt = {
-                    margin: [10, 10, 10, 10],
-                    filename: nombreArchivo,
-                    image: { type: 'jpeg', quality: 0.98 },
-                    html2canvas: { 
-                        scale: 2, 
-                        useCORS: true,
-                        logging: false,
-                        letterRendering: true
-                    },
-                    jsPDF: { 
-                        unit: 'mm', 
-                        format: 'a4', 
-                        orientation: 'portrait',
-                        compress: true
-                    }
-                };
-                
-                console.log('⚙️ Configuración de html2pdf aplicada, generando blob...');
-                
-                // Generar PDF y obtener como base64
-                let pdfBlob;
-                try {
-                    pdfBlob = await html2pdf().set(opt).from(tempDiv).outputPdf('blob');
-                    console.log('✅ PDF blob generado:', pdfBlob ? `${pdfBlob.size} bytes` : 'null');
-                } catch (pdfError) {
-                    console.error('❌ Error al generar PDF blob:', pdfError);
-                    document.body.removeChild(tempDiv);
-                    throw pdfError;
-                }
-                
-                // Limpiar elemento temporal
-                document.body.removeChild(tempDiv);
-                
-                if (!pdfBlob || pdfBlob.size === 0) {
-                    console.error('❌ El PDF generado está vacío');
-                    return null;
-                }
-                
-                // Convertir blob a base64
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onloadend = () => {
-                        let base64 = reader.result;
-                        // Remover el prefijo data:application/pdf;base64, si existe
-                        if (base64.includes(',')) {
-                            base64 = base64.split(',')[1];
-                        }
-                        
-                        if (!base64 || base64.length === 0) {
-                            console.error('❌ El base64 está vacío después de procesar');
-                            reject(new Error('Base64 vacío'));
-                            return;
-                        }
-                        
-                        // Validar formato base64
-                        const base64Valido = /^[A-Za-z0-9+/=]+$/.test(base64);
-                        if (!base64Valido) {
-                            console.error('❌ El base64 no tiene un formato válido');
-                            reject(new Error('Base64 con formato inválido'));
-                            return;
-                        }
-                        
-                        console.log('✅ PDF generado exitosamente:', {
-                            nombreArchivo,
-                            tamañoBlob: pdfBlob.size + ' bytes',
-                            tamañoBase64: base64.length + ' caracteres',
-                            primerosCaracteres: base64.substring(0, 50) + '...',
-                            esBase64Valido: base64Valido
-                        });
-                        
-                        resolve({
-                            filename: nombreArchivo,
-                            content: base64, // Base64 sin prefijo
-                            contentType: 'application/pdf',
-                            encoding: 'base64' // Especificar encoding explícitamente
-                        });
-                    };
-                    reader.onerror = (error) => {
-                        console.error('❌ Error al leer el blob:', error);
-                        reject(error);
-                    };
-                    reader.readAsDataURL(pdfBlob);
-                });
-            } catch (error) {
-                console.error('❌ Error completo al generar PDF como adjunto:', error);
-                console.error('Stack trace:', error.stack);
-                return null;
-            }
-        }
-        
         async function generarReporteExcelComoAdjunto(datos, nombreArchivo, nombreHoja = 'Datos') {
             try {
                 console.log('🔄 Generando Excel como adjunto:', nombreArchivo);
@@ -14191,14 +13952,100 @@
         
         async function generarHTMLReporteCierreMes(mesAnio, nombreMes) {
             try {
-                // Esta función puede reutilizar la lógica de generarReportePDF pero solo retornar el HTML
-                // Por ahora, retornamos un HTML básico. Se puede mejorar después.
-                const fechaHoy = formatearFecha(obtenerFechaHoy());
+                console.log('🔄 Generando HTML completo de reporte de cierre de mes...');
+                
+                // Obtener personalización
                 const personalizacion = await obtenerPersonalizacion();
                 const nombreComunidad = personalizacion.comunidad || 'Activa WM815';
                 const jefeEdificio = personalizacion.jefeEdificio || 'Angel Avendaño';
                 const numeroDeptos = personalizacion.deptos || '259';
+                const fechaHoy = formatearFecha(obtenerFechaHoy());
                 
+                // Obtener módulos visibles
+                const modulosVisibles = await obtenerModulosVisibles();
+                
+                // Mapear módulos visibles a sus claves de datos
+                const mapeoModulos = {
+                    'mudanzas': 'mudanzas',
+                    'aperturas': 'aperturas',
+                    'tarjetas': 'tarjetas',
+                    'espacios': 'espacios',
+                    'multas': 'multas',
+                    'morosos': 'morosos',
+                    'ocupacion': 'ocupacion-residentes',
+                    'caja': 'caja',
+                    'mantenciones': ['mantenciones', 'visitas-extraordinarias'],
+                    'pagos-aseo': 'pagosAseo',
+                    'nomina': ['nomina', 'nomina-reemplazos'],
+                    'insumos': 'insumos',
+                    'lecturas-agua': 'lecturasAguaCaliente'
+                };
+                
+                // Construir lista de módulos a cargar
+                const modulosACargar = [];
+                modulosVisibles.forEach(moduloVisible => {
+                    const modulosData = mapeoModulos[moduloVisible];
+                    if (modulosData) {
+                        if (Array.isArray(modulosData)) {
+                            modulosACargar.push(...modulosData);
+                        } else {
+                            modulosACargar.push(modulosData);
+                        }
+                    }
+                });
+                
+                // Cargar todos los datos
+                const datosPromesas = modulosACargar.map(modulo => 
+                    cargarDatosModulo(modulo, mesAnio, false)
+                );
+                const resultados = await Promise.all(datosPromesas);
+                
+                // Organizar datos por módulo
+                const datos = {};
+                let idx = 0;
+                modulosACargar.forEach(modulo => {
+                    datos[modulo] = resultados[idx] || [];
+                    idx++;
+                });
+                
+                // Calcular estadísticas
+                const mudanzas = datos['mudanzas'] || [];
+                const aperturas = datos['aperturas'] || [];
+                const tarjetas = datos['tarjetas'] || [];
+                const espacios = datos['espacios'] || [];
+                const multas = datos['multas'] || [];
+                const morosos = datos['morosos'] || [];
+                const caja = datos['caja'] || [];
+                const lecturasAguaCaliente = datos['lecturasAguaCaliente'] || [];
+                
+                // Calcular ingresos
+                const ingresosMudanzas = Array.isArray(mudanzas) 
+                    ? mudanzas.filter(m => m && m.aplicaCobro === 'si').reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0)
+                    : 0;
+                const ingresosTarjetas = Array.isArray(tarjetas)
+                    ? tarjetas.reduce((sum, t) => sum + (parseFloat(t && t.monto) || 0), 0)
+                    : 0;
+                const ingresosAperturas = Array.isArray(aperturas)
+                    ? aperturas.filter(a => a && a.aplicaCobro === 'si').reduce((sum, a) => sum + (parseFloat(a.monto) || 0), 0)
+                    : 0;
+                const ingresosEspaciosAseo = Array.isArray(espacios)
+                    ? espacios.filter(e => e && e.aplicaAseo === 'si').reduce((sum, e) => sum + (parseFloat(e.monto) || 0), 0)
+                    : 0;
+                const ingresosEspaciosUso = Array.isArray(espacios)
+                    ? espacios.filter(e => e && e.aplicaCobroEspacio === 'si').reduce((sum, e) => sum + (parseFloat(e.montoCobroEspacio) || 0), 0)
+                    : 0;
+                const ingresosEspacios = ingresosEspaciosAseo + ingresosEspaciosUso;
+                
+                // Calcular egresos (caja chica)
+                const egresosCaja = Array.isArray(caja) && caja.length > 0
+                    ? caja.reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0)
+                    : 0;
+                
+                // Totales
+                const ingresosTotales = ingresosMudanzas + ingresosAperturas + ingresosTarjetas + ingresosEspacios;
+                const saldoFinal = ingresosTotales - egresosCaja;
+                
+                // Generar HTML
                 let html = `
                     <div class="reporte-header">
                         <img src="https://img.mailinblue.com/8323725/images/content_library/original/6844749040dd0f16c5341248.png" alt="Logo" class="reporte-logo" style="max-width:101px;height:auto;display:block;margin:0 auto 0.5rem auto;">
@@ -14218,17 +14065,87 @@
                         <p><strong>Período:</strong> ${nombreMes}</p>
                         <p><strong>Fecha de Generación:</strong> ${fechaHoy}</p>
                     </div>
+                    
                     <div class="reporte-section">
-                        <h2>RESUMEN MENSUAL</h2>
-                        <p style="color: var(--gray-600);">Este reporte incluye el resumen completo de todas las operaciones del mes.</p>
+                        <h2>CONSOLIDADO FINANCIERO</h2>
+                        <div style="background: #f8fafc; padding: 1.5rem; border-radius: 8px; margin-bottom: 1.5rem;">
+                            <table style="width: 100%; border-collapse: collapse; font-size: 0.9rem;">
+                                <thead>
+                                    <tr style="background: #e5e7eb;">
+                                        <th style="padding: 0.75rem; text-align: left; border: 1px solid #d1d5db;">Concepto</th>
+                                        <th style="padding: 0.75rem; text-align: right; border: 1px solid #d1d5db;">Monto</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    ${modulosVisibles.includes('mudanzas') && ingresosMudanzas > 0 ? `
+                                    <tr>
+                                        <td style="padding: 0.75rem; border: 1px solid #e5e7eb;">Ingresos por Mudanzas</td>
+                                        <td style="padding: 0.75rem; text-align: right; border: 1px solid #e5e7eb; font-weight: 600;">${formatearMoneda(ingresosMudanzas)}</td>
+                                    </tr>
+                                    ` : ''}
+                                    ${modulosVisibles.includes('aperturas') && ingresosAperturas > 0 ? `
+                                    <tr>
+                                        <td style="padding: 0.75rem; border: 1px solid #e5e7eb;">Ingresos por Aperturas</td>
+                                        <td style="padding: 0.75rem; text-align: right; border: 1px solid #e5e7eb; font-weight: 600;">${formatearMoneda(ingresosAperturas)}</td>
+                                    </tr>
+                                    ` : ''}
+                                    ${modulosVisibles.includes('tarjetas') && ingresosTarjetas > 0 ? `
+                                    <tr>
+                                        <td style="padding: 0.75rem; border: 1px solid #e5e7eb;">Ingresos por Tarjetas/TAG</td>
+                                        <td style="padding: 0.75rem; text-align: right; border: 1px solid #e5e7eb; font-weight: 600;">${formatearMoneda(ingresosTarjetas)}</td>
+                                    </tr>
+                                    ` : ''}
+                                    ${modulosVisibles.includes('espacios') && ingresosEspacios > 0 ? `
+                                    <tr>
+                                        <td style="padding: 0.75rem; border: 1px solid #e5e7eb;">Ingresos por Espacios Comunes</td>
+                                        <td style="padding: 0.75rem; text-align: right; border: 1px solid #e5e7eb; font-weight: 600;">${formatearMoneda(ingresosEspacios)}</td>
+                                    </tr>
+                                    ` : ''}
+                                    <tr style="background: #f3f4f6; border-top: 2px solid #d1d5db;">
+                                        <td style="padding: 0.75rem; border: 1px solid #d1d5db; font-weight: 700;">TOTAL INGRESOS</td>
+                                        <td style="padding: 0.75rem; text-align: right; border: 1px solid #d1d5db; font-weight: 700; color: rgba(117, 187, 33, 0.9);">${formatearMoneda(ingresosTotales)}</td>
+                                    </tr>
+                                    ${modulosVisibles.includes('caja') && egresosCaja > 0 ? `
+                                    <tr>
+                                        <td style="padding: 0.75rem; border: 1px solid #e5e7eb;">Egresos por Caja Chica</td>
+                                        <td style="padding: 0.75rem; text-align: right; border: 1px solid #e5e7eb; font-weight: 600; color: #dc2626;">-${formatearMoneda(egresosCaja)}</td>
+                                    </tr>
+                                    ` : ''}
+                                    <tr style="background: #e5e7eb; border-top: 2px solid #111827;">
+                                        <td style="padding: 0.75rem; border: 1px solid #111827; font-weight: 700; font-size: 1rem;">SALDO FINAL</td>
+                                        <td style="padding: 0.75rem; text-align: right; border: 1px solid #111827; font-weight: 700; font-size: 1rem; color: ${saldoFinal >= 0 ? 'rgba(117, 187, 33, 0.9)' : '#dc2626'};">
+                                            ${formatearMoneda(saldoFinal)}
+                                        </td>
+                                    </tr>
+                                </tbody>
+                            </table>
+                        </div>
                     </div>
+                    
+                    <div class="reporte-section">
+                        <h2>RESUMEN OPERACIONAL</h2>
+                        <div style="background: #f8fafc; padding: 1rem; border-radius: 8px;">
+                            <p style="margin: 0.5rem 0; font-size: 0.9rem;"><strong>Mudanzas:</strong> ${mudanzas.length} registros</p>
+                            <p style="margin: 0.5rem 0; font-size: 0.9rem;"><strong>Aperturas:</strong> ${aperturas.length} registros</p>
+                            <p style="margin: 0.5rem 0; font-size: 0.9rem;"><strong>Tarjetas/TAG:</strong> ${tarjetas.length} registros</p>
+                            <p style="margin: 0.5rem 0; font-size: 0.9rem;"><strong>Espacios Comunes:</strong> ${espacios.length} registros</p>
+                            <p style="margin: 0.5rem 0; font-size: 0.9rem;"><strong>Multas:</strong> ${multas.length} registros</p>
+                            <p style="margin: 0.5rem 0; font-size: 0.9rem;"><strong>Morosos:</strong> ${morosos.length} registros</p>
+                            ${modulosVisibles.includes('caja') ? `<p style="margin: 0.5rem 0; font-size: 0.9rem;"><strong>Caja Chica:</strong> ${caja.length} movimientos - Total: ${formatearMoneda(egresosCaja)}</p>` : ''}
+                            ${modulosVisibles.includes('lecturas-agua') ? `<p style="margin: 0.5rem 0; font-size: 0.9rem;"><strong>Lecturas de Agua:</strong> ${lecturasAguaCaliente.length} registros</p>` : ''}
+                        </div>
+                    </div>
+                    
                     <div class="reporte-footer">
                         <p>Reporte generado automáticamente por el Sistema de Gestión de Comunidad</p>
+                        <p>Este documento contiene información confidencial y está dirigido al Comité de Administración</p>
                     </div>
                 `;
+                
+                console.log('✅ HTML de reporte de cierre de mes generado correctamente');
                 return html;
             } catch (error) {
-                console.error('Error al generar HTML de reporte de cierre de mes:', error);
+                console.error('❌ Error al generar HTML de reporte de cierre de mes:', error);
                 return null;
             }
         }
@@ -20653,7 +20570,7 @@
             actualizarEstadoFormularios();
         }
         
-        // Función para cargar y mostrar barras de progreso de mantenciones y nómina
+        // Función para cargar y mostrar barras de progreso de nómina
         async function cargarBarrasProgreso() {
             // Mostrar si estamos en el mes actual o en un mes reabierto (editable)
             // No mostrar si estamos consultando un mes archivado (solo lectura)
@@ -20664,193 +20581,6 @@
             // Calcular progreso de nómina
             await calcularProgresoNomina();
         }
-        
-        // Función para calcular progreso de mantenciones - DESHABILITADA (se eliminó del dashboard)
-        // Esta función ya no se usa porque se eliminó la sección "Mantenciones del Mes" del panel de control
-        /*
-        async function calcularProgresoMantenciones() {
-            const contenedor = document.getElementById('progresoMantenciones');
-            if (!contenedor) return;
-            
-            const mantenciones = await obtenerDatosMes('mantenciones');
-            const proveedores = await obtenerDatos('proveedores');
-            const hoy = new Date();
-            hoy.setHours(0, 0, 0, 0);
-            
-            // Obtener primer y último día del mes actual
-            const mesActual = obtenerMesActual();
-            const [year, month] = mesActual.split('-');
-            const primerDiaMes = new Date(parseInt(year), parseInt(month) - 1, 1);
-            const ultimoDiaMes = new Date(parseInt(year), parseInt(month), 0);
-            ultimoDiaMes.setHours(23, 59, 59, 999);
-            
-            // Usar solo la última mantención por proveedor para evitar contar mantenciones históricas como vencidas
-            // Incluir mantenciones normales y sin plazo (ambas se guardan en mantenciones)
-            const mantencionesFiltradas = mantenciones.filter(m => 
-                !m.tipoVisita || m.tipoVisita === 'normal' || m.tipoVisita === 'sin-plazo'
-            );
-            const ultimasMantenciones = obtenerUltimasMantencionesPorProveedor(mantencionesFiltradas);
-            
-            // Crear un mapa de proveedores que ya tienen mantenciones registradas
-            const proveedoresConMantencion = new Set();
-            ultimasMantenciones.forEach(m => {
-                if (m.proveedor) {
-                    proveedoresConMantencion.add(m.proveedor.toLowerCase().trim());
-                }
-            });
-            
-            // Agregar proveedores que no tienen mantenciones registradas pero tienen programación
-            const proveedoresSinMantencion = proveedores.filter(p => {
-                if (!p.nombre || !p.ultimaFecha || !p.periodo) return false;
-                const nombreNormalizado = p.nombre.toLowerCase().trim();
-                return !proveedoresConMantencion.has(nombreNormalizado);
-            });
-            
-            // Calcular mantenciones con estado - SOLO DEL MES ACTUAL
-            let mantencionesAlDia = 0;
-            let mantencionesVencidas = 0;
-            let mantencionesProximas = 0;
-            let mantencionesSinPlazo = 0;
-            let totalMantenciones = 0;
-            
-            // Procesar mantenciones registradas - SOLO LAS DEL MES ACTUAL
-            ultimasMantenciones.forEach(m => {
-                // Verificar si la mantención es del mes actual
-                let esDelMesActual = false;
-                
-                // Las mantenciones sin plazo se consideran del mes actual si se realizaron en el mes actual
-                if (m.tipoVisita === 'sin-plazo' || !m.plazo) {
-                    if (m.fechaUltima) {
-                        const fechaUltima = new Date(m.fechaUltima);
-                        fechaUltima.setHours(0, 0, 0, 0);
-                        esDelMesActual = fechaUltima >= primerDiaMes && fechaUltima <= ultimoDiaMes;
-                    }
-                } else if (m.plazo) {
-                    const fechaProxima = calcularProximaMantencion(m.fechaUltima, m.plazo);
-                    if (fechaProxima) {
-                        const fechaProximaDate = new Date(fechaProxima);
-                        fechaProximaDate.setHours(0, 0, 0, 0);
-                        // Es del mes actual si la fecha próxima está en el mes actual (vencida o dentro del mes)
-                        esDelMesActual = fechaProximaDate >= primerDiaMes && fechaProximaDate <= ultimoDiaMes;
-                    } else if (m.fechaUltima) {
-                        // Si no hay fecha próxima, verificar si se realizó en el mes actual
-                        const fechaUltima = new Date(m.fechaUltima);
-                        fechaUltima.setHours(0, 0, 0, 0);
-                        esDelMesActual = fechaUltima >= primerDiaMes && fechaUltima <= ultimoDiaMes;
-                    }
-                }
-                
-                // Solo contar si es del mes actual
-                if (!esDelMesActual) return;
-                
-                // Las mantenciones sin plazo se cuentan en el total pero no se calculan como vencidas
-                if (m.tipoVisita === 'sin-plazo' || !m.plazo) {
-                    mantencionesSinPlazo++;
-                    totalMantenciones++;
-                    mantencionesAlDia++; // Se consideran al día ya que no tienen plazo
-                } else if (m.plazo) {
-                    const fechaProxima = calcularProximaMantencion(m.fechaUltima, m.plazo);
-                    if (!fechaProxima) {
-                        mantencionesSinPlazo++;
-                        totalMantenciones++;
-                        mantencionesAlDia++;
-                    } else {
-                        const estado = obtenerEstadoMantencion(fechaProxima);
-                        totalMantenciones++;
-                        
-                        if (estado.estado === 'vencida') {
-                            mantencionesVencidas++;
-                        } else if (estado.estado === 'proxima') {
-                            // Solo contar como "próxima" si está dentro del mes actual
-                            mantencionesProximas++;
-                        } else {
-                            mantencionesAlDia++;
-                        }
-                    }
-                }
-            });
-            
-            // Procesar proveedores sin mantenciones registradas - SOLO LOS DEL MES ACTUAL
-            proveedoresSinMantencion.forEach(p => {
-                const fechaProxima = calcularProximaMantencionProveedor(p.ultimaFecha, p.periodo);
-                if (!fechaProxima) {
-                    // Sin plazo o sin fecha próxima - verificar si la última fecha está en el mes actual
-                    if (p.ultimaFecha) {
-                        const fechaUltima = new Date(p.ultimaFecha);
-                        fechaUltima.setHours(0, 0, 0, 0);
-                        const esDelMesActual = fechaUltima >= primerDiaMes && fechaUltima <= ultimoDiaMes;
-                        if (esDelMesActual) {
-                            mantencionesSinPlazo++;
-                            totalMantenciones++;
-                            mantencionesAlDia++;
-                        }
-                    }
-                } else {
-                    const fechaProximaDate = new Date(fechaProxima);
-                    fechaProximaDate.setHours(0, 0, 0, 0);
-                    // Solo contar si la fecha próxima está en el mes actual
-                    const esDelMesActual = fechaProximaDate >= primerDiaMes && fechaProximaDate <= ultimoDiaMes;
-                    if (!esDelMesActual) return;
-                    
-                    const estadoObj = obtenerEstadoProveedor(fechaProxima);
-                    totalMantenciones++;
-                    
-                    if (estadoObj.estado === 'vencida') {
-                        mantencionesVencidas++;
-                    } else if (estadoObj.estado === 'proxima') {
-                        // Solo contar como "próxima" si está dentro del mes actual
-                        mantencionesProximas++;
-                    } else {
-                        mantencionesAlDia++;
-                    }
-                }
-            });
-            
-            // Calcular porcentaje de mantenciones al día
-            const porcentajeAlDia = totalMantenciones > 0 
-                ? Math.round((mantencionesAlDia / totalMantenciones) * 100) 
-                : 100;
-            
-            // Determinar color y estado según porcentaje
-            let colorBarra = '#10b981'; // Verde
-            let colorFondo = 'rgba(16, 185, 129, 0.1)';
-            let textoEstado = 'Excelente';
-            let icono = '✅';
-            
-            if (porcentajeAlDia < 50) {
-                colorBarra = '#dc2626'; // Rojo
-                colorFondo = 'rgba(220, 38, 38, 0.1)';
-                textoEstado = 'Requiere atención';
-                icono = '⚠️';
-            } else if (porcentajeAlDia < 80) {
-                colorBarra = '#f59e0b'; // Naranja
-                colorFondo = 'rgba(245, 158, 11, 0.1)';
-                textoEstado = 'En proceso';
-                icono = '⏰';
-            }
-            
-            contenedor.innerHTML = `
-                <div style="margin-bottom: 0.75rem;">
-                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.5rem;">
-                        <span style="font-size: 0.875rem; font-weight: 600; color: var(--gray-700);">
-                            ${mantencionesAlDia} de ${totalMantenciones} al día
-                        </span>
-                        <span style="font-size: 0.875rem; font-weight: 700; color: ${colorBarra};">
-                            ${porcentajeAlDia}%
-                        </span>
-                    </div>
-                    <div style="width: 100%; height: 12px; background: #e5e7eb; border-radius: 999px; overflow: hidden; position: relative;">
-                        <div style="width: ${porcentajeAlDia}%; height: 100%; background: linear-gradient(90deg, ${colorBarra} 0%, ${colorBarra}dd 100%); border-radius: 999px; transition: width 0.5s ease; box-shadow: 0 2px 4px rgba(0,0,0,0.1);"></div>
-                    </div>
-                </div>
-                <div style="display: flex; align-items: center; gap: 0.5rem; margin-top: 0.5rem;">
-                    <span style="font-size: 1rem;">${icono}</span>
-                    <span style="font-size: 0.8125rem; color: var(--gray-600);">${textoEstado}</span>
-                    ${mantencionesVencidas > 0 ? `<span style="font-size: 0.75rem; color: #dc2626; margin-left: auto;">${mantencionesVencidas} vencida${mantencionesVencidas > 1 ? 's' : ''}</span>` : ''}
-                </div>
-            `;
-        }
-        */
         
         // Función para calcular progreso de nómina
         async function calcularProgresoNomina() {
@@ -25402,6 +25132,7 @@
                     'espacios': 'espacios',
                     'multas': 'multas',
                     'morosos': 'morosos',
+                    'ocupacion': 'ocupacion-residentes',
                     'caja': 'caja',
                     'mantenciones': ['mantenciones', 'visitas-extraordinarias'],
                     'pagos-aseo': 'pagosAseo',
@@ -25592,7 +25323,7 @@
             try {
                 mostrarAlerta('Reabriendo mes... Por favor espere.', 'Procesando');
                 
-                const modulos = ['mudanzas', 'aperturas', 'tarjetas', 'espacios', 'multas', 'morosos', 'caja', 'mantenciones', 'visitas-extraordinarias', 'pagosAseo', 'nomina', 'nomina-reemplazos', 'insumos', 'lecturasAguaCaliente'];
+                const modulos = ['mudanzas', 'aperturas', 'tarjetas', 'espacios', 'multas', 'morosos', 'ocupacion-residentes', 'caja', 'mantenciones', 'visitas-extraordinarias', 'pagosAseo', 'nomina', 'nomina-reemplazos', 'insumos', 'lecturasAguaCaliente'];
                 // Agregar módulos de configuración que también deben reabrirse
                 const modulosConfig = ['mantenciones-config', 'caja-config'];
                 let datosReabiertos = 0;
@@ -28251,8 +27982,7 @@
                 console.error('La función animarValoresFinancieros no está definida');
             }
 
-            // Mantenciones vencidas - usar la misma lógica que en calcularProgresoMantenciones
-            // Reutilizar mantencionesUnificadas que ya se calcularon arriba
+            // Mantenciones vencidas - reutilizar mantencionesUnificadas que ya se calcularon arriba
             const ultimasMantenciones = mantencionesUnificadas;
             
             const hoy = new Date();
