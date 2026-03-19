@@ -29006,6 +29006,12 @@
                 }
                 
                 var pintarOcupacion = function(metricasOcup) {
+                    // Destruir chart existente antes de crear uno nuevo (por si se llama múltiples veces)
+                    var chartOcupExistente = Chart.getChart(canvasOcup);
+                    if (chartOcupExistente) {
+                        chartOcupExistente.destroy();
+                    }
+                    
                     var totalUn = metricasOcup && metricasOcup.totalUnidades ? metricasOcup.totalUnidades : 0;
                     var ocupadasEfect = metricasOcup && metricasOcup.ocupacionActual != null ? metricasOcup.ocupacionActual : 0;
                     var entregadas = metricasOcup && metricasOcup.unidadesEntregadas != null ? metricasOcup.unidadesEntregadas : 0;
