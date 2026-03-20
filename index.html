@@ -5486,91 +5486,124 @@
             </section>
         </div>
 
-        <!-- MÓDULO POSTVENTA -->
-        <div id="postventa" class="tab-content">
-            <div style="margin-bottom: 0.85rem;">
-                <h2 id="tituloPostventa" style="margin: 0; color: var(--gray-900); font-size: 1.35rem; font-weight: 700; display: flex; align-items: center; gap: 0.65rem;">
-                    <span style="display: inline-flex; align-items: center; width: 1.5rem; height: 1.5rem;"></span> Postventa
+        <!-- MÓDULO POSTVENTA: resumen → archivo → formulario → listado (misma API de IDs) -->
+        <div id="postventa" class="tab-content postventa-modulo">
+            <header class="postventa-modulo__head" style="margin-bottom: 1.25rem;">
+                <h2 id="tituloPostventa" style="margin: 0; color: var(--gray-900); font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 0.75rem;">
+                    <span style="display: inline-flex; align-items: center; width: 1.75rem; height: 1.75rem;"></span> Postventa
                 </h2>
-            </div>
+                <p style="color: var(--gray-600); font-size: 0.875rem; margin: 0.5rem 0 0 0; max-width: 42rem; line-height: 1.5;">
+                    Seguimiento de observaciones y estados (pendiente, en proceso, terminado, no aplica). Exporte a Excel, envíe por correo o importe desde hoja de cálculo.
+                </p>
+            </header>
 
             <div id="postventaCumplimientoWrap" style="display: none !important;" aria-hidden="true"></div>
 
-            <div class="form-section" style="margin-bottom: 0.75rem; padding: 0.55rem 0.85rem; display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem;">
-                <div id="postventaStatsWrap" style="font-size: 0.8125rem; line-height: 1.45; color: var(--text-primary); flex: 1; min-width: 200px;"></div>
-                <div style="display: flex; flex-wrap: wrap; gap: 0.4rem; align-items: center;">
-                    <button type="button" class="btn btn-primary" id="btnExportarExcelPostventa" style="padding: 0.4rem 0.75rem; font-size: 0.8125rem;">📊 Excel</button>
-                    <button type="button" class="btn btn-success" id="btnEnviarCorreoPostventa" style="padding: 0.4rem 0.75rem; font-size: 0.8125rem; background: #10b981; border-color: #10b981;">📧 Enviar por Correo</button>
-                    <label class="btn btn-secondary" style="cursor: pointer; margin: 0; padding: 0.4rem 0.75rem; font-size: 0.8125rem;">
-                        <input type="file" id="inputImportPostventa" accept=".xlsx,.xls" style="display: none;">
-                        📥 Importar
-                    </label>
+            <!-- Bloque 1: Resumen + herramientas de archivo -->
+            <section class="form-section postventa-modulo__panel" aria-labelledby="postventa-resumen-titulo" style="margin-bottom: 1rem; padding: 1rem 1.15rem; border-radius: 12px; border: 1px solid var(--border-color); background: linear-gradient(135deg, rgba(117, 187, 33, 0.1) 0%, rgba(117, 187, 33, 0.03) 100%); transition: border-color 0.3s ease;">
+                <div style="display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1rem 1.25rem;">
+                    <div style="flex: 1; min-width: 200px;">
+                        <h3 id="postventa-resumen-titulo" style="margin: 0 0 0.5rem 0; font-size: 0.9375rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 0.45rem;">
+                            <span aria-hidden="true">📊</span> Resumen del listado
+                        </h3>
+                        <div id="postventaStatsWrap" style="font-size: 0.8125rem; line-height: 1.5; color: var(--text-secondary);"></div>
+                    </div>
+                    <div style="display: flex; flex-direction: column; align-items: stretch; gap: 0.5rem; min-width: min(100%, 220px);">
+                        <span style="font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-tertiary);">Archivo y envío</span>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.45rem;">
+                            <button type="button" class="btn btn-primary" id="btnExportarExcelPostventa" style="padding: 0.45rem 0.8rem; font-size: 0.8125rem;">📊 Excel</button>
+                            <button type="button" class="btn btn-success" id="btnEnviarCorreoPostventa" style="padding: 0.45rem 0.8rem; font-size: 0.8125rem; background: #10b981; border-color: #10b981;">📧 Enviar por correo</button>
+                            <label class="btn btn-secondary" style="cursor: pointer; margin: 0; padding: 0.45rem 0.8rem; font-size: 0.8125rem;">
+                                <input type="file" id="inputImportPostventa" accept=".xlsx,.xls" style="display: none;">
+                                📥 Importar Excel
+                            </label>
+                        </div>
+                    </div>
                 </div>
-            </div>
+            </section>
 
-            <div class="form-section" style="margin-bottom: 0.75rem; padding: 0.65rem 0.9rem;">
-                <h3 style="margin: 0 0 0.45rem 0; font-size: 0.9375rem; font-weight: 700;">Nuevo o editar registro</h3>
+            <!-- Bloque 2: Formulario nuevo / edición -->
+            <section class="form-section postventa-modulo__panel" aria-labelledby="postventa-form-titulo" style="margin-bottom: 1rem; padding: 1rem 1.15rem; border-radius: 12px; border: 1px solid var(--border-color); background: var(--bg-primary); transition: background-color 0.3s ease, border-color 0.3s ease;">
+                <h3 id="postventa-form-titulo" style="margin: 0 0 0.35rem 0; font-size: 1rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 0.45rem;">
+                    <span aria-hidden="true">✏️</span> Registrar o editar observación
+                </h3>
+                <p style="margin: 0 0 0.85rem 0; font-size: 0.8125rem; color: var(--gray-600);">Indique fecha, estado y texto. Puede adjuntar fotos o videos como evidencia.</p>
                 <form id="formPostventa">
                     <input type="hidden" id="postventaEditId" value="">
-                    <div style="display: flex; flex-wrap: wrap; gap: 0.45rem; align-items: flex-end; margin-bottom: 0.4rem;">
+                    <div class="postventa-form-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.65rem 0.75rem; align-items: end;">
                         <div class="form-group" style="margin: 0;">
-                            <label for="postventaFecha" style="font-size: 0.72rem; margin-bottom: 0.15rem;">Fecha *</label>
-                            <input type="date" id="postventaFecha" required class="form-input" style="padding: 0.4rem 0.5rem; font-size: 0.8125rem; width: auto;">
+                            <label for="postventaFecha" style="font-size: 0.75rem; margin-bottom: 0.2rem; display: block;">Fecha *</label>
+                            <input type="date" id="postventaFecha" required class="form-input" style="padding: 0.45rem 0.55rem; font-size: 0.8125rem; width: 100%; max-width: 11rem;">
                         </div>
                         <div class="form-group" style="margin: 0;">
-                            <label for="postventaEstado" style="font-size: 0.72rem; margin-bottom: 0.15rem;">Estado *</label>
-                            <select id="postventaEstado" required class="form-input" style="padding: 0.4rem 0.5rem; font-size: 0.8125rem; min-width: 150px;">
+                            <label for="postventaEstado" style="font-size: 0.75rem; margin-bottom: 0.2rem; display: block;">Estado *</label>
+                            <select id="postventaEstado" required class="form-input" style="padding: 0.45rem 0.55rem; font-size: 0.8125rem; width: 100%; min-width: 0;">
                                 <option value="pendiente">⚠️ Pendiente</option>
                                 <option value="en_proceso">🔄 En proceso</option>
                                 <option value="terminado">✅ Terminado</option>
-                                <option value="no_aplica">❌ No Aplica</option>
+                                <option value="no_aplica">❌ No aplica</option>
                             </select>
                         </div>
-                        <div class="form-group" style="margin: 0; flex: 1; min-width: 160px;">
-                            <label for="postventaObservacion" style="font-size: 0.72rem; margin-bottom: 0.15rem;">Observación *</label>
-                            <textarea id="postventaObservacion" rows="2" required class="form-input" placeholder="Texto…" spellcheck="true" lang="es" style="width: 100%; padding: 0.4rem 0.5rem; font-size: 0.8125rem; line-height: 1.35; min-height: 2.5rem;"></textarea>
+                        <div class="form-group" style="margin: 0; grid-column: 1 / -1;">
+                            <label for="postventaObservacion" style="font-size: 0.75rem; margin-bottom: 0.2rem; display: block;">Observación *</label>
+                            <textarea id="postventaObservacion" rows="3" required class="form-input" placeholder="Detalle de la observación o seguimiento…" spellcheck="true" lang="es" style="width: 100%; padding: 0.5rem 0.6rem; font-size: 0.8125rem; line-height: 1.4; min-height: 4rem; resize: vertical;"></textarea>
                         </div>
-                        <div class="form-group" style="margin: 0;">
-                            <label for="postventaEvidencias" style="font-size: 0.72rem; margin-bottom: 0.15rem;">Evidencia</label>
-                            <input type="file" id="postventaEvidencias" multiple accept="image/*,video/*" style="padding: 0.25rem 0; font-size: 0.75rem; max-width: 200px;">
+                        <div class="form-group" style="margin: 0; grid-column: 1 / -1;">
+                            <label for="postventaEvidencias" style="font-size: 0.75rem; margin-bottom: 0.2rem; display: block;">Evidencia (opcional)</label>
+                            <input type="file" id="postventaEvidencias" multiple accept="image/*,video/*" style="padding: 0.3rem 0; font-size: 0.8125rem; max-width: 100%;">
                         </div>
-                        <button type="submit" class="btn btn-primary" id="btnGuardarPostventa" style="padding: 0.4rem 0.75rem; font-size: 0.8125rem;">Guardar</button>
-                        <button type="button" class="btn btn-secondary" id="btnCancelarEdicionPostventa" style="padding: 0.4rem 0.65rem; font-size: 0.8125rem;">Limpiar</button>
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; grid-column: 1 / -1; margin-top: 0.15rem;">
+                            <button type="submit" class="btn btn-primary" id="btnGuardarPostventa" style="padding: 0.45rem 1rem; font-size: 0.8125rem;">Guardar registro</button>
+                            <button type="button" class="btn btn-secondary" id="btnCancelarEdicionPostventa" style="padding: 0.45rem 0.85rem; font-size: 0.8125rem;">Limpiar formulario</button>
+                        </div>
                     </div>
                 </form>
-            </div>
+            </section>
 
-            <div class="table-section" style="margin-top: 0;">
-                <div style="display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; gap: 0.35rem; margin-bottom: 0.45rem;">
-                    <h3 style="margin: 0; font-size: 1.05rem;">Registros</h3>
-                    <span id="postventaFiltroContador" style="font-size: 0.8rem; color: var(--gray-600);"></span>
+            <!-- Bloque 3: Tabla con filtros y acciones masivas diferenciados -->
+            <section class="table-section postventa-modulo__panel" style="margin-top: 0;" aria-labelledby="postventa-tabla-titulo">
+                <div style="display: flex; justify-content: space-between; align-items: flex-start; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 0.65rem;">
+                    <h3 id="postventa-tabla-titulo" style="margin: 0; font-size: 1.0625rem; font-weight: 700; color: var(--text-primary); display: flex; align-items: center; gap: 0.4rem;">
+                        <span aria-hidden="true">📋</span> Listado de registros
+                    </h3>
+                    <span id="postventaFiltroContador" style="font-size: 0.8125rem; color: var(--gray-600); align-self: center;"></span>
                 </div>
-                <div class="form-section" style="margin-bottom: 0.5rem; padding: 0.5rem 0.75rem;">
-                    <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.4rem 0.5rem;">
-                        <input type="search" id="postventaFiltroBuscar" class="form-input" title="Buscar en observación o fecha" placeholder="🔍 Buscar…" autocomplete="off" style="padding: 0.38rem 0.5rem; font-size: 0.8125rem; flex: 1; min-width: 120px; max-width: 220px;">
-                        <select id="postventaFiltroEstado" class="form-input" title="Filtrar por estado" style="padding: 0.38rem 0.45rem; font-size: 0.8125rem; min-width: 118px;">
-                            <option value="todos">Estado: todos</option>
-                            <option value="pendiente">⚠️ Pend.</option>
-                            <option value="en_proceso">🔄 Proc.</option>
-                            <option value="terminado">✅ Term.</option>
-                            <option value="no_aplica">❌ N/A</option>
+
+                <div class="form-section" style="margin-bottom: 0.65rem; padding: 0.65rem 0.85rem; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-secondary); transition: background-color 0.3s ease, border-color 0.3s ease;">
+                    <p style="margin: 0 0 0.4rem 0; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-tertiary);">Buscar y filtrar</p>
+                    <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.45rem 0.55rem;">
+                        <input type="search" id="postventaFiltroBuscar" class="form-input" title="Buscar en observación o fecha" placeholder="🔍 Buscar en texto o fecha…" autocomplete="off" style="padding: 0.4rem 0.55rem; font-size: 0.8125rem; flex: 1; min-width: 140px; max-width: 260px;">
+                        <select id="postventaFiltroEstado" class="form-input" title="Filtrar por estado" style="padding: 0.4rem 0.5rem; font-size: 0.8125rem; min-width: 128px;">
+                            <option value="todos">Todos los estados</option>
+                            <option value="pendiente">⚠️ Pendiente</option>
+                            <option value="en_proceso">🔄 En proceso</option>
+                            <option value="terminado">✅ Terminado</option>
+                            <option value="no_aplica">❌ No aplica</option>
                         </select>
-                        <input type="date" id="postventaFiltroDesde" class="form-input" title="Desde" style="padding: 0.38rem 0.4rem; font-size: 0.8125rem; width: auto;">
-                        <input type="date" id="postventaFiltroHasta" class="form-input" title="Hasta" style="padding: 0.38rem 0.4rem; font-size: 0.8125rem; width: auto;">
-                        <button type="button" class="btn btn-secondary" id="btnPostventaLimpiarFiltros" style="padding: 0.35rem 0.55rem; font-size: 0.75rem;" title="Limpiar búsqueda y filtros">Limpiar</button>
-                        <span style="align-self: center; color: var(--border-color); user-select: none;">|</span>
-                        <select id="postventaBulkEstado" class="form-input" title="Estado para filas marcadas" style="padding: 0.38rem 0.45rem; font-size: 0.8125rem; min-width: 118px;">
-                            <option value="pendiente">⚠️ Pend.</option>
-                            <option value="en_proceso">🔄 Proc.</option>
-                            <option value="terminado">✅ Term.</option>
-                            <option value="no_aplica">❌ N/A</option>
+                        <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem;">
+                            <label for="postventaFiltroDesde" style="font-size: 0.7rem; color: var(--text-tertiary); margin: 0;">Desde</label>
+                            <input type="date" id="postventaFiltroDesde" class="form-input" title="Fecha desde" style="padding: 0.4rem 0.45rem; font-size: 0.8125rem; width: auto;">
+                            <label for="postventaFiltroHasta" style="font-size: 0.7rem; color: var(--text-tertiary); margin: 0;">Hasta</label>
+                            <input type="date" id="postventaFiltroHasta" class="form-input" title="Fecha hasta" style="padding: 0.4rem 0.45rem; font-size: 0.8125rem; width: auto;">
+                        </div>
+                        <button type="button" class="btn btn-secondary" id="btnPostventaLimpiarFiltros" style="padding: 0.4rem 0.65rem; font-size: 0.75rem;" title="Limpiar búsqueda y filtros">Limpiar filtros</button>
+                    </div>
+                    <hr style="margin: 0.75rem 0; border: none; border-top: 1px solid var(--border-color); opacity: 0.85;">
+                    <p style="margin: 0 0 0.4rem 0; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-tertiary);">Filas seleccionadas en la tabla</p>
+                    <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.45rem 0.55rem;">
+                        <select id="postventaBulkEstado" class="form-input" title="Nuevo estado para las filas marcadas" style="padding: 0.4rem 0.5rem; font-size: 0.8125rem; min-width: 140px;">
+                            <option value="pendiente">⚠️ Pendiente</option>
+                            <option value="en_proceso">🔄 En proceso</option>
+                            <option value="terminado">✅ Terminado</option>
+                            <option value="no_aplica">❌ No aplica</option>
                         </select>
-                        <button type="button" class="btn btn-primary" id="btnPostventaAplicarEstado" style="padding: 0.35rem 0.6rem; font-size: 0.75rem;">Aplicar</button>
-                        <button type="button" class="btn btn-secondary" id="btnPostventaDeselectAll" style="padding: 0.35rem 0.5rem; font-size: 0.75rem;">Quitar ✓</button>
+                        <button type="button" class="btn btn-primary" id="btnPostventaAplicarEstado" style="padding: 0.4rem 0.7rem; font-size: 0.75rem;">Aplicar estado</button>
+                        <button type="button" class="btn btn-secondary" id="btnPostventaDeselectAll" style="padding: 0.4rem 0.6rem; font-size: 0.75rem;">Quitar selección</button>
                     </div>
                 </div>
-                <div style="overflow-x: auto;">
-                    <table id="tablaPostventa" style="width: 100%; border-collapse: collapse; background: var(--bg-primary); border-radius: 8px; overflow: hidden; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06); transition: background-color 0.3s ease;">
+
+                <div style="overflow-x: auto; border-radius: 8px; box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);">
+                    <table id="tablaPostventa" style="width: 100%; border-collapse: collapse; background: var(--bg-primary); border-radius: 8px; overflow: hidden; transition: background-color 0.3s ease;">
                         <thead>
                             <tr style="background: linear-gradient(135deg, #75bb21 0%, #5a9219 100%); color: white;">
                                 <th style="padding: 0.75rem; text-align: center; font-weight: 600; width: 52px;" title="Seleccionar filas"><input type="checkbox" id="postventaSelectAll" aria-label="Seleccionar todos" style="width: 1.1rem; height: 1.1rem; cursor: pointer;"></th>
@@ -5584,8 +5617,9 @@
                         <tbody id="tbodyPostventa"></tbody>
                     </table>
                 </div>
-            </div>
+            </section>
         </div>
+
 
         <!-- MÓDULO 11: PERSONALIZACIÓN -->
         <div id="personalizacion" class="tab-content">
@@ -10703,7 +10737,7 @@
         </tr></table>
       </td></tr>
       <tr><td style="padding:14px 28px 20px;text-align:center;border-top:1px solid #eee;background:#fafafa;border-radius:0 0 12px 12px;">
-        <p style="margin:0;font-size:12px;color:#888;">Correo generado desde el sistema de gestión. Copie el contenido o adjunte una captura al enviar al residente.</p>
+        <p style="margin:0;font-size:12px;color:#888;">Correo generado desde el sistema de gestión.</p>
       </td></tr>
     </table>
   </td></tr></table>
@@ -22095,7 +22129,7 @@
                 if (est) est.value = 'pendiente';
                 if (file) file.value = '';
                 var gb = document.getElementById('btnGuardarPostventa');
-                if (gb) gb.textContent = 'Guardar';
+                if (gb) gb.textContent = 'Guardar registro';
             }
 
             window.cargarPostventa = async function () {
@@ -22250,7 +22284,7 @@
                 if (o) o.value = r.observacion || '';
                 if (est) est.value = POSTVENTA_ESTADOS[r.estado] ? r.estado : 'pendiente';
                 var gb = document.getElementById('btnGuardarPostventa');
-                if (gb) gb.textContent = 'Actualizar';
+                if (gb) gb.textContent = 'Actualizar registro';
                 window.scrollTo({ top: document.getElementById('postventa').offsetTop - 20, behavior: 'smooth' });
             };
 
