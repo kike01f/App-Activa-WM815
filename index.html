@@ -7614,201 +7614,6 @@
             return new Intl.NumberFormat('es-CL', { style: 'currency', currency: 'CLP' }).format(monto);
         }
 
-        function normalizarNombreHojaExcel(nombre) {
-            let s = String(nombre == null ? '' : nombre).replace(/[\\/?*\[\]:]/g, ' ').replace(/\s+/g, ' ').trim();
-            if (s.length > 31) s = s.slice(0, 31).trim();
-            return s || 'Hoja1';
-        }
-
-        function appendSheetSeguroXlsx(wb, aoa, nombreBase) {
-            if (!wb || !aoa || !aoa.length || typeof XLSX === 'undefined') return;
-            const base = normalizarNombreHojaExcel(nombreBase);
-            let nombre = base;
-            let n = 2;
-            while (wb.SheetNames.indexOf(nombre) !== -1) {
-                const suf = ' (' + n + ')';
-                nombre = normalizarNombreHojaExcel(base.slice(0, Math.max(1, 31 - suf.length)) + suf);
-                n++;
-            }
-            const ws = XLSX.utils.aoa_to_sheet(aoa);
-            XLSX.utils.book_append_sheet(wb, ws, nombre);
-        }
-
-        function datosModuloReporteAAoA(datos) {
-            if (!datos || !datos.length) return [];
-            let filaEncabezado = -1;
-            for (let i = 0; i < datos.length; i++) {
-                if (Array.isArray(datos[i]) && datos[i].length >= 3) {
-                    filaEncabezado = i;
-                    break;
-                }
-            }
-            if (filaEncabezado === -1) return [];
-            const out = [];
-            for (let i = filaEncabezado; i < datos.length; i++) {
-                const row = datos[i];
-                if (Array.isArray(row) && row.length > 0 && row.some(cell => cell !== '' && cell !== null && cell !== undefined)) {
-                    out.push(row.map(c => (c === null || c === undefined ? '' : c)));
-                }
-            }
-            return out;
-        }
-
-        function descargarWorkbookXlsxONada(wb, nombreArchivo) {
-            if (typeof XLSX === 'undefined' || !XLSX.writeFile) {
-                if (typeof mostrarAlerta === 'function') {
-                    mostrarAlerta('No se pudo cargar la librería Excel. Compruebe su conexión e intente de nuevo.', 'Error');
-                }
-                return false;
-            }
-            let nombre = String(nombreArchivo || 'reporte.xlsx').replace(/\.xls$/i, '.xlsx');
-            if (!/\.xlsx$/i.test(nombre)) nombre = nombre.replace(/(\.[^.]*)?$/, '') + '.xlsx';
-            XLSX.writeFile(wb, nombre, { bookType: 'xlsx', compression: true });
-            return true;
-        }
-
-        function workbookXlsxAdjuntoDesdeWB(wb, nombreArchivo) {
-            if (typeof XLSX === 'undefined' || !XLSX.write) return null;
-            const excelBase64 = XLSX.write(wb, { type: 'base64', bookType: 'xlsx', compression: true });
-            let fn = String(nombreArchivo || 'reporte.xlsx').replace(/\.xls$/i, '.xlsx');
-            if (!/\.xlsx$/i.test(fn)) fn = fn.replace(/(\.[^.]*)?$/, '') + '.xlsx';
-            return {
-                filename: fn,
-                content: excelBase64,
-                contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
-                encoding: 'base64'
-            };
-        }
-
-        function construirWorkbookNominaXlsx(trabajadoresList, reemplazosList, encabezado) {
-            const formatearFechaR = (fechaStr) => {
-                if (fechaStr === 'N/A') return 'N/A';
-                const fecha = new Date(fechaStr + 'T12:00:00');
-                return fecha.toLocaleDateString('es-CL', { year: 'numeric', month: 'long', day: 'numeric' });
-            };
-            const comunidad = encabezado.comunidad;
-            const wb = XLSX.utils.book_new();
-            const hNom = [
-                ['NÓMINA MENSUAL'],
-                [comunidad],
-                [],
-                ['Período', `${formatearFechaR(encabezado.desde)} - ${formatearFechaR(encabezado.hasta)}`, 'Fecha de emisión', formatearFechaR(encabezado.fechaEmision)],
-                ['Responsable', encabezado.responsable || ''],
-                [],
-                ['Nº', 'Nombre', 'Cargo', 'Días Trab.', 'Lic. Méd.', 'Turnos Fest.', 'Turnos Ext.', 'Domingos', 'H. Ext. 50%', 'H. Ext. 100%', 'Anticipos (CLP)', 'Observaciones'],
-            ];
-            let totalDias = 0, totalLic = 0, totalTF = 0, totalTE = 0, totalDom = 0, totalH50 = 0, totalH100 = 0, totalAnt = 0;
-            (trabajadoresList || []).forEach((trabajador, index) => {
-                const horasExtras50 = parseFloat(trabajador.horasExtras50) || parseFloat(trabajador.horasExtras) || 0;
-                const horasExtras100 = parseFloat(trabajador.horasExtras100) || 0;
-                totalDias += parseFloat(trabajador.diasTrabajados) || 0;
-                totalLic += parseFloat(trabajador.licenciaMedica) || 0;
-                totalTF += parseFloat(trabajador.turnosFestivos) || 0;
-                totalTE += parseFloat(trabajador.turnosExtras) || 0;
-                totalDom += parseFloat(trabajador.domingos) || 0;
-                totalH50 += horasExtras50;
-                totalH100 += horasExtras100;
-                totalAnt += parseFloat(trabajador.anticipos) || 0;
-                const obs = String(trabajador.observaciones || '').replace(/\r?\n/g, ' ');
-                hNom.push([
-                    index + 1,
-                    trabajador.nombre || '-',
-                    trabajador.cargo || '-',
-                    parseFloat(trabajador.diasTrabajados) || 0,
-                    parseFloat(trabajador.licenciaMedica) || 0,
-                    parseFloat(trabajador.turnosFestivos) || 0,
-                    parseFloat(trabajador.turnosExtras) || 0,
-                    parseFloat(trabajador.domingos) || 0,
-                    horasExtras50,
-                    horasExtras100,
-                    parseFloat(trabajador.anticipos) || 0,
-                    obs || '-',
-                ]);
-            });
-            hNom.push(['TOTALES', '', '', totalDias, totalLic, totalTF, totalTE, totalDom, totalH50, totalH100, totalAnt, '']);
-            XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hNom), normalizarNombreHojaExcel('Nomina'));
-
-            const reemplazos = reemplazosList || [];
-            if (reemplazos.length > 0) {
-                const hRem = [
-                    ['PERSONAL DE REEMPLAZO'],
-                    [comunidad],
-                    [],
-                    ['Nº', 'Nombre', 'Reemplaza a', 'Turnos', 'Valor turno (CLP)', 'Fechas laboradas', 'Método pago', 'Datos bancarios', 'Observaciones'],
-                ];
-                reemplazos.forEach((reemplazo, index) => {
-                    let numeroTurnos = reemplazo.turnos || 0;
-                    if (reemplazo.fechas && Array.isArray(reemplazo.fechas) && reemplazo.fechas.length > 0 && numeroTurnos === 0) {
-                        numeroTurnos = reemplazo.fechas.length;
-                    }
-                    let fechasTexto = '';
-                    if (reemplazo.fechas && Array.isArray(reemplazo.fechas) && reemplazo.fechas.length > 0) {
-                        const fechasOrdenadas = [...reemplazo.fechas].sort();
-                        const fechasFormateadas = fechasOrdenadas.map((fecha) => {
-                            const fechaObj = new Date(fecha + 'T00:00:00');
-                            return `${fechaObj.getDate()} ${fechaObj.toLocaleDateString('es-ES', { month: 'short' })}`;
-                        });
-                        fechasTexto = `${fechasOrdenadas.length} día${fechasOrdenadas.length !== 1 ? 's' : ''}: ${fechasFormateadas.join(', ')}`;
-                    } else {
-                        fechasTexto = `${reemplazo.dias || 0} día${(reemplazo.dias || 0) !== 1 ? 's' : ''}`;
-                    }
-                    let datosBancariosTexto = '-';
-                    if (reemplazo.metodoPago === 'transferencia' && reemplazo.datosBancarios) {
-                        const tc = reemplazo.datosBancarios.tipoCuenta === 'corriente' ? 'Cta. Corriente' :
-                            reemplazo.datosBancarios.tipoCuenta === 'ahorro' ? 'Cta. Ahorro' : 'Cta. Vista';
-                        datosBancariosTexto = `${reemplazo.datosBancarios.banco || ''} - ${tc} - ${reemplazo.datosBancarios.numeroCuenta || ''} - RUT: ${reemplazo.datosBancarios.rut || ''}`;
-                    } else if (reemplazo.metodoPago === 'cheque') {
-                        datosBancariosTexto = 'Pago por cheque';
-                    }
-                    const metodoPagoTexto = reemplazo.metodoPago === 'transferencia' ? 'Transferencia' : 'Cheque';
-                    const obs = String(reemplazo.observaciones || '').replace(/\r?\n/g, ' ');
-                    hRem.push([
-                        index + 1,
-                        reemplazo.nombre || '-',
-                        reemplazo.reemplazaA || '-',
-                        numeroTurnos,
-                        parseFloat(reemplazo.valorTurno) || 0,
-                        fechasTexto,
-                        metodoPagoTexto,
-                        datosBancariosTexto,
-                        obs || '-',
-                    ]);
-                });
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(hRem), normalizarNombreHojaExcel('Reemplazo'));
-            }
-            return wb;
-        }
-
-        function construirWorkbookPostventaXlsx(comunidad, fechaEmision, st, total, aplicables, pctTotal, pctApl, abiertos, list, fmtFecha, fmtObs, fmtEstado) {
-            const wb = XLSX.utils.book_new();
-            appendSheetSeguroXlsx(wb, [
-                ['Reporte Postventa'],
-                [comunidad],
-                [],
-                ['Fecha de emisión', fechaEmision],
-                ['Total registros', total],
-                ['Ítems abiertos', abiertos],
-                [],
-                ['Terminado / total', pctTotal + '% (' + st.terminado + ' de ' + total + ')'],
-                ['Terminado / aplicables (sin «No aplica»)', pctApl + '% (' + st.terminado + ' de ' + aplicables + ')'],
-                ['Pendientes o en proceso', abiertos],
-                [],
-                ['Estado', 'Cantidad', '% del total'],
-                ['⚠️ pendiente', st.pendiente, total ? Number((100 * st.pendiente / total).toFixed(1)) : 0],
-                ['🔄 en proceso', st.en_proceso, total ? Number((100 * st.en_proceso / total).toFixed(1)) : 0],
-                ['✅ terminado', st.terminado, total ? Number((100 * st.terminado / total).toFixed(1)) : 0],
-                ['❌ no aplica', st.no_aplica, total ? Number((100 * st.no_aplica / total).toFixed(1)) : 0],
-            ], 'Resumen');
-            const detalle = [['Fecha', 'Observación', 'Estado', 'URLs evidencia']];
-            (list || []).forEach(function (r) {
-                var urls = (r.evidencias || []).map(function (e) { return e.url; }).join(' | ');
-                detalle.push([fmtFecha(r.fecha), fmtObs(r.observacion), fmtEstado(r.estado), urls]);
-            });
-            if (detalle.length === 1) detalle.push(['', 'Sin registros', '', '']);
-            appendSheetSeguroXlsx(wb, detalle, 'Detalle');
-            return wb;
-        }
-
         // Función para enviar correos usando Firebase Extensions (Trigger Email)
         // Requiere que la extensión "Trigger Email" esté instalada en Firebase
         async function enviarCorreo(residente, asunto, mensaje, html = null, adjuntos = null) {
@@ -7863,9 +7668,9 @@
                 if (adjuntos && Array.isArray(adjuntos) && adjuntos.length > 0) {
                     console.log('📎 Procesando adjuntos:', adjuntos.length);
                     
-                    // Trigger Email (firestore-send-email) lee adjuntos en message.attachments (nodemailer), NO en la raíz del doc
-                    if (!mailData.message.attachments) {
-                        mailData.message.attachments = [];
+                    // Inicializar array de adjuntos directos (SIEMPRE se agregan)
+                    if (!mailData.attachments) {
+                        mailData.attachments = [];
                     }
                     
                     const linksAdjuntos = [];
@@ -7873,21 +7678,6 @@
                     // Procesar cada adjunto
                     for (const adj of adjuntos) {
                         try {
-                            // Adjunto por URL (recomendado Nodemailer: href). La Cloud Function descarga el archivo;
-                            // evita límite ~1 MB de Firestore y archivos grandes que fallaban en base64 desde el navegador.
-                            const urlAdjunto = (adj.href || adj.path || '').trim();
-                            if (urlAdjunto && /^https?:\/\//i.test(urlAdjunto) && (!adj.content || String(adj.content).length === 0)) {
-                                const nombreAdj = adj.filename || 'adjunto';
-                                mailData.message.attachments.push({
-                                    filename: nombreAdj,
-                                    href: urlAdjunto,
-                                    contentType: adj.contentType || 'application/octet-stream'
-                                });
-                                linksAdjuntos.push({ nombre: nombreAdj, url: urlAdjunto });
-                                console.log('✅ Adjunto por URL (message.attachments.href):', nombreAdj);
-                                continue;
-                            }
-
                             // Preparar base64 (limpiar prefijo si existe)
                             let contentBase64 = adj.content;
                             if (typeof contentBase64 === 'string' && contentBase64.includes(',')) {
@@ -7920,7 +7710,7 @@
                                 continue;
                             }
                             
-                            mailData.message.attachments.push(adjuntoParaAgregar);
+                            mailData.attachments.push(adjuntoParaAgregar);
                             
                             console.log('✅ Adjunto directo agregado a mailData:', {
                                 filename: adjuntoParaAgregar.filename,
@@ -8030,7 +7820,7 @@
                     }
                     
                     console.log('📎 Resumen de adjuntos procesados:', {
-                        adjuntosDirectos: (mailData.message.attachments && mailData.message.attachments.length) || 0,
+                        adjuntosDirectos: mailData.attachments.length,
                         subidosStorage: linksAdjuntos.length,
                         totalAdjuntos: adjuntos.length
                     });
@@ -8066,124 +7856,87 @@
                     console.log('🏷️ Título del documento:', titulo);
                 }
                 
-                // Verificar y validar adjuntos antes de enviar (message.attachments)
-                if (mailData.message.attachments && mailData.message.attachments.length > 0) {
+                // Verificar y validar adjuntos antes de enviar
+                if (mailData.attachments && mailData.attachments.length > 0) {
                     console.log('📎 VERIFICACIÓN DE ADJUNTOS ANTES DE ENVIAR:');
                     
-                    // Validar adjuntos: por URL (href) o contenido base64
-                    mailData.message.attachments = mailData.message.attachments.map((adj, idx) => {
-                        const urlFetch = (adj.href || adj.path || '').trim();
-                        if (urlFetch && /^https?:\/\//i.test(urlFetch) && (!adj.content || String(adj.content).length === 0)) {
-                            const out = {
-                                filename: adj.filename || ('adjunto_' + (idx + 1)),
-                                href: urlFetch,
-                                contentType: adj.contentType || 'application/octet-stream'
-                            };
-                            console.log(`  ✅ Adjunto ${idx + 1} (href/URL):`, {
-                                filename: out.filename,
-                                contentType: out.contentType,
-                                urlPreview: urlFetch.substring(0, 72) + (urlFetch.length > 72 ? '…' : '')
-                            });
-                            return out;
+                    // Validar y asegurar que todos los adjuntos tengan encoding
+                    mailData.attachments = mailData.attachments.map((adj, idx) => {
+                        // Asegurar que tenga encoding
+                        if (!adj.encoding) {
+                            adj.encoding = 'base64';
                         }
-
-                        const encoding = adj.encoding || 'base64';
-
+                        
+                        // Validar que el contenido no esté vacío
                         if (!adj.content || adj.content.length === 0) {
-                            console.error(`❌ Adjunto ${idx + 1} (${adj.filename || 'sin nombre'}) sin contenido ni URL válida`);
+                            console.error(`❌ Adjunto ${idx + 1} (${adj.filename}) está vacío`);
                             return null;
                         }
-
+                        
+                        // Validar formato base64
                         const base64Valido = /^[A-Za-z0-9+/=]+$/.test(adj.content);
                         if (!base64Valido) {
                             console.error(`❌ Adjunto ${idx + 1} (${adj.filename}) no tiene formato base64 válido`);
                             return null;
                         }
-
-                        console.log(`  ✅ Adjunto ${idx + 1} (base64):`, {
+                        
+                        console.log(`  ✅ Adjunto ${idx + 1}:`, {
                             filename: adj.filename,
                             contentType: adj.contentType,
-                            encoding: encoding,
+                            encoding: adj.encoding,
                             tamañoContent: adj.content.length,
                             primerosChars: adj.content.substring(0, 30) + '...',
                             esBase64Valido: base64Valido
                         });
-
-                        return {
-                            filename: adj.filename,
-                            content: adj.content,
-                            contentType: adj.contentType || 'application/octet-stream',
-                            encoding: encoding
-                        };
+                        
+                        return adj;
                     }).filter(adj => adj !== null); // Filtrar adjuntos inválidos
                     
-                    if (mailData.message.attachments.length === 0) {
+                    if (mailData.attachments.length === 0) {
                         console.error('❌ Todos los adjuntos fueron filtrados por ser inválidos');
-                        delete mailData.message.attachments; // Eliminar array vacío
+                        delete mailData.attachments; // Eliminar array vacío
                     } else {
-                        console.log(`✅ Total adjuntos válidos: ${mailData.message.attachments.length}`);
+                        console.log(`✅ Total adjuntos válidos: ${mailData.attachments.length}`);
                     }
                 } else {
-                    console.warn('⚠️ NO HAY ADJUNTOS EN message.attachments ANTES DE ENVIAR');
+                    console.warn('⚠️ NO HAY ADJUNTOS EN mailData ANTES DE ENVIAR');
                 }
                 
                 // Log del mailData (sin mostrar todo el contenido de adjuntos por tamaño)
                 const mailDataLog = { ...mailData };
-                if (mailDataLog.message && mailDataLog.message.attachments) {
-                    mailDataLog.message = { ...mailDataLog.message, attachments: mailDataLog.message.attachments.map(adj => ({
+                if (mailDataLog.attachments) {
+                    mailDataLog.attachments = mailDataLog.attachments.map(adj => ({
                         filename: adj.filename,
-                        href: adj.href || (adj.path && /^https?:\/\//i.test(String(adj.path)) ? adj.path : undefined),
                         contentType: adj.contentType,
                         encoding: adj.encoding,
                         tamañoContent: adj.content ? adj.content.length : 0
-                    })) };
+                    }));
                 }
                 console.log('📦 Datos completos a enviar:', JSON.stringify(mailDataLog, null, 2));
                 console.log('==========================================');
-
-                // Firestore: documento máx. ~1 MiB. Los adjuntos van en base64 dentro del mismo doc.
-                if (mailData.message.attachments && mailData.message.attachments.length > 0) {
-                    let charsAdjuntos = 0;
-                    for (let ai = 0; ai < mailData.message.attachments.length; ai++) {
-                        const a = mailData.message.attachments[ai];
-                        const c = a && a.content;
-                        charsAdjuntos += (typeof c === 'string' ? c.length : 0);
-                    }
-                    const charsHtml = (mailData.message && mailData.message.html) ? String(mailData.message.html).length : 0;
-                    const charsTexto = (mailData.message && mailData.message.text) ? String(mailData.message.text).length : 0;
-                    // Solo aplica carga fuerte a base64; adjuntos por href son URLs cortas
-                    if (charsAdjuntos + charsHtml + charsTexto > 1000000) {
-                        mostrarAlerta(
-                            'El correo con adjuntos supera el límite de Firestore (~1 MB por mensaje en la colección mail). ' +
-                            'Use archivos más livianos (p. ej. comprimir PDF o foto) o envíe solo con enlaces en el cuerpo.',
-                            'Correo demasiado grande'
-                        );
-                        return { exito: false, error: 'Documento mail supera tamaño máximo de Firestore' };
-                    }
-                }
 
                 const docRef = await db.collection("mail").add(mailData);
                 
                 // Verificar que los adjuntos se guardaron correctamente
                 const docVerificado = await docRef.get();
                 const datosGuardados = docVerificado.data();
-                const msgAtt = datosGuardados.message && datosGuardados.message.attachments;
-                if (msgAtt && Array.isArray(msgAtt) && msgAtt.length > 0) {
-                    console.log('✅ Adjuntos guardados en Firestore (message.attachments):', msgAtt.length);
-                    msgAtt.forEach((adj, idx) => {
+                if (datosGuardados.attachments && Array.isArray(datosGuardados.attachments) && datosGuardados.attachments.length > 0) {
+                    console.log('✅ Adjuntos guardados en Firestore:', datosGuardados.attachments.length);
+                    datosGuardados.attachments.forEach((adj, idx) => {
                         console.log(`  ✅ Adjunto ${idx + 1} guardado:`, {
                             filename: adj.filename,
-                            href: adj.href ? (String(adj.href).substring(0, 64) + '…') : undefined,
                             contentType: adj.contentType,
                             encoding: adj.encoding || 'no especificado',
                             tamañoContent: adj.content ? adj.content.length : 0
                         });
                     });
                 } else {
-                    console.error('❌ ADJUNTOS NO SE GUARDARON EN FIRESTORE (se esperaba message.attachments)');
+                    console.error('❌ ADJUNTOS NO SE GUARDARON EN FIRESTORE');
                     console.error('Datos guardados:', {
-                        tieneMessageAttachments: !!(datosGuardados.message && datosGuardados.message.attachments),
-                        longitud: msgAtt ? msgAtt.length : 'N/A'
+                        tieneAttachments: !!datosGuardados.attachments,
+                        tipoAttachments: typeof datosGuardados.attachments,
+                        esArray: Array.isArray(datosGuardados.attachments),
+                        longitud: datosGuardados.attachments ? datosGuardados.attachments.length : 'N/A'
                     });
                 }
                 
@@ -8477,13 +8230,77 @@
                 var list = registros.slice().sort(function (a, b) {
                     return (b.fecha || '').localeCompare(a.fecha || '') || String(b.id || '').localeCompare(String(a.id || ''));
                 });
-
-                var nombreArchivo = 'Postventa_' + limpiarNombre(comunidad) + '_' + fechaArchivo + '.xlsx';
-                if (typeof XLSX === 'undefined' || !XLSX.write) {
-                    return null;
+                var filasDetalle = '';
+                list.forEach(function (r) {
+                    var urls = (r.evidencias || []).map(function (e) { return e.url; }).join(' | ');
+                    filasDetalle += '<tr><td>' + escXml(postventaFechaReporteDMY(r.fecha)) + '</td><td>' + escXml(postventaCorregirOrtografiaObservacion(r.observacion)) + '</td><td class="postv-estado-td">' + escXml(postventaEstadoExcelLabel(r.estado)) + '</td><td style="font-size:10px;word-break:break-all;">' + escXml(urls) + '</td></tr>';
+                });
+                if (!filasDetalle) {
+                    filasDetalle = '<tr><td colspan="4" class="text-center" style="padding:24px;color:#6b7280;">No hay registros en el módulo Postventa.</td></tr>';
                 }
-                var wb = construirWorkbookPostventaXlsx(comunidad, fechaEmision, st, total, aplicables, pctTotal, pctApl, abiertos, list, postventaFechaReporteDMY, postventaCorregirOrtografiaObservacion, postventaEstadoExcelLabel);
-                return Promise.resolve(workbookXlsxAdjuntoDesdeWB(wb, nombreArchivo));
+
+                var htmlExcel = '<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40" lang="es"><head><meta charset="UTF-8"><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>Postventa - ' + escXml(comunidad) + '</title><style>' +
+                    '@page{margin:1.2cm}body{font-family:Calibri,Arial,sans-serif;margin:0;padding:18px 20px;color:#1f2937;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+                    '.band-title{font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:0.92}' +
+                    '.band-main{font-size:24px;font-weight:700;margin:6px 0 4px}' +
+                    '.band-sub{font-size:14px;font-weight:400;opacity:0.95}' +
+                    '.sec{font-size:14px;font-weight:700;color:#3f6212;margin:26px 0 10px;padding-bottom:6px;border-bottom:2px solid #75BB21}' +
+                    '.tbl{width:100%;border-collapse:collapse;font-size:11px}' +
+                    '.tbl th{background:#5a9219;color:#fff;padding:10px 10px;text-align:left;font-weight:600;border:1px solid #4a7a15}' +
+                    '.tbl th.c,.tbl td.c{text-align:center}' +
+                    '.tbl td{padding:9px 10px;border:1px solid #d1d5db;vertical-align:top}' +
+                    '.tbl tbody tr:nth-child(even) td{background:#f9fafb}' +
+                    '.meta td{background:#f3f4f6;font-size:12px;padding:12px 14px;border:1px solid #d1d5db}' +
+                    '.meta b{display:block;color:#374151;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}' +
+                    '.cumpl td{background:#ecfccb;border:1px solid #84cc16;padding:14px 16px;font-size:12px;line-height:1.65;color:#365314}' +
+                    '.foot{margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#6b7280;line-height:1.5}' +
+                    '.postv-estado-th,.postv-estado-td{min-width:118px;max-width:200px;text-align:left!important;vertical-align:middle!important;padding:8px 10px!important;font-size:11px;mso-number-format:\\@;font-family:Calibri,Arial,sans-serif}' +
+                    '</style></head><body>' +
+                    '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:20px"><tr><td style="background:#5a9219;color:#fff;padding:20px 24px;border:1px solid #4a7a15">' +
+                    '<div class="band-title">Reporte</div><div class="band-main">Postventa</div><div class="band-sub">' + escXml(comunidad) + '</div></td></tr></table>' +
+                    '<table width="100%" class="meta" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:22px"><tr>' +
+                    '<td width="34%" style="vertical-align:top"><b>Fecha de emisión</b>' + escXml(fechaEmision) + '</td>' +
+                    '<td width="33%" style="vertical-align:top"><b>Total registros</b>' + total + '</td>' +
+                    '<td width="33%" style="vertical-align:top"><b>Ítems abiertos</b>' + abiertos + '</td></tr></table>' +
+                    '<div class="sec">Estadísticas por estado</div>' +
+                    '<table class="tbl" style="margin-bottom:18px;max-width:560px"><thead><tr><th>Estado</th><th class="c" style="width:90px">Cantidad</th><th class="c" style="width:100px">% del total</th></tr></thead><tbody>' +
+                    '<tr><td>⚠️ pendiente</td><td class="c">' + st.pendiente + '</td><td class="c">' + (total ? ((100 * st.pendiente / total).toFixed(1)) : '0') + '%</td></tr>' +
+                    '<tr><td>🔄 en proceso</td><td class="c">' + st.en_proceso + '</td><td class="c">' + (total ? ((100 * st.en_proceso / total).toFixed(1)) : '0') + '%</td></tr>' +
+                    '<tr><td>✅ terminado</td><td class="c">' + st.terminado + '</td><td class="c">' + (total ? ((100 * st.terminado / total).toFixed(1)) : '0') + '%</td></tr>' +
+                    '<tr><td>❌ no aplica</td><td class="c">' + st.no_aplica + '</td><td class="c">' + (total ? ((100 * st.no_aplica / total).toFixed(1)) : '0') + '%</td></tr>' +
+                    '</tbody></table>' +
+                    '<table width="100%" class="cumpl" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:22px"><tr><td>' +
+                    '<strong style="color:#3f6212">Cumplimiento</strong><br>' +
+                    'Terminado / total: <strong>' + pctTotal + '%</strong> (' + st.terminado + ' de ' + total + ')<br>' +
+                    'Terminado / aplicables (sin «No aplica»): <strong>' + pctApl + '%</strong> (' + st.terminado + ' de ' + aplicables + ')<br>' +
+                    'Pendientes o en proceso: <strong>' + abiertos + '</strong></td></tr></table>' +
+                    '<div class="sec">Detalle de registros</div>' +
+                    '<table class="tbl"><thead><tr><th style="width:96px">Fecha</th><th>Observación</th><th class="postv-estado-th">Estado</th><th style="min-width:220px">URLs evidencia</th></tr></thead><tbody>' +
+                    filasDetalle + '</tbody></table>' +
+                    '<div class="foot"><strong>Gestión de Comunidad</strong> · Generado el ' + escXml(fechaEmision) + '. Importación sugerida: Fecha, Observación, Estado (opcional), URLs evidencia.</div>' +
+                    '</body></html>';
+
+                var nombreArchivo = 'Postventa_' + limpiarNombre(comunidad) + '_' + fechaArchivo + '.xls';
+                
+                // Convertir HTML a blob y luego a base64 para el adjunto
+                var BOM = '\uFEFF';
+                var blob = new Blob([BOM + htmlExcel], { type: 'application/vnd.ms-excel;charset=utf-8' });
+                
+                // Convertir blob a base64
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = function() {
+                        const base64 = reader.result.split(',')[1]; // Remover el prefijo data:application/...
+                        resolve({
+                            filename: nombreArchivo,
+                            content: base64,
+                            contentType: 'application/vnd.ms-excel',
+                            encoding: 'base64'
+                        });
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
             } catch (error) {
                 console.error('Error al generar Excel de postventa:', error);
                 return null;
@@ -8622,47 +8439,167 @@
         async function generarExcelLecturasAguaComoAdjunto(lecturas, mes, nombreMes) {
             try {
                 const nombreComunidad = await obtenerNombreComunidad();
-                const nombreArchivo = `Lecturas_Agua_Caliente_${(nombreComunidad || 'Comunidad').replace(/\s+/g, '_')}_${mes}.xlsx`;
-
-                const leerNum = (v) => {
-                    if (v === null || v === undefined || v === '') return 0;
-                    const n = parseFloat(String(v).replace(',', '.'));
-                    return isNaN(n) ? 0 : n;
-                };
-
+                const nombreArchivo = `Lecturas_Agua_Caliente_${(nombreComunidad || 'Comunidad').replace(/\s+/g, '_')}_${mes}.xls`;
+                
+                // Calcular totales
                 let totalConsumo = 0;
-                const aoa = [
-                    ['Reporte de lecturas de agua caliente'],
-                    ['Comunidad', nombreComunidad || 'Comunidad'],
-                    ['Período', nombreMes],
-                    ['Fecha de generación', formatearFecha(obtenerFechaHoy())],
-                    [],
-                    ['Unidad', 'Mes', 'Lectura anterior', 'Lectura actual', 'Consumo total'],
-                ];
-
-                lecturas.forEach((l) => {
+                lecturas.forEach(l => {
+                    // Si el consumo guardado es válido, usarlo; si no, recalcular
                     let consumo = 0;
                     if (l.consumo !== null && l.consumo !== undefined && !isNaN(parseFloat(l.consumo))) {
                         consumo = parseFloat(l.consumo);
                     } else {
-                        consumo = Math.max(0, leerNum(l.lecturaActual) - leerNum(l.lecturaAnterior));
+                        const anteriorNum = (l.lecturaAnterior !== null && l.lecturaAnterior !== undefined) ? (parseFloat(l.lecturaAnterior) || 0) : 0;
+                        const actualNum = (l.lecturaActual !== null && l.lecturaActual !== undefined) ? (parseFloat(l.lecturaActual) || 0) : 0;
+                        consumo = Math.max(0, actualNum - anteriorNum);
                     }
                     totalConsumo += consumo;
-                    aoa.push([
-                        l.unidad || '',
-                        l.mes || mes,
-                        leerNum(l.lecturaAnterior),
-                        leerNum(l.lecturaActual),
-                        consumo,
-                    ]);
                 });
-                aoa.push([]);
-                aoa.push(['TOTAL CONSUMO', '', '', '', totalConsumo]);
-
-                if (typeof XLSX === 'undefined' || !XLSX.write) return null;
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), normalizarNombreHojaExcel('Lecturas'));
-                return workbookXlsxAdjuntoDesdeWB(wb, nombreArchivo);
+                
+                // Función auxiliar para formatear número preservando decimales o enteros
+                const formatearLectura = (valor) => {
+                    if (valor === null || valor === undefined || valor === '') return '0';
+                    const num = parseFloat(valor);
+                    if (isNaN(num)) return '0';
+                    const valorStr = valor.toString().trim();
+                    // Si tiene decimales, preservarlos
+                    if (valorStr.includes('.') || valorStr.includes(',')) {
+                        const partes = valorStr.replace(',', '.').split('.');
+                        if (partes.length > 1) {
+                            const decimales = partes[1].length;
+                            return num.toFixed(Math.min(decimales, 10)).replace(/\.?0+$/, '');
+                        }
+                    }
+                    // Si es entero, mostrar sin decimales
+                    return num % 1 === 0 ? num.toString() : num.toString();
+                };
+                
+                let html = `
+                <html xmlns:x="urn:schemas-microsoft-com:office:excel">
+                <head>
+                    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; }
+                        .header { margin-bottom: 20px; }
+                        .header h1 { color: #75bb21; font-size: 20px; margin: 0 0 5px 0; }
+                        .header p { color: #6b7280; font-size: 12px; margin: 2px 0; }
+                        table { border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+                        colgroup col:nth-child(1) { width: 80px; }
+                        colgroup col:nth-child(2) { width: 100px; }
+                        colgroup col:nth-child(3) { width: 120px; }
+                        colgroup col:nth-child(4) { width: 120px; }
+                        colgroup col:nth-child(5) { width: 120px; }
+                        thead th { 
+                            background-color: #4a7c1a;
+                            color: #ffffff !important;
+                            font-weight: 700;
+                            padding: 10px 8px;
+                            text-align: left;
+                            border: 1px solid #3d6515;
+                            font-size: 11px;
+                        }
+                        tbody td { 
+                            padding: 8px;
+                            border: 1px solid #e5e7eb;
+                            font-size: 11px;
+                            color: #374151;
+                        }
+                        tbody tr:nth-child(even) { background-color: #f9fafb; }
+                        .total-row { 
+                            background-color: #e8f5e0 !important;
+                            font-weight: 600;
+                            border-top: 2px solid #75bb21;
+                        }
+                        .total-row td { 
+                            color: #065f46;
+                            padding: 10px 8px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>📊 Reporte de Lecturas de Agua Caliente</h1>
+                        <p><strong>Comunidad:</strong> ${nombreComunidad || 'Comunidad'}</p>
+                        <p><strong>Período:</strong> ${nombreMes}</p>
+                        <p><strong>Fecha de Generación:</strong> ${formatearFecha(obtenerFechaHoy())}</p>
+                    </div>
+                    <table>
+                        <colgroup>
+                            <col style="width: 80px;">
+                            <col style="width: 100px;">
+                            <col style="width: 120px;">
+                            <col style="width: 120px;">
+                            <col style="width: 120px;">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th style="background-color: #4a7c1a; color: #ffffff;">Unidad</th>
+                                <th style="background-color: #4a7c1a; color: #ffffff;">Mes</th>
+                                <th style="background-color: #4a7c1a; color: #ffffff;">Lectura Anterior</th>
+                                <th style="background-color: #4a7c1a; color: #ffffff;">Lectura Actual</th>
+                                <th style="background-color: #4a7c1a; color: #ffffff;">Consumo Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                lecturas.forEach(l => {
+                    // Calcular consumo: usar el guardado si es válido, si no recalcular
+                    let consumo = 0;
+                    if (l.consumo !== null && l.consumo !== undefined && !isNaN(parseFloat(l.consumo))) {
+                        consumo = parseFloat(l.consumo);
+                    } else {
+                        const anteriorNum = (l.lecturaAnterior !== null && l.lecturaAnterior !== undefined) ? (parseFloat(l.lecturaAnterior) || 0) : 0;
+                        const actualNum = (l.lecturaActual !== null && l.lecturaActual !== undefined) ? (parseFloat(l.lecturaActual) || 0) : 0;
+                        consumo = Math.max(0, actualNum - anteriorNum);
+                    }
+                    html += `
+                        <tr>
+                            <td>${(l.unidad || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>
+                            <td>${l.mes || mes}</td>
+                            <td style="text-align: right;">${formatearLectura(l.lecturaAnterior)}</td>
+                            <td style="text-align: right;">${formatearLectura(l.lecturaActual)}</td>
+                            <td style="text-align: right; font-weight: 500;">${formatearLectura(consumo)}</td>
+                        </tr>
+                    `;
+                });
+                
+                html += `
+                            <tr class="total-row">
+                                <td colspan="4" style="text-align: right;"><strong>TOTAL CONSUMO:</strong></td>
+                                <td style="text-align: right;"><strong>${totalConsumo % 1 === 0 ? totalConsumo.toString() : totalConsumo.toFixed(2)}</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div style="margin-top: 20px; padding: 10px; background: #f9fafb; border-left: 4px solid #75bb21; border-radius: 4px;">
+                        <p style="margin: 0; font-size: 11px; color: #6b7280;">
+                            <strong>Total de registros:</strong> ${lecturas.length} | 
+                            <strong>Consumo total del período:</strong> ${totalConsumo % 1 === 0 ? totalConsumo.toString() : totalConsumo.toFixed(2)}
+                        </p>
+                    </div>
+                </body>
+                </html>
+                `;
+                
+                // Convertir HTML a blob y luego a base64 para el adjunto
+                const BOM = '\uFEFF';
+                const blob = new Blob([BOM + html], { type: 'application/vnd.ms-excel;charset=utf-8' });
+                
+                // Convertir blob a base64
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = function() {
+                        const base64 = reader.result.split(',')[1]; // Remover el prefijo data:application/...
+                        resolve({
+                            filename: nombreArchivo,
+                            content: base64,
+                            contentType: 'application/vnd.ms-excel',
+                            encoding: 'base64'
+                        });
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
             } catch (error) {
                 console.error('Error al generar Excel de lecturas de agua:', error);
                 return null;
@@ -11905,42 +11842,12 @@
         }
 
         /** Genera el HTML del comprobante de multa (misma lógica y diseño que apertura). */
-        function generarComprobanteMultaHtml(multa, nombreComunidad, opciones = {}) {
+        function generarComprobanteMultaHtml(multa, nombreComunidad) {
             const comunidad = nombreComunidad || 'Comunidad';
             const folioStr = multa.folio || '—';
             const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-            const safeHref = (v) => {
-                const href = String(v || '').trim();
-                if (!href) return '';
-                return href.replace(/"/g, '%22').replace(/</g, '').replace(/>/g, '');
-            };
             const fechaStr = multa.fecha ? (typeof formatearFecha === 'function' ? formatearFecha(multa.fecha) : multa.fecha) : '-';
             const montoStr = (multa.monto != null ? Number(multa.monto).toFixed(2) : '0') + ' ' + (multa.tipoUnidad || 'UF');
-            const incluirEvidencia = opciones.incluirEvidencia !== false;
-            const evidencias = Array.isArray(multa.evidencias) ? multa.evidencias.filter(Boolean) : [];
-            const archivos = Array.isArray(multa.archivos) ? multa.archivos.filter(a => a && a.url) : [];
-            const evidenciaHtml = incluirEvidencia && (evidencias.length > 0 || archivos.length > 0)
-                ? `
-          <tr>
-            <td class="content-padding" style="padding: 0 28px 10px 28px;">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f6fbff; border-radius: 8px; border: 1px solid #d8ecff;">
-                <tr>
-                  <td style="padding: 12px 16px;">
-                    <p style="margin: 0 0 8px 0; font-size: 12px; color: #4c6b8a; text-transform: uppercase; letter-spacing: 0.04em;">Evidencia asociada</p>
-                    ${evidencias.length > 0 ? `<p style="margin: 0 0 6px 0; font-size: 13px; color: #333333;"><strong>Links:</strong></p>
-                    <ul style="margin: 0 0 10px 18px; padding: 0; color: #1a1a1a; font-size: 13px; line-height: 1.6;">
-                      ${evidencias.map((ev, idx) => `<li><a href="${safeHref(ev)}" target="_blank" style="color: #0f5b9f; text-decoration: none;">Evidencia ${idx + 1}</a></li>`).join('')}
-                    </ul>` : ''}
-                    ${archivos.length > 0 ? `<p style="margin: 0 0 6px 0; font-size: 13px; color: #333333;"><strong>Archivos:</strong></p>
-                    <ul style="margin: 0 0 0 18px; padding: 0; color: #1a1a1a; font-size: 13px; line-height: 1.6;">
-                      ${archivos.map((archivo, idx) => `<li><a href="${safeHref(archivo.url)}" target="_blank" style="color: #0f5b9f; text-decoration: none;">${linkEsc(archivo.nombre || ('Archivo ' + (idx + 1)))}</a></li>`).join('')}
-                    </ul>` : ''}
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>`
-                : '';
             return `<!DOCTYPE html>
 <html lang="es">
 <head>
@@ -12015,19 +11922,6 @@
             </td>
           </tr>
           <tr>
-            <td class="content-padding" style="padding: 0 28px 12px 28px;">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #fff8e6; border-radius: 8px; border: 1px solid #e6a100; border-left: 4px solid #c47f00;">
-                <tr>
-                  <td style="padding: 14px 18px;">
-                    <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 700; color: #7a4e00; text-transform: uppercase; letter-spacing: 0.04em;">Información importante</p>
-                    <p style="margin: 0; font-size: 14px; color: #333333; line-height: 1.55;">Los cargos de esta multa serán cargados en los gastos comunes del departamento.</p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          ${evidenciaHtml}
-          <tr>
             <td style="padding: 14px 28px 18px 28px; text-align: center; border-top: 1px solid #eeeeee; background-color: #fafafa; border-radius: 0 0 12px 12px;">
               <p style="margin: 0; font-size: 12px; color: #888888;">Documento generado por administración. Comprobante informativo.</p>
             </td>
@@ -12038,198 +11932,6 @@
   </table>
 </body>
 </html>`;
-        }
-
-        /** Nombre seguro para adjuntos de correo */
-        function sanitizarNombreArchivoAdjunto(nombre) {
-            const base = String(nombre || 'evidencia').replace(/[\\/:*?"<>|]+/g, '_').trim() || 'evidencia';
-            return base.length > 180 ? base.slice(0, 180) : base;
-        }
-
-        /** MIME por extensión cuando el blob no trae type */
-        function contentTypeDesdeNombreArchivo(nombre) {
-            const ext = (String(nombre).split('.').pop() || '').toLowerCase();
-            const map = {
-                pdf: 'application/pdf',
-                jpg: 'image/jpeg', jpeg: 'image/jpeg', png: 'image/png', gif: 'image/gif', webp: 'image/webp',
-                mp4: 'video/mp4', mov: 'video/quicktime', avi: 'video/x-msvideo'
-            };
-            return map[ext] || 'application/octet-stream';
-        }
-
-        /**
-         * Descarga archivos (p. ej. URLs de Firebase Storage) y los deja listos para Trigger Email (base64).
-         * Límites: Firestore ~1 MB por documento (HTML + adjuntos en base64 en colección `mail`).
-         */
-        async function prepararAdjuntosCorreoDesdeMetadatos(archivosMeta, opciones = {}) {
-            const maxPorArchivo = opciones.maxPorArchivo != null ? opciones.maxPorArchivo : (350 * 1024);
-            const maxTotal = opciones.maxTotal != null ? opciones.maxTotal : (450 * 1024);
-            const lista = Array.isArray(archivosMeta) ? archivosMeta.filter(a => a && a.url) : [];
-            const adjuntos = [];
-            const errores = [];
-            let totalBytes = 0;
-            let totalBase64Chars = 0;
-            const maxBase64Total = opciones.maxBase64Total != null ? opciones.maxBase64Total : 680000;
-
-            for (let i = 0; i < lista.length; i++) {
-                const meta = lista[i];
-                const url = String(meta.url || '').trim();
-                const nombreBase = meta.nombre || `evidencia_${i + 1}`;
-                if (!url) {
-                    errores.push(`${nombreBase}: sin URL`);
-                    continue;
-                }
-                const tamDecl = meta.tamaño != null ? Number(meta.tamaño) : null;
-                if (tamDecl > 0 && tamDecl > maxPorArchivo) {
-                    errores.push(`${nombreBase}: supera ${Math.round(maxPorArchivo / 1024 / 1024)} MB`);
-                    continue;
-                }
-                try {
-                    const blob = await descargarBlobDesdeUrl(url);
-                    if (blob.size > maxPorArchivo) {
-                        errores.push(`${nombreBase}: supera ${Math.round(maxPorArchivo / 1024 / 1024)} MB al descargar`);
-                        continue;
-                    }
-                    if (totalBytes + blob.size > maxTotal) {
-                        errores.push('Tamaño máximo total de adjuntos alcanzado; algunos archivos no se adjuntaron');
-                        break;
-                    }
-                    const base64 = await new Promise((resolve, reject) => {
-                        const reader = new FileReader();
-                        reader.onloadend = function() {
-                            const r = reader.result;
-                            const part = typeof r === 'string' && r.indexOf(',') !== -1 ? r.split(',')[1] : r;
-                            resolve(part || '');
-                        };
-                        reader.onerror = function() { reject(reader.error || new Error('FileReader')); };
-                        reader.readAsDataURL(blob);
-                    });
-                    if (!base64 || !/^[A-Za-z0-9+/=]+$/.test(base64)) {
-                        throw new Error('No se pudo codificar el archivo');
-                    }
-                    if (totalBase64Chars + base64.length > maxBase64Total) {
-                        errores.push('Tamaño máximo de adjuntos para la cola de correo alcanzado (~650 KB útiles en base64; límite Firestore ~1 MB por mensaje)');
-                        break;
-                    }
-                    const tipo = (meta.tipo && String(meta.tipo).trim()) || (blob.type && blob.type.trim()) || contentTypeDesdeNombreArchivo(nombreBase);
-                    const nombreUnico = sanitizarNombreArchivoAdjunto(
-                        (lista.length > 1 ? String(i + 1).padStart(2, '0') + '_' : '') + nombreBase
-                    );
-                    adjuntos.push({
-                        filename: nombreUnico,
-                        content: base64,
-                        contentType: tipo.split(';')[0].trim(),
-                        encoding: 'base64'
-                    });
-                    totalBytes += blob.size;
-                    totalBase64Chars += base64.length;
-                } catch (e) {
-                    console.error('Error preparando adjunto multa:', nombreBase, e);
-                    errores.push(`${nombreBase}: ${(e && e.message) ? e.message : 'no se pudo descargar (CORS o red)'}`);
-                }
-            }
-            return { adjuntos, errores };
-        }
-
-        /** Descarga binaria (fetch + respaldo XHR) para URLs públicas con token, p. ej. Firebase Storage */
-        async function descargarBlobDesdeUrl(url) {
-            try {
-                const res = await fetch(url, { method: 'GET', mode: 'cors', cache: 'no-store' });
-                if (res.ok) {
-                    return await res.blob();
-                }
-                throw new Error('HTTP ' + res.status);
-            } catch (eFetch) {
-                console.warn('fetch() no disponible o falló, probando XMLHttpRequest:', eFetch && eFetch.message);
-                return new Promise((resolve, reject) => {
-                    try {
-                        const xhr = new XMLHttpRequest();
-                        xhr.open('GET', url, true);
-                        xhr.responseType = 'blob';
-                        xhr.onload = function() {
-                            if (xhr.status >= 200 && xhr.status < 300 && xhr.response) {
-                                resolve(xhr.response);
-                            } else {
-                                reject(new Error('HTTP ' + xhr.status));
-                            }
-                        };
-                        xhr.onerror = function() { reject(new Error('Error de red (XHR)')); };
-                        xhr.send();
-                    } catch (e) {
-                        reject(e);
-                    }
-                });
-            }
-        }
-
-        /** Modal para configurar envío de correo de multa */
-        function mostrarModalEnvioMulta(config) {
-            return new Promise((resolve) => {
-                const asuntoDefault = (config && config.asunto) || 'Comprobante de Multa';
-                const correoDefault = (config && config.correo) || '';
-                const modal = document.createElement('div');
-                modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.45); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 1rem;';
-                modal.innerHTML = `
-                    <div style="width: 100%; max-width: 560px; background: var(--bg-primary); border-radius: 12px; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1); overflow: hidden;">
-                        <div style="padding: 1.25rem 1.25rem 0.75rem 1.25rem; border-bottom: 1px solid var(--border-color);">
-                            <h3 style="margin: 0; font-size: 1.1rem; color: var(--text-primary);">Enviar Comprobante de Multa</h3>
-                        </div>
-                        <div style="padding: 1rem 1.25rem;">
-                            <label style="display: block; margin-bottom: 0.4rem; font-weight: 600; color: var(--text-primary);">Destinatario</label>
-                            <input id="multaCorreoDestinoModal" type="email" value="${correoDefault}" placeholder="correo@ejemplo.com" style="width: 100%; margin-bottom: 0.9rem; padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); color: var(--text-primary);" />
-                            <label style="display: block; margin-bottom: 0.4rem; font-weight: 600; color: var(--text-primary);">Asunto</label>
-                            <input id="multaAsuntoModal" type="text" value="${asuntoDefault}" style="width: 100%; margin-bottom: 0.9rem; padding: 0.7rem; border: 1px solid var(--border-color); border-radius: 8px; background: var(--bg-primary); color: var(--text-primary);" />
-                            <label style="display: flex; align-items: center; gap: 0.55rem; color: var(--text-primary); cursor: pointer;">
-                                <input id="multaIncluirEvidenciaModal" type="checkbox" checked style="accent-color: var(--primary); width: 1.05rem; height: 1.05rem;">
-                                <span>Incluir evidencia: enlaces en el cuerpo y <strong>archivos adjuntos</strong> (se adjuntan desde Storage; el servidor de correo descarga el archivo, sin límite de 1 MB del documento en Firestore)</span>
-                            </label>
-                        </div>
-                        <div style="padding: 0.85rem 1.25rem 1.1rem 1.25rem; display: flex; justify-content: flex-end; gap: 0.6rem; border-top: 1px solid var(--border-color);">
-                            <button type="button" id="multaModalCancelar" class="btn btn-secondary">Cancelar</button>
-                            <button type="button" id="multaModalEnviar" class="btn btn-primary">📧 Enviar</button>
-                        </div>
-                    </div>
-                `;
-
-                const cerrar = (valor) => {
-                    if (modal && modal.parentNode) modal.parentNode.removeChild(modal);
-                    resolve(valor);
-                };
-
-                document.body.appendChild(modal);
-
-                const btnCancelar = modal.querySelector('#multaModalCancelar');
-                const btnEnviar = modal.querySelector('#multaModalEnviar');
-                const inputCorreo = modal.querySelector('#multaCorreoDestinoModal');
-                const inputAsunto = modal.querySelector('#multaAsuntoModal');
-                const inputEvidencia = modal.querySelector('#multaIncluirEvidenciaModal');
-
-                btnCancelar.addEventListener('click', () => cerrar(null));
-                modal.addEventListener('click', (e) => {
-                    if (e.target === modal) cerrar(null);
-                });
-                btnEnviar.addEventListener('click', () => {
-                    const correo = (inputCorreo.value || '').trim();
-                    const asunto = (inputAsunto.value || '').trim();
-                    if (!correo) {
-                        mostrarAlerta('Debe ingresar un correo destinatario.', 'Dato requerido');
-                        return;
-                    }
-                    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(correo)) {
-                        mostrarAlerta('Ingrese un correo válido.', 'Correo inválido');
-                        return;
-                    }
-                    if (!asunto) {
-                        mostrarAlerta('Debe ingresar un asunto para el correo.', 'Dato requerido');
-                        return;
-                    }
-                    cerrar({
-                        correo: correo,
-                        asunto: asunto,
-                        incluirEvidencia: !!inputEvidencia.checked
-                    });
-                });
-            });
         }
 
         /** Envía el comprobante de multa por correo */
@@ -12250,50 +11952,19 @@
                 }
                 
                 const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
+                const htmlComprobante = generarComprobanteMultaHtml(multa, nombreComunidad);
                 const residenteInfo = await obtenerCorreoResidente(multa.departamento, multa.nombre);
                 
                 if (!residenteInfo || !residenteInfo.correo) {
                     mostrarAlerta('No se encontró el correo del residente. Por favor, verifique que el residente tenga su correo registrado en el módulo de Ocupación y Residentes.', 'Correo no encontrado');
                     return;
                 }
-
-                const configEnvio = await mostrarModalEnvioMulta({
-                    correo: residenteInfo.correo,
-                    asunto: `Comprobante de Multa - ${nombreComunidad}`
-                });
-                if (!configEnvio) return;
-                const htmlComprobante = generarComprobanteMultaHtml(multa, nombreComunidad, {
-                    incluirEvidencia: configEnvio.incluirEvidencia
-                });
-
-                // Evidencia como adjunto real: usar URL de Storage con `href` (Nodemailer la descarga en el servidor).
-                // Así no dependemos del límite ~1 MB de Firestore ni de descargar/base64 en el navegador.
-                let adjuntosCorreo = null;
-                if (configEnvio.incluirEvidencia && multa.archivos && multa.archivos.length > 0) {
-                    const conUrl = multa.archivos.filter(a => a && String(a.url || '').trim());
-                    if (conUrl.length === 0) {
-                        mostrarAlerta('La multa no tiene archivos con URL de descarga. Guarde de nuevo la multa con archivos subidos a Storage.', 'Sin archivos');
-                    } else {
-                        const varios = conUrl.length > 1;
-                        adjuntosCorreo = conUrl.map((a, i) => ({
-                            filename: sanitizarNombreArchivoAdjunto(
-                                (varios ? String(i + 1).padStart(2, '0') + '_' : '') + (a.nombre || `evidencia_${i + 1}`)
-                            ),
-                            href: String(a.url).trim(),
-                            contentType: (a.tipo && String(a.tipo).trim()) || contentTypeDesdeNombreArchivo(a.nombre)
-                        }));
-                    }
-                }
                 
                 mostrarProgreso('Enviando correo...');
                 const resultado = await enviarCorreoHTML(
-                    {
-                        nombre: residenteInfo.nombre || multa.nombre || 'Residente',
-                        correo: configEnvio.correo
-                    },
-                    configEnvio.asunto,
-                    htmlComprobante,
-                    adjuntosCorreo
+                    residenteInfo,
+                    `Comprobante de Multa - ${nombreComunidad}`,
+                    htmlComprobante
                 );
                 ocultarProgreso();
                 
@@ -15858,60 +15529,163 @@
                 mostrarAlerta('No hay lecturas de agua caliente para exportar en este mes.', 'Sin Datos');
                 return;
             }
-            if (typeof XLSX === 'undefined' || !XLSX.utils || !XLSX.writeFile) {
-                mostrarAlerta('No se pudo cargar la librería Excel. Compruebe su conexión e intente de nuevo.', 'Error');
-                return;
-            }
+            
             const nombreComunidad = await obtenerNombreComunidad();
             const mes = obtenerMesActual();
             const nombreMes = obtenerNombreMes(mes);
-            const nombreArchivo = `Lecturas_Agua_Caliente_${(nombreComunidad || 'Comunidad').replace(/\s+/g, '_')}_${mes}.xlsx`;
-
-            const leerNum = (v) => {
-                if (v === null || v === undefined || v === '') return 0;
-                const n = parseFloat(String(v).replace(',', '.'));
-                return isNaN(n) ? 0 : n;
-            };
-
+            const nombreArchivo = `Lecturas_Agua_Caliente_${(nombreComunidad || 'Comunidad').replace(/\s+/g, '_')}_${mes}.xls`;
+            
+            // Calcular totales
             let totalConsumo = 0;
-            const aoa = [
-                ['Reporte de lecturas de agua caliente'],
-                ['Comunidad', nombreComunidad || 'Comunidad'],
-                ['Período', nombreMes],
-                ['Fecha de generación', formatearFecha(obtenerFechaHoy())],
-                [],
-                ['Unidad', 'Mes', 'Lectura anterior', 'Lectura actual', 'Consumo total'],
-            ];
-
-            lecturas.forEach((l) => {
+            lecturas.forEach(l => {
+                // Si el consumo guardado es válido, usarlo; si no, recalcular
                 let consumo = 0;
                 if (l.consumo !== null && l.consumo !== undefined && !isNaN(parseFloat(l.consumo))) {
                     consumo = parseFloat(l.consumo);
                 } else {
-                    consumo = Math.max(0, leerNum(l.lecturaActual) - leerNum(l.lecturaAnterior));
+                    const anteriorNum = (l.lecturaAnterior !== null && l.lecturaAnterior !== undefined) ? (parseFloat(l.lecturaAnterior) || 0) : 0;
+                    const actualNum = (l.lecturaActual !== null && l.lecturaActual !== undefined) ? (parseFloat(l.lecturaActual) || 0) : 0;
+                    consumo = Math.max(0, actualNum - anteriorNum);
                 }
                 totalConsumo += consumo;
-                aoa.push([
-                    l.unidad || '',
-                    l.mes || mes,
-                    leerNum(l.lecturaAnterior),
-                    leerNum(l.lecturaActual),
-                    consumo,
-                ]);
             });
-            aoa.push([]);
-            aoa.push(['TOTAL CONSUMO', '', '', '', totalConsumo]);
-            aoa.push(['Total registros', lecturas.length, '', '', '']);
-
-            try {
-                const wb = XLSX.utils.book_new();
-                XLSX.utils.book_append_sheet(wb, XLSX.utils.aoa_to_sheet(aoa), normalizarNombreHojaExcel('Lecturas'));
-                descargarWorkbookXlsxONada(wb, nombreArchivo);
-                mostrarAlerta('Archivo Excel (.xlsx) de lecturas descargado correctamente.', 'Éxito');
-            } catch (e) {
-                console.error(e);
-                mostrarAlerta('Error al generar el archivo Excel.', 'Error');
-            }
+            
+            let html = `
+                <html xmlns:x="urn:schemas-microsoft-com:office:excel">
+                <head>
+                    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+                    <style>
+                        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; margin: 20px; }
+                        .header { margin-bottom: 20px; }
+                        .header h1 { color: #75bb21; font-size: 20px; margin: 0 0 5px 0; }
+                        .header p { color: #6b7280; font-size: 12px; margin: 2px 0; }
+                        table { border-collapse: collapse; margin-top: 10px; table-layout: fixed; }
+                        colgroup col:nth-child(1) { width: 80px; }
+                        colgroup col:nth-child(2) { width: 100px; }
+                        colgroup col:nth-child(3) { width: 120px; }
+                        colgroup col:nth-child(4) { width: 120px; }
+                        colgroup col:nth-child(5) { width: 120px; }
+                        thead th { 
+                            background-color: #4a7c1a;
+                            color: #ffffff !important;
+                            font-weight: 700;
+                            padding: 10px 8px;
+                            text-align: left;
+                            border: 1px solid #3d6515;
+                            font-size: 11px;
+                        }
+                        tbody td { 
+                            padding: 8px;
+                            border: 1px solid #e5e7eb;
+                            font-size: 11px;
+                            color: #374151;
+                        }
+                        tbody tr:nth-child(even) { background-color: #f9fafb; }
+                        .total-row { 
+                            background-color: #e8f5e0 !important;
+                            font-weight: 600;
+                            border-top: 2px solid #75bb21;
+                        }
+                        .total-row td { 
+                            color: #065f46;
+                            padding: 10px 8px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>📊 Reporte de Lecturas de Agua Caliente</h1>
+                        <p><strong>Comunidad:</strong> ${nombreComunidad || 'Comunidad'}</p>
+                        <p><strong>Período:</strong> ${nombreMes}</p>
+                        <p><strong>Fecha de Generación:</strong> ${formatearFecha(obtenerFechaHoy())}</p>
+                    </div>
+                    <table>
+                        <colgroup>
+                            <col style="width: 80px;">
+                            <col style="width: 100px;">
+                            <col style="width: 120px;">
+                            <col style="width: 120px;">
+                            <col style="width: 120px;">
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th style="background-color: #4a7c1a; color: #ffffff;">Unidad</th>
+                                <th style="background-color: #4a7c1a; color: #ffffff;">Mes</th>
+                                <th style="background-color: #4a7c1a; color: #ffffff;">Lectura Anterior</th>
+                                <th style="background-color: #4a7c1a; color: #ffffff;">Lectura Actual</th>
+                                <th style="background-color: #4a7c1a; color: #ffffff;">Consumo Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+            
+            // Función auxiliar para formatear número preservando decimales o enteros
+            const formatearLectura = (valor) => {
+                if (valor === null || valor === undefined || valor === '') return '0';
+                const num = parseFloat(valor);
+                if (isNaN(num)) return '0';
+                const valorStr = valor.toString().trim();
+                // Si tiene decimales, preservarlos
+                if (valorStr.includes('.') || valorStr.includes(',')) {
+                    const partes = valorStr.replace(',', '.').split('.');
+                    if (partes.length > 1) {
+                        const decimales = partes[1].length;
+                        return num.toFixed(Math.min(decimales, 10)).replace(/\.?0+$/, '');
+                    }
+                }
+                // Si es entero, mostrar sin decimales
+                return num % 1 === 0 ? num.toString() : num.toString();
+            };
+            
+            lecturas.forEach(l => {
+                // Calcular consumo: usar el guardado si es válido, si no recalcular
+                let consumo = 0;
+                if (l.consumo !== null && l.consumo !== undefined && !isNaN(parseFloat(l.consumo))) {
+                    consumo = parseFloat(l.consumo);
+                } else {
+                    const anteriorNum = (l.lecturaAnterior !== null && l.lecturaAnterior !== undefined) ? (parseFloat(l.lecturaAnterior) || 0) : 0;
+                    const actualNum = (l.lecturaActual !== null && l.lecturaActual !== undefined) ? (parseFloat(l.lecturaActual) || 0) : 0;
+                    consumo = Math.max(0, actualNum - anteriorNum);
+                }
+                html += `
+                    <tr>
+                        <td>${(l.unidad || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</td>
+                        <td>${l.mes || mes}</td>
+                        <td style="text-align: right;">${formatearLectura(l.lecturaAnterior)}</td>
+                        <td style="text-align: right;">${formatearLectura(l.lecturaActual)}</td>
+                        <td style="text-align: right; font-weight: 500;">${formatearLectura(consumo)}</td>
+                    </tr>
+                `;
+            });
+            
+            html += `
+                            <tr class="total-row">
+                                <td colspan="4" style="text-align: right;"><strong>TOTAL CONSUMO:</strong></td>
+                                <td style="text-align: right;"><strong>${totalConsumo % 1 === 0 ? totalConsumo.toString() : totalConsumo.toFixed(2)}</strong></td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <div style="margin-top: 20px; padding: 10px; background: #f9fafb; border-left: 4px solid #75bb21; border-radius: 4px;">
+                        <p style="margin: 0; font-size: 11px; color: #6b7280;">
+                            <strong>Total de registros:</strong> ${lecturas.length} | 
+                            <strong>Consumo total del período:</strong> ${totalConsumo % 1 === 0 ? totalConsumo.toString() : totalConsumo.toFixed(2)}
+                        </p>
+                    </div>
+                </body>
+                </html>
+            `;
+            
+            const blob = new Blob(['\uFEFF' + html], { type: 'application/vnd.ms-excel;charset=utf-8;' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = nombreArchivo;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            setTimeout(() => URL.revokeObjectURL(url), 100);
+            
+            mostrarAlerta('Archivo Excel de lecturas de agua caliente descargado correctamente.', 'Éxito');
         }
         window.exportarLecturasAguaExcel = exportarLecturasAguaExcel;
 
@@ -22581,16 +22355,72 @@
                 var list = registrosPostventa.slice().sort(function (a, b) {
                     return (b.fecha || '').localeCompare(a.fecha || '') || String(b.id || '').localeCompare(String(a.id || ''));
                 });
-
-                var nombreArchivo = 'Postventa_' + limpiarNombre(comunidad) + '_' + fechaArchivo + '.xlsx';
-                if (typeof XLSX === 'undefined' || !XLSX.writeFile) {
-                    mostrarAlerta('Librería Excel no cargada.', 'Error');
-                    return;
+                var filasDetalle = '';
+                list.forEach(function (r) {
+                    var urls = (r.evidencias || []).map(function (e) { return e.url; }).join(' | ');
+                    filasDetalle += '<tr><td>' + escXml(postventaFechaReporteDMY(r.fecha)) + '</td><td>' + escXml(postventaCorregirOrtografiaObservacion(r.observacion)) + '</td><td class="postv-estado-td">' + escXml(postventaEstadoExcelLabel(r.estado)) + '</td><td style="font-size:10px;word-break:break-all;">' + escXml(urls) + '</td></tr>';
+                });
+                if (!filasDetalle) {
+                    filasDetalle = '<tr><td colspan="4" class="text-center" style="padding:24px;color:#6b7280;">No hay registros en el módulo Postventa.</td></tr>';
                 }
+
+                var htmlExcel = '<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40" lang="es"><head><meta charset="UTF-8"><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>Postventa - ' + escXml(comunidad) + '</title><style>' +
+                    '@page{margin:1.2cm}body{font-family:Calibri,Arial,sans-serif;margin:0;padding:18px 20px;color:#1f2937;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
+                    '.band-title{font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:0.92}' +
+                    '.band-main{font-size:24px;font-weight:700;margin:6px 0 4px}' +
+                    '.band-sub{font-size:14px;font-weight:400;opacity:0.95}' +
+                    '.sec{font-size:14px;font-weight:700;color:#3f6212;margin:26px 0 10px;padding-bottom:6px;border-bottom:2px solid #75BB21}' +
+                    '.tbl{width:100%;border-collapse:collapse;font-size:11px}' +
+                    '.tbl th{background:#5a9219;color:#fff;padding:10px 10px;text-align:left;font-weight:600;border:1px solid #4a7a15}' +
+                    '.tbl th.c,.tbl td.c{text-align:center}' +
+                    '.tbl td{padding:9px 10px;border:1px solid #d1d5db;vertical-align:top}' +
+                    '.tbl tbody tr:nth-child(even) td{background:#f9fafb}' +
+                    '.meta td{background:#f3f4f6;font-size:12px;padding:12px 14px;border:1px solid #d1d5db}' +
+                    '.meta b{display:block;color:#374151;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}' +
+                    '.cumpl td{background:#ecfccb;border:1px solid #84cc16;padding:14px 16px;font-size:12px;line-height:1.65;color:#365314}' +
+                    '.foot{margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#6b7280;line-height:1.5}' +
+                    '.postv-estado-th,.postv-estado-td{min-width:118px;max-width:200px;text-align:left!important;vertical-align:middle!important;padding:8px 10px!important;font-size:11px;mso-number-format:\\@;font-family:Calibri,Arial,sans-serif}' +
+                    '</style></head><body>' +
+                    '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:20px"><tr><td style="background:#5a9219;color:#fff;padding:20px 24px;border:1px solid #4a7a15">' +
+                    '<div class="band-title">Reporte</div><div class="band-main">Postventa</div><div class="band-sub">' + escXml(comunidad) + '</div></td></tr></table>' +
+                    '<table width="100%" class="meta" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:22px"><tr>' +
+                    '<td width="34%" style="vertical-align:top"><b>Fecha de emisión</b>' + escXml(fechaEmision) + '</td>' +
+                    '<td width="33%" style="vertical-align:top"><b>Total registros</b>' + total + '</td>' +
+                    '<td width="33%" style="vertical-align:top"><b>Ítems abiertos</b>' + abiertos + '</td></tr></table>' +
+                    '<div class="sec">Estadísticas por estado</div>' +
+                    '<table class="tbl" style="margin-bottom:18px;max-width:560px"><thead><tr><th>Estado</th><th class="c" style="width:90px">Cantidad</th><th class="c" style="width:100px">% del total</th></tr></thead><tbody>' +
+                    '<tr><td>⚠️ pendiente</td><td class="c">' + st.pendiente + '</td><td class="c">' + (total ? ((100 * st.pendiente / total).toFixed(1)) : '0') + '%</td></tr>' +
+                    '<tr><td>🔄 en proceso</td><td class="c">' + st.en_proceso + '</td><td class="c">' + (total ? ((100 * st.en_proceso / total).toFixed(1)) : '0') + '%</td></tr>' +
+                    '<tr><td>✅ terminado</td><td class="c">' + st.terminado + '</td><td class="c">' + (total ? ((100 * st.terminado / total).toFixed(1)) : '0') + '%</td></tr>' +
+                    '<tr><td>❌ no aplica</td><td class="c">' + st.no_aplica + '</td><td class="c">' + (total ? ((100 * st.no_aplica / total).toFixed(1)) : '0') + '%</td></tr>' +
+                    '</tbody></table>' +
+                    '<table width="100%" class="cumpl" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:22px"><tr><td>' +
+                    '<strong style="color:#3f6212">Cumplimiento</strong><br>' +
+                    'Terminado / total: <strong>' + pctTotal + '%</strong> (' + st.terminado + ' de ' + total + ')<br>' +
+                    'Terminado / aplicables (sin «No aplica»): <strong>' + pctApl + '%</strong> (' + st.terminado + ' de ' + aplicables + ')<br>' +
+                    'Pendientes o en proceso: <strong>' + abiertos + '</strong></td></tr></table>' +
+                    '<div class="sec">Detalle de registros</div>' +
+                    '<table class="tbl"><thead><tr><th style="width:96px">Fecha</th><th>Observación</th><th class="postv-estado-th">Estado</th><th style="min-width:220px">URLs evidencia</th></tr></thead><tbody>' +
+                    filasDetalle + '</tbody></table>' +
+                    '<div class="foot"><strong>Gestión de Comunidad</strong> · Generado el ' + escXml(fechaEmision) + '. Importación sugerida: Fecha, Observación, Estado (opcional), URLs evidencia.</div>' +
+                    '</body></html>';
+
+                var nombreArchivo = 'Postventa_' + limpiarNombre(comunidad) + '_' + fechaArchivo + '.xls';
                 try {
-                    var wb = construirWorkbookPostventaXlsx(comunidad, fechaEmision, st, total, aplicables, pctTotal, pctApl, abiertos, list, postventaFechaReporteDMY, postventaCorregirOrtografiaObservacion, postventaEstadoExcelLabel);
-                    if (!descargarWorkbookXlsxONada(wb, nombreArchivo)) return;
-                    mostrarAlerta('Reporte Excel (.xlsx) descargado.', 'Postventa');
+                    var BOM = '\uFEFF';
+                    var blob = new Blob([BOM + htmlExcel], { type: 'application/vnd.ms-excel;charset=utf-8' });
+                    var url = window.URL.createObjectURL(blob);
+                    var link = document.createElement('a');
+                    link.href = url;
+                    link.download = nombreArchivo;
+                    link.style.display = 'none';
+                    document.body.appendChild(link);
+                    link.click();
+                    setTimeout(function () {
+                        document.body.removeChild(link);
+                        window.URL.revokeObjectURL(url);
+                    }, 150);
+                    mostrarAlerta('Reporte Excel descargado.', 'Postventa');
                 } catch (err) {
                     console.error(err);
                     mostrarAlerta('Error al generar el archivo.', 'Error');
@@ -24423,7 +24253,7 @@
             }
         }
         
-        // Reporte mensual en formato .xlsx nativo (varias hojas) para máxima compatibilidad
+        // Función para generar reporte Excel de fin de mes usando formato HTML (como nómina)
         async function generarReporteExcel(mesAnio, nombreMes, esPrevisualizacion = false) {
             mostrarProgreso('Generando reporte Excel...');
             
@@ -24502,14 +24332,248 @@
                 const limpiarNombre = (str) => {
                     return str.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
                 };
-                const nombreArchivo = `Reporte_Mensual_${limpiarNombre(nombreComunidad)}_${limpiarNombre(nombreMes)}.xlsx`;
-
-                if (typeof XLSX === 'undefined' || !XLSX.utils || !XLSX.writeFile) {
-                    ocultarProgreso();
-                    mostrarAlerta('No se pudo cargar la librería Excel. Compruebe su conexión e intente de nuevo.', 'Error');
-                    return;
-                }
-
+                const nombreArchivo = `Reporte_Mensual_${limpiarNombre(nombreComunidad)}_${limpiarNombre(nombreMes)}.xls`;
+                
+                // Generar contenido Excel (formato HTML que Excel puede abrir, igual que nómina)
+                let excelContent = `
+                <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+                <head>
+                    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+                    <!--[if gte mso 9]>
+                    <xml>
+                        <x:ExcelWorkbook>
+                            <x:ExcelWorksheets>
+                                <x:ExcelWorksheet>
+                                    <x:Name>Reporte Mensual</x:Name>
+                                    <x:WorksheetOptions>
+                                        <x:DefaultRowHeight>300</x:DefaultRowHeight>
+                                        <x:Print>
+                                            <x:ValidPrinterInfo/>
+                                            <x:HorizontalResolution>600</x:HorizontalResolution>
+                                            <x:VerticalResolution>600</x:VerticalResolution>
+                                        </x:Print>
+                                        <x:Selected/>
+                                        <x:FreezePanes/>
+                                        <x:FrozenNoSplit/>
+                                        <x:SplitHorizontal>1</x:SplitHorizontal>
+                                        <x:TopRowBottomPane>1</x:TopRowBottomPane>
+                                        <x:ActivePane>2</x:ActivePane>
+                                    </x:WorksheetOptions>
+                                </x:ExcelWorksheet>
+                            </x:ExcelWorksheets>
+                        </x:ExcelWorkbook>
+                    </xml>
+                    <![endif]-->
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body { 
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                            background: #f8fafc; 
+                            padding: 30px 20px; 
+                            color: #1e293b;
+                        }
+                        .container { 
+                            max-width: 1400px; 
+                            margin: 0 auto; 
+                            background: white; 
+                            border-radius: 12px; 
+                            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+                            overflow: hidden;
+                        }
+                        .header-section { 
+                            background: white;
+                            color: #111827; 
+                            padding: 35px 40px;
+                            text-align: center;
+                            border-bottom: 3px solid #75BB21;
+                        }
+                        .header-title { 
+                            font-size: 32px; 
+                            font-weight: 700; 
+                            margin-bottom: 8px;
+                            letter-spacing: 1px;
+                            color: #111827;
+                        }
+                        .header-subtitle { 
+                            font-size: 18px; 
+                            font-weight: 500; 
+                            letter-spacing: 0.5px;
+                            color: #374151;
+                        }
+                        .info-section { 
+                            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+                            padding: 25px 40px;
+                            border-bottom: 2px solid #e5e7eb;
+                            text-align: left;
+                        }
+                        .info-grid { 
+                            display: table; 
+                            width: auto; 
+                            max-width: 100%;
+                            border-collapse: separate;
+                            border-spacing: 0;
+                        }
+                        .info-row { 
+                            display: table-row; 
+                        }
+                        .info-cell { 
+                            display: table-cell; 
+                            padding: 12px 20px 12px 0;
+                            vertical-align: middle;
+                            text-align: left;
+                        }
+                        .info-label { 
+                            font-weight: 700; 
+                            color: #1f2937; 
+                            font-size: 13px;
+                            text-transform: uppercase;
+                            letter-spacing: 0.5px;
+                            min-width: 140px;
+                        }
+                        .info-value { 
+                            color: #111827; 
+                            font-size: 14px;
+                            font-weight: 600;
+                        }
+                        .table-container {
+                            padding: 30px 40px;
+                            overflow-x: auto;
+                        }
+                        table { 
+                            border-collapse: collapse; 
+                            width: 100%; 
+                            font-size: 13px;
+                            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+                            table-layout: fixed;
+                        }
+                        thead {
+                            background: linear-gradient(135deg, #5a9219 0%, #75BB21 100%);
+                        }
+                        th { 
+                            color: white; 
+                            font-weight: 700; 
+                            padding: 14px 8px; 
+                            border: 1px solid #4a7a15;
+                            text-align: center;
+                            font-size: 11px;
+                            text-transform: uppercase;
+                            letter-spacing: 0.3px;
+                            white-space: nowrap;
+                            vertical-align: middle;
+                        }
+                        tbody tr {
+                            transition: background-color 0.2s ease;
+                        }
+                        tbody tr:nth-child(even) {
+                            background-color: #f9fafb;
+                        }
+                        tbody tr:nth-child(odd) {
+                            background-color: white;
+                        }
+                        tbody tr:hover {
+                            background-color: #f3f4f6;
+                        }
+                        td { 
+                            padding: 10px 8px; 
+                            border: 1px solid #e5e7eb; 
+                            color: #111827;
+                            font-size: 12px;
+                            vertical-align: middle;
+                            word-wrap: break-word;
+                        }
+                        .text-center { 
+                            text-align: center !important; 
+                            vertical-align: middle !important;
+                        }
+                        .text-right { 
+                            text-align: right !important; 
+                            font-weight: 500;
+                            vertical-align: middle !important;
+                        }
+                        .text-left {
+                            text-align: left !important;
+                            vertical-align: middle !important;
+                        }
+                        tfoot {
+                            background-color: #e5e7eb;
+                        }
+                        .total-row { 
+                            background-color: #e5e7eb !important;
+                            color: #111827;
+                            font-weight: 700;
+                            font-size: 14px;
+                        }
+                        .total-row td {
+                            border: 1px solid #d1d5db;
+                            color: #111827;
+                            padding: 14px 10px;
+                        }
+                        .footer-section {
+                            background: #f8fafc;
+                            padding: 20px 40px;
+                            text-align: center;
+                            border-top: 2px solid #e2e8f0;
+                            color: #64748b;
+                            font-size: 12px;
+                        }
+                        .section-title {
+                            color: #5a9219;
+                            font-size: 24px;
+                            margin: 30px 0 20px 0;
+                            font-weight: 700;
+                            text-align: center;
+                            padding-top: 30px;
+                            border-top: 3px solid #75BB21;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header-section" style="background: white !important; border-bottom: 3px solid #75BB21;">
+                            <div class="header-title" style="color: #111827 !important;">REPORTE MENSUAL DE GESTIÓN</div>
+                            <div class="header-subtitle" style="color: #111827 !important;">${nombreComunidad}</div>
+                        </div>
+                        <div class="info-section">
+                            <div class="info-grid">
+                                <div class="info-row">
+                                    <div class="info-cell info-label">Proyecto:</div>
+                                    <div class="info-cell info-value">${nombreComunidad}</div>
+                                    <div class="info-cell info-label">Jefe de Edificio:</div>
+                                    <div class="info-cell info-value">${jefeEdificio}</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-cell info-label">Período:</div>
+                                    <div class="info-cell info-value">${nombreMes}</div>
+                                    <div class="info-cell info-label">Deptos:</div>
+                                    <div class="info-cell info-value">${numeroDeptos}</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-cell info-label">Fecha de Generación:</div>
+                                    <div class="info-cell info-value">${formatearFecha(obtenerFechaHoy())}</div>
+                                    <div class="info-cell"></div>
+                                    <div class="info-cell"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                `;
+                
+                // Sección Resumen
+                excelContent += `
+                    <div class="section-title">RESUMEN EJECUTIVO</div>
+                    <table style="table-layout: fixed; width: 100%;">
+                        <thead>
+                            <tr>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Módulo</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Total Registros</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Ingresos</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Observaciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+                
+                // Calcular totales para resumen
                 const totalMudanzas = Array.isArray(mudanzas) ? mudanzas.length : 0;
                 const mudanzasConCobro = Array.isArray(mudanzas) ? mudanzas.filter(m => m && m.aplicaCobro === 'si').length : 0;
                 const ingresosMudanzas = Array.isArray(mudanzas) 
@@ -24532,80 +24596,189 @@
                 const totalDeudaMorosos = Array.isArray(morosos)
                     ? morosos.reduce((sum, m) => sum + (parseFloat(m && m.monto) || 0), 0)
                     : 0;
+                
                 const ingresosTotales = ingresosMudanzas + ingresosAperturas + ingresosTarjetas + ingresosEspacios;
-
-                const wb = XLSX.utils.book_new();
-                appendSheetSeguroXlsx(wb, [
-                    ['REPORTE MENSUAL DE GESTIÓN'],
-                    [nombreComunidad],
-                    [],
-                    ['Proyecto', nombreComunidad],
-                    ['Jefe de Edificio', jefeEdificio],
-                    ['Período', nombreMes],
-                    ['Deptos', String(numeroDeptos)],
-                    ['Fecha de generación', formatearFecha(obtenerFechaHoy())],
-                ], 'Portada');
-
-                const resumen = [['Módulo', 'Total registros', 'Ingresos (CLP)', 'Observaciones']];
+                
                 if (modulosVisibles.includes('mudanzas')) {
-                    resumen.push(['Mudanzas', totalMudanzas, ingresosMudanzas, `${mudanzasConCobro} con cobro`]);
+                    excelContent += `
+                        <tr>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">Mudanzas</td>
+                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${totalMudanzas}</td>
+                            <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">${formatearMoneda(ingresosMudanzas)}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${mudanzasConCobro} con cobro</td>
+                        </tr>
+                    `;
                 }
                 if (modulosVisibles.includes('aperturas')) {
-                    resumen.push(['Aperturas', totalAperturas, ingresosAperturas, 'Aperturas de puerta']);
+                    excelContent += `
+                        <tr>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">Aperturas</td>
+                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${totalAperturas}</td>
+                            <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">${formatearMoneda(ingresosAperturas)}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">Aperturas de puerta</td>
+                        </tr>
+                    `;
                 }
                 if (modulosVisibles.includes('tarjetas')) {
-                    resumen.push(['Tarjetas/TAG', totalTarjetas, ingresosTarjetas, 'Ventas de tarjetas']);
+                    excelContent += `
+                        <tr>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">Tarjetas/TAG</td>
+                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${totalTarjetas}</td>
+                            <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">${formatearMoneda(ingresosTarjetas)}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">Ventas de tarjetas</td>
+                        </tr>
+                    `;
                 }
                 if (modulosVisibles.includes('espacios')) {
-                    resumen.push(['Espacios comunes', totalEspacios, ingresosEspacios, 'Uso de espacios']);
+                    excelContent += `
+                        <tr>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">Espacios Comunes</td>
+                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${totalEspacios}</td>
+                            <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">${formatearMoneda(ingresosEspacios)}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">Uso de espacios</td>
+                        </tr>
+                    `;
                 }
                 if (modulosVisibles.includes('multas')) {
-                    resumen.push(['Multas', totalMultas, '', 'Multas registradas']);
+                    excelContent += `
+                        <tr>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">Multas</td>
+                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${totalMultas}</td>
+                            <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">-</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">Multas registradas</td>
+                        </tr>
+                    `;
                 }
                 if (modulosVisibles.includes('morosos')) {
-                    resumen.push(['Morosos', totalMorosos, totalDeudaMorosos, 'Deuda acumulada']);
+                    excelContent += `
+                        <tr>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">Morosos</td>
+                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${totalMorosos}</td>
+                            <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">${formatearMoneda(totalDeudaMorosos)}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">Deuda acumulada</td>
+                        </tr>
+                    `;
                 }
-                resumen.push([]);
-                resumen.push(['TOTALES', totalMudanzas + totalAperturas + totalTarjetas + totalEspacios + totalMultas + totalMorosos, ingresosTotales, '']);
-                appendSheetSeguroXlsx(wb, resumen, 'Resumen');
-
+                
+                excelContent += `
+                        </tbody>
+                        <tfoot>
+                            <tr class="total-row">
+                                <td colspan="1" class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 700 !important;">TOTALES:</td>
+                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalMudanzas + totalAperturas + totalTarjetas + totalEspacios + totalMultas + totalMorosos}</td>
+                                <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 700 !important;">${formatearMoneda(ingresosTotales)}</td>
+                                <td style="vertical-align: middle !important;"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                `;
+                
+                // Generar secciones de cada módulo usando las funciones existentes
+                const datosResumen = generarDatosResumen(nombreComunidad, jefeEdificio, numeroDeptos, nombreMes, mudanzas, aperturas, tarjetas, espacios, multas, morosos, modulosVisibles);
+                
+                // Función auxiliar para generar tabla HTML desde array de arrays
+                const generarTablaHTML = (datos, titulo) => {
+                    if (!datos || datos.length === 0) return '';
+                    
+                    let html = `<div class="section-title">${titulo}</div><table style="table-layout: fixed; width: 100%;"><thead><tr>`;
+                    
+                    // Buscar fila de encabezado (primera fila con múltiples columnas)
+                    let filaEncabezado = -1;
+                    for (let i = 0; i < datos.length; i++) {
+                        if (Array.isArray(datos[i]) && datos[i].length >= 3) {
+                            filaEncabezado = i;
+                            break;
+                        }
+                    }
+                    
+                    if (filaEncabezado !== -1) {
+                        datos[filaEncabezado].forEach(col => {
+                            html += `<th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">${col || ''}</th>`;
+                        });
+                        html += `</tr></thead><tbody>`;
+                        
+                        // Agregar filas de datos
+                        for (let i = filaEncabezado + 1; i < datos.length; i++) {
+                            if (Array.isArray(datos[i]) && datos[i].length > 0 && datos[i].some(cell => cell !== '' && cell !== null && cell !== undefined)) {
+                                const esFilaTotales = String(datos[i][0] || '').toUpperCase().trim() === 'TOTALES';
+                                const bgColorFila = esFilaTotales ? '#e5e7eb' : ((i - filaEncabezado) % 2 === 0 ? '#f9fafb' : 'white');
+                                html += `<tr>`;
+                                datos[i].forEach((cell, idx) => {
+                                    const cellValue = cell !== null && cell !== undefined ? String(cell) : '';
+                                    const isNumber = !isNaN(cell) && cell !== '' && !isNaN(parseFloat(cell));
+                                    const align = isNumber ? 'right' : (idx === 0 ? 'left' : 'left');
+                                    const fontWeight = esFilaTotales ? '700' : 'normal';
+                                    html += `<td class="text-${align}" style="text-align: ${align} !important; vertical-align: middle !important; background-color: ${bgColorFila}; font-weight: ${fontWeight}; border: 1px solid ${esFilaTotales ? '#d1d5db' : '#e5e7eb'};">${cellValue}</td>`;
+                                });
+                                html += `</tr>`;
+                            }
+                        }
+                    }
+                    
+                    html += `</tbody></table>`;
+                    return html;
+                };
+                
+                // Agregar secciones de módulos
                 if (modulosVisibles.includes('mudanzas') && mudanzas.length > 0) {
-                    const aoa = datosModuloReporteAAoA(generarDatosMudanzas(mudanzas));
-                    if (aoa.length) appendSheetSeguroXlsx(wb, aoa, 'Mudanzas');
+                    const datosMudanzas = generarDatosMudanzas(mudanzas);
+                    excelContent += generarTablaHTML(datosMudanzas, 'REGISTRO DE MUDANZAS');
                 }
+                
                 if (modulosVisibles.includes('aperturas') && aperturas.length > 0) {
-                    const aoa = datosModuloReporteAAoA(generarDatosAperturas(aperturas));
-                    if (aoa.length) appendSheetSeguroXlsx(wb, aoa, 'Aperturas');
+                    const datosAperturas = generarDatosAperturas(aperturas);
+                    excelContent += generarTablaHTML(datosAperturas, 'REGISTRO DE APERTURAS');
                 }
+                
                 if (modulosVisibles.includes('tarjetas') && tarjetas.length > 0) {
-                    const aoa = datosModuloReporteAAoA(generarDatosTarjetas(tarjetas));
-                    if (aoa.length) appendSheetSeguroXlsx(wb, aoa, 'Tarjetas');
+                    const datosTarjetas = generarDatosTarjetas(tarjetas);
+                    excelContent += generarTablaHTML(datosTarjetas, 'REGISTRO DE TARJETAS');
                 }
+                
                 if (modulosVisibles.includes('espacios') && espacios.length > 0) {
-                    const aoa = datosModuloReporteAAoA(generarDatosEspacios(espacios));
-                    if (aoa.length) appendSheetSeguroXlsx(wb, aoa, 'Espacios');
+                    const datosEspacios = generarDatosEspacios(espacios);
+                    excelContent += generarTablaHTML(datosEspacios, 'REGISTRO DE ESPACIOS COMUNES');
                 }
+                
                 if (modulosVisibles.includes('multas') && multas.length > 0) {
-                    const aoa = datosModuloReporteAAoA(generarDatosMultas(multas));
-                    if (aoa.length) appendSheetSeguroXlsx(wb, aoa, 'Multas');
+                    const datosMultas = generarDatosMultas(multas);
+                    excelContent += generarTablaHTML(datosMultas, 'REGISTRO DE MULTAS');
                 }
+                
                 if (modulosVisibles.includes('morosos') && morosos.length > 0) {
-                    const aoa = datosModuloReporteAAoA(generarDatosMorosos(morosos));
-                    if (aoa.length) appendSheetSeguroXlsx(wb, aoa, 'Morosos');
+                    const datosMorosos = generarDatosMorosos(morosos);
+                    excelContent += generarTablaHTML(datosMorosos, 'REGISTRO DE MOROSOS');
                 }
+                
                 if (modulosVisibles.includes('lecturas-agua') && lecturasAguaCaliente.length > 0) {
-                    const aoa = datosModuloReporteAAoA(generarDatosLecturasAgua(lecturasAguaCaliente));
-                    if (aoa.length) appendSheetSeguroXlsx(wb, aoa, 'Agua caliente');
+                    const datosLecturas = generarDatosLecturasAgua(lecturasAguaCaliente);
+                    excelContent += generarTablaHTML(datosLecturas, 'LECTURAS DE AGUA CALIENTE');
                 }
-
-                if (!descargarWorkbookXlsxONada(wb, nombreArchivo)) {
-                    ocultarProgreso();
-                    return;
-                }
-
+                
+                excelContent += `
+                        </div>
+                        <div class="footer-section">
+                            Documento generado automáticamente por el Sistema de Gestión de Comunidad
+                        </div>
+                    </div>
+                </body>
+                </html>
+                `;
+                
+                // Crear blob y descargar
+                const blob = new Blob([excelContent], { type: 'application/vnd.ms-excel' });
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = nombreArchivo;
+                document.body.appendChild(link);
+                link.click();
+                document.body.removeChild(link);
+                URL.revokeObjectURL(url);
+                
                 ocultarProgreso();
-                mostrarAlerta('Archivo Excel (.xlsx) descargado correctamente.', 'Éxito');
-
+                mostrarAlerta('Archivo Excel descargado correctamente.', 'Éxito');
+                
             } catch (error) {
                 console.error('❌ Error crítico al generar reporte Excel:', error);
                 console.error('Stack trace:', error.stack);
@@ -32991,23 +33164,478 @@
                 mostrarAlerta('No hay trabajadores registrados para exportar.', 'Sin Datos');
                 return;
             }
-            if (typeof XLSX === 'undefined' || !XLSX.utils || !XLSX.writeFile) {
-                mostrarAlerta('No se pudo cargar la librería Excel. Compruebe su conexión e intente de nuevo.', 'Error');
-                return;
-            }
+
+            // Cargar reemplazos del mes actual o archivado
             let reemplazosReporte = [];
             if (window.mesNominaConsulta && window.mesNominaConsulta !== 'actual') {
                 reemplazosReporte = await obtenerDatosArchivados('nomina-reemplazos', window.mesNominaConsulta);
             } else {
                 reemplazosReporte = await obtenerDatosMes('nomina-reemplazos');
             }
+
+            // Obtener valores del encabezado automáticamente
             const encabezado = await obtenerEncabezadoNomina();
-            const limpiarNombre = (str) => str.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
-            const nombreArchivo = `Nomina_${limpiarNombre(encabezado.comunidad)}_${limpiarNombre(encabezado.desde)}_${limpiarNombre(encabezado.hasta)}.xlsx`;
+            const comunidad = encabezado.comunidad;
+            const desde = encabezado.desde;
+            const hasta = encabezado.hasta;
+            const fechaEmision = encabezado.fechaEmision;
+            const responsable = encabezado.responsable;
+
+            // Formatear fechas
+            const formatearFecha = (fechaStr) => {
+                if (fechaStr === 'N/A') return 'N/A';
+                const fecha = new Date(fechaStr + 'T12:00:00');
+                return fecha.toLocaleDateString('es-CL', { year: 'numeric', month: 'long', day: 'numeric' });
+            };
+
+            // Generar nombre del archivo (limpiar caracteres especiales)
+            const limpiarNombre = (str) => {
+                return str.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
+            };
+            const nombreArchivo = `Nomina_${limpiarNombre(comunidad)}_${limpiarNombre(desde)}_${limpiarNombre(hasta)}.xls`;
+
+            // Generar contenido Excel (formato HTML que Excel puede abrir)
+            let excelContent = `
+                <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+                <head>
+                    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+                    <!--[if gte mso 9]>
+                    <xml>
+                        <x:ExcelWorkbook>
+                            <x:ExcelWorksheets>
+                                <x:ExcelWorksheet>
+                                    <x:Name>Nómina Mensual</x:Name>
+                                    <x:WorksheetOptions>
+                                        <x:DefaultRowHeight>300</x:DefaultRowHeight>
+                                        <x:Print>
+                                            <x:ValidPrinterInfo/>
+                                            <x:HorizontalResolution>600</x:HorizontalResolution>
+                                            <x:VerticalResolution>600</x:VerticalResolution>
+                                        </x:Print>
+                                        <x:Selected/>
+                                        <x:FreezePanes/>
+                                        <x:FrozenNoSplit/>
+                                        <x:SplitHorizontal>1</x:SplitHorizontal>
+                                        <x:TopRowBottomPane>1</x:TopRowBottomPane>
+                                        <x:ActivePane>2</x:ActivePane>
+                                    </x:WorksheetOptions>
+                                </x:ExcelWorksheet>
+                            </x:ExcelWorksheets>
+                        </x:ExcelWorkbook>
+                    </xml>
+                    <![endif]-->
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body { 
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                            background: #f8fafc; 
+                            padding: 30px 20px; 
+                            color: #1e293b;
+                        }
+                        .container { 
+                            max-width: 1400px; 
+                            margin: 0 auto; 
+                            background: white; 
+                            border-radius: 12px; 
+                            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+                            overflow: hidden;
+                        }
+                        .header-section { 
+                            background: white;
+                            color: #111827; 
+                            padding: 35px 40px;
+                            text-align: center;
+                            border-bottom: 3px solid #75BB21;
+                        }
+                        .header-title { 
+                            font-size: 32px; 
+                            font-weight: 700; 
+                            margin-bottom: 8px;
+                            letter-spacing: 1px;
+                            color: #111827;
+                        }
+                        .header-subtitle { 
+                            font-size: 18px; 
+                            font-weight: 500; 
+                            letter-spacing: 0.5px;
+                            color: #374151;
+                        }
+                        .info-section { 
+                            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+                            padding: 25px 40px;
+                            border-bottom: 2px solid #e5e7eb;
+                            text-align: left;
+                        }
+                        .info-grid { 
+                            display: table; 
+                            width: auto; 
+                            max-width: 100%;
+                            border-collapse: separate;
+                            border-spacing: 0;
+                        }
+                        .info-row { 
+                            display: table-row; 
+                        }
+                        .info-cell { 
+                            display: table-cell; 
+                            padding: 12px 20px 12px 0;
+                            vertical-align: middle;
+                            text-align: left;
+                        }
+                        .info-label { 
+                            font-weight: 700; 
+                            color: #1f2937; 
+                            font-size: 13px;
+                            text-transform: uppercase;
+                            letter-spacing: 0.5px;
+                            min-width: 140px;
+                        }
+                        .info-value { 
+                            color: #111827; 
+                            font-size: 14px;
+                            font-weight: 600;
+                        }
+                        .table-container {
+                            padding: 30px 40px;
+                            overflow-x: auto;
+                        }
+                        table { 
+                            border-collapse: collapse; 
+                            width: 100%; 
+                            font-size: 13px;
+                            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+                            table-layout: fixed;
+                        }
+                        thead {
+                            background: linear-gradient(135deg, #5a9219 0%, #75BB21 100%);
+                        }
+                        th { 
+                            color: white; 
+                            font-weight: 700; 
+                            padding: 14px 8px; 
+                            border: 1px solid #4a7a15;
+                            text-align: center;
+                            font-size: 11px;
+                            text-transform: uppercase;
+                            letter-spacing: 0.3px;
+                            white-space: nowrap;
+                            vertical-align: middle;
+                        }
+                        tbody tr {
+                            transition: background-color 0.2s ease;
+                        }
+                        tbody tr:nth-child(even) {
+                            background-color: #f9fafb;
+                        }
+                        tbody tr:nth-child(odd) {
+                            background-color: white;
+                        }
+                        tbody tr:hover {
+                            background-color: #f3f4f6;
+                        }
+                        td { 
+                            padding: 10px 8px; 
+                            border: 1px solid #e5e7eb; 
+                            color: #111827;
+                            font-size: 12px;
+                            vertical-align: middle;
+                            word-wrap: break-word;
+                        }
+                        .text-center { 
+                            text-align: center !important; 
+                            vertical-align: middle !important;
+                        }
+                        .text-right { 
+                            text-align: right !important; 
+                            font-weight: 500;
+                            vertical-align: middle !important;
+                        }
+                        .text-left {
+                            text-align: left !important;
+                            vertical-align: middle !important;
+                        }
+                        .col-num { width: 40px; }
+                        .col-nombre { width: 180px; }
+                        .col-cargo { width: 120px; }
+                        .col-numero { width: 70px; }
+                        .col-moneda { width: 120px; }
+                        .col-observaciones { width: 250px; }
+                        tfoot {
+                            background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+                        }
+                        .total-row { 
+                            background: linear-gradient(135deg, #374151 0%, #4b5563 100%) !important;
+                            color: white;
+                            font-weight: 700;
+                            font-size: 14px;
+                        }
+                        .total-row td {
+                            border: 1px solid #6b7280;
+                            color: white;
+                            padding: 14px 10px;
+                        }
+                        .footer-section {
+                            background: #f8fafc;
+                            padding: 20px 40px;
+                            text-align: center;
+                            border-top: 2px solid #e2e8f0;
+                            color: #64748b;
+                            font-size: 12px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header-section" style="background: white !important; border-bottom: 3px solid #75BB21;">
+                            <div class="header-title" style="color: #111827 !important;">NÓMINA MENSUAL</div>
+                            <div class="header-subtitle" style="color: #111827 !important;">${comunidad}</div>
+                        </div>
+                        <div class="info-section">
+                            <div class="info-grid">
+                                <div class="info-row">
+                                    <div class="info-cell info-label">Período:</div>
+                                    <div class="info-cell info-value">${formatearFecha(desde)} - ${formatearFecha(hasta)}</div>
+                                    <div class="info-cell info-label">Fecha de Emisión:</div>
+                                    <div class="info-cell info-value">${formatearFecha(fechaEmision)}</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-cell info-label">Responsable:</div>
+                                    <div class="info-cell info-value">${responsable}</div>
+                                    <div class="info-cell"></div>
+                                    <div class="info-cell"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                    <table style="table-layout: fixed; width: 100%;">
+                        <colgroup>
+                            <col class="col-num" />
+                            <col class="col-nombre" />
+                            <col class="col-cargo" />
+                            <col class="col-numero" />
+                            <col class="col-numero" />
+                            <col class="col-numero" />
+                            <col class="col-numero" />
+                            <col class="col-numero" />
+                            <col class="col-numero" />
+                            <col class="col-numero" />
+                            <col class="col-moneda" />
+                            <col class="col-observaciones" />
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Nº</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Nombre</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Cargo</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Días Trab.</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Lic. Méd.</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Turnos Fest.</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Turnos Ext.</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Domingos</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">H. Ext. 50%</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">H. Ext. 100%</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Anticipos</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Observaciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+            `;
+
+            // Calcular totales
+            let totalDiasTrabajados = 0;
+            let totalLicenciaMedica = 0;
+            let totalTurnosFestivos = 0;
+            let totalTurnosExtras = 0;
+            let totalDomingos = 0;
+            let totalHorasExtras50 = 0;
+            let totalHorasExtras100 = 0;
+            let totalAnticipos = 0;
+
+            trabajadoresNomina.forEach((trabajador, index) => {
+                // Compatibilidad: si existe horasExtras (antiguo), se asigna a horasExtras50
+                const horasExtras50 = parseFloat(trabajador.horasExtras50) || parseFloat(trabajador.horasExtras) || 0;
+                const horasExtras100 = parseFloat(trabajador.horasExtras100) || 0;
+                
+                totalDiasTrabajados += parseFloat(trabajador.diasTrabajados) || 0;
+                totalLicenciaMedica += parseFloat(trabajador.licenciaMedica) || 0;
+                totalTurnosFestivos += parseFloat(trabajador.turnosFestivos) || 0;
+                totalTurnosExtras += parseFloat(trabajador.turnosExtras) || 0;
+                totalDomingos += parseFloat(trabajador.domingos) || 0;
+                totalHorasExtras50 += horasExtras50;
+                totalHorasExtras100 += horasExtras100;
+                totalAnticipos += parseFloat(trabajador.anticipos) || 0;
+
+                // Escapar comillas y saltos de línea para Excel
+                const observaciones = (trabajador.observaciones || '').replace(/"/g, '""').replace(/\n/g, ' ');
+
+                excelContent += `
+                    <tr>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${index + 1}</td>
+                        <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${trabajador.nombre || '-'}</td>
+                        <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${trabajador.cargo || '-'}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.diasTrabajados || 0}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.licenciaMedica || 0}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.turnosFestivos || 0}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.turnosExtras || 0}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.domingos || 0}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${horasExtras50}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${horasExtras100}</td>
+                        <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">${formatearMonedaNomina(trabajador.anticipos || 0)}</td>
+                        <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${observaciones || '-'}</td>
+                    </tr>
+                `;
+            });
+
+            excelContent += `
+                        </tbody>
+                        <tfoot>
+                            <tr class="total-row">
+                                <td colspan="3" class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 700 !important;">TOTALES:</td>
+                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalDiasTrabajados}</td>
+                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalLicenciaMedica}</td>
+                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalTurnosFestivos}</td>
+                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalTurnosExtras}</td>
+                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalDomingos}</td>
+                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalHorasExtras50}</td>
+                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalHorasExtras100}</td>
+                                <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 700 !important;">${formatearMonedaNomina(totalAnticipos)}</td>
+                                <td style="vertical-align: middle !important;"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                        </div>
+            `;
+
+            // Agregar tabla de personal de reemplazo si hay datos
+            if (reemplazosReporte && reemplazosReporte.length > 0) {
+                excelContent += `
+                        <div class="table-container" style="margin-top: 30px; padding-top: 30px; border-top: 3px solid #75BB21;">
+                            <h2 style="color: #5a9219; font-size: 24px; margin-bottom: 20px; font-weight: 700; text-align: center;">
+                                PERSONAL DE REEMPLAZO
+                            </h2>
+                            <table style="table-layout: fixed; width: 100%;">
+                                <colgroup>
+                                    <col class="col-num" />
+                                    <col class="col-nombre" />
+                                    <col class="col-nombre" />
+                                    <col class="col-numero" />
+                                    <col class="col-moneda" />
+                                    <col style="width: 200px;" />
+                                    <col style="width: 100px;" />
+                                    <col style="width: 250px;" />
+                                    <col class="col-observaciones" />
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Nº</th>
+                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Nombre</th>
+                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Reemplaza a</th>
+                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Turnos</th>
+                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Valor Turno</th>
+                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Fechas Laboradas</th>
+                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Método Pago</th>
+                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Datos Bancarios</th>
+                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Observaciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                `;
+
+                reemplazosReporte.forEach((reemplazo, index) => {
+                    // Calcular número de turnos basado en fechas si no está definido
+                    let numeroTurnos = reemplazo.turnos || 0;
+                    if (reemplazo.fechas && Array.isArray(reemplazo.fechas) && reemplazo.fechas.length > 0) {
+                        // Si hay fechas pero no hay turnos definidos, usar el número de fechas
+                        if (numeroTurnos === 0) {
+                            numeroTurnos = reemplazo.fechas.length;
+                        }
+                    }
+                    
+                    // Formatear fechas - mostrar todas las fechas
+                    let fechasTexto = '';
+                    if (reemplazo.fechas && Array.isArray(reemplazo.fechas) && reemplazo.fechas.length > 0) {
+                        const fechasOrdenadas = [...reemplazo.fechas].sort();
+                        const fechasFormateadas = fechasOrdenadas.map(fecha => {
+                            const fechaObj = new Date(fecha + 'T00:00:00');
+                            const dia = fechaObj.getDate();
+                            const mes = fechaObj.toLocaleDateString('es-ES', { month: 'short' });
+                            return `${dia} ${mes}`;
+                        });
+                        // Mostrar todas las fechas, separadas por comas
+                        fechasTexto = `${fechasOrdenadas.length} día${fechasOrdenadas.length !== 1 ? 's' : ''}: ${fechasFormateadas.join(', ')}`;
+                    } else {
+                        fechasTexto = `${reemplazo.dias || 0} día${(reemplazo.dias || 0) !== 1 ? 's' : ''}`;
+                    }
+
+                    // Formatear datos bancarios
+                    let datosBancariosTexto = '-';
+                    if (reemplazo.metodoPago === 'transferencia' && reemplazo.datosBancarios) {
+                        const tipoCuentaTexto = reemplazo.datosBancarios.tipoCuenta === 'corriente' ? 'Cta. Corriente' : 
+                                               reemplazo.datosBancarios.tipoCuenta === 'ahorro' ? 'Cta. Ahorro' : 'Cta. Vista';
+                        datosBancariosTexto = `${reemplazo.datosBancarios.banco || ''} - ${tipoCuentaTexto} - ${reemplazo.datosBancarios.numeroCuenta || ''} - RUT: ${reemplazo.datosBancarios.rut || ''}`;
+                    } else if (reemplazo.metodoPago === 'cheque') {
+                        datosBancariosTexto = 'Pago por cheque';
+                    }
+
+                    const metodoPagoTexto = reemplazo.metodoPago === 'transferencia' ? 'Transferencia' : 'Cheque';
+
+                    // Escapar observaciones para Excel
+                    const observacionesReemplazo = (reemplazo.observaciones || '').replace(/"/g, '""').replace(/\n/g, ' ');
+                    
+                    excelContent += `
+                        <tr>
+                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${index + 1}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${reemplazo.nombre || '-'}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${reemplazo.reemplazaA || '-'}</td>
+                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${numeroTurnos}</td>
+                            <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">${formatearMonedaNomina(reemplazo.valorTurno || 0)}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important; font-size: 11px;">${fechasTexto}</td>
+                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${metodoPagoTexto}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important; font-size: 11px;">${datosBancariosTexto}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important; font-size: 11px;">${observacionesReemplazo || '-'}</td>
+                        </tr>
+                    `;
+                });
+
+                excelContent += `
+                                </tbody>
+                            </table>
+                        </div>
+                `;
+            }
+
+            excelContent += `
+                        <div class="footer-section">
+                            Documento generado automáticamente por el Sistema de Gestión de Comunidad
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `;
+
+            // Crear blob y descargar
+            // Agregar BOM UTF-8 para compatibilidad con Excel
+            const BOM = '\uFEFF';
+            const blob = new Blob([BOM + excelContent], { 
+                type: 'application/vnd.ms-excel;charset=utf-8' 
+            });
+            
             try {
-                const wb = construirWorkbookNominaXlsx(trabajadoresNomina, reemplazosReporte, encabezado);
-                if (!descargarWorkbookXlsxONada(wb, nombreArchivo)) return;
-                mostrarAlerta('Archivo Excel (.xlsx) descargado correctamente.', 'Éxito');
+                const url = window.URL.createObjectURL(blob);
+                const link = document.createElement('a');
+                link.href = url;
+                link.download = nombreArchivo;
+                link.style.display = 'none';
+                document.body.appendChild(link);
+                link.click();
+                
+                // Limpiar después de un breve delay
+                setTimeout(() => {
+                    document.body.removeChild(link);
+                    window.URL.revokeObjectURL(url);
+                }, 100);
+                
+                mostrarAlerta('Archivo Excel descargado correctamente.', 'Éxito');
             } catch (error) {
                 console.error('Error al descargar Excel:', error);
                 mostrarAlerta('Error al descargar el archivo Excel. Por favor, intente nuevamente.', 'Error');
@@ -33018,6 +33646,7 @@
         // Función auxiliar para generar el Excel de nómina exactamente como lo hace el módulo
         async function generarExcelNominaComoAdjunto() {
             try {
+                // Obtener trabajadores del mes actual o consultado
                 let trabajadoresNomina = [];
                 if (window.mesNominaConsulta && window.mesNominaConsulta !== 'actual') {
                     trabajadoresNomina = await obtenerDatosArchivados('nomina', window.mesNominaConsulta);
@@ -33029,6 +33658,7 @@
                     return null;
                 }
 
+                // Cargar reemplazos del mes actual o archivado
                 let reemplazosReporte = [];
                 if (window.mesNominaConsulta && window.mesNominaConsulta !== 'actual') {
                     reemplazosReporte = await obtenerDatosArchivados('nomina-reemplazos', window.mesNominaConsulta);
@@ -33036,16 +33666,463 @@
                     reemplazosReporte = await obtenerDatosMes('nomina-reemplazos');
                 }
 
+                // Obtener valores del encabezado automáticamente
                 const encabezado = await obtenerEncabezadoNomina();
-                const limpiarNombre = (str) => str.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
-                const nombreArchivo = `Nomina_${limpiarNombre(encabezado.comunidad)}_${limpiarNombre(encabezado.desde)}_${limpiarNombre(encabezado.hasta)}.xlsx`;
+                const comunidad = encabezado.comunidad;
+                const desde = encabezado.desde;
+                const hasta = encabezado.hasta;
+                const fechaEmision = encabezado.fechaEmision;
+                const responsable = encabezado.responsable;
 
-                if (typeof XLSX === 'undefined' || !XLSX.utils || !XLSX.write) {
-                    return null;
+                // Formatear fechas
+                const formatearFecha = (fechaStr) => {
+                    if (fechaStr === 'N/A') return 'N/A';
+                    const fecha = new Date(fechaStr + 'T12:00:00');
+                    return fecha.toLocaleDateString('es-CL', { year: 'numeric', month: 'long', day: 'numeric' });
+                };
+
+                // Generar nombre del archivo (limpiar caracteres especiales)
+                const limpiarNombre = (str) => {
+                    return str.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
+                };
+                const nombreArchivo = `Nomina_${limpiarNombre(comunidad)}_${limpiarNombre(desde)}_${limpiarNombre(hasta)}.xls`;
+
+                // Generar contenido Excel (formato HTML que Excel puede abrir) - EXACTAMENTE igual que exportarPDFNomina
+                let excelContent = `
+                <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
+                <head>
+                    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
+                    <!--[if gte mso 9]>
+                    <xml>
+                        <x:ExcelWorkbook>
+                            <x:ExcelWorksheets>
+                                <x:ExcelWorksheet>
+                                    <x:Name>Nómina Mensual</x:Name>
+                                    <x:WorksheetOptions>
+                                        <x:DefaultRowHeight>300</x:DefaultRowHeight>
+                                        <x:Print>
+                                            <x:ValidPrinterInfo/>
+                                            <x:HorizontalResolution>600</x:HorizontalResolution>
+                                            <x:VerticalResolution>600</x:VerticalResolution>
+                                        </x:Print>
+                                        <x:Selected/>
+                                        <x:FreezePanes/>
+                                        <x:FrozenNoSplit/>
+                                        <x:SplitHorizontal>1</x:SplitHorizontal>
+                                        <x:TopRowBottomPane>1</x:TopRowBottomPane>
+                                        <x:ActivePane>2</x:ActivePane>
+                                    </x:WorksheetOptions>
+                                </x:ExcelWorksheet>
+                            </x:ExcelWorksheets>
+                        </x:ExcelWorkbook>
+                    </xml>
+                    <![endif]-->
+                    <style>
+                        * { margin: 0; padding: 0; box-sizing: border-box; }
+                        body { 
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
+                            background: #f8fafc; 
+                            padding: 30px 20px; 
+                            color: #1e293b;
+                        }
+                        .container { 
+                            max-width: 1400px; 
+                            margin: 0 auto; 
+                            background: white; 
+                            border-radius: 12px; 
+                            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
+                            overflow: hidden;
+                        }
+                        .header-section { 
+                            background: white;
+                            color: #111827; 
+                            padding: 35px 40px;
+                            text-align: center;
+                            border-bottom: 3px solid #75BB21;
+                        }
+                        .header-title { 
+                            font-size: 32px; 
+                            font-weight: 700; 
+                            margin-bottom: 8px;
+                            letter-spacing: 1px;
+                            color: #111827;
+                        }
+                        .header-subtitle { 
+                            font-size: 18px; 
+                            font-weight: 500; 
+                            letter-spacing: 0.5px;
+                            color: #374151;
+                        }
+                        .info-section { 
+                            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
+                            padding: 25px 40px;
+                            border-bottom: 2px solid #e5e7eb;
+                            text-align: left;
+                        }
+                        .info-grid { 
+                            display: table; 
+                            width: auto; 
+                            max-width: 100%;
+                            border-collapse: separate;
+                            border-spacing: 0;
+                        }
+                        .info-row { 
+                            display: table-row; 
+                        }
+                        .info-cell { 
+                            display: table-cell; 
+                            padding: 12px 20px 12px 0;
+                            vertical-align: middle;
+                            text-align: left;
+                        }
+                        .info-label { 
+                            font-weight: 700; 
+                            color: #1f2937; 
+                            font-size: 13px;
+                            text-transform: uppercase;
+                            letter-spacing: 0.5px;
+                            min-width: 140px;
+                        }
+                        .info-value { 
+                            color: #111827; 
+                            font-size: 14px;
+                            font-weight: 600;
+                        }
+                        .table-container {
+                            padding: 30px 40px;
+                            overflow-x: auto;
+                        }
+                        table { 
+                            border-collapse: collapse; 
+                            width: 100%; 
+                            font-size: 13px;
+                            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+                            table-layout: fixed;
+                        }
+                        thead {
+                            background: linear-gradient(135deg, #5a9219 0%, #75BB21 100%);
+                        }
+                        th { 
+                            color: white; 
+                            font-weight: 700; 
+                            padding: 14px 8px; 
+                            border: 1px solid #4a7a15;
+                            text-align: center;
+                            font-size: 11px;
+                            text-transform: uppercase;
+                            letter-spacing: 0.3px;
+                            white-space: nowrap;
+                            vertical-align: middle;
+                        }
+                        tbody tr {
+                            transition: background-color 0.2s ease;
+                        }
+                        tbody tr:nth-child(even) {
+                            background-color: #f9fafb;
+                        }
+                        tbody tr:nth-child(odd) {
+                            background-color: white;
+                        }
+                        tbody tr:hover {
+                            background-color: #f3f4f6;
+                        }
+                        td { 
+                            padding: 10px 8px; 
+                            border: 1px solid #e5e7eb; 
+                            color: #111827;
+                            font-size: 12px;
+                            vertical-align: middle;
+                            word-wrap: break-word;
+                        }
+                        .text-center { 
+                            text-align: center !important; 
+                            vertical-align: middle !important;
+                        }
+                        .text-right { 
+                            text-align: right !important; 
+                            font-weight: 500;
+                            vertical-align: middle !important;
+                        }
+                        .text-left {
+                            text-align: left !important;
+                            vertical-align: middle !important;
+                        }
+                        .col-num { width: 40px; }
+                        .col-nombre { width: 180px; }
+                        .col-cargo { width: 120px; }
+                        .col-numero { width: 70px; }
+                        .col-moneda { width: 120px; }
+                        .col-observaciones { width: 250px; }
+                        tfoot {
+                            background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
+                        }
+                        .total-row { 
+                            background: linear-gradient(135deg, #374151 0%, #4b5563 100%) !important;
+                            color: white;
+                            font-weight: 700;
+                            font-size: 14px;
+                        }
+                        .total-row td {
+                            border: 1px solid #6b7280;
+                            color: white;
+                            padding: 14px 10px;
+                        }
+                        .footer-section {
+                            background: #f8fafc;
+                            padding: 20px 40px;
+                            text-align: center;
+                            border-top: 2px solid #e2e8f0;
+                            color: #64748b;
+                            font-size: 12px;
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="container">
+                        <div class="header-section" style="background: white !important; border-bottom: 3px solid #75BB21;">
+                            <div class="header-title" style="color: #111827 !important;">NÓMINA MENSUAL</div>
+                            <div class="header-subtitle" style="color: #111827 !important;">${comunidad}</div>
+                        </div>
+                        <div class="info-section">
+                            <div class="info-grid">
+                                <div class="info-row">
+                                    <div class="info-cell info-label">Período:</div>
+                                    <div class="info-cell info-value">${formatearFecha(desde)} - ${formatearFecha(hasta)}</div>
+                                    <div class="info-cell info-label">Fecha de Emisión:</div>
+                                    <div class="info-cell info-value">${formatearFecha(fechaEmision)}</div>
+                                </div>
+                                <div class="info-row">
+                                    <div class="info-cell info-label">Responsable:</div>
+                                    <div class="info-cell info-value">${responsable}</div>
+                                    <div class="info-cell"></div>
+                                    <div class="info-cell"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="table-container">
+                    <table style="table-layout: fixed; width: 100%;">
+                        <colgroup>
+                            <col class="col-num" />
+                            <col class="col-nombre" />
+                            <col class="col-cargo" />
+                            <col class="col-numero" />
+                            <col class="col-numero" />
+                            <col class="col-numero" />
+                            <col class="col-numero" />
+                            <col class="col-numero" />
+                            <col class="col-numero" />
+                            <col class="col-numero" />
+                            <col class="col-moneda" />
+                            <col class="col-observaciones" />
+                        </colgroup>
+                        <thead>
+                            <tr>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Nº</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Nombre</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Cargo</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Días Trab.</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Lic. Méd.</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Turnos Fest.</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Turnos Ext.</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Domingos</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">H. Ext. 50%</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">H. Ext. 100%</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Anticipos</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Observaciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                `;
+
+                // Calcular totales
+                let totalDiasTrabajados = 0;
+                let totalLicenciaMedica = 0;
+                let totalTurnosFestivos = 0;
+                let totalTurnosExtras = 0;
+                let totalDomingos = 0;
+                let totalHorasExtras50 = 0;
+                let totalHorasExtras100 = 0;
+                let totalAnticipos = 0;
+
+                trabajadoresNomina.forEach((trabajador, index) => {
+                    // Compatibilidad: si existe horasExtras (antiguo), se asigna a horasExtras50
+                    const horasExtras50 = parseFloat(trabajador.horasExtras50) || parseFloat(trabajador.horasExtras) || 0;
+                    const horasExtras100 = parseFloat(trabajador.horasExtras100) || 0;
+                    
+                    totalDiasTrabajados += parseFloat(trabajador.diasTrabajados) || 0;
+                    totalLicenciaMedica += parseFloat(trabajador.licenciaMedica) || 0;
+                    totalTurnosFestivos += parseFloat(trabajador.turnosFestivos) || 0;
+                    totalTurnosExtras += parseFloat(trabajador.turnosExtras) || 0;
+                    totalDomingos += parseFloat(trabajador.domingos) || 0;
+                    totalHorasExtras50 += horasExtras50;
+                    totalHorasExtras100 += horasExtras100;
+                    totalAnticipos += parseFloat(trabajador.anticipos) || 0;
+
+                    // Escapar comillas y saltos de línea para Excel
+                    const observaciones = (trabajador.observaciones || '').replace(/"/g, '""').replace(/\n/g, ' ');
+
+                    excelContent += `
+                    <tr>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${index + 1}</td>
+                        <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${trabajador.nombre || '-'}</td>
+                        <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${trabajador.cargo || '-'}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.diasTrabajados || 0}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.licenciaMedica || 0}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.turnosFestivos || 0}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.turnosExtras || 0}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.domingos || 0}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${horasExtras50}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${horasExtras100}</td>
+                        <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">${formatearMonedaNomina(trabajador.anticipos || 0)}</td>
+                        <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${observaciones || '-'}</td>
+                    </tr>
+                `;
+                });
+
+                excelContent += `
+                        </tbody>
+                        <tfoot>
+                            <tr class="total-row">
+                                <td colspan="3" class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 700 !important;">TOTALES:</td>
+                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalDiasTrabajados}</td>
+                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalLicenciaMedica}</td>
+                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalTurnosFestivos}</td>
+                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalTurnosExtras}</td>
+                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalDomingos}</td>
+                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalHorasExtras50}</td>
+                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalHorasExtras100}</td>
+                                <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 700 !important;">${formatearMonedaNomina(totalAnticipos)}</td>
+                                <td style="vertical-align: middle !important;"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                        </div>
+            `;
+
+                // Agregar tabla de personal de reemplazo si hay datos
+                if (reemplazosReporte && reemplazosReporte.length > 0) {
+                    excelContent += `
+                        <div class="table-container" style="margin-top: 30px; padding-top: 30px; border-top: 3px solid #75BB21;">
+                            <h2 style="color: #5a9219; font-size: 24px; margin-bottom: 20px; font-weight: 700; text-align: center;">
+                                PERSONAL DE REEMPLAZO
+                            </h2>
+                            <table style="table-layout: fixed; width: 100%;">
+                                <colgroup>
+                                    <col class="col-num" />
+                                    <col class="col-nombre" />
+                                    <col class="col-nombre" />
+                                    <col class="col-numero" />
+                                    <col class="col-moneda" />
+                                    <col style="width: 200px;" />
+                                    <col style="width: 100px;" />
+                                    <col style="width: 250px;" />
+                                    <col class="col-observaciones" />
+                                </colgroup>
+                                <thead>
+                                    <tr>
+                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Nº</th>
+                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Nombre</th>
+                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Reemplaza a</th>
+                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Turnos</th>
+                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Valor Turno</th>
+                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Fechas Laboradas</th>
+                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Método Pago</th>
+                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Datos Bancarios</th>
+                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Observaciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                    `;
+
+                    reemplazosReporte.forEach((reemplazo, index) => {
+                        // Calcular número de turnos basado en fechas si no está definido
+                        let numeroTurnos = reemplazo.turnos || 0;
+                        if (reemplazo.fechas && Array.isArray(reemplazo.fechas) && reemplazo.fechas.length > 0) {
+                            if (numeroTurnos === 0) {
+                                numeroTurnos = reemplazo.fechas.length;
+                            }
+                        }
+                        
+                        // Formatear fechas
+                        let fechasTexto = '';
+                        if (reemplazo.fechas && Array.isArray(reemplazo.fechas) && reemplazo.fechas.length > 0) {
+                            const fechasOrdenadas = [...reemplazo.fechas].sort();
+                            const fechasFormateadas = fechasOrdenadas.map(fecha => {
+                                const fechaObj = new Date(fecha + 'T00:00:00');
+                                const dia = fechaObj.getDate();
+                                const mes = fechaObj.toLocaleDateString('es-ES', { month: 'short' });
+                                return `${dia} ${mes}`;
+                            });
+                            fechasTexto = `${fechasOrdenadas.length} día${fechasOrdenadas.length !== 1 ? 's' : ''}: ${fechasFormateadas.join(', ')}`;
+                        } else {
+                            fechasTexto = `${reemplazo.dias || 0} día${(reemplazo.dias || 0) !== 1 ? 's' : ''}`;
+                        }
+
+                        // Formatear datos bancarios
+                        let datosBancariosTexto = '-';
+                        if (reemplazo.metodoPago === 'transferencia' && reemplazo.datosBancarios) {
+                            const tipoCuentaTexto = reemplazo.datosBancarios.tipoCuenta === 'corriente' ? 'Cta. Corriente' : 
+                                                   reemplazo.datosBancarios.tipoCuenta === 'ahorro' ? 'Cta. Ahorro' : 'Cta. Vista';
+                            datosBancariosTexto = `${reemplazo.datosBancarios.banco || ''} - ${tipoCuentaTexto} - ${reemplazo.datosBancarios.numeroCuenta || ''} - RUT: ${reemplazo.datosBancarios.rut || ''}`;
+                        } else if (reemplazo.metodoPago === 'cheque') {
+                            datosBancariosTexto = 'Pago por cheque';
+                        }
+
+                        const metodoPagoTexto = reemplazo.metodoPago === 'transferencia' ? 'Transferencia' : 'Cheque';
+
+                        // Escapar observaciones para Excel
+                        const observacionesReemplazo = (reemplazo.observaciones || '').replace(/"/g, '""').replace(/\n/g, ' ');
+                        
+                        excelContent += `
+                        <tr>
+                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${index + 1}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${reemplazo.nombre || '-'}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${reemplazo.reemplazaA || '-'}</td>
+                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${numeroTurnos}</td>
+                            <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">${formatearMonedaNomina(reemplazo.valorTurno || 0)}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important; font-size: 11px;">${fechasTexto}</td>
+                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${metodoPagoTexto}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important; font-size: 11px;">${datosBancariosTexto}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important; font-size: 11px;">${observacionesReemplazo || '-'}</td>
+                        </tr>
+                    `;
+                    });
+
+                    excelContent += `
+                                </tbody>
+                            </table>
+                        </div>
+                `;
                 }
 
-                const wb = construirWorkbookNominaXlsx(trabajadoresNomina, reemplazosReporte, encabezado);
-                return workbookXlsxAdjuntoDesdeWB(wb, nombreArchivo);
+                excelContent += `
+                        <div class="footer-section">
+                            Documento generado automáticamente por el Sistema de Gestión de Comunidad
+                        </div>
+                    </div>
+                </body>
+                </html>
+            `;
+
+                // Convertir HTML a blob y luego a base64 para el adjunto
+                const BOM = '\uFEFF';
+                const blob = new Blob([BOM + excelContent], { type: 'application/vnd.ms-excel;charset=utf-8' });
+                
+                // Convertir blob a base64
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onloadend = function() {
+                        const base64 = reader.result.split(',')[1]; // Remover el prefijo data:application/...
+                        resolve({
+                            filename: nombreArchivo,
+                            content: base64,
+                            contentType: 'application/vnd.ms-excel',
+                            encoding: 'base64'
+                        });
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(blob);
+                });
             } catch (error) {
                 console.error('Error al generar Excel de nómina:', error);
                 return null;
