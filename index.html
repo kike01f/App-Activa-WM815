@@ -1884,7 +1884,7 @@
         #ocupacion .resumen-ocupacion-map .resumen-item.pct { background: rgba(117, 187, 33, 0.1); border-color: rgba(117, 187, 33, 0.3); }
         #ocupacion .resumen-ocupacion-map .resumen-item .valor { font-size: 1.5rem; font-weight: 700; }
         #ocupacion .resumen-ocupacion-map .resumen-item .etiqueta { font-size: 0.75rem; color: var(--text-tertiary); }
-        /* Mapa del edificio: mismo tamaño y comportamiento que index.html (.building-map-edificio) */
+        /* Mapa del edificio: mismo tamaño y comportamiento que gestion-entre-cerros.html (.building-map-edificio) */
         #ocupacion .building-map-edificio {
             display: flex;
             flex-direction: column-reverse;
@@ -5513,6 +5513,7 @@
                         <div style="display: flex; flex-wrap: wrap; gap: 0.45rem;">
                             <button type="button" class="btn btn-primary" id="btnExportarExcelPostventa" style="padding: 0.45rem 0.8rem; font-size: 0.8125rem;">📊 Excel</button>
                             <button type="button" class="btn btn-success" id="btnEnviarCorreoPostventa" style="padding: 0.45rem 0.8rem; font-size: 0.8125rem; background: #10b981; border-color: #10b981;">📧 Enviar por correo</button>
+                            <button type="button" class="btn btn-primary" id="btnCorreoPostventaPendientesNuevos" style="padding: 0.45rem 0.8rem; font-size: 0.8125rem;" title="Notificar solo los pendientes o en proceso que elija">📩 Correo pendientes (selección)</button>
                             <label class="btn btn-secondary" style="cursor: pointer; margin: 0; padding: 0.45rem 0.8rem; font-size: 0.8125rem;">
                                 <input type="file" id="inputImportPostventa" accept=".xlsx,.xls" style="display: none;">
                                 📥 Importar Excel
@@ -7615,6 +7616,34 @@
         }
 
         // Función para enviar correos usando Firebase Extensions (Trigger Email)
+        /** Lista única de correos válidos: acepta string, string con comas, o array (para un solo envío a varios). */
+        function normalizarListaCorreosDestino(correo) {
+            if (correo == null || correo === '') return [];
+            const out = [];
+            const seen = new Set();
+            const push = (s) => {
+                const t = String(s || '').trim();
+                if (!t) return;
+                const k = t.toLowerCase();
+                if (seen.has(k)) return;
+                seen.add(k);
+                out.push(t);
+            };
+            if (Array.isArray(correo)) {
+                correo.forEach(push);
+                return out;
+            }
+            if (typeof correo === 'string') {
+                if (/[,;]/.test(correo)) {
+                    correo.split(/[,;]/).forEach(push);
+                    return out;
+                }
+                push(correo);
+                return out;
+            }
+            return out;
+        }
+
         // Requiere que la extensión "Trigger Email" esté instalada en Firebase
         async function enviarCorreo(residente, asunto, mensaje, html = null, adjuntos = null) {
             if (!firebaseInitialized || !db) {
@@ -7637,7 +7666,8 @@
                 return { exito: false, error: 'Usuario no autenticado' };
             }
 
-            if (!residente || !residente.correo) {
+            const listaCorreos = residente ? normalizarListaCorreosDestino(residente.correo) : [];
+            if (!residente || listaCorreos.length === 0) {
                 console.error('No se proporcionó correo del residente');
                 mostrarAlerta('Error: No se proporcionó correo del residente', 'Error');
                 return { exito: false, error: 'Correo del residente no proporcionado' };
@@ -7650,8 +7680,9 @@
             }
 
             try {
+                const campoTo = listaCorreos.length === 1 ? listaCorreos[0] : listaCorreos;
                 const mailData = {
-                    to: residente.correo,
+                    to: campoTo,
                     message: {
                         subject: asunto,
                         text: mensaje || (html ? 'Ver contenido HTML' : '')
@@ -7835,7 +7866,7 @@
 
                 // Logs detallados del correo que se está enviando
                 console.log('📧 ===== DETALLES DEL CORREO A ENVIAR =====');
-                console.log('📬 Destinatario:', residente.correo);
+                console.log('📬 Destinatario(s):', listaCorreos.length > 1 ? listaCorreos : listaCorreos[0]);
                 console.log('👤 Nombre del residente:', residente.nombre || 'No especificado');
                 console.log('📝 Asunto:', asunto);
                 console.log('📄 Tipo:', html ? 'HTML (con plantilla)' : 'Texto plano');
@@ -7955,7 +7986,9 @@
                 }
                 
                 // Mensaje simplificado para el usuario
-                const mensajeExito = `✅ Correo enviado a ${residente.correo}`;
+                const mensajeExito = listaCorreos.length > 1
+                    ? `✅ Correo enviado en un solo envío a ${listaCorreos.length} destinatarios`
+                    : `✅ Correo enviado a ${listaCorreos[0]}`;
                 
                 console.log('ℹ️ Información para el usuario:', mensajeExito);
                 console.log('📋 Tipo:', tipoCorreo);
@@ -7965,7 +7998,7 @@
                     exito: true, 
                     mensaje: mensajeExito,
                     docId: docRef.id,
-                    destinatario: residente.correo,
+                    destinatario: listaCorreos.length === 1 ? listaCorreos[0] : listaCorreos,
                     tipo: tipoCorreo,
                     formato: html ? 'HTML' : 'texto'
                 };
@@ -8434,6 +8467,180 @@
         
         // Hacer la función disponible globalmente
         window.enviarCorreoConReportePostventa = enviarCorreoConReportePostventa;
+
+        /** Estados postventa para filtro y etiquetas en correo (alineado al módulo). */
+        function postventaNormalizarEstadoRegistro(r) {
+            let k = r && r.estado;
+            if (k !== 'pendiente' && k !== 'en_proceso' && k !== 'terminado' && k !== 'no_aplica') k = 'pendiente';
+            return k;
+        }
+        function postventaEtiquetaEstadoCorreo(codigo) {
+            const m = {
+                pendiente: '⚠️ Pendiente',
+                en_proceso: '🔄 En proceso',
+                terminado: '✅ Terminado',
+                no_aplica: '❌ No aplica'
+            };
+            return m[codigo] || m.pendiente;
+        }
+
+        /** HTML de notificación solo con los registros seleccionados (pendientes/en proceso). */
+        async function generarCorreoNotificacionPostventaPendientes(nombreComunidad, nombreMes, registrosSeleccionados) {
+            const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const filas = (registrosSeleccionados || []).map((r) => {
+                const est = postventaNormalizarEstadoRegistro(r);
+                const obs = String(r.observacion == null ? '' : r.observacion).replace(/\s+/g, ' ').trim();
+                const obsCorto = obs.length > 400 ? obs.slice(0, 397) + '…' : obs;
+                const fecha = linkEsc(r.fecha || '—');
+                return `<tr>
+                  <td style="padding:10px 12px;font-size:13px;color:#1a1a1a;border-bottom:1px solid #e8eee8;white-space:nowrap;">${fecha}</td>
+                  <td style="padding:10px 12px;font-size:13px;color:#333;border-bottom:1px solid #e8eee8;line-height:1.45;">${linkEsc(obsCorto)}</td>
+                  <td style="padding:10px 12px;font-size:12px;color:#555;border-bottom:1px solid #e8eee8;white-space:nowrap;">${linkEsc(postventaEtiquetaEstadoCorreo(est))}</td>
+                </tr>`;
+            }).join('');
+            const tabla = (registrosSeleccionados && registrosSeleccionados.length) ? `
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border:1px solid #e8eee8;border-radius:8px;overflow:hidden;margin:12px 0 0 0;">
+                <thead>
+                  <tr style="background:#f8faf8;">
+                    <th align="left" style="padding:10px 12px;font-size:12px;color:#666;font-weight:700;border-bottom:1px solid #e8eee8;">Fecha</th>
+                    <th align="left" style="padding:10px 12px;font-size:12px;color:#666;font-weight:700;border-bottom:1px solid #e8eee8;">Observación</th>
+                    <th align="left" style="padding:10px 12px;font-size:12px;color:#666;font-weight:700;border-bottom:1px solid #e8eee8;">Estado</th>
+                  </tr>
+                </thead>
+                <tbody>${filas}</tbody>
+              </table>` : '';
+            const contenido = `
+                <p style="margin: 0 0 10px 0; font-size: 15px; color: #1a1a1a; line-height: 1.5;">Estimado/a,</p>
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: #333333; line-height: 1.55;">Junto con saludar, se informa los nuevos requerimientos para su revisión.</p>
+                ${tabla}
+            `;
+            return generarPlantillaCorreoNotificacion('Postventa — Observaciones areas comunes', nombreComunidad, nombreMes, contenido, true, true);
+        }
+
+        /** Modal: el usuario elige qué registros abiertos incluir; luego abre el modal de destinatarios. */
+        function mostrarModalSeleccionPendientesPostventa(candidatos) {
+            return new Promise((resolve) => {
+                const modal = document.createElement('div');
+                modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;';
+                const escHtmlModal = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                const filasLista = candidatos.map((r, i) => {
+                    const est = postventaNormalizarEstadoRegistro(r);
+                    const obs = String(r.observacion == null ? '' : r.observacion).replace(/\s+/g, ' ').trim();
+                    const prev = obs.length > 100 ? obs.slice(0, 97) + '…' : obs;
+                    const fecha = escHtmlModal(r.fecha || '—');
+                    const prevEsc = escHtmlModal(prev);
+                    const labEst = escHtmlModal(postventaEtiquetaEstadoCorreo(est));
+                    return `<label style="display:flex;align-items:flex-start;gap:0.65rem;padding:0.55rem 0.65rem;border-bottom:1px solid var(--border-color);cursor:pointer;margin:0;">
+                        <input type="checkbox" class="pv-pend-cb-modal" data-pv-idx="${i}" style="margin-top:0.2rem;width:1.1rem;height:1.1rem;flex-shrink:0;accent-color:var(--primary);">
+                        <span style="flex:1;font-size:0.8125rem;line-height:1.4;color:var(--text-primary);">
+                            <strong style="white-space:nowrap;">${fecha}</strong>
+                            <span style="color:var(--text-tertiary);font-size:0.75rem;margin-left:0.35rem;">${labEst}</span><br>
+                            <span style="color:var(--text-secondary);">${prevEsc}</span>
+                        </span>
+                    </label>`;
+                }).join('');
+                modal.innerHTML = `
+                    <div style="background:var(--bg-primary);border-radius:12px;max-width:560px;width:100%;max-height:88vh;overflow:hidden;box-shadow:0 20px 25px -5px rgba(0,0,0,0.1);display:flex;flex-direction:column;">
+                        <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border-color);display:flex;justify-content:space-between;align-items:center;flex-shrink:0;">
+                            <h3 style="margin:0;font-size:1.05rem;font-weight:700;color:var(--text-primary);">Correo: pendientes a notificar</h3>
+                            <button type="button" class="pv-pend-modal-close" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--text-secondary);padding:0;width:32px;height:32px;line-height:1;border-radius:4px;">×</button>
+                        </div>
+                        <div style="padding:0.75rem 1.25rem 0;font-size:0.8125rem;color:var(--text-secondary);line-height:1.45;">
+                            Marque solo los registros en <strong>Pendiente</strong> o <strong>En proceso</strong> que desea incluir en el correo y en el Excel adjunto.
+                        </div>
+                        <div style="padding:0.5rem 1.25rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
+                            <button type="button" class="btn btn-secondary btn-sm" id="pvPendSelTodos" style="padding:0.35rem 0.65rem;font-size:0.75rem;">Marcar todos</button>
+                            <button type="button" class="btn btn-secondary btn-sm" id="pvPendSelNinguno" style="padding:0.35rem 0.65rem;font-size:0.75rem;">Desmarcar todos</button>
+                        </div>
+                        <div style="flex:1;overflow-y:auto;border-top:1px solid var(--border-color);border-bottom:1px solid var(--border-color);max-height:min(52vh,420px);">
+                            ${filasLista}
+                        </div>
+                        <div style="padding:1rem 1.25rem;display:flex;gap:0.65rem;justify-content:flex-end;flex-shrink:0;">
+                            <button type="button" class="btn btn-secondary pv-pend-modal-close" style="padding:0.55rem 1rem;">Cancelar</button>
+                            <button type="button" class="btn btn-primary" id="pvPendContinuar" style="padding:0.55rem 1rem;">Continuar → destinatarios</button>
+                        </div>
+                    </div>`;
+                document.body.appendChild(modal);
+                const cerrar = () => { modal.remove(); resolve(); };
+                modal.querySelectorAll('.pv-pend-modal-close').forEach((b) => b.addEventListener('click', cerrar));
+                modal.addEventListener('click', (e) => { if (e.target === modal) cerrar(); });
+                const st = document.getElementById('pvPendSelTodos');
+                const sn = document.getElementById('pvPendSelNinguno');
+                if (st) st.addEventListener('click', () => { modal.querySelectorAll('.pv-pend-cb-modal').forEach((c) => { c.checked = true; }); });
+                if (sn) sn.addEventListener('click', () => { modal.querySelectorAll('.pv-pend-cb-modal').forEach((c) => { c.checked = false; }); });
+                document.getElementById('pvPendContinuar').addEventListener('click', async () => {
+                    const idxs = Array.from(modal.querySelectorAll('.pv-pend-cb-modal:checked'))
+                        .map((c) => parseInt(c.getAttribute('data-pv-idx'), 10))
+                        .filter((x) => !isNaN(x));
+                    if (!idxs.length) {
+                        mostrarAlerta('Seleccione al menos un registro para incluir en el correo.', 'Postventa');
+                        return;
+                    }
+                    const seleccionados = idxs.map((i) => candidatos[i]).filter(Boolean);
+                    modal.remove();
+                    try {
+                        let nombreComunidad = 'Comunidad';
+                        try {
+                            if (typeof obtenerPersonalizacion === 'function') {
+                                const pers = await obtenerPersonalizacion();
+                                if (pers && pers.comunidad) nombreComunidad = pers.comunidad;
+                            }
+                        } catch (e1) { /* ignore */ }
+                        if (!nombreComunidad || nombreComunidad === 'Comunidad') {
+                            try { nombreComunidad = localStorage.getItem('nombreComunidad') || nombreComunidad; } catch (e2) { /* ignore */ }
+                        }
+                        const hoy = new Date();
+                        const fechaEmision = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
+                        const mesActual = obtenerMesActual();
+                        const nombreMes = obtenerNombreMes(mesActual);
+                        mostrarProgreso('Generando correo y adjunto…');
+                        const adjunto = await generarExcelPostventaComoAdjunto(seleccionados);
+                        if (!adjunto) {
+                            ocultarProgreso();
+                            mostrarAlerta('Error al generar el Excel del detalle seleccionado.', 'Error');
+                            resolve();
+                            return;
+                        }
+                        const html = await generarCorreoNotificacionPostventaPendientes(nombreComunidad, nombreMes, seleccionados);
+                        const asunto = `Postventa — Observaciones areas comunes. — Activa WM815 — ${fechaEmision}`;
+                        ocultarProgreso();
+                        await mostrarModalSeleccionDestinatarios(asunto, html, [adjunto]);
+                    } catch (err) {
+                        console.error('Correo postventa pendientes:', err);
+                        ocultarProgreso();
+                        mostrarAlerta('Error al preparar el correo: ' + (err.message || 'Error desconocido'), 'Error');
+                    }
+                    resolve();
+                });
+            });
+        }
+
+        async function enviarCorreoPostventaPendientesSeleccion() {
+            try {
+                mostrarProgreso('Cargando postventa…');
+                const registros = await obtenerDatosPostventa();
+                ocultarProgreso();
+                if (!registros || !registros.length) {
+                    mostrarAlerta('No hay datos de postventa.', 'Sin datos');
+                    return;
+                }
+                const candidatos = registros.filter((r) => {
+                    const k = postventaNormalizarEstadoRegistro(r);
+                    return k === 'pendiente' || k === 'en_proceso';
+                });
+                candidatos.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || String(b.id || '').localeCompare(String(a.id || '')));
+                if (!candidatos.length) {
+                    mostrarAlerta('No hay registros en estado Pendiente ni En proceso. Solo esos aparecen para este correo.', 'Postventa');
+                    return;
+                }
+                await mostrarModalSeleccionPendientesPostventa(candidatos);
+            } catch (error) {
+                ocultarProgreso();
+                console.error('Error correo pendientes postventa:', error);
+                mostrarAlerta('Ocurrió un error: ' + (error.message || 'Error desconocido'), 'Error');
+            }
+        }
+        window.enviarCorreoPostventaPendientesSeleccion = enviarCorreoPostventaPendientesSeleccion;
         
         // Función auxiliar para generar el Excel de lecturas de agua exactamente como lo hace el módulo
         async function generarExcelLecturasAguaComoAdjunto(lecturas, mes, nombreMes) {
@@ -8679,6 +8886,9 @@
                             <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Asunto:</label>
                             <input type="text" id="modalAsuntoReporte" value="${asunto}" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.875rem; background: var(--bg-primary); color: var(--text-primary);">
                         </div>
+                        <div style="margin-bottom: 0.75rem; padding: 0.65rem 0.75rem; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color); font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.45;">
+                            Los destinatarios marcados se incluirán en <strong>un solo correo</strong> (campo Para). Todos podrán ver las demás direcciones.
+                        </div>
                         <div style="margin-bottom: 1rem;">
                             <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Seleccionar Destinatarios:</label>
                             <div style="max-height: 300px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 0.75rem;">
@@ -8726,35 +8936,34 @@
                 const asuntoFinal = document.getElementById('modalAsuntoReporte').value || asunto;
                 
                 try {
-                    mostrarProgreso('Enviando correos...');
+                    mostrarProgreso('Enviando correo…');
                     
-                    // Enviar a cada destinatario
-                    let enviados = 0;
-                    let errores = 0;
-                    
-                    for (const destinatario of destinatarios) {
-                        try {
-                            await enviarCorreoHTML(destinatario, asuntoFinal, html, adjuntos);
-                            enviados++;
-                        } catch (error) {
-                            console.error('Error al enviar a', destinatario.correo, error);
-                            errores++;
-                        }
+                    const emailsUnicos = [...new Set(destinatarios.map(d => (d && d.correo) ? String(d.correo).trim() : '').filter(Boolean))];
+                    if (!emailsUnicos.length) {
+                        ocultarProgreso();
+                        mostrarAlerta('No hay direcciones válidas entre los seleccionados.', 'Error');
+                        return;
                     }
+                    
+                    const payload = {
+                        correo: emailsUnicos.length === 1 ? emailsUnicos[0] : emailsUnicos,
+                        nombre: destinatarios.map(d => d.nombre || d.correo).filter(Boolean).join(', ')
+                    };
+                    
+                    await enviarCorreoHTML(payload, asuntoFinal, html, adjuntos);
                     
                     modal.remove();
                     ocultarProgreso();
                     
-                    if (errores === 0) {
-                        mostrarAlerta(`✅ Correos enviados exitosamente a ${enviados} destinatario(s)`, 'Éxito');
-                    } else {
-                        mostrarAlerta(`⚠️ Se enviaron ${enviados} correo(s), pero ${errores} fallaron. Revise la consola para más detalles.`, 'Advertencia');
-                    }
+                    const msg = emailsUnicos.length > 1
+                        ? `✅ Un solo correo encolado para ${emailsUnicos.length} destinatarios`
+                        : '✅ Correo encolado correctamente';
+                    mostrarAlerta(msg, 'Éxito');
                 } catch (error) {
-                    console.error('Error al enviar correos:', error);
+                    console.error('Error al enviar correo:', error);
                     modal.remove();
                     ocultarProgreso();
-                    mostrarAlerta('Ocurrió un error al enviar los correos. Por favor, intente nuevamente.', 'Error');
+                    mostrarAlerta('Ocurrió un error al enviar el correo. Por favor, intente nuevamente.', 'Error');
                 }
             });
             
@@ -10829,13 +11038,44 @@
             return prefijo + String(maxNum + 1).padStart(3, '0');
         }
 
-        /** Genera el HTML del comprobante de venta de Tarjeta de Acceso / TAG (estilo similar a apertura). Incluye aviso de cargo en gastos comunes. Soporta múltiples ítems. */
+        /** true si el correo/comprobante debe incluir el procedimiento de TAG: venta con algún TAG, o más de un ítem (productos múltiples). Solo tarjeta en una línea → false. */
+        function tarjetaVentaIncluyeProcedimientoTag(tarjeta) {
+            const items = normalizarTarjetaItems(tarjeta);
+            if (!items.length) return false;
+            const esTipoTag = (tipo) => tipo && String(tipo).toUpperCase().indexOf('TAG') !== -1;
+            if (items.some(it => esTipoTag(it.tipo))) return true;
+            return items.length > 1;
+        }
+
+        /** Genera el HTML del comprobante de venta de Tarjeta de Acceso / TAG (estilo similar a apertura). Incluye aviso de cargo en gastos comunes. Soporta múltiples ítems. El bloque de procedimiento de TAG solo se incluye si aplica (TAG y/o varios productos). */
         function generarComprobanteTarjetaHtml(tarjeta, nombreComunidad) {
             const comunidad = nombreComunidad || 'Comunidad';
             const folioStr = tarjeta.folio || '—';
             const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             const fechaStr = tarjeta.fecha ? (typeof formatearFecha === 'function' ? formatearFecha(tarjeta.fecha) : tarjeta.fecha) : '-';
             const items = normalizarTarjetaItems(tarjeta);
+            const incluirProcedimientoTag = tarjetaVentaIncluyeProcedimientoTag(tarjeta);
+            const tituloComprobante = incluirProcedimientoTag ? 'Venta de Tarjeta de Acceso / TAG' : 'Venta de Tarjeta de Acceso';
+            const tituloDoc = incluirProcedimientoTag ? 'Comprobante - Venta Tarjeta / TAG' : 'Comprobante - Venta Tarjeta de Acceso';
+            const parrafoIntro = incluirProcedimientoTag
+                ? 'Le hacemos llegar el comprobante de la <strong>venta de tarjeta(s) / TAG</strong> registrada a su nombre. Este documento queda como respaldo para la administración y para su propio registro.'
+                : 'Le hacemos llegar el comprobante de la <strong>venta de tarjeta(s) de acceso</strong> registrada a su nombre. Este documento queda como respaldo para la administración y para su propio registro.';
+            const bloqueProcedimientoTag = incluirProcedimientoTag ? `
+          <tr>
+            <td class="content-padding" style="padding: 0 28px 10px 28px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f0f7ff; border: 1px solid #1976d2; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 12px 14px;">
+                    <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 700; color: #1976d2; text-transform: uppercase; letter-spacing: 0.04em;">Procedimiento de TAG y Tarjetas</p>
+                    <p style="margin: 0 0 6px 0; font-size: 13px; color: #333333; line-height: 1.6;"><strong>1. Asignación:</strong> Un TAG por espacio asignado; se entrega solo al propietario o arrendatario registrado.</p>
+                    <p style="margin: 0 0 6px 0; font-size: 13px; color: #333333; line-height: 1.6;"><strong>2. Uso:</strong> Personal e intransferible. No prestar, no ingresar vehículos no registrados ni usar para vehículos ajenos.</p>
+                    <p style="margin: 0 0 6px 0; font-size: 13px; color: #333333; line-height: 1.6;"><strong>3. Pérdida o daño:</strong> Informar de inmediato a edificio.wm815@gmail.com. Reposición: $5.000 (se carga en el gasto común del mes siguiente).</p>
+                    <p style="margin: 0; font-size: 13px; color: #333333; line-height: 1.6;"><strong>4. Desactivación:</strong> Por mal uso, término de arriendo o cuando el residente deja de habitar la unidad.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>` : '';
             const montoNum = items.reduce((s, i) => s + (parseFloat(i.monto) || 0), 0);
             const montoStr = typeof formatearMoneda === 'function' ? formatearMoneda(montoNum) : '$' + Number(montoNum).toLocaleString('es-CL');
             const tieneCobro = montoNum > 0;
@@ -10847,7 +11087,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <meta http-equiv="X-UA-Compatible" content="IE=edge">
-  <title>Comprobante - Venta Tarjeta / TAG</title>
+  <title>${tituloDoc}</title>
   <!--[if mso]>
   <style type="text/css">
     body, table, td, a { font-family: Arial, Helvetica, sans-serif !important; }
@@ -10880,14 +11120,14 @@
             <td class="content-padding content-padding-lg" style="padding: 18px 28px 14px 28px; border-bottom: 3px solid #74BD20; background-color: #ffffff; border-radius: 12px 12px 0 0;">
               <div style="text-align:center;margin-bottom:12px"><img src="https://img.mailinblue.com/8323725/images/content_library/original/6844749040dd0f16c5341248.png" alt="Logo" style="max-width:120px;height:auto;"></div>
               <p style="margin: 0 0 2px 0; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: #74BD20; text-transform: uppercase;">Comprobante</p>
-              <h2 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 700; color: #1a1a1a;">Venta de Tarjeta de Acceso / TAG</h2>
+              <h2 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 700; color: #1a1a1a;">${tituloComprobante}</h2>
               <p style="margin: 0 0 4px 0; font-size: 14px; color: #555555;">${linkEsc(comunidad)}</p>
             </td>
           </tr>
           <tr>
             <td class="content-padding" style="padding: 14px 28px 10px 28px;">
               <p style="margin: 0 0 6px 0; font-size: 15px; color: #1a1a1a; line-height: 1.5;">Estimado/a <strong>${linkEsc(tarjeta.nombre)}</strong>,</p>
-              <p style="margin: 0 0 8px 0; font-size: 14px; color: #333333; line-height: 1.55;">Le hacemos llegar el comprobante de la <strong>venta de tarjeta(s) / TAG</strong> registrada a su nombre. Este documento queda como respaldo para la administración y para su propio registro.</p>
+              <p style="margin: 0 0 8px 0; font-size: 14px; color: #333333; line-height: 1.55;">${parrafoIntro}</p>
               <p style="margin: 0; font-size: 14px; color: #333333; line-height: 1.55;">Detalle del registro:</p>
             </td>
           </tr>
@@ -10928,21 +11168,7 @@
               </table>
             </td>
           </tr>
-          <tr>
-            <td class="content-padding" style="padding: 0 28px 10px 28px;">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f0f7ff; border: 1px solid #1976d2; border-radius: 8px;">
-                <tr>
-                  <td style="padding: 12px 14px;">
-                    <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 700; color: #1976d2; text-transform: uppercase; letter-spacing: 0.04em;">Procedimiento de TAG y Tarjetas</p>
-                    <p style="margin: 0 0 6px 0; font-size: 13px; color: #333333; line-height: 1.6;"><strong>1. Asignación:</strong> Un TAG por espacio asignado; se entrega solo al propietario o arrendatario registrado.</p>
-                    <p style="margin: 0 0 6px 0; font-size: 13px; color: #333333; line-height: 1.6;"><strong>2. Uso:</strong> Personal e intransferible. No prestar, no ingresar vehículos no registrados ni usar para vehículos ajenos.</p>
-                    <p style="margin: 0 0 6px 0; font-size: 13px; color: #333333; line-height: 1.6;"><strong>3. Pérdida o daño:</strong> Informar de inmediato a edificio.wm815@gmail.com. Reposición: $5.000 (se carga en el gasto común del mes siguiente).</p>
-                    <p style="margin: 0; font-size: 13px; color: #333333; line-height: 1.6;"><strong>4. Desactivación:</strong> Por mal uso, término de arriendo o cuando el residente deja de habitar la unidad.</p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
+          ${bloqueProcedimientoTag}
           <tr>
             <td style="padding: 14px 28px 18px 28px; text-align: center; border-top: 1px solid #eeeeee; background-color: #fafafa; border-radius: 0 0 12px 12px;">
               <p style="margin: 0; font-size: 12px; color: #888888;">Documento generado por administración. Comprobante informativo.</p>
@@ -10968,6 +11194,9 @@
                 
                 const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
                 const htmlComprobante = generarComprobanteTarjetaHtml(tarjeta, nombreComunidad);
+                const asuntoTarjeta = tarjetaVentaIncluyeProcedimientoTag(tarjeta)
+                    ? `Comprobante de Venta de Tarjeta/TAG - ${nombreComunidad}`
+                    : `Comprobante de Venta de Tarjeta de Acceso - ${nombreComunidad}`;
                 const residenteInfo = await obtenerCorreoResidente(tarjeta.departamento, tarjeta.nombre);
                 
                 if (!residenteInfo || !residenteInfo.correo) {
@@ -10978,7 +11207,7 @@
                 mostrarProgreso('Enviando correo...');
                 const resultado = await enviarCorreoHTML(
                     residenteInfo,
-                    `Comprobante de Venta de Tarjeta/TAG - ${nombreComunidad}`,
+                    asuntoTarjeta,
                     htmlComprobante
                 );
                 ocultarProgreso();
@@ -11006,7 +11235,8 @@
             }
             const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
             const html = generarComprobanteTarjetaHtml(tarjeta, nombreComunidad);
-            abrirHTMLEnNuevaVentana(html, 'Comprobante de Tarjeta/TAG');
+            const tituloVentana = tarjetaVentaIncluyeProcedimientoTag(tarjeta) ? 'Comprobante de Tarjeta/TAG' : 'Comprobante de Tarjeta de Acceso';
+            abrirHTMLEnNuevaVentana(html, tituloVentana);
         }
 
         // ============================================
@@ -14604,7 +14834,7 @@
         }
         
         // Plantilla base para correos de notificación - Diseño mejorado y unificado
-        function generarPlantillaCorreoNotificacion(titulo, nombreComunidad, nombreMes, contenido, tieneAdjunto = true) {
+        function generarPlantillaCorreoNotificacion(titulo, nombreComunidad, nombreMes, contenido, tieneAdjunto = true, omitirSaludoEstimado = false) {
             const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             
             // Sección de adjunto con estilo similar al comprobante
@@ -14677,7 +14907,7 @@
           </tr>
           <tr>
             <td class="content-padding" style="padding: 14px 28px 10px 28px;">
-              <p style="margin: 0 0 6px 0; font-size: 15px; color: #1a1a1a; line-height: 1.5;">Estimado/a,</p>
+              ${omitirSaludoEstimado ? '' : '<p style="margin: 0 0 6px 0; font-size: 15px; color: #1a1a1a; line-height: 1.5;">Estimado/a,</p>'}
               <div style="margin: 0 0 8px 0; font-size: 14px; color: #333333; line-height: 1.55;">${contenido}</div>
             </td>
           </tr>
@@ -31718,6 +31948,20 @@
                     });
                 } else {
                     console.warn('El botón btnEnviarCorreoPostventa no se encontró en el DOM');
+                }
+                
+                const btnCorreoPostventaPendientesNuevos = document.getElementById('btnCorreoPostventaPendientesNuevos');
+                if (btnCorreoPostventaPendientesNuevos) {
+                    btnCorreoPostventaPendientesNuevos.addEventListener('click', async function() {
+                        try {
+                            const fn = window.enviarCorreoPostventaPendientesSeleccion || enviarCorreoPostventaPendientesSeleccion;
+                            if (typeof fn === 'function') await fn();
+                            else mostrarAlerta('La función de correo de pendientes no está disponible. Recargue la página.', 'Error');
+                        } catch (error) {
+                            console.error('Error al abrir correo pendientes postventa:', error);
+                            mostrarAlerta('Ocurrió un error: ' + (error.message || 'Error desconocido'), 'Error');
+                        }
+                    });
                 }
                 
                 // Event listener para botón de enviar correo de nómina
