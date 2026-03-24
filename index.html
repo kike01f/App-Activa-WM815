@@ -7609,6 +7609,27 @@
             return date.toLocaleDateString('es-ES', { year: 'numeric', month: '2-digit', day: '2-digit' });
         }
 
+        /** Fechas en correos y adjuntos HTML enviados por mail: día-mes-año (DD-MM-YYYY). */
+        function formatearFechaParaCorreo(fecha) {
+            if (fecha == null || fecha === '') return '';
+            const s = String(fecha).trim();
+            if (/^\d{4}-\d{2}-\d{2}$/.test(s)) {
+                const [y, m, d] = s.split('-');
+                return `${d}-${m}-${y}`;
+            }
+            if (/^\d{2}\/\d{2}\/\d{4}$/.test(s)) {
+                const [d, m, y] = s.split('/');
+                return `${d}-${m}-${y}`;
+            }
+            const raw = typeof fecha === 'string' && !/T/.test(fecha) ? fecha + 'T12:00:00' : fecha;
+            const date = fecha instanceof Date ? fecha : new Date(raw);
+            if (isNaN(date.getTime())) return s || '-';
+            const dd = String(date.getDate()).padStart(2, '0');
+            const mm = String(date.getMonth() + 1).padStart(2, '0');
+            const yyyy = date.getFullYear();
+            return `${dd}-${mm}-${yyyy}`;
+        }
+
         // Función para formatear moneda
 
         function formatearMoneda(monto) {
@@ -8491,7 +8512,8 @@
                 const est = postventaNormalizarEstadoRegistro(r);
                 const obs = String(r.observacion == null ? '' : r.observacion).replace(/\s+/g, ' ').trim();
                 const obsCorto = obs.length > 400 ? obs.slice(0, 397) + '…' : obs;
-                const fecha = linkEsc(r.fecha || '—');
+                const fechaTxt = r.fecha && typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(r.fecha) : (r.fecha || '—');
+                const fecha = linkEsc(fechaTxt);
                 return `<tr>
                   <td style="padding:10px 12px;font-size:13px;color:#1a1a1a;border-bottom:1px solid #e8eee8;white-space:nowrap;">${fecha}</td>
                   <td style="padding:10px 12px;font-size:13px;color:#333;border-bottom:1px solid #e8eee8;line-height:1.45;">${linkEsc(obsCorto)}</td>
@@ -8728,7 +8750,7 @@
                         <h1>📊 Reporte de Lecturas de Agua Caliente</h1>
                         <p><strong>Comunidad:</strong> ${nombreComunidad || 'Comunidad'}</p>
                         <p><strong>Período:</strong> ${nombreMes}</p>
-                        <p><strong>Fecha de Generación:</strong> ${formatearFecha(obtenerFechaHoy())}</p>
+                        <p><strong>Fecha de Generación:</strong> ${formatearFechaParaCorreo(obtenerFechaHoy())}</p>
                     </div>
                     <table>
                         <colgroup>
@@ -10628,7 +10650,7 @@
         function generarComprobanteAperturaHtml(apertura, nombreComunidad) {
             const comunidad = nombreComunidad || 'Comunidad';
             const folioStr = apertura.folio || '—';
-            const fechaStr = apertura.fecha ? (typeof formatearFecha === 'function' ? formatearFecha(apertura.fecha) : apertura.fecha) : '-';
+            const fechaStr = apertura.fecha ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(apertura.fecha) : apertura.fecha) : '-';
             const horaStr = apertura.hora || '-';
             const montoStr = (apertura.aplicaCobro === 'si' && apertura.monto != null) ? (typeof formatearMoneda === 'function' ? formatearMoneda(apertura.monto) : '$' + Number(apertura.monto).toLocaleString('es-CL')) : 'Sin cobro';
             const tieneRespaldo = !!(apertura.link || (apertura.archivos && apertura.archivos.length));
@@ -10865,7 +10887,7 @@
             const depto = linkEsc(reg.departamento || '');
             const espacio = linkEsc(reg.espacio || '');
             const fechaIso = _normalizarFechaIsoEspacio(reg.fecha) || reg.fecha;
-            const fechaStr = reg.fecha ? (typeof formatearFecha === 'function' ? formatearFecha(fechaIso || reg.fecha) : (fechaIso || reg.fecha)) : '-';
+            const fechaStr = reg.fecha ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(fechaIso || reg.fecha) : (fechaIso || reg.fecha)) : '-';
             const diaNombre = _diaSemanaESDesdeFecha(reg.fecha).nombre || '';
             const h = _horarioAplicableEvento(reg.espacio, fechaIso || reg.fecha);
             const jefe = linkEsc((personalizacion && personalizacion.jefeEdificio) || 'Jefe de Edificio');
@@ -11052,7 +11074,7 @@
             const comunidad = nombreComunidad || 'Comunidad';
             const folioStr = tarjeta.folio || '—';
             const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-            const fechaStr = tarjeta.fecha ? (typeof formatearFecha === 'function' ? formatearFecha(tarjeta.fecha) : tarjeta.fecha) : '-';
+            const fechaStr = tarjeta.fecha ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(tarjeta.fecha) : tarjeta.fecha) : '-';
             const items = normalizarTarjetaItems(tarjeta);
             const incluirProcedimientoTag = tarjetaVentaIncluyeProcedimientoTag(tarjeta);
             const tituloComprobante = incluirProcedimientoTag ? 'Venta de Tarjeta de Acceso / TAG' : 'Venta de Tarjeta de Acceso';
@@ -12076,7 +12098,7 @@
             const comunidad = nombreComunidad || 'Comunidad';
             const folioStr = multa.folio || '—';
             const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-            const fechaStr = multa.fecha ? (typeof formatearFecha === 'function' ? formatearFecha(multa.fecha) : multa.fecha) : '-';
+            const fechaStr = multa.fecha ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(multa.fecha) : multa.fecha) : '-';
             const montoStr = (multa.monto != null ? Number(multa.monto).toFixed(2) : '0') + ' ' + (multa.tipoUnidad || 'UF');
             return `<!DOCTYPE html>
 <html lang="es">
@@ -12462,7 +12484,7 @@
             const comunidad = nombreComunidad || 'Comunidad';
             const folioStr = moroso.folio || '—';
             const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-            const fechaStr = moroso.fecha ? (typeof formatearFecha === 'function' ? formatearFecha(moroso.fecha) : moroso.fecha) : '-';
+            const fechaStr = moroso.fecha ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(moroso.fecha) : moroso.fecha) : '-';
             const montoStr = typeof formatearMoneda === 'function' ? formatearMoneda(moroso.monto || 0) : '$' + Number(moroso.monto || 0).toLocaleString('es-CL');
             
             const estadoTextos = {
@@ -13026,7 +13048,7 @@
                     totalMonto: totalCaja,
                     fechaGeneracion: new Date().toISOString()
                 });
-                const fechaHoy = formatearFecha(obtenerFechaHoy());
+                const fechaHoy = formatearFechaParaCorreo(obtenerFechaHoy());
                 
                 const personalizacion = await obtenerPersonalizacion();
                 const nombreComunidad = personalizacion.comunidad || 'Activa WM815';
@@ -13120,7 +13142,7 @@
                     contenidoHTML += `
                         <tr>
                             <td>${idx + 1}</td>
-                            <td>${formatearFecha(m.fecha)}</td>
+                            <td>${formatearFechaParaCorreo(m.fecha)}</td>
                             <td>${m.numeroDocumento || '-'}</td>
                             <td>${m.descripcion}</td>
                             <td>${formatearMoneda(m.monto)}</td>
@@ -13705,7 +13727,7 @@
                     console.warn('⚠️ Visitas extraordinarias no es un array, inicializando como array vacío');
                     visitasExtraordinarias = [];
                 }
-                const fechaHoy = formatearFecha(obtenerFechaHoy());
+                const fechaHoy = formatearFechaParaCorreo(obtenerFechaHoy());
                 
                 const personalizacion = await obtenerPersonalizacion();
                 const nombreComunidad = personalizacion.comunidad || 'Activa WM815';
@@ -13814,9 +13836,9 @@
                     mantencionesAgrupadas.forEach((grupo, idx) => {
                         let fechasTexto = '';
                         if (grupo.necesitaUnificacion && grupo.fechas && grupo.fechas.length > 1) {
-                            fechasTexto = grupo.fechas.map(f => formatearFecha(f)).join(', ');
+                            fechasTexto = grupo.fechas.map(f => formatearFechaParaCorreo(f)).join(', ');
                         } else {
-                            fechasTexto = formatearFecha(grupo.fechaUltima);
+                            fechasTexto = formatearFechaParaCorreo(grupo.fechaUltima);
                         }
                         
                         let observacionesTexto = grupo.observaciones && grupo.observaciones.length > 0 
@@ -13828,7 +13850,7 @@
                         
                         const fechaProximaTexto = (grupo.tipoVisita === 'sin-plazo' || !grupo.plazo || !grupo.fechaProxima) 
                             ? 'Sin plazo' 
-                            : formatearFecha(formatearFechaISO(grupo.fechaProxima));
+                            : formatearFechaParaCorreo(formatearFechaISO(grupo.fechaProxima));
                         
                         const proveedorTexto = (grupo.proveedor || '-').length > 20 ? (grupo.proveedor || '-').substring(0, 17) + '...' : (grupo.proveedor || '-');
                         const servicioTexto = (grupo.servicio || '-').length > 20 ? (grupo.servicio || '-').substring(0, 17) + '...' : (grupo.servicio || '-');
@@ -13934,7 +13956,7 @@
                                         <td style="text-align: center; font-size: 0.65rem;">${idx + 1}</td>
                                         <td style="font-size: 0.65rem;">${proveedorTexto}</td>
                                         <td style="font-size: 0.65rem;">${servicioTexto}</td>
-                                        <td style="font-size: 0.65rem;">${formatearFecha(visita.fechaUltima)}</td>
+                                        <td style="font-size: 0.65rem;">${formatearFechaParaCorreo(visita.fechaUltima)}</td>
                                         <td style="font-size: 0.65rem; max-width: 200px;">${respaldoHTML}</td>
                                         <td style="font-size: 0.65rem; line-height: 1.2;">${observacionesTexto}</td>
                                     </tr>
@@ -14253,7 +14275,7 @@
 
                 html += `
                     <div class="footer">
-                        <p>Documento generado el ${formatearFecha(obtenerFechaHoy())}</p>
+                        <p>Documento generado el ${formatearFechaParaCorreo(obtenerFechaHoy())}</p>
                     </div>
                     </div>
                     </div>
@@ -14278,7 +14300,7 @@
                 const nombreComunidad = personalizacion.comunidad || 'Activa WM815';
                 const jefeEdificio = personalizacion.jefeEdificio || 'Angel Avendaño';
                 const numeroDeptos = personalizacion.deptos || '259';
-                const fechaHoy = formatearFecha(obtenerFechaHoy());
+                const fechaHoy = formatearFechaParaCorreo(obtenerFechaHoy());
                 
                 // Obtener módulos visibles
                 const modulosVisibles = await obtenerModulosVisibles();
@@ -15827,7 +15849,7 @@
                         <h1>📊 Reporte de Lecturas de Agua Caliente</h1>
                         <p><strong>Comunidad:</strong> ${nombreComunidad || 'Comunidad'}</p>
                         <p><strong>Período:</strong> ${nombreMes}</p>
-                        <p><strong>Fecha de Generación:</strong> ${formatearFecha(obtenerFechaHoy())}</p>
+                        <p><strong>Fecha de Generación:</strong> ${formatearFechaParaCorreo(obtenerFechaHoy())}</p>
                     </div>
                     <table>
                         <colgroup>
@@ -17146,7 +17168,7 @@
 
             html += `
                     <div class="footer">
-                        <p>Documento generado el ${formatearFecha(obtenerFechaHoy())}</p>
+                        <p>Documento generado el ${formatearFechaParaCorreo(obtenerFechaHoy())}</p>
                     </div>
                     </div>
                 </body>
@@ -19592,7 +19614,7 @@
                         
                         <div style="margin-top: 20px; padding-top: 10px; border-top: 2px solid var(--border-color); text-align: center; font-size: 9px; color: var(--text-tertiary); transition: border-color 0.3s ease, color 0.3s ease;">
                             <p style="margin: 3px 0;">Reporte generado automáticamente por el Sistema de Gestión de Comunidad</p>
-                            <p style="margin: 3px 0;">Fecha de generación: ${formatearFecha(obtenerFechaHoy())}</p>
+                            <p style="margin: 3px 0;">Fecha de generación: ${formatearFechaParaCorreo(obtenerFechaHoy())}</p>
                         </div>
                         </div>
                     </body>
@@ -19819,7 +19841,7 @@
                 }
             }
             
-            const fechaHoy = formatearFecha(obtenerFechaHoy());
+            const fechaHoy = formatearFechaParaCorreo(obtenerFechaHoy());
             const mesActual = obtenerMesActual();
             const nombreMes = obtenerNombreMes(mesActual);
             
@@ -20155,7 +20177,7 @@
                 return;
             }
             
-            const fechaHoy = formatearFecha(obtenerFechaHoy());
+            const fechaHoy = formatearFechaParaCorreo(obtenerFechaHoy());
             const mesActual = obtenerMesActual();
             const nombreMes = obtenerNombreMes(mesActual);
             
@@ -23390,7 +23412,7 @@
                         </div>
                         <h1>Reporte Mensual de Gestión</h1>
                         <p>Período: ${nombreMes}</p>
-                        <p>Fecha de Generación: ${formatearFecha(obtenerFechaHoy())}</p>
+                        <p>Fecha de Generación: ${formatearFechaParaCorreo(obtenerFechaHoy())}</p>
                     </div>
                     
                     <div class="reporte-section">
@@ -23676,7 +23698,7 @@
                             
                             html += `
                                 <tr>
-                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.fecha ? formatearFecha(m.fecha) : '-'}</td>
+                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.fecha ? formatearFechaParaCorreo(m.fecha) : '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.nombre || '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.departamento || '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;"><span style="${badgeTipo}">${tipoTexto}</span></td>
@@ -23801,7 +23823,7 @@
                             const respaldoHTML = renderizarArchivosReporte(archivos, links);
                             html += `
                                 <tr>
-                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${a.fecha ? formatearFecha(a.fecha) : '-'}</td>
+                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${a.fecha ? formatearFechaParaCorreo(a.fecha) : '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${a.hora || '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${a.nombre || '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${a.departamento || '-'}</td>
@@ -23858,7 +23880,7 @@
                             const tipoDetalle = typeof resumenTipoTarjeta === 'function' ? resumenTipoTarjeta(items) : formatearMoneda(montoReg);
                             html += `
                                 <tr>
-                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${t.fecha ? formatearFecha(t.fecha) : '-'}</td>
+                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${t.fecha ? formatearFechaParaCorreo(t.fecha) : '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${t.nombre || '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${t.departamento || '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb; font-weight: 600;">${tipoDetalle}</td>
@@ -23921,7 +23943,7 @@
                             const total = montoAseo + montoUso;
                             html += `
                                 <tr>
-                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${e.fecha ? formatearFecha(e.fecha) : '-'}</td>
+                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${e.fecha ? formatearFechaParaCorreo(e.fecha) : '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${e.nombre || '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${e.departamento || '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${e.espacio || '-'}</td>
@@ -23979,7 +24001,7 @@
                             const evidenciasHTML = renderizarArchivosReporte(archivos, evidencias);
                             html += `
                                 <tr>
-                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.fecha ? formatearFecha(m.fecha) : '-'}</td>
+                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.fecha ? formatearFechaParaCorreo(m.fecha) : '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.nombre || '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.departamento || '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.motivo || '-'}</td>
@@ -24051,7 +24073,7 @@
                                 : '<span style="color: #6b7280; font-size: 0.7rem;">Activo</span>';
                             html += `
                                 <tr>
-                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.fecha ? formatearFecha(m.fecha) : '-'}</td>
+                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.fecha ? formatearFechaParaCorreo(m.fecha) : '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.departamento || '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;"><span style="${badgeStyle} padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; display: inline-block;">${estadoTexto}</span></td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${formatearMoneda(m.monto || 0)}</td>
@@ -24779,7 +24801,7 @@
                                 </div>
                                 <div class="info-row">
                                     <div class="info-cell info-label">Fecha de Generación:</div>
-                                    <div class="info-cell info-value">${formatearFecha(obtenerFechaHoy())}</div>
+                                    <div class="info-cell info-value">${formatearFechaParaCorreo(obtenerFechaHoy())}</div>
                                     <div class="info-cell"></div>
                                     <div class="info-cell"></div>
                                 </div>
@@ -25027,7 +25049,7 @@
             datos.push([]);
             datos.push(['Proyecto:', nombreComunidad, '', 'Jefe de Edificio:', jefeEdificio]);
             datos.push(['Período:', nombreMes, '', 'Deptos:', numeroDeptos]);
-            datos.push(['Fecha de Generación:', formatearFecha(obtenerFechaHoy()), '', '', '']);
+            datos.push(['Fecha de Generación:', formatearFechaParaCorreo(obtenerFechaHoy()), '', '', '']);
             datos.push([]);
             
             // Encabezado de tabla
@@ -25109,7 +25131,7 @@
                 const tipoTexto = m.tipo === 'propietario' ? 'Propietario' : m.tipo === 'arrendatario' ? 'Arrendatario' : '-';
                 const movimientoTexto = m.movimiento === 'ingreso' ? 'Ingreso' : m.movimiento === 'salida' ? 'Salida' : '-';
                 datos.push([
-                    m.fecha ? formatearFecha(m.fecha) : '-',
+                    m.fecha ? formatearFechaParaCorreo(m.fecha) : '-',
                     m.nombre || '-',
                     m.departamento || '-',
                     tipoTexto,
@@ -25148,7 +25170,7 @@
             aperturasOrdenadas.forEach((a) => {
                 if (!a) return;
                 datos.push([
-                    a.fecha ? formatearFecha(a.fecha) : '-',
+                    a.fecha ? formatearFechaParaCorreo(a.fecha) : '-',
                     a.hora || '-',
                     a.nombre || '-',
                     a.departamento || '-',
@@ -25188,7 +25210,7 @@
                     ingresosTotales += monto;
                     const tipoTexto = (it.tipo && String(it.tipo).trim()) || (monto >= 10000 ? 'Tarjeta de Acceso' : monto >= 5000 ? 'TAG Vehicular' : 'Sin Cobro');
                     datos.push([
-                        t.fecha ? formatearFecha(t.fecha) : '-',
+                        t.fecha ? formatearFechaParaCorreo(t.fecha) : '-',
                         t.nombre || '-',
                         t.departamento || '-',
                         tipoTexto,
@@ -25221,7 +25243,7 @@
                 const montoUso = parseFloat(e.montoCobroEspacio) || 0;
                 const total = montoAseo + montoUso;
                 datos.push([
-                    e.fecha ? formatearFecha(e.fecha) : '-',
+                    e.fecha ? formatearFechaParaCorreo(e.fecha) : '-',
                     e.nombre || '-',
                     e.departamento || '-',
                     e.espacio || '-',
@@ -25261,7 +25283,7 @@
             multasOrdenadas.forEach((m) => {
                 if (!m) return;
                 datos.push([
-                    m.fecha ? formatearFecha(m.fecha) : '-',
+                    m.fecha ? formatearFechaParaCorreo(m.fecha) : '-',
                     m.nombre || '-',
                     m.departamento || '-',
                     m.motivo || '-',
@@ -25300,7 +25322,7 @@
                 const periodosVencidos = m.periodosVencidos !== undefined && m.periodosVencidos !== '' ? String(m.periodosVencidos) : '-';
                 const servicioElectrico = m.servicioElectricoSuspendido ? 'Suspendido' : 'Activo';
                 datos.push([
-                    m.fecha ? formatearFecha(m.fecha) : '-',
+                    m.fecha ? formatearFechaParaCorreo(m.fecha) : '-',
                     m.departamento || '-',
                     estadoTexto,
                     formatearMoneda(parseFloat(m.monto) || 0),
