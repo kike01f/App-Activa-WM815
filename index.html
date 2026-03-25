@@ -14614,10 +14614,6 @@
                 const numeroDeptos = personalizacion.deptos || '259';
                 const fechaHoy = formatearFechaParaCorreo(obtenerFechaHoy());
                 
-                // Obtener módulos visibles
-                const modulosVisibles = await obtenerModulosVisibles();
-                
-                // Mapear módulos visibles a sus claves de datos
                 const mapeoModulos = {
                     'mudanzas': 'mudanzas',
                     'aperturas': 'aperturas',
@@ -14634,42 +14630,70 @@
                     'lecturas-agua': 'lecturasAguaCaliente'
                 };
                 
-                // Construir lista de módulos a cargar
-                const modulosACargar = [];
-                modulosVisibles.forEach(moduloVisible => {
-                    const modulosData = mapeoModulos[moduloVisible];
-                    if (modulosData) {
-                        if (Array.isArray(modulosData)) {
-                            modulosACargar.push(...modulosData);
-                        } else {
-                            modulosACargar.push(modulosData);
-                        }
+                let modulosVisibles;
+                let mudanzas;
+                let aperturas;
+                let tarjetas;
+                let espacios;
+                let multas;
+                let morosos;
+                let caja;
+                let lecturasAguaCaliente;
+                
+                if (opciones && opciones.soloCuerpoCorreoResumenEjecutivo === true) {
+                    // Misma fuente que generarReportePDF en previsualización: localStorage + datos en vivo (obtenerDatosMes)
+                    try {
+                        const modulosStr = localStorage.getItem('modulosVisibles') || '["mudanzas","aperturas","tarjetas","espacios","multas","morosos"]';
+                        modulosVisibles = JSON.parse(modulosStr);
+                        if (!Array.isArray(modulosVisibles)) modulosVisibles = ['mudanzas', 'aperturas', 'tarjetas', 'espacios', 'multas', 'morosos'];
+                    } catch (e) {
+                        console.warn('modulosVisibles localStorage (correo resumen ejecutivo):', e);
+                        modulosVisibles = ['mudanzas', 'aperturas', 'tarjetas', 'espacios', 'multas', 'morosos'];
                     }
-                });
-                
-                // Cargar todos los datos
-                const datosPromesas = modulosACargar.map(modulo => 
-                    cargarDatosModulo(modulo, mesAnio, false)
-                );
-                const resultados = await Promise.all(datosPromesas);
-                
-                // Organizar datos por módulo
-                const datos = {};
-                let idx = 0;
-                modulosACargar.forEach(modulo => {
-                    datos[modulo] = resultados[idx] || [];
-                    idx++;
-                });
-                
-                // Calcular estadísticas
-                const mudanzas = datos['mudanzas'] || [];
-                const aperturas = datos['aperturas'] || [];
-                const tarjetas = datos['tarjetas'] || [];
-                const espacios = datos['espacios'] || [];
-                const multas = datos['multas'] || [];
-                const morosos = datos['morosos'] || [];
-                const caja = datos['caja'] || [];
-                const lecturasAguaCaliente = datos['lecturasAguaCaliente'] || [];
+                    const modulosCore = ['mudanzas', 'aperturas', 'tarjetas', 'espacios', 'multas', 'morosos'];
+                    const resEj = await Promise.all(modulosCore.map(modulo =>
+                        modulosVisibles.includes(modulo) ? cargarDatosModulo(modulo, mesAnio, true) : Promise.resolve([])
+                    ));
+                    mudanzas = resEj[0] || [];
+                    aperturas = resEj[1] || [];
+                    tarjetas = resEj[2] || [];
+                    espacios = resEj[3] || [];
+                    multas = resEj[4] || [];
+                    morosos = resEj[5] || [];
+                    caja = [];
+                    lecturasAguaCaliente = [];
+                } else {
+                    modulosVisibles = await obtenerModulosVisibles();
+                    const modulosACargar = [];
+                    modulosVisibles.forEach(moduloVisible => {
+                        const modulosData = mapeoModulos[moduloVisible];
+                        if (modulosData) {
+                            if (Array.isArray(modulosData)) {
+                                modulosACargar.push(...modulosData);
+                            } else {
+                                modulosACargar.push(modulosData);
+                            }
+                        }
+                    });
+                    const datosPromesas = modulosACargar.map(modulo =>
+                        cargarDatosModulo(modulo, mesAnio, false)
+                    );
+                    const resultados = await Promise.all(datosPromesas);
+                    const datos = {};
+                    let idx = 0;
+                    modulosACargar.forEach(modulo => {
+                        datos[modulo] = resultados[idx] || [];
+                        idx++;
+                    });
+                    mudanzas = datos['mudanzas'] || [];
+                    aperturas = datos['aperturas'] || [];
+                    tarjetas = datos['tarjetas'] || [];
+                    espacios = datos['espacios'] || [];
+                    multas = datos['multas'] || [];
+                    morosos = datos['morosos'] || [];
+                    caja = datos['caja'] || [];
+                    lecturasAguaCaliente = datos['lecturasAguaCaliente'] || [];
+                }
                 
                 // Calcular ingresos
                 const ingresosMudanzas = Array.isArray(mudanzas) 
@@ -15242,7 +15266,7 @@
                     return;
                 }
 
-                const nombreArchivoAdjunto = `PREVISUALIZACION_Previsualizacion_Reporte_Mensual_${nombreMes.replace(/\s+/g, '_')}.html`;
+                const nombreArchivoAdjunto = `Reporte_Mensual_Gestion_${nombreMes.replace(/\s+/g, '_')}.html`;
                 const adjuntoHtml = await generarReporteHTMLComoAdjunto(htmlAdjuntoCompleto, nombreArchivoAdjunto, { documentoHtmlCompleto: true });
                 const adjuntoExcel = await adjuntoXlsHtmlDesdeString(packExcel.excelContent, packExcel.nombreArchivo);
                 if (!adjuntoHtml || !adjuntoExcel) {
@@ -25499,8 +25523,8 @@
                 `;
                 
                 if (soloContenidoAdjunto) {
-                    const nombreExcelAdjunto = esPrevisualizacion ? `PREVISUALIZACION_${nombreArchivo}` : nombreArchivo;
-                    return { excelContent, nombreArchivo: nombreExcelAdjunto };
+                    // Nombre limpio para correo (sin prefijos de previsualización por descarga)
+                    return { excelContent, nombreArchivo };
                 }
                 
                 // Crear blob y descargar
