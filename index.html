@@ -6362,6 +6362,13 @@
                     showApp();
                 } else {
                     showLogin();
+                    if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
+                        var errEl = document.getElementById('loginError');
+                        if (errEl) {
+                            errEl.textContent = 'Estás abriendo la app como archivo local (file://). Para usar inicio de sesión y envío de correos, ejecútala en http://localhost.';
+                            errEl.classList.add('visible');
+                        }
+                    }
                 }
             });
         } else {
@@ -7667,6 +7674,12 @@
 
         // Requiere que la extensión "Trigger Email" esté instalada en Firebase
         async function enviarCorreo(residente, asunto, mensaje, html = null, adjuntos = null) {
+            if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
+                const msgFile = 'No se puede enviar correos ejecutando la app con file://. Abra la app en http://localhost (por ejemplo: python3 -m http.server 5500) y luego inicie sesión.';
+                console.error(msgFile);
+                mostrarAlerta(msgFile, 'Origen no soportado');
+                return { exito: false, error: 'Ejecución en file:// no soportada para envío de correos' };
+            }
             if (!firebaseInitialized || !db) {
                 console.error('Firebase no está inicializado');
                 mostrarAlerta('Error: Firebase no está inicializado', 'Error');
@@ -8882,6 +8895,34 @@
                 ocultarProgreso();
             }
         }
+
+        function escaparHtmlEmailUsuario(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function htmlATextoPlanoEmail(htmlStr) {
+            const d = document.createElement('div');
+            d.innerHTML = htmlStr || '';
+            return d.textContent || d.innerText || '';
+        }
+
+        /** Texto libre opcional antes del HTML generado (reportes y comprobantes). */
+        function combinarPrefijoCorreo(textoUsuario, htmlBase) {
+            const t = String(textoUsuario || '').trim();
+            if (!t) {
+                return { html: htmlBase, textoPlano: htmlATextoPlanoEmail(htmlBase) };
+            }
+            const bloque = '<div style="margin: 0 0 18px 0; padding: 12px 14px; background: #f8fafc; border-left: 4px solid #75BB21; border-radius: 4px; font-size: 14px; color: #1f2937; line-height: 1.55;">' +
+                escaparHtmlEmailUsuario(t).split(/\r?\n/).join('<br>') + '</div>';
+            return {
+                html: bloque + htmlBase,
+                textoPlano: t + '\n\n' + htmlATextoPlanoEmail(htmlBase)
+            };
+        }
         
         // Modal para seleccionar destinatarios y enviar correo con reporte
         async function mostrarModalSeleccionDestinatarios(asunto, html, adjuntos) {
@@ -8907,6 +8948,10 @@
                         <div style="margin-bottom: 1rem;">
                             <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Asunto:</label>
                             <input type="text" id="modalAsuntoReporte" value="${asunto}" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.875rem; background: var(--bg-primary); color: var(--text-primary);">
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Mensaje al inicio del correo <span style="font-weight: 500; color: var(--text-tertiary); font-size: 0.8125rem;">(opcional)</span></label>
+                            <textarea id="modalCuerpoAdicionalReporte" rows="4" placeholder="Ej.: Comunicamos un cambio o instrucciones adicionales antes del contenido del reporte…" style="width: 100%; padding: 0.75rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.875rem; background: var(--bg-primary); color: var(--text-primary); font-family: inherit; resize: vertical; min-height: 88px; box-sizing: border-box;"></textarea>
                         </div>
                         <div style="margin-bottom: 0.75rem; padding: 0.65rem 0.75rem; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color); font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.45;">
                             Los destinatarios marcados se incluirán en <strong>un solo correo</strong> (campo Para). Todos podrán ver las demás direcciones.
@@ -8956,6 +9001,9 @@
                 });
                 
                 const asuntoFinal = document.getElementById('modalAsuntoReporte').value || asunto;
+                const taExtra = document.getElementById('modalCuerpoAdicionalReporte');
+                const textoPersonal = taExtra ? taExtra.value : '';
+                const { html: htmlFinal } = combinarPrefijoCorreo(textoPersonal, html);
                 
                 try {
                     mostrarProgreso('Enviando correo…');
@@ -8972,14 +9020,18 @@
                         nombre: destinatarios.map(d => d.nombre || d.correo).filter(Boolean).join(', ')
                     };
                     
-                    await enviarCorreoHTML(payload, asuntoFinal, html, adjuntos);
-                    
-                    modal.remove();
+                    const resultado = await enviarCorreoHTML(payload, asuntoFinal, htmlFinal, adjuntos);
                     ocultarProgreso();
-                    
+
+                    if (!resultado || !resultado.exito) {
+                        mostrarAlerta('Error al enviar correo: ' + ((resultado && resultado.error) || 'Error desconocido'), 'Error');
+                        return;
+                    }
+
+                    modal.remove();
                     const msg = emailsUnicos.length > 1
                         ? `✅ Un solo correo encolado para ${emailsUnicos.length} destinatarios`
-                        : '✅ Correo encolado correctamente';
+                        : (resultado.mensaje || '✅ Correo encolado correctamente');
                     mostrarAlerta(msg, 'Éxito');
                 } catch (error) {
                     console.error('Error al enviar correo:', error);
@@ -9005,6 +9057,102 @@
             const texto = tempDiv.textContent || tempDiv.innerText || '';
             
             return await enviarCorreo(residente, asunto, texto, htmlContent, adjuntos);
+        }
+
+        /**
+         * Modal para editar asunto y mensaje inicial antes de enviar comprobantes al residente.
+         * @returns {Promise<object|null>} Resultado de enviarCorreo, o null si canceló.
+         */
+        function mostrarModalPersonalizarCorreoYEnviar(opciones) {
+            const {
+                titulo = 'Enviar por correo',
+                asuntoDefecto = '',
+                htmlBase = '',
+                residente = null,
+                adjuntos = null,
+                etiquetaDestino = 'Destinatario'
+            } = opciones || {};
+
+            return new Promise((resolve) => {
+                const listaTo = residente ? normalizarListaCorreosDestino(residente.correo) : [];
+                if (!residente || listaTo.length === 0) {
+                    mostrarAlerta('No hay correo de destino válido.', 'Error');
+                    resolve({ exito: false, error: 'Sin destino' });
+                    return;
+                }
+
+                const modal = document.createElement('div');
+                modal.style.cssText = 'position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 1rem;';
+
+                const correoStr = listaTo.join(', ');
+                const nombreStr = residente.nombre || correoStr;
+
+                const escAttr = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+
+                modal.innerHTML = `
+                <div style="background: var(--bg-primary); border-radius: 12px; max-width: 560px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+                    <div style="padding: 1.25rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
+                        <h3 style="margin: 0; font-size: 1.15rem; font-weight: 700; color: var(--text-primary);">${escAttr(titulo)}</h3>
+                        <button type="button" class="mcc-btn-cerrar" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--text-secondary); padding: 0; width: 32px; height: 32px; line-height: 1; border-radius: 4px;" aria-label="Cerrar">×</button>
+                    </div>
+                    <div style="padding: 1.25rem;">
+                        <div style="margin-bottom: 0.85rem; padding: 0.65rem 0.75rem; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color); font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.45;">
+                            <strong style="color: var(--text-primary);">${escAttr(etiquetaDestino)}:</strong> ${escAttr(nombreStr)}<br>
+                            <span style="word-break: break-all;">${escAttr(correoStr)}</span>
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Asunto</label>
+                            <input type="text" data-mcc-asunto value="${escAttr(asuntoDefecto)}" style="width: 100%; padding: 0.65rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.875rem; background: var(--bg-primary); color: var(--text-primary); box-sizing: border-box;">
+                        </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Mensaje al inicio del correo <span style="font-weight: 500; color: var(--text-tertiary); font-size: 0.8125rem;">(opcional)</span></label>
+                            <textarea data-mcc-mensaje rows="4" placeholder="Ej.: Cordial saludo, les informamos o solicitamos…" style="width: 100%; padding: 0.65rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.875rem; background: var(--bg-primary); color: var(--text-primary); font-family: inherit; resize: vertical; min-height: 88px; box-sizing: border-box;"></textarea>
+                        </div>
+                        <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.25rem;">
+                            <button type="button" class="btn btn-secondary mcc-btn-cerrar" style="padding: 0.65rem 1.25rem;">Cancelar</button>
+                            <button type="button" class="btn btn-primary mcc-btn-enviar" style="padding: 0.65rem 1.25rem;">📧 Enviar</button>
+                        </div>
+                    </div>
+                </div>`;
+
+                const cerrar = () => {
+                    modal.remove();
+                    resolve(null);
+                };
+
+                modal.querySelectorAll('.mcc-btn-cerrar').forEach((b) => b.addEventListener('click', cerrar));
+                modal.addEventListener('click', (e) => {
+                    if (e.target === modal) cerrar();
+                });
+
+                modal.querySelector('.mcc-btn-enviar').addEventListener('click', async () => {
+                    const inpAsunto = modal.querySelector('[data-mcc-asunto]');
+                    const txMensaje = modal.querySelector('[data-mcc-mensaje]');
+                    const asuntoIngresado = inpAsunto && inpAsunto.value ? inpAsunto.value.trim() : '';
+                    const asuntoFinal = asuntoIngresado || asuntoDefecto;
+                    const mensajeIni = txMensaje ? txMensaje.value : '';
+                    const combinado = combinarPrefijoCorreo(mensajeIni, htmlBase);
+                    try {
+                        mostrarProgreso('Enviando correo…');
+                        const resultado = await enviarCorreoHTML(residente, asuntoFinal, combinado.html, adjuntos);
+                        ocultarProgreso();
+                        if (!resultado || !resultado.exito) {
+                            mostrarAlerta('Error al enviar correo: ' + ((resultado && resultado.error) || 'Error desconocido'), 'Error');
+                            resolve(resultado || { exito: false, error: 'Error desconocido' });
+                            return;
+                        }
+                        modal.remove();
+                        resolve(resultado);
+                    } catch (err) {
+                        ocultarProgreso();
+                        console.error('Error envío comprobante:', err);
+                        mostrarAlerta('Ocurrió un error al enviar el correo.', 'Error');
+                        resolve({ exito: false, error: err && err.message ? err.message : 'Error al enviar correo' });
+                    }
+                });
+
+                document.body.appendChild(modal);
+            });
         }
 
         // Hacer disponible globalmente
@@ -9243,6 +9391,136 @@
 
         // Hacer disponible globalmente
         window.verCorreosEnviados = verCorreosEnviados;
+
+        // Diagnóstico rápido del estado de la extensión Trigger Email
+        async function diagnosticarTriggerEmail() {
+            if (!firebaseInitialized || !db) {
+                mostrarAlerta('Firebase no está inicializado. No es posible diagnosticar Trigger Email.', 'Error');
+                return;
+            }
+
+            try {
+                mostrarProgreso('Diagnóstico Trigger Email: leyendo cola mail…');
+                const snap = await db.collection("mail")
+                    .orderBy("createdAt", "desc")
+                    .limit(40)
+                    .get();
+                ocultarProgreso();
+
+                if (snap.empty) {
+                    mostrarAlerta('No hay documentos en la colección mail. El Trigger no tiene correos para procesar.', 'Diagnóstico Trigger Email');
+                    return;
+                }
+
+                const docs = [];
+                snap.forEach((d) => docs.push({ id: d.id, ...(d.data() || {}) }));
+
+                const normState = (v) => String(v || '').trim().toUpperCase();
+                const isSent = (s) => s === 'SENT' || s === 'SUCCESS';
+                const isError = (s) => s === 'ERROR' || s === 'FAILED' || s === 'FAILURE';
+                const isProcessing = (s) => s === 'PROCESSING';
+
+                let sent = 0;
+                let errored = 0;
+                let processing = 0;
+                let pending = 0;
+                let oldestPendingMinutes = 0;
+                const erroresMuestra = [];
+                const now = Date.now();
+
+                docs.forEach((m) => {
+                    const state = normState((m.delivery && m.delivery.state) || m.status || 'PENDING');
+                    if (isSent(state)) {
+                        sent += 1;
+                        return;
+                    }
+                    if (isError(state)) {
+                        errored += 1;
+                        const err = (m.delivery && m.delivery.error) || m.error || '';
+                        if (err && erroresMuestra.length < 3) erroresMuestra.push(err);
+                        return;
+                    }
+                    if (isProcessing(state)) {
+                        processing += 1;
+                        return;
+                    }
+                    pending += 1;
+                    const createdAt = m.createdAt && typeof m.createdAt.toDate === 'function'
+                        ? m.createdAt.toDate().getTime()
+                        : (m.createdAt ? new Date(m.createdAt).getTime() : NaN);
+                    if (!isNaN(createdAt)) {
+                        const mins = Math.floor((now - createdAt) / 60000);
+                        if (mins > oldestPendingMinutes) oldestPendingMinutes = mins;
+                    }
+                });
+
+                let conclusion = 'Estado mixto.';
+                let tip = 'Revisa el historial para más detalle.';
+
+                if (sent > 0 && pending === 0 && errored === 0 && processing === 0) {
+                    conclusion = 'Trigger Email parece funcionar correctamente.';
+                    tip = 'Se observan correos procesados como enviados.';
+                } else if (pending > 0 && sent === 0 && errored === 0 && oldestPendingMinutes >= 10) {
+                    conclusion = 'Trigger Email posiblemente no está ejecutándose.';
+                    tip = 'Hay correos pendientes por más de 10 minutos sin cambios de estado.';
+                } else if (errored > 0) {
+                    conclusion = 'Trigger Email está ejecutándose, pero hay errores de entrega.';
+                    tip = 'Probable problema de SMTP/credenciales del proveedor de correo.';
+                } else if (processing > 0 || pending > 0) {
+                    conclusion = 'Trigger Email está procesando cola.';
+                    tip = 'Si se mantiene por mucho tiempo, revisa logs de Cloud Functions.';
+                }
+
+                let detalleErrores = '';
+                if (erroresMuestra.length) {
+                    detalleErrores = '<div style="margin-top:10px;padding:10px;background:#fee2e2;border-left:3px solid #ef4444;border-radius:6px;color:#7f1d1d;font-size:12px;line-height:1.45;">' +
+                        '<strong>Errores detectados:</strong><br>' +
+                        erroresMuestra.map(e => String(e).replace(/</g, '&lt;').replace(/>/g, '&gt;')).join('<br><br>') +
+                        '</div>';
+                }
+
+                const html = `
+                    <div style="padding: 1rem; line-height: 1.5;">
+                        <h3 style="margin: 0 0 0.75rem 0; color: #111827;">Diagnóstico Trigger Email</h3>
+                        <div style="margin-bottom: 0.75rem; font-size: 0.92rem; color: #374151;">
+                            <strong>Conclusión:</strong> ${conclusion}<br>
+                            <strong>Sugerencia:</strong> ${tip}
+                        </div>
+                        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;font-size:0.85rem;">
+                            <div><strong>Total revisados:</strong> ${docs.length}</div>
+                            <div><strong>Enviados:</strong> ${sent}</div>
+                            <div><strong>Pendientes:</strong> ${pending}</div>
+                            <div><strong>Procesando:</strong> ${processing}</div>
+                            <div><strong>Con error:</strong> ${errored}</div>
+                            <div><strong>Pendiente más antiguo:</strong> ${oldestPendingMinutes} min</div>
+                        </div>
+                        ${detalleErrores}
+                        <div style="margin-top:12px;font-size:12px;color:#6b7280;">
+                            Si ves pendientes antiguos o errores, abre Firebase Console → Extensions (Trigger Email) y revisa logs de la función.
+                        </div>
+                    </div>
+                `;
+
+                const modal = document.createElement('div');
+                modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 1rem;';
+                modal.innerHTML = `
+                    <div style="background: #fff; border-radius: 12px; max-width: 650px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
+                        ${html}
+                        <div style="padding: 0 1rem 1rem 1rem; text-align: right;">
+                            <button type="button" class="btn btn-primary" style="padding: 0.45rem 1rem;">Cerrar</button>
+                        </div>
+                    </div>
+                `;
+                modal.querySelector('button').addEventListener('click', () => modal.remove());
+                modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+                document.body.appendChild(modal);
+            } catch (error) {
+                ocultarProgreso();
+                console.error('Diagnóstico Trigger Email falló:', error);
+                mostrarAlerta('No se pudo ejecutar el diagnóstico: ' + (error.message || 'Error desconocido'), 'Error');
+            }
+        }
+        window.diagnosticarTriggerEmail = diagnosticarTriggerEmail;
 
         // Función auxiliar para obtener correo del residente por departamento
         async function obtenerCorreoResidente(departamento, nombreResidente = null) {
@@ -10782,13 +11060,13 @@
                     return;
                 }
                 
-                mostrarProgreso('Enviando correo...');
-                const resultado = await enviarCorreoHTML(
-                    residenteInfo,
-                    `Comprobante de Apertura de Puerta - ${nombreComunidad}`,
-                    htmlComprobante
-                );
-                ocultarProgreso();
+                const resultado = await mostrarModalPersonalizarCorreoYEnviar({
+                    titulo: 'Enviar comprobante de apertura',
+                    asuntoDefecto: `Comprobante de Apertura de Puerta - ${nombreComunidad}`,
+                    htmlBase: htmlComprobante,
+                    residente: residenteInfo
+                });
+                if (resultado === null) return;
                 
                 if (resultado.exito) {
                     mostrarAlerta(resultado.mensaje || 'Correo enviado correctamente', 'Éxito');
@@ -11009,13 +11287,13 @@
                     return;
                 }
                 
-                mostrarProgreso('Enviando correo...');
-                const resultado = await enviarCorreoHTML(
-                    residenteInfo,
-                    `Confirmación de Reserva - ${espacio.espacio} - ${nombreComunidad}`,
-                    htmlComprobante
-                );
-                ocultarProgreso();
+                const resultado = await mostrarModalPersonalizarCorreoYEnviar({
+                    titulo: 'Enviar confirmación de reserva',
+                    asuntoDefecto: `Confirmación de Reserva - ${espacio.espacio} - ${nombreComunidad}`,
+                    htmlBase: htmlComprobante,
+                    residente: residenteInfo
+                });
+                if (resultado === null) return;
                 
                 if (resultado.exito) {
                     mostrarAlerta(resultado.mensaje || 'Correo enviado correctamente', 'Éxito');
@@ -11226,13 +11504,13 @@
                     return;
                 }
                 
-                mostrarProgreso('Enviando correo...');
-                const resultado = await enviarCorreoHTML(
-                    residenteInfo,
-                    asuntoTarjeta,
-                    htmlComprobante
-                );
-                ocultarProgreso();
+                const resultado = await mostrarModalPersonalizarCorreoYEnviar({
+                    titulo: 'Enviar comprobante de tarjeta / TAG',
+                    asuntoDefecto: asuntoTarjeta,
+                    htmlBase: htmlComprobante,
+                    residente: residenteInfo
+                });
+                if (resultado === null) return;
                 
                 if (resultado.exito) {
                     mostrarAlerta(resultado.mensaje || 'Correo enviado correctamente', 'Éxito');
@@ -12212,13 +12490,13 @@
                     return;
                 }
                 
-                mostrarProgreso('Enviando correo...');
-                const resultado = await enviarCorreoHTML(
-                    residenteInfo,
-                    `Comprobante de Multa - ${nombreComunidad}`,
-                    htmlComprobante
-                );
-                ocultarProgreso();
+                const resultado = await mostrarModalPersonalizarCorreoYEnviar({
+                    titulo: 'Enviar comprobante de multa',
+                    asuntoDefecto: `Comprobante de Multa - ${nombreComunidad}`,
+                    htmlBase: htmlComprobante,
+                    residente: residenteInfo
+                });
+                if (resultado === null) return;
                 
                 if (resultado.exito) {
                     mostrarAlerta(resultado.mensaje || 'Correo enviado correctamente', 'Éxito');
@@ -12628,13 +12906,13 @@
                 const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
                 const htmlComprobante = generarComprobanteMorosoHtml(morosoConNombre, nombreComunidad);
                 
-                mostrarProgreso('Enviando correo...');
-                const resultado = await enviarCorreoHTML(
-                    residenteInfo,
-                    `Estado de Morosidad - ${nombreComunidad}`,
-                    htmlComprobante
-                );
-                ocultarProgreso();
+                const resultado = await mostrarModalPersonalizarCorreoYEnviar({
+                    titulo: 'Enviar estado de morosidad',
+                    asuntoDefecto: `Estado de Morosidad - ${nombreComunidad}`,
+                    htmlBase: htmlComprobante,
+                    residente: residenteInfo
+                });
+                if (resultado === null) return;
                 
                 if (resultado.exito) {
                     mostrarAlerta(resultado.mensaje || 'Correo enviado correctamente', 'Éxito');
