@@ -13213,6 +13213,36 @@
             }
         }
         
+        /** Convierte el mismo .xls basado en HTML que genera `generarReporteExcel` a adjunto base64 para correo (como nómina). */
+        async function adjuntoXlsHtmlDesdeString(excelContent, nombreArchivo) {
+            try {
+                if (!excelContent || typeof excelContent !== 'string') return null;
+                const blob = new Blob([excelContent], { type: 'application/vnd.ms-excel' });
+                return await new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onloadend = function() {
+                        const base64 = String(reader.result || '').split(',')[1];
+                        if (!base64 || !/^[A-Za-z0-9+/=]+$/.test(base64)) {
+                            resolve(null);
+                            return;
+                        }
+                        const fn = nombreArchivo && String(nombreArchivo).endsWith('.xls') ? nombreArchivo : `${nombreArchivo || 'reporte'}.xls`;
+                        resolve({
+                            filename: fn,
+                            content: base64,
+                            contentType: 'application/vnd.ms-excel',
+                            encoding: 'base64'
+                        });
+                    };
+                    reader.onerror = function() { resolve(null); };
+                    reader.readAsDataURL(blob);
+                });
+            } catch (e) {
+                console.error('adjuntoXlsHtmlDesdeString:', e);
+                return null;
+            }
+        }
+        
         async function generarReporteExcelComoAdjunto(datos, nombreArchivo, nombreHoja = 'Datos') {
             try {
                 console.log('🔄 Generando Excel como adjunto:', nombreArchivo);
@@ -14668,21 +14698,85 @@
                 const ingresosTotales = ingresosMudanzas + ingresosAperturas + ingresosTarjetas + ingresosEspacios;
                 const saldoFinal = ingresosTotales - egresosCaja;
                 
-                if (opciones && opciones.soloCuerpoCorreoResumenOperacional === true) {
+                if (opciones && opciones.soloCuerpoCorreoResumenEjecutivo === true) {
                     const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+                    const filaResumen = (etiqueta, valorTexto) => `
+                            <tr>
+                                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; font-size: 13px; color: #555555; vertical-align: top; width: 48%;"><strong>${linkEsc(etiqueta)}</strong></td>
+                                <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; font-size: 14px; color: #1a1a1a; text-align: right; vertical-align: top;">${valorTexto}</td>
+                            </tr>`;
+                    const totalMudanzasEj = Array.isArray(mudanzas) ? mudanzas.length : 0;
+                    const mudanzasConCobroEj = Array.isArray(mudanzas) ? mudanzas.filter(m => m && m.aplicaCobro === 'si').length : 0;
+                    const totalIngresosMud = Array.isArray(mudanzas) ? mudanzas.filter(m => m && m.movimiento === 'ingreso').length : 0;
+                    const totalSalidasMud = Array.isArray(mudanzas) ? mudanzas.filter(m => m && m.movimiento === 'salida').length : 0;
+                    const totalAperturasEj = Array.isArray(aperturas) ? aperturas.length : 0;
+                    const totalTarjetasEj = Array.isArray(tarjetas) ? tarjetas.length : 0;
+                    const totalLineasTarjetasEj = Array.isArray(tarjetas) ? tarjetas.reduce((s, t) => s + normalizarTarjetaItems(t).length, 0) : 0;
+                    const totalEspaciosEj = Array.isArray(espacios) ? espacios.length : 0;
+                    const totalMultasEj = Array.isArray(multas) ? multas.length : 0;
+                    const totalMorososEj = Array.isArray(morosos) ? morosos.length : 0;
+                    const totalDeudaMorososEj = Array.isArray(morosos)
+                        ? morosos.reduce((sum, m) => sum + (parseFloat(m && m.monto) || 0), 0)
+                        : 0;
+                    let totalMultasUF = 0;
+                    let totalMultasUTM = 0;
+                    if (Array.isArray(multas)) {
+                        multas.forEach(m => {
+                            if (!m) return;
+                            const monto = parseFloat(m.monto) || 0;
+                            const tipoUnidad = m.tipoUnidad || 'UF';
+                            if (tipoUnidad === 'UTM') totalMultasUTM += monto;
+                            else totalMultasUF += monto;
+                        });
+                    }
+                    const sufijoMultas = totalMultasUF > 0 && totalMultasUTM > 0
+                        ? `(${totalMultasUF.toFixed(2)} UF + ${totalMultasUTM.toFixed(2)} UTM)`
+                        : totalMultasUF > 0
+                            ? `(${totalMultasUF.toFixed(2)} UF)`
+                            : `(${totalMultasUTM.toFixed(2)} UTM)`;
+                    let ingresosTotalesResumenEj = 0;
+                    if (modulosVisibles.includes('mudanzas')) ingresosTotalesResumenEj += ingresosMudanzas;
+                    if (modulosVisibles.includes('aperturas')) ingresosTotalesResumenEj += ingresosAperturas;
+                    if (modulosVisibles.includes('tarjetas')) ingresosTotalesResumenEj += ingresosTarjetas;
+                    if (modulosVisibles.includes('espacios')) ingresosTotalesResumenEj += ingresosEspacios;
+                    let filasHtml = '';
+                    if (modulosVisibles.includes('mudanzas')) {
+                        filasHtml += filaResumen('Total Mudanzas:', linkEsc(`${totalMudanzasEj} (${totalIngresosMud} ingresos, ${totalSalidasMud} salidas)`));
+                        filasHtml += filaResumen('Mudanzas con Cobro:', linkEsc(String(mudanzasConCobroEj)));
+                        filasHtml += filaResumen('Ingresos por Mudanzas:', linkEsc(formatearMoneda(ingresosMudanzas)));
+                    }
+                    if (modulosVisibles.includes('aperturas')) {
+                        filasHtml += filaResumen('Total Aperturas:', linkEsc(String(totalAperturasEj)));
+                        filasHtml += filaResumen('Ingresos por Aperturas:', linkEsc(formatearMoneda(ingresosAperturas)));
+                    }
+                    if (modulosVisibles.includes('tarjetas')) {
+                        filasHtml += filaResumen('Ventas Tarjetas/TAG:', linkEsc(`${totalTarjetasEj} reg. / ${totalLineasTarjetasEj} transacc. — ${formatearMoneda(ingresosTarjetas)}`));
+                    }
+                    if (modulosVisibles.includes('espacios')) {
+                        filasHtml += filaResumen('Uso Espacios Comunes:', linkEsc(String(totalEspaciosEj)));
+                        filasHtml += filaResumen('Ingresos por Aseo Espacios:', linkEsc(formatearMoneda(ingresosEspaciosAseo)));
+                        filasHtml += filaResumen('Ingresos por Uso Espacios:', linkEsc(formatearMoneda(ingresosEspaciosUso)));
+                        filasHtml += filaResumen('Ingresos Totales Espacios:', linkEsc(formatearMoneda(ingresosEspacios)));
+                    }
+                    if (modulosVisibles.includes('multas')) {
+                        filasHtml += filaResumen('Multas Registradas:', linkEsc(`${totalMultasEj} ${sufijoMultas}`));
+                    }
+                    if (modulosVisibles.includes('morosos')) {
+                        filasHtml += filaResumen('Morosos:', linkEsc(`${totalMorososEj} - Deuda Total: ${formatearMoneda(totalDeudaMorososEj)}`));
+                    }
+                    filasHtml += `
+                            <tr>
+                                <td style="padding: 10px 0 4px 0; border-top: 2px solid rgba(117, 187, 33, 0.35); font-size: 15px; color: #1a1a1a; vertical-align: top;"><strong>${linkEsc('Ingresos Totales:')}</strong></td>
+                                <td style="padding: 10px 0 4px 0; border-top: 2px solid rgba(117, 187, 33, 0.35); font-size: 15px; color: rgba(90, 146, 25, 0.95); font-weight: 700; text-align: right; vertical-align: top;">${linkEsc(formatearMoneda(ingresosTotalesResumenEj))}</td>
+                            </tr>`;
                     const contenido = `
                 <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f8fafc; border-radius: 8px; border: 1px solid #e5e7eb;">
                     <tr>
                         <td style="padding: 14px 16px;">
-                            <p style="margin: 0 0 8px 0; font-size: 13px; font-weight: 700; color: #5a9219; text-transform: uppercase; letter-spacing: 0.03em;">Resumen operacional</p>
-                            <p style="margin: 6px 0; font-size: 14px; color: #333333;"><strong>Mudanzas:</strong> ${mudanzas.length} registros</p>
-                            <p style="margin: 6px 0; font-size: 14px; color: #333333;"><strong>Aperturas:</strong> ${aperturas.length} registros</p>
-                            <p style="margin: 6px 0; font-size: 14px; color: #333333;"><strong>Tarjetas/TAG:</strong> ${tarjetas.length} registros</p>
-                            <p style="margin: 6px 0; font-size: 14px; color: #333333;"><strong>Espacios comunes:</strong> ${espacios.length} registros</p>
-                            <p style="margin: 6px 0; font-size: 14px; color: #333333;"><strong>Multas:</strong> ${multas.length} registros</p>
-                            <p style="margin: 6px 0; font-size: 14px; color: #333333;"><strong>Morosos:</strong> ${morosos.length} registros</p>
-                            ${modulosVisibles.includes('caja') ? `<p style="margin: 6px 0; font-size: 14px; color: #333333;"><strong>Caja chica:</strong> ${caja.length} movimientos — Total: ${linkEsc(formatearMoneda(egresosCaja))}</p>` : ''}
-                            ${modulosVisibles.includes('lecturas-agua') ? `<p style="margin: 6px 0; font-size: 14px; color: #333333;"><strong>Lecturas de agua:</strong> ${lecturasAguaCaliente.length} registros</p>` : ''}
+                            <p style="margin: 0 0 12px 0; font-size: 14px; font-weight: 700; color: #5a9219;">Resumen ejecutivo</p>
+                            <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                                ${filasHtml}
+                            </table>
                         </td>
                     </tr>
                 </table>
@@ -15113,7 +15207,7 @@
             try {
                 const mesParaReporte = (window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : obtenerMesActual();
                 const nombreMes = obtenerNombreMes(mesParaReporte);
-                mostrarProgreso('Generando reporte mensual (misma vista que previsualizar)...');
+                mostrarProgreso('Generando adjuntos del reporte mensual (HTML y Excel)...');
 
                 let nombreComunidad = 'Comunidad';
                 try {
@@ -15123,32 +15217,51 @@
                     try { nombreComunidad = localStorage.getItem('nombreComunidad') || nombreComunidad; } catch (_) {}
                 }
 
-                const htmlAdjuntoCompleto = await generarReportePDF(mesParaReporte, nombreMes, true, null, { soloHtmlCompleto: true });
+                let htmlAdjuntoCompleto;
+                let packExcel;
+                try {
+                    [htmlAdjuntoCompleto, packExcel] = await Promise.all([
+                        generarReportePDF(mesParaReporte, nombreMes, true, null, { soloHtmlCompleto: true }),
+                        generarReporteExcel(mesParaReporte, nombreMes, true, { soloContenidoAdjunto: true })
+                    ]);
+                } catch (errGen) {
+                    console.error(errGen);
+                    ocultarProgreso();
+                    mostrarAlerta('No se pudieron generar los adjuntos del reporte mensual. ' + (errGen && errGen.message ? errGen.message : ''), 'Error');
+                    return;
+                }
+
                 if (!htmlAdjuntoCompleto || typeof htmlAdjuntoCompleto !== 'string') {
                     ocultarProgreso();
                     mostrarAlerta('No se pudo generar el HTML del reporte mensual para adjuntar.', 'Error');
                     return;
                 }
-
-                const nombreArchivoAdjunto = `PREVISUALIZACION_Previsualizacion_Reporte_Mensual_${nombreMes.replace(/\s+/g, '_')}.html`;
-                const adjunto = await generarReporteHTMLComoAdjunto(htmlAdjuntoCompleto, nombreArchivoAdjunto, { documentoHtmlCompleto: true });
-                if (!adjunto) {
+                if (!packExcel || !packExcel.excelContent || !packExcel.nombreArchivo) {
                     ocultarProgreso();
-                    mostrarAlerta('Error al generar el adjunto del reporte. Por favor, intente nuevamente.', 'Error');
+                    mostrarAlerta('No se pudo generar el Excel del reporte mensual para adjuntar.', 'Error');
                     return;
                 }
 
-                mostrarProgreso('Preparando cuerpo del correo (resumen operacional)...');
-                const html = await generarHTMLReporteCierreMes(mesParaReporte, nombreMes, { soloCuerpoCorreoResumenOperacional: true });
+                const nombreArchivoAdjunto = `PREVISUALIZACION_Previsualizacion_Reporte_Mensual_${nombreMes.replace(/\s+/g, '_')}.html`;
+                const adjuntoHtml = await generarReporteHTMLComoAdjunto(htmlAdjuntoCompleto, nombreArchivoAdjunto, { documentoHtmlCompleto: true });
+                const adjuntoExcel = await adjuntoXlsHtmlDesdeString(packExcel.excelContent, packExcel.nombreArchivo);
+                if (!adjuntoHtml || !adjuntoExcel) {
+                    ocultarProgreso();
+                    mostrarAlerta('Error al preparar los adjuntos del reporte. Por favor, intente nuevamente.', 'Error');
+                    return;
+                }
+
+                mostrarProgreso('Preparando cuerpo del correo (resumen ejecutivo)...');
+                const html = await generarHTMLReporteCierreMes(mesParaReporte, nombreMes, { soloCuerpoCorreoResumenEjecutivo: true });
                 if (!html) {
                     ocultarProgreso();
-                    mostrarAlerta('No se pudo generar el resumen operacional del correo.', 'Error');
+                    mostrarAlerta('No se pudo generar el resumen ejecutivo del correo.', 'Error');
                     return;
                 }
 
                 const asunto = `Reporte de Cierre de Mes - ${nombreComunidad} - ${nombreMes}`;
                 ocultarProgreso();
-                await mostrarModalSeleccionDestinatarios(asunto, html, [adjunto]);
+                await mostrarModalSeleccionDestinatarios(asunto, html, [adjuntoHtml, adjuntoExcel]);
             } catch (error) {
                 console.error('Error al enviar correo con reporte de cierre de mes:', error);
                 mostrarAlerta('Ocurrió un error al preparar el correo: ' + (error.message || 'Error desconocido'), 'Error');
@@ -15213,8 +15326,10 @@
             const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             
             // Sección de adjunto con estilo similar al comprobante
-            const formatoArchivo = titulo.includes('Mantenciones') || titulo.includes('Caja') || titulo.includes('Insumos') || titulo.includes('Reporte de Cierre') ? 'HTML' : 'Excel';
-            const iconoArchivo = formatoArchivo === 'HTML' ? '📄' : '📊';
+            const formatoArchivo = titulo.includes('Reporte de Cierre')
+                ? 'HTML y Excel'
+                : (titulo.includes('Mantenciones') || titulo.includes('Caja') || titulo.includes('Insumos') ? 'HTML' : 'Excel');
+            const iconoArchivo = formatoArchivo === 'HTML y Excel' ? '📎' : (formatoArchivo === 'HTML' ? '📄' : '📊');
             
             const seccionAdjunto = tieneAdjunto ? `
               <tr>
@@ -24869,8 +24984,11 @@
         }
         
         // Función para generar reporte Excel de fin de mes usando formato HTML (como nómina)
-        async function generarReporteExcel(mesAnio, nombreMes, esPrevisualizacion = false) {
-            mostrarProgreso('Generando reporte Excel...');
+        async function generarReporteExcel(mesAnio, nombreMes, esPrevisualizacion = false, opcionesRetorno = null) {
+            const soloContenidoAdjunto = opcionesRetorno && opcionesRetorno.soloContenidoAdjunto === true;
+            if (!soloContenidoAdjunto) {
+                mostrarProgreso('Generando reporte Excel...');
+            }
             
             try {
                 // Obtener configuración de personalización del encabezado
@@ -25380,6 +25498,11 @@
                 </html>
                 `;
                 
+                if (soloContenidoAdjunto) {
+                    const nombreExcelAdjunto = esPrevisualizacion ? `PREVISUALIZACION_${nombreArchivo}` : nombreArchivo;
+                    return { excelContent, nombreArchivo: nombreExcelAdjunto };
+                }
+                
                 // Crear blob y descargar
                 const blob = new Blob([excelContent], { type: 'application/vnd.ms-excel' });
                 const url = URL.createObjectURL(blob);
@@ -25397,6 +25520,9 @@
             } catch (error) {
                 console.error('❌ Error crítico al generar reporte Excel:', error);
                 console.error('Stack trace:', error.stack);
+                if (soloContenidoAdjunto) {
+                    throw error;
+                }
                 ocultarProgreso();
                 mostrarAlerta(`Error al generar el reporte Excel: ${error.message || 'Error desconocido'}. Por favor, revise la consola para más detalles.`, 'Error');
             }
