@@ -4167,6 +4167,7 @@
                                         <p style="font-size: 0.75rem; color: rgba(255,255,255,0.75); margin: 0 0 0.75rem 0;">Previsualice o descargue el reporte antes de cerrar el mes.</p>
                                         <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
                                             <button class="btn btn-info" id="btnPrevisualizarReporteTop" style="min-width: 140px; padding: 0.5rem 0.75rem; font-size: 0.8125rem; background: #0ea5e9; color: white; border: none;">👁️ Previsualizar</button>
+                                            <button class="btn btn-success" id="btnEnviarCorreoCierreMes" style="min-width: 160px; padding: 0.5rem 0.75rem; font-size: 0.8125rem; background: #10b981; color: white; border: none;">📧 Enviar por Correo</button>
                                             <button class="btn btn-secondary" id="btnDescargarExcel" style="min-width: 120px; padding: 0.5rem 0.75rem; font-size: 0.8125rem; background: #10b981; color: white; border: none;">📊 Excel</button>
                                             <button class="btn btn-success" id="btnCerrarMes" style="min-width: 160px; padding: 0.5rem 0.75rem; font-size: 0.8125rem; background: rgba(117, 187, 33, 0.9); color: white; border: none;">✅ Cerrar Mes</button>
                                         </div>
@@ -15082,6 +15083,48 @@
         
         // Hacer la función disponible globalmente
         window.enviarCorreoConReporteNomina = enviarCorreoConReporteNomina;
+
+        // Función para enviar correo con reporte de cierre de mes (igual que previsualización)
+        async function enviarCorreoConReporteCierreMes() {
+            try {
+                const mesParaReporte = (window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : obtenerMesActual();
+                const nombreMes = obtenerNombreMes(mesParaReporte);
+                mostrarProgreso('Generando reporte de cierre de mes...');
+
+                let nombreComunidad = 'Comunidad';
+                try {
+                    const personalizacion = await obtenerPersonalizacion();
+                    nombreComunidad = personalizacion.comunidad || nombreComunidad;
+                } catch (e) {
+                    try { nombreComunidad = localStorage.getItem('nombreComunidad') || nombreComunidad; } catch (_) {}
+                }
+
+                const htmlReporte = await generarHTMLReporteCierreMes(mesParaReporte, nombreMes);
+                if (!htmlReporte) {
+                    ocultarProgreso();
+                    mostrarAlerta('No se pudo generar el reporte de cierre de mes.', 'Error');
+                    return;
+                }
+
+                const nombreArchivo = `Reporte_Cierre_Mes_${nombreMes.replace(/\s+/g, '_')}.html`;
+                const adjunto = await generarReporteHTMLComoAdjunto(htmlReporte, nombreArchivo);
+                if (!adjunto) {
+                    ocultarProgreso();
+                    mostrarAlerta('Error al generar el adjunto del reporte. Por favor, intente nuevamente.', 'Error');
+                    return;
+                }
+
+                const html = await generarCorreoNotificacionReporteCierre(nombreComunidad, nombreMes, '');
+                const asunto = `Reporte de Cierre de Mes - ${nombreComunidad} - ${nombreMes}`;
+                ocultarProgreso();
+                await mostrarModalSeleccionDestinatarios(asunto, html, [adjunto]);
+            } catch (error) {
+                console.error('Error al enviar correo con reporte de cierre de mes:', error);
+                mostrarAlerta('Ocurrió un error al preparar el correo: ' + (error.message || 'Error desconocido'), 'Error');
+                ocultarProgreso();
+            }
+        }
+        window.enviarCorreoConReporteCierreMes = enviarCorreoConReporteCierreMes;
         
         // Generar correo de notificación de Postventa
         async function generarCorreoNotificacionPostventa(nombreComunidad, nombreMes, mensajeAdicional = '') {
@@ -31662,6 +31705,20 @@
                             } catch (error) {
                                 console.error('Error al previsualizar reporte:', error);
                                 mostrarAlerta('Ocurrió un error al generar la previsualización. Por favor, intente nuevamente.', 'Error');
+                            }
+                        }
+                    });
+                }
+
+                const btnEnviarCorreoCierreMes = document.getElementById('btnEnviarCorreoCierreMes');
+                if (btnEnviarCorreoCierreMes) {
+                    btnEnviarCorreoCierreMes.addEventListener('click', async function() {
+                        if (typeof window.enviarCorreoConReporteCierreMes === 'function') {
+                            try {
+                                await window.enviarCorreoConReporteCierreMes();
+                            } catch (error) {
+                                console.error('Error al enviar reporte de cierre por correo:', error);
+                                mostrarAlerta('Ocurrió un error al preparar el correo de cierre de mes. Por favor, intente nuevamente.', 'Error');
                             }
                         }
                     });
