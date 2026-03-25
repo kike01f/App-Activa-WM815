@@ -6546,11 +6546,12 @@
 
         async function registrarMovimiento(tipo, modulo, detalle) {
             const ahora = new Date();
+            const tieneFirebaseSdk = (typeof firebase !== 'undefined' && firebase && firebase.firestore);
             const item = {
                 tipo: tipo || 'actualizar',
                 modulo: modulo || '',
                 detalle: detalle || '',
-                fecha: firebase && firebase.firestore ? firebase.firestore.FieldValue.serverTimestamp() : ahora
+                fecha: tieneFirebaseSdk ? firebase.firestore.FieldValue.serverTimestamp() : ahora
             };
             let guardadoEnNube = false;
             if (firebaseInitialized && db) {
