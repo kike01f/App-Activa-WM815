@@ -26701,6 +26701,9 @@
                 size: A4;
                 margin: 0.7cm;
             }
+            .informe-btn-imprimir {
+                display: none !important;
+            }
             body {
                 margin: 0;
                 padding: 0.25rem;
@@ -26994,6 +26997,9 @@
         }
         /* Mejoras responsive para PDF */
         @media print {
+            .informe-btn-imprimir {
+                display: none !important;
+            }
             .reporte-table {
                 font-size: 7pt;
                 margin-bottom: 0.4rem;
@@ -27158,6 +27164,32 @@
             word-break: break-all;
             font-size: 0.7rem;
         }
+        /* Botón imprimir (pantalla; oculto al imprimir) */
+        .informe-btn-imprimir {
+            position: fixed;
+            top: 12px;
+            left: 12px;
+            z-index: 100;
+            padding: 0.5rem 1rem;
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: #fff;
+            background: linear-gradient(135deg, #5a9219 0%, #75BB21 100%);
+            border: none;
+            border-radius: 8px;
+            cursor: pointer;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.18);
+            font-family: inherit;
+            -webkit-print-color-adjust: exact;
+            print-color-adjust: exact;
+        }
+        .informe-btn-imprimir:hover {
+            filter: brightness(1.06);
+        }
+        .informe-btn-imprimir:focus-visible {
+            outline: 2px solid #3d6b12;
+            outline-offset: 2px;
+        }
         /* Marca de agua WM815 centrada + tablas semitransp. para verla sutilmente */
         body { position: relative; }
         .informe-marca-agua-wm815 {
@@ -27203,6 +27235,7 @@
     </style>
 </head>
 <body>
+    <button type="button" class="informe-btn-imprimir" onclick="window.print();" title="Imprimir o guardar como PDF">Imprimir</button>
     <div class="informe-marca-agua-wm815" aria-hidden="true"><img src="https://img.mailinblue.com/8323725/images/content_library/original/6844749040dd0f16c5341248.png" alt=""></div>
     <div class="informe-doc-principal">
     ${html}
