@@ -33424,43 +33424,26 @@
         }
         window.imprimirNomina = imprimirNomina;
 
-        // Función para exportar a Excel
-        async function exportarPDFNomina() {
-            if (trabajadoresNomina.length === 0) {
-                mostrarAlerta('No hay trabajadores registrados para exportar.', 'Sin Datos');
-                return;
-            }
-
-            // Cargar reemplazos del mes actual o archivado
-            let reemplazosReporte = [];
-            if (window.mesNominaConsulta && window.mesNominaConsulta !== 'actual') {
-                reemplazosReporte = await obtenerDatosArchivados('nomina-reemplazos', window.mesNominaConsulta);
-            } else {
-                reemplazosReporte = await obtenerDatosMes('nomina-reemplazos');
-            }
-
-            // Obtener valores del encabezado automáticamente
-            const encabezado = await obtenerEncabezadoNomina();
-            const comunidad = encabezado.comunidad;
-            const desde = encabezado.desde;
-            const hasta = encabezado.hasta;
-            const fechaEmision = encabezado.fechaEmision;
-            const responsable = encabezado.responsable;
-
-            // Formatear fechas
+        /**
+         * Igual que gestion-entre-cerros: archivo HTML con CSS que Excel abre como .xls.
+         * Es la única forma de que el aspecto coincida (gradientes, tablas, colores, márgenes).
+         */
+        function generarBlobNominaExcelHtmlIgualEntreCerros(trabajadoresLista, reemplazosReporte, encabezado) {
+            const { comunidad, desde, hasta, fechaEmision, responsable } = encabezado;
+            const escHtml = (v) => String(v ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+            const escCelda = (v) => escHtml(String(v ?? '').replace(/\r/g, '').replace(/\n/g, ' '));
             const formatearFecha = (fechaStr) => {
                 if (fechaStr === 'N/A') return 'N/A';
                 const fecha = new Date(fechaStr + 'T12:00:00');
                 return fecha.toLocaleDateString('es-CL', { year: 'numeric', month: 'long', day: 'numeric' });
             };
-
-            // Generar nombre del archivo (limpiar caracteres especiales)
-            const limpiarNombre = (str) => {
-                return str.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
-            };
+            const limpiarNombre = (str) => String(str || '').replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
             const nombreArchivo = `Nomina_${limpiarNombre(comunidad)}_${limpiarNombre(desde)}_${limpiarNombre(hasta)}.xls`;
 
-            // Generar contenido Excel (formato HTML que Excel puede abrir)
             let excelContent = `
                 <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
                 <head>
@@ -33492,82 +33475,89 @@
                     <![endif]-->
                     <style>
                         * { margin: 0; padding: 0; box-sizing: border-box; }
-                        body { 
-                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                            background: #f8fafc; 
-                            padding: 30px 20px; 
+                        body {
+                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                            background: #f8fafc;
+                            padding: 30px 20px;
                             color: #1e293b;
                         }
-                        .container { 
-                            max-width: 1400px; 
-                            margin: 0 auto; 
-                            background: white; 
-                            border-radius: 12px; 
+                        .container {
+                            max-width: 1400px;
+                            margin: 0 auto;
+                            background: white;
+                            border-radius: 12px;
                             box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
                             overflow: hidden;
                         }
-                        .header-section { 
+                        .header-section {
                             background: white;
-                            color: #111827; 
+                            color: #111827;
                             padding: 35px 40px;
                             text-align: center;
                             border-bottom: 3px solid #75BB21;
                         }
-                        .header-title { 
-                            font-size: 32px; 
-                            font-weight: 700; 
+                        .header-title {
+                            font-size: 32px;
+                            font-weight: 700;
                             margin-bottom: 8px;
                             letter-spacing: 1px;
                             color: #111827;
                         }
-                        .header-subtitle { 
-                            font-size: 18px; 
-                            font-weight: 500; 
+                        .header-subtitle {
+                            font-size: 18px;
+                            font-weight: 500;
                             letter-spacing: 0.5px;
                             color: #374151;
                         }
-                        .info-section { 
+                        .info-section {
                             background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
                             padding: 25px 40px;
                             border-bottom: 2px solid #e5e7eb;
-                            text-align: left;
+                            text-align: left !important;
+                            direction: ltr;
                         }
-                        .info-grid { 
-                            display: table; 
-                            width: auto; 
-                            max-width: 100%;
+                        .info-grid {
+                            display: table;
+                            width: 100%;
                             border-collapse: separate;
                             border-spacing: 0;
+                            text-align: left !important;
+                            margin-left: 0;
+                            margin-right: auto;
                         }
-                        .info-row { 
-                            display: table-row; 
+                        .info-row {
+                            display: table-row;
+                            text-align: left !important;
                         }
-                        .info-cell { 
-                            display: table-cell; 
-                            padding: 12px 20px 12px 0;
+                        .info-cell {
+                            display: table-cell;
+                            padding: 12px 20px;
                             vertical-align: middle;
-                            text-align: left;
+                            text-align: left !important;
                         }
-                        .info-label { 
-                            font-weight: 700; 
-                            color: #1f2937; 
+                        .info-label {
+                            font-weight: 700;
+                            color: #1f2937;
                             font-size: 13px;
                             text-transform: uppercase;
                             letter-spacing: 0.5px;
                             min-width: 140px;
+                            width: 150px;
+                            text-align: left !important;
                         }
-                        .info-value { 
-                            color: #111827; 
+                        .info-value {
+                            color: #111827;
                             font-size: 14px;
                             font-weight: 600;
+                            text-align: left !important;
                         }
                         .table-container {
                             padding: 30px 40px;
                             overflow-x: auto;
                         }
-                        table { 
-                            border-collapse: collapse; 
-                            width: 100%; 
+                        table {
+                            border-collapse: collapse;
+                            width: 100%;
                             font-size: 13px;
                             box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
                             table-layout: fixed;
@@ -33575,10 +33565,10 @@
                         thead {
                             background: linear-gradient(135deg, #5a9219 0%, #75BB21 100%);
                         }
-                        th { 
-                            color: white; 
-                            font-weight: 700; 
-                            padding: 14px 8px; 
+                        th {
+                            color: white;
+                            font-weight: 700;
+                            padding: 14px 8px;
                             border: 1px solid #4a7a15;
                             text-align: center;
                             font-size: 11px;
@@ -33587,39 +33577,19 @@
                             white-space: nowrap;
                             vertical-align: middle;
                         }
-                        tbody tr {
-                            transition: background-color 0.2s ease;
-                        }
-                        tbody tr:nth-child(even) {
-                            background-color: #f9fafb;
-                        }
-                        tbody tr:nth-child(odd) {
-                            background-color: white;
-                        }
-                        tbody tr:hover {
-                            background-color: #f3f4f6;
-                        }
-                        td { 
-                            padding: 10px 8px; 
-                            border: 1px solid #e5e7eb; 
+                        tbody tr:nth-child(even) { background-color: #f9fafb; }
+                        tbody tr:nth-child(odd) { background-color: white; }
+                        td {
+                            padding: 10px 8px;
+                            border: 1px solid #e5e7eb;
                             color: #111827;
                             font-size: 12px;
                             vertical-align: middle;
                             word-wrap: break-word;
                         }
-                        .text-center { 
-                            text-align: center !important; 
-                            vertical-align: middle !important;
-                        }
-                        .text-right { 
-                            text-align: right !important; 
-                            font-weight: 500;
-                            vertical-align: middle !important;
-                        }
-                        .text-left {
-                            text-align: left !important;
-                            vertical-align: middle !important;
-                        }
+                        .text-center { text-align: center !important; vertical-align: middle !important; }
+                        .text-right { text-align: right !important; font-weight: 500; vertical-align: middle !important; }
+                        .text-left { text-align: left !important; vertical-align: middle !important; }
                         .col-num { width: 40px; }
                         .col-nombre { width: 180px; }
                         .col-cargo { width: 120px; }
@@ -33629,7 +33599,7 @@
                         tfoot {
                             background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
                         }
-                        .total-row { 
+                        .total-row {
                             background: linear-gradient(135deg, #374151 0%, #4b5563 100%) !important;
                             color: white;
                             font-weight: 700;
@@ -33654,21 +33624,21 @@
                     <div class="container">
                         <div class="header-section" style="background: white !important; border-bottom: 3px solid #75BB21;">
                             <div class="header-title" style="color: #111827 !important;">NÓMINA MENSUAL</div>
-                            <div class="header-subtitle" style="color: #111827 !important;">${comunidad}</div>
+                            <div class="header-subtitle" style="color: #111827 !important;">${escHtml(comunidad)}</div>
                         </div>
-                        <div class="info-section">
-                            <div class="info-grid">
+                        <div class="info-section" style="text-align: left !important; width: 100%;">
+                            <div class="info-grid" align="left" style="text-align: left !important; width: 100%;">
                                 <div class="info-row">
-                                    <div class="info-cell info-label">Período:</div>
-                                    <div class="info-cell info-value">${formatearFecha(desde)} - ${formatearFecha(hasta)}</div>
-                                    <div class="info-cell info-label">Fecha de Emisión:</div>
-                                    <div class="info-cell info-value">${formatearFecha(fechaEmision)}</div>
+                                    <div class="info-cell info-label" style="text-align: left !important;">Período:</div>
+                                    <div class="info-cell info-value" style="text-align: left !important;">${escHtml(formatearFecha(desde))} - ${escHtml(formatearFecha(hasta))}</div>
+                                    <div class="info-cell info-label" style="text-align: left !important;">Fecha de Emisión:</div>
+                                    <div class="info-cell info-value" style="text-align: left !important;">${escHtml(formatearFecha(fechaEmision))}</div>
                                 </div>
                                 <div class="info-row">
-                                    <div class="info-cell info-label">Responsable:</div>
-                                    <div class="info-cell info-value">${responsable}</div>
-                                    <div class="info-cell"></div>
-                                    <div class="info-cell"></div>
+                                    <div class="info-cell info-label" style="text-align: left !important;">Responsable:</div>
+                                    <div class="info-cell info-value" style="text-align: left !important;">${escHtml(responsable)}</div>
+                                    <div class="info-cell" style="text-align: left !important;">&nbsp;</div>
+                                    <div class="info-cell" style="text-align: left !important;">&nbsp;</div>
                                 </div>
                             </div>
                         </div>
@@ -33707,7 +33677,6 @@
                         <tbody>
             `;
 
-            // Calcular totales
             let totalDiasTrabajados = 0;
             let totalLicenciaMedica = 0;
             let totalTurnosFestivos = 0;
@@ -33717,11 +33686,9 @@
             let totalHorasExtras100 = 0;
             let totalAnticipos = 0;
 
-            trabajadoresNomina.forEach((trabajador, index) => {
-                // Compatibilidad: si existe horasExtras (antiguo), se asigna a horasExtras50
+            (trabajadoresLista || []).forEach((trabajador, index) => {
                 const horasExtras50 = parseFloat(trabajador.horasExtras50) || parseFloat(trabajador.horasExtras) || 0;
                 const horasExtras100 = parseFloat(trabajador.horasExtras100) || 0;
-                
                 totalDiasTrabajados += parseFloat(trabajador.diasTrabajados) || 0;
                 totalLicenciaMedica += parseFloat(trabajador.licenciaMedica) || 0;
                 totalTurnosFestivos += parseFloat(trabajador.turnosFestivos) || 0;
@@ -33730,24 +33697,21 @@
                 totalHorasExtras50 += horasExtras50;
                 totalHorasExtras100 += horasExtras100;
                 totalAnticipos += parseFloat(trabajador.anticipos) || 0;
-
-                // Escapar comillas y saltos de línea para Excel
-                const observaciones = (trabajador.observaciones || '').replace(/"/g, '""').replace(/\n/g, ' ');
-
+                const observaciones = escCelda(String(trabajador.observaciones || '').replace(/\r?\n/g, ' ').trim() || '-');
                 excelContent += `
                     <tr>
                         <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${index + 1}</td>
-                        <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${trabajador.nombre || '-'}</td>
-                        <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${trabajador.cargo || '-'}</td>
-                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.diasTrabajados || 0}</td>
-                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.licenciaMedica || 0}</td>
-                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.turnosFestivos || 0}</td>
-                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.turnosExtras || 0}</td>
-                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.domingos || 0}</td>
-                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${horasExtras50}</td>
-                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${horasExtras100}</td>
-                        <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">${formatearMonedaNomina(trabajador.anticipos || 0)}</td>
-                        <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${observaciones || '-'}</td>
+                        <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${escCelda(trabajador.nombre || '-')}</td>
+                        <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${escCelda(trabajador.cargo || '-')}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${escCelda(trabajador.diasTrabajados || 0)}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${escCelda(trabajador.licenciaMedica || 0)}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${escCelda(trabajador.turnosFestivos || 0)}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${escCelda(trabajador.turnosExtras || 0)}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${escCelda(trabajador.domingos || 0)}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${escCelda(horasExtras50)}</td>
+                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${escCelda(horasExtras100)}</td>
+                        <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">${escHtml(formatearMonedaNomina(trabajador.anticipos || 0))}</td>
+                        <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${observaciones}</td>
                     </tr>
                 `;
             });
@@ -33764,7 +33728,7 @@
                                 <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalDomingos}</td>
                                 <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalHorasExtras50}</td>
                                 <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalHorasExtras100}</td>
-                                <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 700 !important;">${formatearMonedaNomina(totalAnticipos)}</td>
+                                <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 700 !important;">${escHtml(formatearMonedaNomina(totalAnticipos))}</td>
                                 <td style="vertical-align: middle !important;"></td>
                             </tr>
                         </tfoot>
@@ -33772,7 +33736,6 @@
                         </div>
             `;
 
-            // Agregar tabla de personal de reemplazo si hay datos
             if (reemplazosReporte && reemplazosReporte.length > 0) {
                 excelContent += `
                         <div class="table-container" style="margin-top: 30px; padding-top: 30px; border-top: 3px solid #75BB21;">
@@ -33808,57 +33771,45 @@
                 `;
 
                 reemplazosReporte.forEach((reemplazo, index) => {
-                    // Calcular número de turnos basado en fechas si no está definido
                     let numeroTurnos = reemplazo.turnos || 0;
-                    if (reemplazo.fechas && Array.isArray(reemplazo.fechas) && reemplazo.fechas.length > 0) {
-                        // Si hay fechas pero no hay turnos definidos, usar el número de fechas
-                        if (numeroTurnos === 0) {
-                            numeroTurnos = reemplazo.fechas.length;
-                        }
+                    if (reemplazo.fechas && Array.isArray(reemplazo.fechas) && reemplazo.fechas.length > 0 && numeroTurnos === 0) {
+                        numeroTurnos = reemplazo.fechas.length;
                     }
-                    
-                    // Formatear fechas - mostrar todas las fechas
                     let fechasTexto = '';
                     if (reemplazo.fechas && Array.isArray(reemplazo.fechas) && reemplazo.fechas.length > 0) {
                         const fechasOrdenadas = [...reemplazo.fechas].sort();
-                        const fechasFormateadas = fechasOrdenadas.map(fecha => {
+                        const fechasFormateadas = fechasOrdenadas.map((fecha) => {
                             const fechaObj = new Date(fecha + 'T00:00:00');
                             const dia = fechaObj.getDate();
                             const mes = fechaObj.toLocaleDateString('es-ES', { month: 'short' });
                             return `${dia} ${mes}`;
                         });
-                        // Mostrar todas las fechas, separadas por comas
                         fechasTexto = `${fechasOrdenadas.length} día${fechasOrdenadas.length !== 1 ? 's' : ''}: ${fechasFormateadas.join(', ')}`;
                     } else {
                         fechasTexto = `${reemplazo.dias || 0} día${(reemplazo.dias || 0) !== 1 ? 's' : ''}`;
                     }
-
-                    // Formatear datos bancarios
                     let datosBancariosTexto = '-';
                     if (reemplazo.metodoPago === 'transferencia' && reemplazo.datosBancarios) {
-                        const tipoCuentaTexto = reemplazo.datosBancarios.tipoCuenta === 'corriente' ? 'Cta. Corriente' : 
-                                               reemplazo.datosBancarios.tipoCuenta === 'ahorro' ? 'Cta. Ahorro' : 'Cta. Vista';
+                        const tipoCuentaTexto = reemplazo.datosBancarios.tipoCuenta === 'corriente' ? 'Cta. Corriente' :
+                            reemplazo.datosBancarios.tipoCuenta === 'ahorro' ? 'Cta. Ahorro' : 'Cta. Vista';
                         datosBancariosTexto = `${reemplazo.datosBancarios.banco || ''} - ${tipoCuentaTexto} - ${reemplazo.datosBancarios.numeroCuenta || ''} - RUT: ${reemplazo.datosBancarios.rut || ''}`;
                     } else if (reemplazo.metodoPago === 'cheque') {
                         datosBancariosTexto = 'Pago por cheque';
                     }
-
                     const metodoPagoTexto = reemplazo.metodoPago === 'transferencia' ? 'Transferencia' : 'Cheque';
+                    const observacionesReemplazo = escCelda(String(reemplazo.observaciones || '').replace(/\r?\n/g, ' ').trim() || '-');
 
-                    // Escapar observaciones para Excel
-                    const observacionesReemplazo = (reemplazo.observaciones || '').replace(/"/g, '""').replace(/\n/g, ' ');
-                    
                     excelContent += `
                         <tr>
                             <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${index + 1}</td>
-                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${reemplazo.nombre || '-'}</td>
-                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${reemplazo.reemplazaA || '-'}</td>
-                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${numeroTurnos}</td>
-                            <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">${formatearMonedaNomina(reemplazo.valorTurno || 0)}</td>
-                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important; font-size: 11px;">${fechasTexto}</td>
-                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${metodoPagoTexto}</td>
-                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important; font-size: 11px;">${datosBancariosTexto}</td>
-                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important; font-size: 11px;">${observacionesReemplazo || '-'}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${escCelda(reemplazo.nombre || '-')}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${escCelda(reemplazo.reemplazaA || '-')}</td>
+                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${escCelda(numeroTurnos)}</td>
+                            <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">${escHtml(formatearMonedaNomina(reemplazo.valorTurno || 0))}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important; font-size: 11px;">${escCelda(fechasTexto)}</td>
+                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${escCelda(metodoPagoTexto)}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important; font-size: 11px;">${escCelda(datosBancariosTexto)}</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important; font-size: 11px;">${observacionesReemplazo}</td>
                         </tr>
                     `;
                 });
@@ -33879,13 +33830,30 @@
                 </html>
             `;
 
-            // Crear blob y descargar
-            // Agregar BOM UTF-8 para compatibilidad con Excel
             const BOM = '\uFEFF';
-            const blob = new Blob([BOM + excelContent], { 
-                type: 'application/vnd.ms-excel;charset=utf-8' 
+            const blob = new Blob([BOM + excelContent], {
+                type: 'application/vnd.ms-excel;charset=utf-8'
             });
-            
+            return { blob, nombreArchivo };
+        }
+
+        // Mismo Excel que gestion-entre-cerros (HTML + CSS → archivo .xls)
+        async function exportarPDFNomina() {
+            if (trabajadoresNomina.length === 0) {
+                mostrarAlerta('No hay trabajadores registrados para exportar.', 'Sin Datos');
+                return;
+            }
+
+            let reemplazosReporte = [];
+            if (window.mesNominaConsulta && window.mesNominaConsulta !== 'actual') {
+                reemplazosReporte = await obtenerDatosArchivados('nomina-reemplazos', window.mesNominaConsulta);
+            } else {
+                reemplazosReporte = await obtenerDatosMes('nomina-reemplazos');
+            }
+
+            const encabezado = await obtenerEncabezadoNomina();
+            const { blob, nombreArchivo } = generarBlobNominaExcelHtmlIgualEntreCerros(trabajadoresNomina, reemplazosReporte, encabezado);
+
             try {
                 const url = window.URL.createObjectURL(blob);
                 const link = document.createElement('a');
@@ -33894,14 +33862,13 @@
                 link.style.display = 'none';
                 document.body.appendChild(link);
                 link.click();
-                
-                // Limpiar después de un breve delay
+
                 setTimeout(() => {
                     document.body.removeChild(link);
                     window.URL.revokeObjectURL(url);
-                }, 100);
-                
-                mostrarAlerta('Archivo Excel descargado correctamente.', 'Éxito');
+                }, 300);
+
+                mostrarAlerta('Archivo Excel descargado (mismo aspecto que Gestión Entre Cerros).', 'Éxito');
             } catch (error) {
                 console.error('Error al descargar Excel:', error);
                 mostrarAlerta('Error al descargar el archivo Excel. Por favor, intente nuevamente.', 'Error');
@@ -33909,7 +33876,7 @@
         }
         window.exportarPDFNomina = exportarPDFNomina;
 
-        // Función auxiliar para generar el Excel de nómina exactamente como lo hace el módulo
+        // Adjunto de correo: mismo .xls HTML que gestion-entre-cerros
         async function generarExcelNominaComoAdjunto() {
             try {
                 // Obtener trabajadores del mes actual o consultado
@@ -33934,451 +33901,13 @@
 
                 // Obtener valores del encabezado automáticamente
                 const encabezado = await obtenerEncabezadoNomina();
-                const comunidad = encabezado.comunidad;
-                const desde = encabezado.desde;
-                const hasta = encabezado.hasta;
-                const fechaEmision = encabezado.fechaEmision;
-                const responsable = encabezado.responsable;
 
-                // Formatear fechas
-                const formatearFecha = (fechaStr) => {
-                    if (fechaStr === 'N/A') return 'N/A';
-                    const fecha = new Date(fechaStr + 'T12:00:00');
-                    return fecha.toLocaleDateString('es-CL', { year: 'numeric', month: 'long', day: 'numeric' });
-                };
+                const { blob, nombreArchivo } = generarBlobNominaExcelHtmlIgualEntreCerros(trabajadoresNomina, reemplazosReporte, encabezado);
 
-                // Generar nombre del archivo (limpiar caracteres especiales)
-                const limpiarNombre = (str) => {
-                    return str.replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
-                };
-                const nombreArchivo = `Nomina_${limpiarNombre(comunidad)}_${limpiarNombre(desde)}_${limpiarNombre(hasta)}.xls`;
-
-                // Generar contenido Excel (formato HTML que Excel puede abrir) - EXACTAMENTE igual que exportarPDFNomina
-                let excelContent = `
-                <html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40">
-                <head>
-                    <meta http-equiv="Content-Type" content="text/html; charset=UTF-8" />
-                    <!--[if gte mso 9]>
-                    <xml>
-                        <x:ExcelWorkbook>
-                            <x:ExcelWorksheets>
-                                <x:ExcelWorksheet>
-                                    <x:Name>Nómina Mensual</x:Name>
-                                    <x:WorksheetOptions>
-                                        <x:DefaultRowHeight>300</x:DefaultRowHeight>
-                                        <x:Print>
-                                            <x:ValidPrinterInfo/>
-                                            <x:HorizontalResolution>600</x:HorizontalResolution>
-                                            <x:VerticalResolution>600</x:VerticalResolution>
-                                        </x:Print>
-                                        <x:Selected/>
-                                        <x:FreezePanes/>
-                                        <x:FrozenNoSplit/>
-                                        <x:SplitHorizontal>1</x:SplitHorizontal>
-                                        <x:TopRowBottomPane>1</x:TopRowBottomPane>
-                                        <x:ActivePane>2</x:ActivePane>
-                                    </x:WorksheetOptions>
-                                </x:ExcelWorksheet>
-                            </x:ExcelWorksheets>
-                        </x:ExcelWorkbook>
-                    </xml>
-                    <![endif]-->
-                    <style>
-                        * { margin: 0; padding: 0; box-sizing: border-box; }
-                        body { 
-                            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; 
-                            background: #f8fafc; 
-                            padding: 30px 20px; 
-                            color: #1e293b;
-                        }
-                        .container { 
-                            max-width: 1400px; 
-                            margin: 0 auto; 
-                            background: white; 
-                            border-radius: 12px; 
-                            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.08);
-                            overflow: hidden;
-                        }
-                        .header-section { 
-                            background: white;
-                            color: #111827; 
-                            padding: 35px 40px;
-                            text-align: center;
-                            border-bottom: 3px solid #75BB21;
-                        }
-                        .header-title { 
-                            font-size: 32px; 
-                            font-weight: 700; 
-                            margin-bottom: 8px;
-                            letter-spacing: 1px;
-                            color: #111827;
-                        }
-                        .header-subtitle { 
-                            font-size: 18px; 
-                            font-weight: 500; 
-                            letter-spacing: 0.5px;
-                            color: #374151;
-                        }
-                        .info-section { 
-                            background: linear-gradient(135deg, #f9fafb 0%, #f3f4f6 100%);
-                            padding: 25px 40px;
-                            border-bottom: 2px solid #e5e7eb;
-                            text-align: left;
-                        }
-                        .info-grid { 
-                            display: table; 
-                            width: auto; 
-                            max-width: 100%;
-                            border-collapse: separate;
-                            border-spacing: 0;
-                        }
-                        .info-row { 
-                            display: table-row; 
-                        }
-                        .info-cell { 
-                            display: table-cell; 
-                            padding: 12px 20px 12px 0;
-                            vertical-align: middle;
-                            text-align: left;
-                        }
-                        .info-label { 
-                            font-weight: 700; 
-                            color: #1f2937; 
-                            font-size: 13px;
-                            text-transform: uppercase;
-                            letter-spacing: 0.5px;
-                            min-width: 140px;
-                        }
-                        .info-value { 
-                            color: #111827; 
-                            font-size: 14px;
-                            font-weight: 600;
-                        }
-                        .table-container {
-                            padding: 30px 40px;
-                            overflow-x: auto;
-                        }
-                        table { 
-                            border-collapse: collapse; 
-                            width: 100%; 
-                            font-size: 13px;
-                            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
-                            table-layout: fixed;
-                        }
-                        thead {
-                            background: linear-gradient(135deg, #5a9219 0%, #75BB21 100%);
-                        }
-                        th { 
-                            color: white; 
-                            font-weight: 700; 
-                            padding: 14px 8px; 
-                            border: 1px solid #4a7a15;
-                            text-align: center;
-                            font-size: 11px;
-                            text-transform: uppercase;
-                            letter-spacing: 0.3px;
-                            white-space: nowrap;
-                            vertical-align: middle;
-                        }
-                        tbody tr {
-                            transition: background-color 0.2s ease;
-                        }
-                        tbody tr:nth-child(even) {
-                            background-color: #f9fafb;
-                        }
-                        tbody tr:nth-child(odd) {
-                            background-color: white;
-                        }
-                        tbody tr:hover {
-                            background-color: #f3f4f6;
-                        }
-                        td { 
-                            padding: 10px 8px; 
-                            border: 1px solid #e5e7eb; 
-                            color: #111827;
-                            font-size: 12px;
-                            vertical-align: middle;
-                            word-wrap: break-word;
-                        }
-                        .text-center { 
-                            text-align: center !important; 
-                            vertical-align: middle !important;
-                        }
-                        .text-right { 
-                            text-align: right !important; 
-                            font-weight: 500;
-                            vertical-align: middle !important;
-                        }
-                        .text-left {
-                            text-align: left !important;
-                            vertical-align: middle !important;
-                        }
-                        .col-num { width: 40px; }
-                        .col-nombre { width: 180px; }
-                        .col-cargo { width: 120px; }
-                        .col-numero { width: 70px; }
-                        .col-moneda { width: 120px; }
-                        .col-observaciones { width: 250px; }
-                        tfoot {
-                            background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
-                        }
-                        .total-row { 
-                            background: linear-gradient(135deg, #374151 0%, #4b5563 100%) !important;
-                            color: white;
-                            font-weight: 700;
-                            font-size: 14px;
-                        }
-                        .total-row td {
-                            border: 1px solid #6b7280;
-                            color: white;
-                            padding: 14px 10px;
-                        }
-                        .footer-section {
-                            background: #f8fafc;
-                            padding: 20px 40px;
-                            text-align: center;
-                            border-top: 2px solid #e2e8f0;
-                            color: #64748b;
-                            font-size: 12px;
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="container">
-                        <div class="header-section" style="background: white !important; border-bottom: 3px solid #75BB21;">
-                            <div class="header-title" style="color: #111827 !important;">NÓMINA MENSUAL</div>
-                            <div class="header-subtitle" style="color: #111827 !important;">${comunidad}</div>
-                        </div>
-                        <div class="info-section">
-                            <div class="info-grid">
-                                <div class="info-row">
-                                    <div class="info-cell info-label">Período:</div>
-                                    <div class="info-cell info-value">${formatearFecha(desde)} - ${formatearFecha(hasta)}</div>
-                                    <div class="info-cell info-label">Fecha de Emisión:</div>
-                                    <div class="info-cell info-value">${formatearFecha(fechaEmision)}</div>
-                                </div>
-                                <div class="info-row">
-                                    <div class="info-cell info-label">Responsable:</div>
-                                    <div class="info-cell info-value">${responsable}</div>
-                                    <div class="info-cell"></div>
-                                    <div class="info-cell"></div>
-                                </div>
-                            </div>
-                        </div>
-                        <div class="table-container">
-                    <table style="table-layout: fixed; width: 100%;">
-                        <colgroup>
-                            <col class="col-num" />
-                            <col class="col-nombre" />
-                            <col class="col-cargo" />
-                            <col class="col-numero" />
-                            <col class="col-numero" />
-                            <col class="col-numero" />
-                            <col class="col-numero" />
-                            <col class="col-numero" />
-                            <col class="col-numero" />
-                            <col class="col-numero" />
-                            <col class="col-moneda" />
-                            <col class="col-observaciones" />
-                        </colgroup>
-                        <thead>
-                            <tr>
-                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Nº</th>
-                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Nombre</th>
-                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Cargo</th>
-                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Días Trab.</th>
-                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Lic. Méd.</th>
-                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Turnos Fest.</th>
-                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Turnos Ext.</th>
-                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Domingos</th>
-                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">H. Ext. 50%</th>
-                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">H. Ext. 100%</th>
-                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Anticipos</th>
-                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Observaciones</th>
-                            </tr>
-                        </thead>
-                        <tbody>
-                `;
-
-                // Calcular totales
-                let totalDiasTrabajados = 0;
-                let totalLicenciaMedica = 0;
-                let totalTurnosFestivos = 0;
-                let totalTurnosExtras = 0;
-                let totalDomingos = 0;
-                let totalHorasExtras50 = 0;
-                let totalHorasExtras100 = 0;
-                let totalAnticipos = 0;
-
-                trabajadoresNomina.forEach((trabajador, index) => {
-                    // Compatibilidad: si existe horasExtras (antiguo), se asigna a horasExtras50
-                    const horasExtras50 = parseFloat(trabajador.horasExtras50) || parseFloat(trabajador.horasExtras) || 0;
-                    const horasExtras100 = parseFloat(trabajador.horasExtras100) || 0;
-                    
-                    totalDiasTrabajados += parseFloat(trabajador.diasTrabajados) || 0;
-                    totalLicenciaMedica += parseFloat(trabajador.licenciaMedica) || 0;
-                    totalTurnosFestivos += parseFloat(trabajador.turnosFestivos) || 0;
-                    totalTurnosExtras += parseFloat(trabajador.turnosExtras) || 0;
-                    totalDomingos += parseFloat(trabajador.domingos) || 0;
-                    totalHorasExtras50 += horasExtras50;
-                    totalHorasExtras100 += horasExtras100;
-                    totalAnticipos += parseFloat(trabajador.anticipos) || 0;
-
-                    // Escapar comillas y saltos de línea para Excel
-                    const observaciones = (trabajador.observaciones || '').replace(/"/g, '""').replace(/\n/g, ' ');
-
-                    excelContent += `
-                    <tr>
-                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${index + 1}</td>
-                        <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${trabajador.nombre || '-'}</td>
-                        <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${trabajador.cargo || '-'}</td>
-                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.diasTrabajados || 0}</td>
-                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.licenciaMedica || 0}</td>
-                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.turnosFestivos || 0}</td>
-                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.turnosExtras || 0}</td>
-                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${trabajador.domingos || 0}</td>
-                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${horasExtras50}</td>
-                        <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${horasExtras100}</td>
-                        <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">${formatearMonedaNomina(trabajador.anticipos || 0)}</td>
-                        <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${observaciones || '-'}</td>
-                    </tr>
-                `;
-                });
-
-                excelContent += `
-                        </tbody>
-                        <tfoot>
-                            <tr class="total-row">
-                                <td colspan="3" class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 700 !important;">TOTALES:</td>
-                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalDiasTrabajados}</td>
-                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalLicenciaMedica}</td>
-                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalTurnosFestivos}</td>
-                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalTurnosExtras}</td>
-                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalDomingos}</td>
-                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalHorasExtras50}</td>
-                                <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalHorasExtras100}</td>
-                                <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 700 !important;">${formatearMonedaNomina(totalAnticipos)}</td>
-                                <td style="vertical-align: middle !important;"></td>
-                            </tr>
-                        </tfoot>
-                    </table>
-                        </div>
-            `;
-
-                // Agregar tabla de personal de reemplazo si hay datos
-                if (reemplazosReporte && reemplazosReporte.length > 0) {
-                    excelContent += `
-                        <div class="table-container" style="margin-top: 30px; padding-top: 30px; border-top: 3px solid #75BB21;">
-                            <h2 style="color: #5a9219; font-size: 24px; margin-bottom: 20px; font-weight: 700; text-align: center;">
-                                PERSONAL DE REEMPLAZO
-                            </h2>
-                            <table style="table-layout: fixed; width: 100%;">
-                                <colgroup>
-                                    <col class="col-num" />
-                                    <col class="col-nombre" />
-                                    <col class="col-nombre" />
-                                    <col class="col-numero" />
-                                    <col class="col-moneda" />
-                                    <col style="width: 200px;" />
-                                    <col style="width: 100px;" />
-                                    <col style="width: 250px;" />
-                                    <col class="col-observaciones" />
-                                </colgroup>
-                                <thead>
-                                    <tr>
-                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Nº</th>
-                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Nombre</th>
-                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Reemplaza a</th>
-                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Turnos</th>
-                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Valor Turno</th>
-                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Fechas Laboradas</th>
-                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Método Pago</th>
-                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Datos Bancarios</th>
-                                        <th style="color: white !important; background-color: #8b5cf6 !important; text-align: center !important; vertical-align: middle !important;">Observaciones</th>
-                                    </tr>
-                                </thead>
-                                <tbody>
-                    `;
-
-                    reemplazosReporte.forEach((reemplazo, index) => {
-                        // Calcular número de turnos basado en fechas si no está definido
-                        let numeroTurnos = reemplazo.turnos || 0;
-                        if (reemplazo.fechas && Array.isArray(reemplazo.fechas) && reemplazo.fechas.length > 0) {
-                            if (numeroTurnos === 0) {
-                                numeroTurnos = reemplazo.fechas.length;
-                            }
-                        }
-                        
-                        // Formatear fechas
-                        let fechasTexto = '';
-                        if (reemplazo.fechas && Array.isArray(reemplazo.fechas) && reemplazo.fechas.length > 0) {
-                            const fechasOrdenadas = [...reemplazo.fechas].sort();
-                            const fechasFormateadas = fechasOrdenadas.map(fecha => {
-                                const fechaObj = new Date(fecha + 'T00:00:00');
-                                const dia = fechaObj.getDate();
-                                const mes = fechaObj.toLocaleDateString('es-ES', { month: 'short' });
-                                return `${dia} ${mes}`;
-                            });
-                            fechasTexto = `${fechasOrdenadas.length} día${fechasOrdenadas.length !== 1 ? 's' : ''}: ${fechasFormateadas.join(', ')}`;
-                        } else {
-                            fechasTexto = `${reemplazo.dias || 0} día${(reemplazo.dias || 0) !== 1 ? 's' : ''}`;
-                        }
-
-                        // Formatear datos bancarios
-                        let datosBancariosTexto = '-';
-                        if (reemplazo.metodoPago === 'transferencia' && reemplazo.datosBancarios) {
-                            const tipoCuentaTexto = reemplazo.datosBancarios.tipoCuenta === 'corriente' ? 'Cta. Corriente' : 
-                                                   reemplazo.datosBancarios.tipoCuenta === 'ahorro' ? 'Cta. Ahorro' : 'Cta. Vista';
-                            datosBancariosTexto = `${reemplazo.datosBancarios.banco || ''} - ${tipoCuentaTexto} - ${reemplazo.datosBancarios.numeroCuenta || ''} - RUT: ${reemplazo.datosBancarios.rut || ''}`;
-                        } else if (reemplazo.metodoPago === 'cheque') {
-                            datosBancariosTexto = 'Pago por cheque';
-                        }
-
-                        const metodoPagoTexto = reemplazo.metodoPago === 'transferencia' ? 'Transferencia' : 'Cheque';
-
-                        // Escapar observaciones para Excel
-                        const observacionesReemplazo = (reemplazo.observaciones || '').replace(/"/g, '""').replace(/\n/g, ' ');
-                        
-                        excelContent += `
-                        <tr>
-                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${index + 1}</td>
-                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${reemplazo.nombre || '-'}</td>
-                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${reemplazo.reemplazaA || '-'}</td>
-                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${numeroTurnos}</td>
-                            <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">${formatearMonedaNomina(reemplazo.valorTurno || 0)}</td>
-                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important; font-size: 11px;">${fechasTexto}</td>
-                            <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${metodoPagoTexto}</td>
-                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important; font-size: 11px;">${datosBancariosTexto}</td>
-                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important; font-size: 11px;">${observacionesReemplazo || '-'}</td>
-                        </tr>
-                    `;
-                    });
-
-                    excelContent += `
-                                </tbody>
-                            </table>
-                        </div>
-                `;
-                }
-
-                excelContent += `
-                        <div class="footer-section">
-                            Documento generado automáticamente por el Sistema de Gestión de Comunidad
-                        </div>
-                    </div>
-                </body>
-                </html>
-            `;
-
-                // Convertir HTML a blob y luego a base64 para el adjunto
-                const BOM = '\uFEFF';
-                const blob = new Blob([BOM + excelContent], { type: 'application/vnd.ms-excel;charset=utf-8' });
-                
-                // Convertir blob a base64
                 return new Promise((resolve, reject) => {
                     const reader = new FileReader();
                     reader.onloadend = function() {
-                        const base64 = reader.result.split(',')[1]; // Remover el prefijo data:application/...
+                        const base64 = reader.result.split(',')[1];
                         resolve({
                             filename: nombreArchivo,
                             content: base64,
