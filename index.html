@@ -14805,7 +14805,7 @@
                     </tr>
                 </table>
             `;
-                    return generarPlantillaCorreoNotificacion('Reporte de Cierre de Mes', nombreComunidad, nombreMes, contenido, true);
+                    return generarPlantillaCorreoNotificacion('Reporte Comité', nombreComunidad, nombreMes, contenido, true);
                 }
                 
                 // Generar HTML
@@ -15283,7 +15283,7 @@
                     return;
                 }
 
-                const asunto = `Reporte de Cierre de Mes - ${nombreComunidad} - ${nombreMes}`;
+                const asunto = `Reporte Comité - ${nombreComunidad} - ${nombreMes}`;
                 ocultarProgreso();
                 await mostrarModalSeleccionDestinatarios(asunto, html, [adjuntoHtml, adjuntoExcel]);
             } catch (error) {
@@ -15320,13 +15320,13 @@
             return generarPlantillaCorreoNotificacion('Postventa', nombreComunidad, nombreMes, contenido, true);
         }
         
-        // Generar correo de notificación de Reporte de Cierre
+        // Generar correo de notificación de Reporte Comité
         async function generarCorreoNotificacionReporteCierre(nombreComunidad, nombreMes, mensajeAdicional = '') {
             const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             
             let contenido = `
                 <p style="margin: 0 0 8px 0; font-size: 14px; color: #333333; line-height: 1.55;">
-                    Se adjunta el <strong>reporte de cierre de mes</strong> para el período de <strong>${linkEsc(nombreMes)}</strong>. Este reporte consolidado incluye el resumen completo de todas las operaciones, movimientos y actividades registradas durante el mes.
+                    Se adjunta el <strong>Reporte Comité</strong> para el período de <strong>${linkEsc(nombreMes)}</strong>. Este reporte consolidado incluye el resumen completo de todas las operaciones, movimientos y actividades registradas durante el mes.
                 </p>
             `;
             
@@ -15342,7 +15342,7 @@
                 `;
             }
             
-            return generarPlantillaCorreoNotificacion('Reporte de Cierre de Mes', nombreComunidad, nombreMes, contenido, true);
+            return generarPlantillaCorreoNotificacion('Reporte Comité', nombreComunidad, nombreMes, contenido, true);
         }
         
         // Plantilla base para correos de notificación - Diseño mejorado y unificado
@@ -15350,7 +15350,7 @@
             const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             
             // Sección de adjunto con estilo similar al comprobante
-            const formatoArchivo = titulo.includes('Reporte de Cierre')
+            const formatoArchivo = titulo.includes('Reporte Comité')
                 ? 'HTML y Excel'
                 : (titulo.includes('Mantenciones') || titulo.includes('Caja') || titulo.includes('Insumos') ? 'HTML' : 'Excel');
             const iconoArchivo = formatoArchivo === 'HTML y Excel' ? '📎' : (formatoArchivo === 'HTML' ? '📄' : '📊');
