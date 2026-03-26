@@ -17960,6 +17960,14 @@
             await cargarSelectProveedores();
         }
 
+        function attrSeguroProveedor(s) {
+            return String(s ?? '')
+                .replace(/&/g, '&amp;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#39;')
+                .replace(/</g, '&lt;');
+        }
+
         async function cargarProveedores() {
             const proveedores = await obtenerDatos('proveedores');
             const tbody = document.getElementById('tbodyProveedores');
@@ -17968,6 +17976,18 @@
                 // Si no existe la tabla, solo cargar el select
                 await cargarSelectProveedores();
                 return;
+            }
+
+            if (!tbody.dataset.eliminarProveedorBound) {
+                tbody.dataset.eliminarProveedorBound = '1';
+                tbody.addEventListener('click', (e) => {
+                    const btn = e.target.closest('.btn-eliminar-proveedor');
+                    if (!btn) return;
+                    const idRaw = btn.getAttribute('data-proveedor-id');
+                    const nombre = btn.getAttribute('data-proveedor-nombre') || '';
+                    const id = idRaw != null && idRaw !== '' ? idRaw : null;
+                    eliminarProveedor(id, nombre);
+                });
             }
             
             // Asegurar que proveedores es un array
@@ -18027,7 +18047,7 @@
                         <td>${fechaProximaStr}</td>
                         <td><span class="badge ${estado.clase}">${estadoTexto}</span></td>
                         <td style="white-space: nowrap;">
-                            <button type="button" class="btn btn-danger btn-sm" onclick="eliminarProveedor(${p.id != null && String(p.id).length > 0 ? JSON.stringify(String(p.id)) : 'null'}, ${JSON.stringify(p.nombre || '')})">Eliminar</button>
+                            <button type="button" class="btn btn-danger btn-sm btn-eliminar-proveedor" data-proveedor-id="${attrSeguroProveedor(p.id != null && String(p.id).length > 0 ? String(p.id) : '')}" data-proveedor-nombre="${attrSeguroProveedor(p.nombre || '')}">Eliminar</button>
                         </td>
                     </tr>
                 `;
