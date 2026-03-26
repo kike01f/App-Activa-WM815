@@ -25381,9 +25381,13 @@
                     ? tarjetas.reduce((sum, t) => sum + (parseFloat(t && t.monto) || 0), 0)
                     : 0;
                 const totalEspacios = Array.isArray(espacios) ? espacios.length : 0;
-                const ingresosEspacios = Array.isArray(espacios)
+                const ingresosEspaciosAseo = Array.isArray(espacios)
                     ? espacios.filter(e => e && e.aplicaAseo === 'si').reduce((sum, e) => sum + (parseFloat(e.monto) || 0), 0)
                     : 0;
+                const ingresosEspaciosUso = Array.isArray(espacios)
+                    ? espacios.filter(e => e && e.aplicaCobroEspacio === 'si').reduce((sum, e) => sum + (parseFloat(e.montoCobroEspacio) || 0), 0)
+                    : 0;
+                const ingresosEspacios = ingresosEspaciosAseo + ingresosEspaciosUso;
                 const totalMultas = Array.isArray(multas) ? multas.length : 0;
                 const totalMorosos = Array.isArray(morosos) ? morosos.length : 0;
                 const totalDeudaMorosos = Array.isArray(morosos)
@@ -25428,7 +25432,7 @@
                             <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">Espacios Comunes</td>
                             <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${totalEspacios}</td>
                             <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">${formatearMoneda(ingresosEspacios)}</td>
-                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">Uso de espacios</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">Aseo ${formatearMoneda(ingresosEspaciosAseo)} + uso ${formatearMoneda(ingresosEspaciosUso)}</td>
                         </tr>
                     `;
                 }
@@ -25619,9 +25623,13 @@
                 ? tarjetas.reduce((sum, t) => sum + (parseFloat(t && t.monto) || 0), 0)
                 : 0;
             const totalEspacios = Array.isArray(espacios) ? espacios.length : 0;
-            const ingresosEspacios = Array.isArray(espacios)
+            const ingresosEspaciosAseo = Array.isArray(espacios)
                 ? espacios.filter(e => e && e.aplicaAseo === 'si').reduce((sum, e) => sum + (parseFloat(e.monto) || 0), 0)
                 : 0;
+            const ingresosEspaciosUso = Array.isArray(espacios)
+                ? espacios.filter(e => e && e.aplicaCobroEspacio === 'si').reduce((sum, e) => sum + (parseFloat(e.montoCobroEspacio) || 0), 0)
+                : 0;
+            const ingresosEspacios = ingresosEspaciosAseo + ingresosEspaciosUso;
             const totalMultas = Array.isArray(multas) ? multas.length : 0;
             const totalMorosos = Array.isArray(morosos) ? morosos.length : 0;
             const totalDeudaMorosos = Array.isArray(morosos)
@@ -25641,7 +25649,7 @@
                 datos.push(['Tarjetas/TAG', totalTarjetas, ingresosTarjetas, 'Ventas de tarjetas']);
             }
             if (modulosVisibles.includes('espacios')) {
-                datos.push(['Espacios Comunes', totalEspacios, ingresosEspacios, 'Uso de espacios']);
+                datos.push(['Espacios Comunes', totalEspacios, ingresosEspacios, `Aseo ${formatearMoneda(ingresosEspaciosAseo)} + uso ${formatearMoneda(ingresosEspaciosUso)}`]);
             }
             if (modulosVisibles.includes('multas')) {
                 datos.push(['Multas', totalMultas, '-', 'Multas registradas']);
