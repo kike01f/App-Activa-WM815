@@ -6320,6 +6320,9 @@
             if (typeof firebase !== 'undefined') {
                 firebase.initializeApp(firebaseConfig);
                 db = firebase.firestore();
+                try {
+                    db.settings({ experimentalAutoDetectLongPolling: true });
+                } catch (e) {}
                 storage = firebase.storage();
                 auth = firebase.auth();
                 firebaseInitialized = true;
