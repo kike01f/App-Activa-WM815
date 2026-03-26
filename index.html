@@ -5181,8 +5181,6 @@
             <div class="form-section" style="margin-top: 2rem;">
                 <h3>Gestión de Proveedores</h3>
                 <form id="formProveedor">
-                    <input type="hidden" id="proveedorIdEdicion" value="">
-                    <input type="hidden" id="proveedorNombreOriginal" value="">
                     <div class="form-row">
                         <div class="form-group">
                             <label>Nombre del Proveedor *</label>
@@ -5239,7 +5237,6 @@
                     </div>
                     <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem;">
                         <button type="submit" class="btn btn-primary" id="btnSubmitProveedor">Agregar Proveedor</button>
-                        <button type="button" class="btn btn-secondary" id="btnCancelarEdicionProveedor" style="display: none;" onclick="cancelarEdicionProveedor()">Cancelar edición</button>
                     </div>
                 </form>
             </div>
@@ -17926,63 +17923,8 @@
             }
         }
 
-        function cancelarEdicionProveedor() {
-            const form = document.getElementById('formProveedor');
-            if (form) form.reset();
-            const hId = document.getElementById('proveedorIdEdicion');
-            const hNom = document.getElementById('proveedorNombreOriginal');
-            if (hId) hId.value = '';
-            if (hNom) hNom.value = '';
-            const btn = document.getElementById('btnSubmitProveedor');
-            const btnCan = document.getElementById('btnCancelarEdicionProveedor');
-            if (btn) btn.textContent = 'Agregar Proveedor';
-            if (btnCan) btnCan.style.display = 'none';
-        }
-
-        async function editarProveedorRegistro(id, nombreFallback) {
-            const proveedores = await obtenerDatos('proveedores');
-            if (!Array.isArray(proveedores)) {
-                mostrarAlerta('Error al cargar proveedores.', 'Error');
-                return;
-            }
-            let p = null;
-            if (id != null && String(id).length > 0) {
-                p = proveedores.find(x => String(x.id) === String(id));
-            }
-            if (!p && nombreFallback) {
-                p = proveedores.find(x => x.nombre === nombreFallback);
-            }
-            if (!p) {
-                mostrarAlerta('No se encontró el proveedor.', 'Error');
-                return;
-            }
-            document.getElementById('proveedorNombre').value = p.nombre || '';
-            document.getElementById('proveedorServicios').value = p.servicios || '';
-            document.getElementById('proveedorPeriodo').value = p.periodo || '';
-            document.getElementById('proveedorUltimaFecha').value = p.ultimaFecha || '';
-            const hId = document.getElementById('proveedorIdEdicion');
-            const hNom = document.getElementById('proveedorNombreOriginal');
-            if (hId) hId.value = p.id != null && String(p.id).length > 0 ? String(p.id) : '';
-            if (hNom) hNom.value = (p.id != null && String(p.id).length > 0) ? '' : (p.nombre || '');
-            const btn = document.getElementById('btnSubmitProveedor');
-            const btnCan = document.getElementById('btnCancelarEdicionProveedor');
-            if (btn) btn.textContent = 'Guardar cambios';
-            if (btnCan) btnCan.style.display = 'inline-block';
-            const elNom = document.getElementById('proveedorNombre');
-            if (elNom) {
-                elNom.scrollIntoView({ behavior: 'smooth', block: 'center' });
-                elNom.focus();
-            }
-        }
-
-        window.cancelarEdicionProveedor = cancelarEdicionProveedor;
-        window.editarProveedorRegistro = editarProveedorRegistro;
-
         async function registrarProveedor(event) {
             event.preventDefault();
-
-            const idEdicion = (document.getElementById('proveedorIdEdicion') && document.getElementById('proveedorIdEdicion').value || '').trim();
-            const nombreOriginal = (document.getElementById('proveedorNombreOriginal') && document.getElementById('proveedorNombreOriginal').value || '').trim();
 
             const nombre = document.getElementById('proveedorNombre').value.trim();
             const servicios = document.getElementById('proveedorServicios').value.trim();
@@ -17994,35 +17936,6 @@
             if (!Array.isArray(proveedores)) {
                 console.error('Error: proveedores no es un array');
                 mostrarAlerta('Error al cargar proveedores existentes', 'Error');
-                return;
-            }
-
-            if (idEdicion || nombreOriginal) {
-                let idx = -1;
-                if (idEdicion) idx = proveedores.findIndex(p => String(p.id) === idEdicion);
-                if (idx < 0 && nombreOriginal) idx = proveedores.findIndex(p => p.nombre === nombreOriginal);
-                if (idx < 0) {
-                    mostrarAlerta('No se encontró el proveedor a actualizar.', 'Error');
-                    return;
-                }
-                if (proveedores.some((p, i) => i !== idx && p.nombre.toLowerCase() === nombre.toLowerCase())) {
-                    mostrarAlerta('Ya existe un proveedor con ese nombre', 'Proveedor Duplicado');
-                    return;
-                }
-                const prev = proveedores[idx];
-                proveedores[idx] = {
-                    ...prev,
-                    id: prev.id || generarId(),
-                    nombre,
-                    servicios,
-                    periodo,
-                    ultimaFecha
-                };
-                await guardarDatos('proveedores', proveedores);
-                cancelarEdicionProveedor();
-                await cargarProveedores();
-                await cargarSelectProveedores();
-                mostrarAlerta('Proveedor actualizado correctamente.', 'Éxito');
                 return;
             }
 
@@ -18043,7 +17956,6 @@
             await guardarDatos('proveedores', proveedores);
 
             document.getElementById('formProveedor').reset();
-            cancelarEdicionProveedor();
             await cargarProveedores();
             await cargarSelectProveedores();
         }
@@ -18115,8 +18027,7 @@
                         <td>${fechaProximaStr}</td>
                         <td><span class="badge ${estado.clase}">${estadoTexto}</span></td>
                         <td style="white-space: nowrap;">
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="editarProveedorRegistro(${p.id != null && String(p.id).length > 0 ? JSON.stringify(String(p.id)) : 'null'}, ${JSON.stringify(p.nombre || '')})">Editar</button>
-                            <button type="button" class="btn btn-danger btn-sm" style="margin-left: 0.35rem;" onclick="eliminarProveedor(${p.id != null && String(p.id).length > 0 ? JSON.stringify(String(p.id)) : 'null'}, ${JSON.stringify(p.nombre || '')})">Eliminar</button>
+                            <button type="button" class="btn btn-danger btn-sm" onclick="eliminarProveedor(${p.id != null && String(p.id).length > 0 ? JSON.stringify(String(p.id)) : 'null'}, ${JSON.stringify(p.nombre || '')})">Eliminar</button>
                         </td>
                     </tr>
                 `;
