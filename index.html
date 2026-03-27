@@ -32696,6 +32696,12 @@
                         const input = document.getElementById('carpetaGuiasMantenciones');
                         if (!input) return;
 
+                        // Evitar guardar "sin querer" mientras se consulta un mes archivado.
+                        if (window.mesEnConsulta && !window.mesReabierto) {
+                            mostrarAlerta('Está consultando un mes archivado en modo solo lectura. Para guardar el link, vuelva al mes actual o reabra el mes en consulta.', 'Modo solo lectura');
+                            return;
+                        }
+
                         const link = (input.value || '').trim();
                         const config = link ? [{ id: 'carpeta-guias', link }] : [];
                         try {
@@ -32714,17 +32720,16 @@
                 
                 // Cargar link de carpeta de guías cuando se muestra el módulo de mantenciones
                 async function cargarLinkCarpetaGuias() {
-                    // No cargar si estamos consultando un mes archivado (solo lectura)
-                    if (window.mesEnConsulta && !window.mesReabierto) return;
-                    
-                    // Usar el mes reabierto si existe, sino el mes actual
-                    const mesAUsar = (window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : obtenerMesActual();
+                    // Cargar siempre el link del contexto visible:
+                    // - mes en consulta (archivado o reabierto), o
+                    // - mes actual
+                    const mesAUsar = window.mesEnConsulta || obtenerMesActual();
                     const configMantenciones = await obtenerDatosMesEspecifico('mantenciones-config', mesAUsar);
                     const carpetaConfig = Array.isArray(configMantenciones) && configMantenciones.length > 0 ? configMantenciones[0] : null;
                     const input = document.getElementById('carpetaGuiasMantenciones');
-                    if (input && carpetaConfig && carpetaConfig.link) {
-                        input.value = carpetaConfig.link;
-                    }
+                    if (!input) return;
+
+                    input.value = (carpetaConfig && carpetaConfig.link) ? carpetaConfig.link : '';
                 }
                 
                 // Cargar link cuando se muestra la pestaña de mantenciones
@@ -32736,6 +32741,11 @@
                             await verificarAvisoCarpetaGuias();
                         }
                     });
+                }
+
+                // Si el módulo ya está visible al iniciar, hidratar inmediatamente el link.
+                if (document.getElementById('mantenciones')?.classList.contains('active')) {
+                    cargarLinkCarpetaGuias();
                 }
                 
                 // Event listeners para módulo de Pagos de Aseo
