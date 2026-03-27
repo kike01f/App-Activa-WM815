@@ -5237,6 +5237,7 @@
                     </div>
                     <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem;">
                         <button type="submit" class="btn btn-primary" id="btnSubmitProveedor">Agregar Proveedor</button>
+                        <button type="button" class="btn btn-secondary" id="btnRepararProveedores" onclick="repararProveedores()">Reparar proveedores</button>
                     </div>
                 </form>
             </div>
@@ -9689,10 +9690,14 @@
                     const docRef = db.collection('comunidad').doc(key);
                     const doc = await docRef.get();
                     if (doc.exists) {
-                        const data = doc.data();
-                        // Asegurar que siempre devolvemos un array
-                        const resultado = data.datos || [];
-                        return Array.isArray(resultado) ? resultado : [];
+                        const data = doc.data() || {};
+                        // Asegurar que siempre devolvemos un array (compatibilidad con estructuras antiguas)
+                        const resultado = data.datos;
+                        if (Array.isArray(resultado)) return resultado;
+                        if (resultado && typeof resultado === 'object') {
+                            return Object.values(resultado).filter(v => v && typeof v === 'object');
+                        }
+                        return [];
                     }
                 } catch (error) {
                     console.error('Error al leer de Firestore:', error);
@@ -9705,7 +9710,11 @@
                 const datos = localStorage.getItem(key);
                 if (datos) {
                     const parsed = JSON.parse(datos);
-                    return Array.isArray(parsed) ? parsed : [];
+                    if (Array.isArray(parsed)) return parsed;
+                    if (parsed && typeof parsed === 'object') {
+                        return Object.values(parsed).filter(v => v && typeof v === 'object');
+                    }
+                    return [];
                 }
             } catch (error) {
                 console.error('Error al leer de LocalStorage:', error);
@@ -17934,20 +17943,7 @@
             const periodo = document.getElementById('proveedorPeriodo').value;
             const ultimaFecha = document.getElementById('proveedorUltimaFecha').value || null;
 
-            const proveedoresFuente = await obtenerDatos('proveedores');
-            let proveedores = Array.isArray(proveedoresFuente) ? [...proveedoresFuente] : [];
-            try {
-                const ls = JSON.parse(localStorage.getItem('proveedores') || '[]');
-                if (Array.isArray(ls) && ls.length > 0) {
-                    const mapa = new Map();
-                    [...proveedores, ...ls].forEach((p) => {
-                        if (!p || !p.nombre) return;
-                        const clave = p.id != null && String(p.id).length > 0 ? `id:${String(p.id)}` : `nombre:${String(p.nombre).toLowerCase()}`;
-                        if (!mapa.has(clave)) mapa.set(clave, p);
-                    });
-                    proveedores = Array.from(mapa.values());
-                }
-            } catch (_) {}
+            const proveedores = await obtenerProveedoresNormalizados();
 
             if (!Array.isArray(proveedores)) {
                 console.error('Error: proveedores no es un array');
@@ -17984,21 +17980,58 @@
                 .replace(/</g, '&lt;');
         }
 
-        async function cargarProveedores() {
+        function normalizarListaProveedores(lista) {
+            if (!Array.isArray(lista)) return [];
+            const mapa = new Map();
+            lista.forEach((p) => {
+                if (!p || !p.nombre) return;
+                const idTexto = p.id != null && String(p.id).length > 0 ? String(p.id) : '';
+                const clave = idTexto ? `id:${idTexto}` : `nombre:${String(p.nombre).toLowerCase()}`;
+                if (mapa.has(clave)) return;
+                mapa.set(clave, {
+                    id: idTexto || generarId(),
+                    nombre: String(p.nombre || '').trim(),
+                    servicios: String(p.servicios || '').trim(),
+                    periodo: p.periodo || 'm3',
+                    ultimaFecha: p.ultimaFecha || null
+                });
+            });
+            return Array.from(mapa.values());
+        }
+
+        async function obtenerProveedoresNormalizados() {
             const proveedoresFuente = await obtenerDatos('proveedores');
             let proveedores = Array.isArray(proveedoresFuente) ? [...proveedoresFuente] : [];
             try {
                 const ls = JSON.parse(localStorage.getItem('proveedores') || '[]');
                 if (Array.isArray(ls) && ls.length > 0) {
-                    const mapa = new Map();
-                    [...proveedores, ...ls].forEach((p) => {
-                        if (!p || !p.nombre) return;
-                        const clave = p.id != null && String(p.id).length > 0 ? `id:${String(p.id)}` : `nombre:${String(p.nombre).toLowerCase()}`;
-                        if (!mapa.has(clave)) mapa.set(clave, p);
-                    });
-                    proveedores = Array.from(mapa.values());
+                    proveedores = [...proveedores, ...ls];
                 }
             } catch (_) {}
+            return normalizarListaProveedores(proveedores);
+        }
+
+        async function repararProveedores() {
+            const confirmado = await confirmarAccion('Se unificarán y normalizarán los proveedores guardados (nube y navegador). ¿Desea continuar?', 'Reparar proveedores');
+            if (!confirmado) return;
+            const btn = document.getElementById('btnRepararProveedores');
+            if (btn) btn.disabled = true;
+            try {
+                const normalizados = await obtenerProveedoresNormalizados();
+                await guardarDatos('proveedores', normalizados);
+                await cargarProveedores();
+                await cargarSelectProveedores();
+                mostrarAlerta(`Reparación completada. ${normalizados.length} proveedor(es) normalizado(s).`, 'Éxito');
+            } catch (error) {
+                console.error('Error al reparar proveedores:', error);
+                mostrarAlerta('No se pudo completar la reparación de proveedores.', 'Error');
+            } finally {
+                if (btn) btn.disabled = false;
+            }
+        }
+
+        async function cargarProveedores() {
+            const proveedores = await obtenerProveedoresNormalizados();
             const tbody = document.getElementById('tbodyProveedores');
             
             if (!tbody) {
@@ -18088,20 +18121,7 @@
         async function eliminarProveedor(id, nombreFallback) {
             const confirmado = await confirmarAccion('¿Está seguro de eliminar este proveedor? Esto no eliminará las mantenciones asociadas.', 'Eliminar Proveedor');
             if (!confirmado) return;
-            const proveedoresFuente = await obtenerDatos('proveedores');
-            let proveedores = Array.isArray(proveedoresFuente) ? [...proveedoresFuente] : [];
-            try {
-                const ls = JSON.parse(localStorage.getItem('proveedores') || '[]');
-                if (Array.isArray(ls) && ls.length > 0) {
-                    const mapa = new Map();
-                    [...proveedores, ...ls].forEach((p) => {
-                        if (!p || !p.nombre) return;
-                        const clave = p.id != null && String(p.id).length > 0 ? `id:${String(p.id)}` : `nombre:${String(p.nombre).toLowerCase()}`;
-                        if (!mapa.has(clave)) mapa.set(clave, p);
-                    });
-                    proveedores = Array.from(mapa.values());
-                }
-            } catch (_) {}
+            const proveedores = await obtenerProveedoresNormalizados();
             if (!Array.isArray(proveedores)) return;
             let filtrados;
             if (id != null && String(id).length > 0) {
@@ -18118,20 +18138,7 @@
         }
 
         async function cargarSelectProveedores() {
-            const proveedoresFuente = await obtenerDatos('proveedores');
-            let proveedores = Array.isArray(proveedoresFuente) ? [...proveedoresFuente] : [];
-            try {
-                const ls = JSON.parse(localStorage.getItem('proveedores') || '[]');
-                if (Array.isArray(ls) && ls.length > 0) {
-                    const mapa = new Map();
-                    [...proveedores, ...ls].forEach((p) => {
-                        if (!p || !p.nombre) return;
-                        const clave = p.id != null && String(p.id).length > 0 ? `id:${String(p.id)}` : `nombre:${String(p.nombre).toLowerCase()}`;
-                        if (!mapa.has(clave)) mapa.set(clave, p);
-                    });
-                    proveedores = Array.from(mapa.values());
-                }
-            } catch (_) {}
+            const proveedores = await obtenerProveedoresNormalizados();
             const select = document.getElementById('mantencionProveedor');
             
             if (!select) return;
