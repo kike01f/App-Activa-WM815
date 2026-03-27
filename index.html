@@ -7318,6 +7318,12 @@
                         if (typeof cargarMantenciones === 'function') cargarMantenciones();
                         if (typeof cargarVisitasExtraordinarias === 'function') cargarVisitasExtraordinarias();
                         if (typeof cargarProveedores === 'function') cargarProveedores();
+                        if (typeof window.cargarLinkCarpetaGuiasMantenciones === 'function') {
+                            window.cargarLinkCarpetaGuiasMantenciones();
+                        }
+                        if (typeof verificarAvisoCarpetaGuias === 'function') {
+                            verificarAvisoCarpetaGuias();
+                        }
                         // Restaurar estado de proveedores (oculto por defecto) después de cargar
                         setTimeout(() => {
                             if (typeof restaurarEstadoProveedores === 'function') {
@@ -32719,7 +32725,7 @@
                 }
                 
                 // Cargar link de carpeta de guías cuando se muestra el módulo de mantenciones
-                async function cargarLinkCarpetaGuias() {
+                window.cargarLinkCarpetaGuiasMantenciones = async function() {
                     // Cargar siempre el link del contexto visible:
                     // - mes en consulta (archivado o reabierto), o
                     // - mes actual
@@ -32730,13 +32736,13 @@
                     if (!input) return;
 
                     input.value = (carpetaConfig && carpetaConfig.link) ? carpetaConfig.link : '';
-                }
+                };
                 
                 // Cargar link cuando se muestra la pestaña de mantenciones
                 const tabMantenciones = document.querySelector('.tab-button[data-tab="mantenciones"]');
                 if (tabMantenciones) {
                     tabMantenciones.addEventListener('click', async function() {
-                        await cargarLinkCarpetaGuias();
+                        await window.cargarLinkCarpetaGuiasMantenciones();
                         if (typeof verificarAvisoCarpetaGuias === 'function') {
                             await verificarAvisoCarpetaGuias();
                         }
@@ -32745,7 +32751,7 @@
 
                 // Si el módulo ya está visible al iniciar, hidratar inmediatamente el link.
                 if (document.getElementById('mantenciones')?.classList.contains('active')) {
-                    cargarLinkCarpetaGuias();
+                    window.cargarLinkCarpetaGuiasMantenciones();
                 }
                 
                 // Event listeners para módulo de Pagos de Aseo
