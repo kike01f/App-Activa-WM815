@@ -4449,6 +4449,7 @@
                                     <option value="sin-cobro">Sin Cobro</option>
                                     <option value="cambio-falla">Cambio por Falla (Sin Cobro)</option>
                                     <option value="tag">TAG Vehicular ($5.000)</option>
+                                    <option value="tag-provisional">TAG Provisional (Sin Costo)</option>
                                     <option value="tarjeta">Tarjeta de Acceso ($10.000)</option>
                                 </select>
                             </div>
@@ -11519,6 +11520,29 @@
             return items.length > 1;
         }
 
+        function tarjetaVentaTieneTagProvisional(tarjeta) {
+            const items = normalizarTarjetaItems(tarjeta);
+            return items.some(it => String((it && it.tipo) || '').toUpperCase().indexOf('TAG PROVISIONAL') !== -1);
+        }
+
+        function esItemTagProvisionalTarjeta(item) {
+            const tipo = String((item && item.tipo) || '').trim().toUpperCase();
+            return tipo.indexOf('TAG PROVISIONAL') !== -1;
+        }
+
+        function filtrarTarjetasParaReporteSinProvisionales(tarjetas) {
+            if (!Array.isArray(tarjetas)) return [];
+            const salida = [];
+            tarjetas.forEach(t => {
+                if (!t) return;
+                const items = normalizarTarjetaItems(t).filter(it => !esItemTagProvisionalTarjeta(it));
+                if (!items.length) return; // Si solo tenía TAG provisional, no aparece en reporte
+                const monto = items.reduce((s, i) => s + (parseFloat(i && i.monto) || 0), 0);
+                salida.push({ ...t, items, monto });
+            });
+            return salida;
+        }
+
         /** Genera el HTML del comprobante de venta de Tarjeta de Acceso / TAG (estilo similar a apertura). Incluye aviso de cargo en gastos comunes. Soporta múltiples ítems. El bloque de procedimiento de TAG solo se incluye si aplica (TAG y/o varios productos). */
         function generarComprobanteTarjetaHtml(tarjeta, nombreComunidad) {
             const comunidad = nombreComunidad || 'Comunidad';
@@ -11527,11 +11551,18 @@
             const fechaStr = tarjeta.fecha ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(tarjeta.fecha) : tarjeta.fecha) : '-';
             const items = normalizarTarjetaItems(tarjeta);
             const incluirProcedimientoTag = tarjetaVentaIncluyeProcedimientoTag(tarjeta);
-            const tituloComprobante = incluirProcedimientoTag ? 'Venta de Tarjeta de Acceso / TAG' : 'Venta de Tarjeta de Acceso';
-            const tituloDoc = incluirProcedimientoTag ? 'Comprobante - Venta Tarjeta / TAG' : 'Comprobante - Venta Tarjeta de Acceso';
-            const parrafoIntro = incluirProcedimientoTag
+            const esTagProvisional = tarjetaVentaTieneTagProvisional(tarjeta);
+            const tituloComprobante = esTagProvisional
+                ? 'Asignación de TAG Provisional'
+                : (incluirProcedimientoTag ? 'Venta de Tarjeta de Acceso / TAG' : 'Venta de Tarjeta de Acceso');
+            const tituloDoc = esTagProvisional
+                ? 'Comprobante - TAG Provisional'
+                : (incluirProcedimientoTag ? 'Comprobante - Venta Tarjeta / TAG' : 'Comprobante - Venta Tarjeta de Acceso');
+            const parrafoIntro = esTagProvisional
+                ? 'Le hacemos llegar el comprobante de la <strong>asignación de TAG provisional</strong> registrada a su nombre. Este documento deja constancia de entrega y condiciones de uso.'
+                : (incluirProcedimientoTag
                 ? 'Le hacemos llegar el comprobante de la <strong>venta de tarjeta(s) / TAG</strong> registrada a su nombre. Este documento queda como respaldo para la administración y para su propio registro.'
-                : 'Le hacemos llegar el comprobante de la <strong>venta de tarjeta(s) de acceso</strong> registrada a su nombre. Este documento queda como respaldo para la administración y para su propio registro.';
+                : 'Le hacemos llegar el comprobante de la <strong>venta de tarjeta(s) de acceso</strong> registrada a su nombre. Este documento queda como respaldo para la administración y para su propio registro.');
             const bloqueProcedimientoTag = incluirProcedimientoTag ? `
           <tr>
             <td class="content-padding" style="padding: 0 28px 10px 28px;">
@@ -11634,7 +11665,9 @@
                 <tr>
                   <td style="padding: 12px 14px;">
                     <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: 700; color: #795548; text-transform: uppercase; letter-spacing: 0.04em;">Información importante</p>
-                    <p style="margin: 0; font-size: 14px; color: #333333; line-height: 1.5;">${tieneCobro ? 'Los cargos de esta venta serán cargados en los <strong>gastos comunes</strong> del departamento.' : 'Esta venta no genera cargo (registro sin cobro).'}</p>
+                    <p style="margin: 0; font-size: 14px; color: #333333; line-height: 1.5;">${esTagProvisional
+                        ? 'Este <strong>TAG es provisional</strong> y es <strong>pertenencia de la administración</strong>. En caso de daño, pérdida o extravío se aplicará una <strong>garantía de $8.000</strong> en el gasto común.'
+                        : (tieneCobro ? 'Los cargos de esta venta serán cargados en los <strong>gastos comunes</strong> del departamento.' : 'Esta venta no genera cargo (registro sin cobro).')}</p>
                   </td>
                 </tr>
               </table>
@@ -11666,9 +11699,12 @@
                 
                 const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
                 const htmlComprobante = generarComprobanteTarjetaHtml(tarjeta, nombreComunidad);
-                const asuntoTarjeta = tarjetaVentaIncluyeProcedimientoTag(tarjeta)
-                    ? `Comprobante de Venta de Tarjeta/TAG - ${nombreComunidad}`
-                    : `Comprobante de Venta de Tarjeta de Acceso - ${nombreComunidad}`;
+                const esTagProvisional = tarjetaVentaTieneTagProvisional(tarjeta);
+                const asuntoTarjeta = esTagProvisional
+                    ? `Comprobante de Asignación de TAG Provisional - ${nombreComunidad}`
+                    : (tarjetaVentaIncluyeProcedimientoTag(tarjeta)
+                        ? `Comprobante de Venta de Tarjeta/TAG - ${nombreComunidad}`
+                        : `Comprobante de Venta de Tarjeta de Acceso - ${nombreComunidad}`);
                 const residenteInfo = await obtenerCorreoResidente(tarjeta.departamento, tarjeta.nombre);
                 
                 if (!residenteInfo || !residenteInfo.correo) {
@@ -11707,7 +11743,9 @@
             }
             const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
             const html = generarComprobanteTarjetaHtml(tarjeta, nombreComunidad);
-            const tituloVentana = tarjetaVentaIncluyeProcedimientoTag(tarjeta) ? 'Comprobante de Tarjeta/TAG' : 'Comprobante de Tarjeta de Acceso';
+            const tituloVentana = tarjetaVentaTieneTagProvisional(tarjeta)
+                ? 'Comprobante de TAG Provisional'
+                : (tarjetaVentaIncluyeProcedimientoTag(tarjeta) ? 'Comprobante de Tarjeta/TAG' : 'Comprobante de Tarjeta de Acceso');
             abrirHTMLEnNuevaVentana(html, tituloVentana);
         }
 
@@ -11775,6 +11813,7 @@
 
         function precioUnitarioTipo(tipo) {
             if (tipo === 'tag') return 5000;
+            if (tipo === 'tag-provisional') return 0;
             if (tipo === 'tarjeta') return 10000;
             if (tipo === 'cambio-falla') return 0; // Cambio por falla sin cobro
             return 0;
@@ -11782,6 +11821,7 @@
 
         function tipoTextoFromValue(tipo) {
             if (tipo === 'tag') return 'TAG Vehicular';
+            if (tipo === 'tag-provisional') return 'TAG Provisional';
             if (tipo === 'tarjeta') return 'Tarjeta de Acceso';
             if (tipo === 'cambio-falla') return 'Cambio por Falla';
             return 'Sin Cobro';
@@ -24023,6 +24063,7 @@
                 if (datosReporteOverride && Array.isArray(datosReporteOverride.tarjetas)) {
                     tarjetas = datosReporteOverride.tarjetas;
                 }
+                tarjetas = filtrarTarjetasParaReporteSinProvisionales(tarjetas);
                 const espacios = resultados[3] || [];
                 const multas = resultados[4] || [];
                 const morosos = resultados[5] || [];
@@ -24098,6 +24139,7 @@
                     const prevMudanzas = datosPrev[0] || [];
                     const prevAperturas = datosPrev[1] || [];
                     const prevTarjetas = datosPrev[2] || [];
+                    const prevTarjetasReporte = filtrarTarjetasParaReporteSinProvisionales(prevTarjetas);
                     const prevEspacios = datosPrev[3] || [];
                     const prevMultas = datosPrev[4] || [];
                     const prevMorosos = datosPrev[5] || [];
@@ -24107,8 +24149,8 @@
                     prevTotalAperturas = Array.isArray(prevAperturas) ? prevAperturas.length : 0;
                     prevAperturasConCobro = Array.isArray(prevAperturas) ? prevAperturas.filter(a => a && a.aplicaCobro === 'si').length : 0;
                     prevIngresosAperturas = Array.isArray(prevAperturas) ? prevAperturas.filter(a => a && a.aplicaCobro === 'si').reduce((s, a) => s + (parseFloat(a.monto) || 0), 0) : 0;
-                    prevTotalTarjetas = Array.isArray(prevTarjetas) ? prevTarjetas.length : 0;
-                    prevIngresosTarjetas = Array.isArray(prevTarjetas) ? prevTarjetas.reduce((s, t) => s + (parseFloat(t && t.monto) || 0), 0) : 0;
+                    prevTotalTarjetas = Array.isArray(prevTarjetasReporte) ? prevTarjetasReporte.length : 0;
+                    prevIngresosTarjetas = Array.isArray(prevTarjetasReporte) ? prevTarjetasReporte.reduce((s, t) => s + (parseFloat(t && t.monto) || 0), 0) : 0;
                     prevTotalEspacios = Array.isArray(prevEspacios) ? prevEspacios.length : 0;
                     const prevIngresosEspaciosAseo = Array.isArray(prevEspacios) ? prevEspacios.filter(e => e && e.aplicaAseo === 'si').reduce((s, e) => s + (parseFloat(e.monto) || 0), 0) : 0;
                     const prevIngresosEspaciosUso = Array.isArray(prevEspacios) ? prevEspacios.filter(e => e && e.aplicaCobroEspacio === 'si').reduce((s, e) => s + (parseFloat(e.montoCobroEspacio) || 0), 0) : 0;
@@ -25968,7 +26010,8 @@
             datos.push([]);
             datos.push(['Fecha', 'Residente', 'Depto', 'Tipo', 'Cantidad', 'Monto']);
             
-            const tarjetasOrdenadas = [...tarjetas].sort((a, b) => {
+            const tarjetasLimpias = filtrarTarjetasParaReporteSinProvisionales(tarjetas);
+            const tarjetasOrdenadas = [...tarjetasLimpias].sort((a, b) => {
                 const fechaA = a && a.fecha ? new Date(a.fecha) : new Date(0);
                 const fechaB = b && b.fecha ? new Date(b.fecha) : new Date(0);
                 return fechaA - fechaB;
