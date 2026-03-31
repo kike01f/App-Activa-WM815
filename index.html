@@ -4323,6 +4323,11 @@
                     <span style="display: inline-flex; align-items: center; width: 1.75rem; height: 1.75rem;"></span> Aperturas de Puerta
                 </h2>
                 <p style="color: var(--gray-600); font-size: 0.875rem; margin: 0.5rem 0 0 0;">Registro de aperturas de puerta para residentes</p>
+                <div style="margin-top: 0.75rem;">
+                    <button type="button" class="btn btn-secondary btn-sm" onclick="recuperarRegistrosAperturas()" style="padding: 0.45rem 0.75rem; font-size: 0.8rem;" title="Buscar y restaurar aperturas desde datos activos y archivados">
+                        ♻️ Recuperar registros de aperturas
+                    </button>
+                </div>
             </div>
             <div class="form-section" style="margin-bottom: 1rem;">
                 <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700;">Registrar Apertura de Puerta</h3>
@@ -10226,18 +10231,92 @@
             return [];
         }
 
+        function respaldarSnapshotLocal(docKey, key, mes, datosActuales) {
+            try {
+                if (!Array.isArray(datosActuales) || datosActuales.length === 0) return;
+                const backupKey = `backup_${docKey}`;
+                const raw = localStorage.getItem(backupKey);
+                let historial = [];
+                if (raw) {
+                    const parsed = JSON.parse(raw);
+                    historial = Array.isArray(parsed) ? parsed : [];
+                }
+                const ultimo = historial.length > 0 ? historial[0] : null;
+                const ultimoPayload = ultimo && Array.isArray(ultimo.datos) ? JSON.stringify(ultimo.datos) : null;
+                const actualPayload = JSON.stringify(datosActuales);
+                if (ultimoPayload === actualPayload) return;
+                historial.unshift({
+                    fecha: new Date().toISOString(),
+                    modulo: key,
+                    mes: mes,
+                    total: datosActuales.length,
+                    datos: datosActuales
+                });
+                if (historial.length > 25) historial = historial.slice(0, 25);
+                localStorage.setItem(backupKey, JSON.stringify(historial));
+                // Índice liviano para poder auditar y recuperar por módulo/mes rápidamente.
+                const idxKey = 'backup_modulos_index';
+                const idxRaw = localStorage.getItem(idxKey);
+                let idx = [];
+                if (idxRaw) {
+                    const idxParsed = JSON.parse(idxRaw);
+                    idx = Array.isArray(idxParsed) ? idxParsed : [];
+                }
+                const token = `${key}_${mes}`;
+                if (!idx.includes(token)) {
+                    idx.unshift(token);
+                    if (idx.length > 200) idx = idx.slice(0, 200);
+                    localStorage.setItem(idxKey, JSON.stringify(idx));
+                }
+            } catch (error) {
+                console.warn('No se pudo guardar snapshot de respaldo local:', error);
+            }
+        }
+
+        async function obtenerDatosActivosDirectos(key, mesAnio) {
+            const docKey = `${key}_${mesAnio}`;
+            // Preferir Firestore
+            if (firebaseInitialized && db) {
+                try {
+                    const doc = await db.collection('comunidad').doc(docKey).get();
+                    if (doc.exists) {
+                        const data = doc.data() || {};
+                        const arr = Array.isArray(data.datos) ? data.datos : [];
+                        if (arr.length > 0) return arr;
+                    }
+                } catch (error) {
+                    console.warn('No se pudo leer snapshot activo de Firestore para respaldo:', error);
+                }
+            }
+            // Fallback local
+            try {
+                const raw = localStorage.getItem(docKey);
+                if (!raw) return [];
+                const parsed = JSON.parse(raw);
+                return Array.isArray(parsed) ? parsed : [];
+            } catch (error) {
+                console.warn('No se pudo leer snapshot activo local para respaldo:', error);
+                return [];
+            }
+        }
+
         // Función para guardar datos del mes actual o del mes reabierto
         async function guardarDatosMes(key, datos) {
             const mesActual = obtenerMesActual();
             // Si hay un mes reabierto, guardar en ese mes; si no, guardar en el mes actual
             const mesAGuardar = (window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : mesActual;
             const docKey = `${key}_${mesAGuardar}`;
+            const datosNormalizados = Array.isArray(datos) ? datos : [];
+
+            // Respaldo preventivo global (todos los módulos) antes de sobrescribir.
+            const snapshotPrevio = await obtenerDatosActivosDirectos(key, mesAGuardar);
+            respaldarSnapshotLocal(docKey, key, mesAGuardar, snapshotPrevio);
             
             // Intentar guardar en Firestore
             if (firebaseInitialized && db) {
                 try {
                     await db.collection('comunidad').doc(docKey).set({
-                        datos: datos,
+                        datos: datosNormalizados,
                         mes: mesAGuardar,
                         modulo: key,
                         actualizado: firebase.firestore.FieldValue.serverTimestamp(),
@@ -10250,7 +10329,7 @@
             }
 
             // Respaldo: LocalStorage
-            localStorage.setItem(docKey, JSON.stringify(datos));
+            localStorage.setItem(docKey, JSON.stringify(datosNormalizados));
 
             // Actualizar Panel de Control en tiempo real (sin bloquear el guardado)
             if (typeof window.cargarEstadisticasDashboard === 'function') {
@@ -10259,6 +10338,29 @@
                 }).catch(function() {});
             }
         }
+
+        window.restaurarUltimoBackupModulo = async function(modulo, mesAnio) {
+            const mes = mesAnio || window.mesEnConsulta || obtenerMesActual();
+            const docKey = `${modulo}_${mes}`;
+            const backupKey = `backup_${docKey}`;
+            try {
+                const raw = localStorage.getItem(backupKey);
+                const historial = raw ? JSON.parse(raw) : [];
+                if (!Array.isArray(historial) || historial.length === 0) {
+                    mostrarAlerta(`No hay respaldos locales para ${modulo} (${mes}).`, 'Sin Respaldo');
+                    return false;
+                }
+                const ultimo = historial[0];
+                const datos = Array.isArray(ultimo.datos) ? ultimo.datos : [];
+                await guardarDatosMes(modulo, datos);
+                mostrarAlerta(`Se restauró el último respaldo de ${modulo} (${mes}) con ${datos.length} registros.`, 'Respaldo Restaurado');
+                return true;
+            } catch (error) {
+                console.error('Error al restaurar backup del módulo:', error);
+                mostrarAlerta('No se pudo restaurar el respaldo del módulo.', 'Error');
+                return false;
+            }
+        };
 
         // Función para guardar el estado de cierre del pedido
         async function guardarEstadoCierrePedido(modulo, mes, cerrado) {
@@ -10317,85 +10419,23 @@
             return false;
         }
 
-        // Función para verificar y archivar datos del mes anterior
+        // Función de verificación mensual (SIN archivado automático).
+        // Regla de negocio: los datos solo se archivan mediante cierre manual del mes
+        // desde Panel de Control (botón "✅ Cerrar Mes").
         async function verificarArchivado() {
             const mesActual = obtenerMesActual();
-            let ultimoMes = null;
-            
-            // Obtener último mes procesado desde Firestore o LocalStorage
+            // Mantener metadata de mes procesado sin tocar registros de módulos.
             if (firebaseInitialized && db) {
                 try {
-                    const doc = await db.collection('comunidad').doc('config').get();
-                    if (doc.exists) {
-                        ultimoMes = doc.data().ultimoMesProcesado;
-                    }
+                    await db.collection('comunidad').doc('config').set({
+                        ultimoMesProcesado: mesActual,
+                        actualizado: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
                 } catch (error) {
-                    console.error('Error al leer config de Firestore:', error);
+                    console.error('Error al guardar config de mes procesado:', error);
                 }
             }
-            
-            if (!ultimoMes) {
-                ultimoMes = localStorage.getItem('ultimoMesProcesado');
-            }
-            
-            if (ultimoMes !== mesActual) {
-                // Archivar datos del mes anterior si existe
-                if (ultimoMes) {
-                    const modulos = ['mudanzas', 'aperturas', 'tarjetas', 'espacios', 'multas', 'morosos', 'caja', 'mantenciones', 'visitas-extraordinarias', 'pagosAseo', 'nomina', 'nomina-reemplazos', 'insumos'];
-                    
-                    for (const modulo of modulos) {
-                        const docKey = `${modulo}_${ultimoMes}`;
-                        const archivoKey = `${modulo}_archivo_${ultimoMes}`;
-                        
-                        // Obtener datos desde Firestore o LocalStorage
-                        let datos = null;
-                        if (firebaseInitialized && db) {
-                            try {
-                                const doc = await db.collection('comunidad').doc(docKey).get();
-                                if (doc.exists) {
-                                    const data = doc.data();
-                                    datos = Array.isArray(data.datos) ? data.datos : [];
-                                    // Guardar como archivo en Firestore
-                                    if (datos.length > 0) {
-                                        await db.collection('comunidad').doc(archivoKey).set({
-                                            datos: datos,
-                                            mes: ultimoMes,
-                                            modulo: modulo,
-                                            archivado: true,
-                                            archivadoEn: firebase.firestore.FieldValue.serverTimestamp()
-                                        });
-                                        // Eliminar documento actual
-                                        await db.collection('comunidad').doc(docKey).delete();
-                                    }
-                                }
-                            } catch (error) {
-                                console.error(`Error al archivar ${modulo} en Firestore:`, error);
-                                // Continuar con LocalStorage si hay error
-                            }
-                        }
-                        
-                        // Respaldo: LocalStorage
-                        const datosLS = localStorage.getItem(docKey);
-                        if (datosLS) {
-                            localStorage.setItem(archivoKey, datosLS);
-                            localStorage.removeItem(docKey);
-                        }
-                    }
-                }
-                
-                // Guardar mes actual procesado
-                if (firebaseInitialized && db) {
-                    try {
-                        await db.collection('comunidad').doc('config').set({
-                            ultimoMesProcesado: mesActual,
-                            actualizado: firebase.firestore.FieldValue.serverTimestamp()
-                        }, { merge: true });
-                    } catch (error) {
-                        console.error('Error al guardar config en Firestore:', error);
-                    }
-                }
-                localStorage.setItem('ultimoMesProcesado', mesActual);
-            }
+            localStorage.setItem('ultimoMesProcesado', mesActual);
         }
 
         // Variable global para rastrear edición
@@ -10817,7 +10857,9 @@
                 aplicaCobro: document.getElementById('aperturaCobro').value,
                 monto: document.getElementById('aperturaCobro').value === 'si' ? montoApertura : 0,
                 link: document.getElementById('aperturaLink').value || '',
-                mes: obtenerMesActual()
+                mes: (fechaSeleccionada && fechaSeleccionada.length >= 7)
+                    ? fechaSeleccionada.slice(0, 7)
+                    : obtenerMesActual()
             };
 
             const aperturas = await obtenerDatosMes('aperturas');
@@ -10872,9 +10914,181 @@
             await cargarAperturas();
         }
 
+        async function rescatarAperturasArchivadasAMes(mesObjetivo) {
+            if (!mesObjetivo) return { recuperadas: 0 };
+            const activas = await obtenerDatosMesEspecifico('aperturas', mesObjetivo);
+            const porId = new Map((activas || []).filter(x => x && x.id).map(x => [x.id, x]));
+            let recuperadas = 0;
+            let actualizadas = 0;
+
+            function agregarDesdeLista(lista, mesClaveDoc) {
+                if (!Array.isArray(lista)) return;
+                lista.forEach(reg => {
+                    if (!reg || !reg.id) return;
+                    const mesFecha = reg.fecha ? String(reg.fecha).slice(0, 7) : '';
+                    const mesRegistro = reg.mes || mesFecha || mesClaveDoc || '';
+                    if (mesRegistro !== mesObjetivo) return;
+                    const normalizado = { ...reg, mes: mesFecha || mesObjetivo };
+                    if (!porId.has(reg.id)) {
+                        porId.set(reg.id, normalizado);
+                        recuperadas++;
+                    } else {
+                        // Preferir versión con fecha/hora/nombre más completa frente a la existente.
+                        const existente = porId.get(reg.id) || {};
+                        const scoreExistente = (existente.fecha ? 1 : 0) + (existente.hora ? 1 : 0) + (existente.nombre ? 1 : 0) + (existente.departamento ? 1 : 0);
+                        const scoreNueva = (normalizado.fecha ? 1 : 0) + (normalizado.hora ? 1 : 0) + (normalizado.nombre ? 1 : 0) + (normalizado.departamento ? 1 : 0);
+                        if (scoreNueva > scoreExistente) {
+                            porId.set(reg.id, { ...existente, ...normalizado });
+                            actualizadas++;
+                        }
+                    }
+                });
+            }
+
+            // Buscar en LocalStorage archivado
+            for (let i = 0; i < localStorage.length; i++) {
+                const key = localStorage.key(i) || '';
+                const esAperturas = key.indexOf('aperturas_') === 0 || key.indexOf('aperturas_archivo_') === 0;
+                if (!esAperturas) continue;
+                const mesClaveDoc = key.indexOf('aperturas_archivo_') === 0
+                    ? key.replace('aperturas_archivo_', '')
+                    : key.replace('aperturas_', '');
+                try {
+                    const raw = localStorage.getItem(key);
+                    if (!raw) continue;
+                    agregarDesdeLista(JSON.parse(raw), mesClaveDoc);
+                } catch (e) {}
+            }
+
+            // Buscar en Firestore archivado
+            if (firebaseInitialized && db) {
+                try {
+                    const snap = await db.collection('comunidad').get();
+                    snap.forEach(doc => {
+                        const key = doc.id || '';
+                        const esAperturas = key.indexOf('aperturas_') === 0 || key.indexOf('aperturas_archivo_') === 0;
+                        if (!esAperturas) return;
+                        const mesClaveDoc = key.indexOf('aperturas_archivo_') === 0
+                            ? key.replace('aperturas_archivo_', '')
+                            : key.replace('aperturas_', '');
+                        const data = doc.data() || {};
+                        agregarDesdeLista(data.datos, mesClaveDoc);
+                    });
+                } catch (e) {
+                    console.warn('Rescate de aperturas archivadas (Firestore) no disponible:', e);
+                }
+            }
+
+            if (recuperadas > 0 || actualizadas > 0) {
+                const fusionadas = Array.from(porId.values());
+                await guardarDatosMes('aperturas', fusionadas);
+            }
+
+            return { recuperadas, actualizadas };
+        }
+
+        window.recuperarRegistrosAperturas = async function() {
+            try {
+                const mesObjetivo = window.mesEnConsulta || obtenerMesActual();
+                const nombreMes = obtenerNombreMes(mesObjetivo);
+                mostrarAlerta(`Buscando aperturas en respaldo para ${nombreMes}...`, 'Recuperando');
+                const resultado = await rescatarAperturasArchivadasAMes(mesObjetivo);
+                await cargarAperturas();
+                if (resultado.recuperadas > 0 || resultado.actualizadas > 0) {
+                    mostrarAlerta(
+                        `Recuperación completada (${nombreMes}): ${resultado.recuperadas} recuperadas, ${resultado.actualizadas} actualizadas.`,
+                        'Registros Recuperados'
+                    );
+                } else {
+                    mostrarAlerta(`No se encontraron aperturas adicionales para recuperar en ${nombreMes}.`, 'Sin Cambios');
+                }
+            } catch (error) {
+                console.error('Error al recuperar registros de aperturas:', error);
+                mostrarAlerta('No se pudieron recuperar las aperturas. Revise conexión/permisos e intente nuevamente.', 'Error');
+            }
+        };
+
         async function cargarAperturas() {
-            const aperturas = await obtenerDatosMes('aperturas');
+            let aperturas = await obtenerDatosMes('aperturas');
             const tbody = document.getElementById('tbodyAperturas');
+
+            // Normalizar mes usando la fecha real para evitar desalineaciones de periodo.
+            let requiereCorreccionMes = false;
+            aperturas = (aperturas || []).map(a => {
+                const mesPorFecha = a && a.fecha ? String(a.fecha).slice(0, 7) : '';
+                if (mesPorFecha && a && a.mes !== mesPorFecha) {
+                    requiereCorreccionMes = true;
+                    return { ...a, mes: mesPorFecha };
+                }
+                return a;
+            });
+            if (requiereCorreccionMes) {
+                await guardarDatosMes('aperturas', aperturas);
+            }
+
+            // Recuperar en el mes actual registros que hayan quedado archivados por error.
+            if (!window.mesEnConsulta) {
+                const mesActual = obtenerMesActual();
+                if (window._rescateAperturasEjecutadoMes !== mesActual) {
+                    const resultadoRescate = await rescatarAperturasArchivadasAMes(mesActual);
+                    window._rescateAperturasEjecutadoMes = mesActual;
+                    if (resultadoRescate.recuperadas > 0 || resultadoRescate.actualizadas > 0) {
+                        aperturas = await obtenerDatosMes('aperturas');
+                        mostrarAlerta(`Se recuperaron ${resultadoRescate.recuperadas} aperturas y se actualizaron ${resultadoRescate.actualizadas}.`, 'Registros Recuperados');
+                    }
+                }
+            }
+
+            // Si estamos consultando un mes específico, rescatar registros por fecha aunque
+            // hayan quedado guardados en otra clave mensual por una carga histórica.
+            if (window.mesEnConsulta) {
+                const mesObjetivo = window.mesEnConsulta;
+                const porId = new Map((aperturas || []).map(a => [a.id, a]));
+
+                async function mezclarDesdeLista(lista) {
+                    if (!Array.isArray(lista)) return;
+                    lista.forEach(reg => {
+                        if (!reg || !reg.id || !reg.fecha) return;
+                        const mesFecha = String(reg.fecha).slice(0, 7);
+                        if (mesFecha === mesObjetivo && !porId.has(reg.id)) {
+                            porId.set(reg.id, reg);
+                        }
+                    });
+                }
+
+                // 1) LocalStorage: revisar todas las claves de aperturas (activas y archivadas)
+                for (let i = 0; i < localStorage.length; i++) {
+                    const k = localStorage.key(i) || '';
+                    const esClaveAperturas = k.indexOf('aperturas_') === 0 || k.indexOf('aperturas_archivo_') === 0;
+                    if (!esClaveAperturas) continue;
+                    try {
+                        const raw = localStorage.getItem(k);
+                        if (!raw) continue;
+                        const parsed = JSON.parse(raw);
+                        await mezclarDesdeLista(parsed);
+                    } catch (e) {
+                        // Continuar con otras claves si una está corrupta
+                    }
+                }
+
+                // 2) Firestore: respaldo adicional para no perder registros históricos
+                if (firebaseInitialized && db) {
+                    try {
+                        const snap = await db.collection('comunidad').get();
+                        for (const doc of snap.docs) {
+                            const id = doc.id || '';
+                            const esClaveAperturas = id.indexOf('aperturas_') === 0 || id.indexOf('aperturas_archivo_') === 0;
+                            if (!esClaveAperturas) continue;
+                            const data = doc.data() || {};
+                            await mezclarDesdeLista(data.datos);
+                        }
+                    } catch (e) {
+                        console.warn('No se pudo completar rescate histórico de aperturas desde Firestore:', e);
+                    }
+                }
+
+                aperturas = Array.from(porId.values());
+            }
             
             if (aperturas.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><p>No hay registros de aperturas</p></td></tr>';
@@ -22207,6 +22421,8 @@
         window.mesEnConsulta = null;
         // Variable para indicar si el mes en consulta es reabierto (editable) o archivado (solo lectura)
         window.mesReabierto = false;
+        // Seguridad: el cierre/archivado mensual solo puede ejecutarse desde la acción manual del botón.
+        window.cierreMesManualSolicitado = false;
 
         // Función para eliminar el mes seleccionado
         window.eliminarMesSeleccionado = async function() {
@@ -26071,6 +26287,10 @@
         
         // Función para cerrar mes y generar reporte PDF
         window.cerrarMesYGenerarReporte = async function() {
+            if (!window.cierreMesManualSolicitado) {
+                mostrarAlerta('El cierre de mes solo puede ejecutarse manualmente desde el botón del Panel de Control.', 'Acción no permitida');
+                return;
+            }
             const mesActual = obtenerMesActual();
             const nombreMes = obtenerNombreMes(mesActual);
             
@@ -32011,10 +32231,13 @@
                     btnCerrarMes.addEventListener('click', async function() {
                         if (typeof window.cerrarMesYGenerarReporte === 'function') {
                             try {
+                                window.cierreMesManualSolicitado = true;
                                 await window.cerrarMesYGenerarReporte();
                             } catch (error) {
                                 console.error('Error al cerrar mes:', error);
                                 mostrarAlerta('Ocurrió un error al cerrar el mes. Por favor, intente nuevamente.', 'Error');
+                            } finally {
+                                window.cierreMesManualSolicitado = false;
                             }
                         }
                     });
