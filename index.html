@@ -11550,8 +11550,8 @@
             const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             const fechaStr = tarjeta.fecha ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(tarjeta.fecha) : tarjeta.fecha) : '-';
             const items = normalizarTarjetaItems(tarjeta);
-            const incluirProcedimientoTag = tarjetaVentaIncluyeProcedimientoTag(tarjeta);
             const esTagProvisional = tarjetaVentaTieneTagProvisional(tarjeta);
+            const incluirProcedimientoTag = !esTagProvisional && tarjetaVentaIncluyeProcedimientoTag(tarjeta);
             const tituloComprobante = esTagProvisional
                 ? 'Asignación de TAG Provisional'
                 : (incluirProcedimientoTag ? 'Venta de Tarjeta de Acceso / TAG' : 'Venta de Tarjeta de Acceso');
@@ -11666,7 +11666,7 @@
                   <td style="padding: 12px 14px;">
                     <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: 700; color: #795548; text-transform: uppercase; letter-spacing: 0.04em;">Información importante</p>
                     <p style="margin: 0; font-size: 14px; color: #333333; line-height: 1.5;">${esTagProvisional
-                        ? 'Este <strong>TAG es provisional</strong> y es <strong>pertenencia de la administración</strong>. En caso de daño, pérdida o extravío se aplicará una <strong>garantía de $8.000</strong> en el gasto común.'
+                        ? 'Este <strong>TAG es de carácter provisional</strong> y <strong>pertenece a la administración</strong>. En caso de daño, pérdida o extravío, se aplicará un <strong>cargo de $8.000</strong> en el gasto común correspondiente. El dispositivo debe ser devuelto en las mismas condiciones en que fue entregado.'
                         : (tieneCobro ? 'Los cargos de esta venta serán cargados en los <strong>gastos comunes</strong> del departamento.' : 'Esta venta no genera cargo (registro sin cobro).')}</p>
                   </td>
                 </tr>
