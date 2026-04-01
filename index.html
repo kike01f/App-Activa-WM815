@@ -13454,6 +13454,34 @@
                 return null;
             }
         }
+
+        /** Convierte un .xlsx (ArrayBuffer de ExcelJS) al formato de adjunto que usa `enviarCorreo`. */
+        function adjuntoXlsxBufferComoMail(buffer, nombreArchivo) {
+            try {
+                if (!buffer || !nombreArchivo) return null;
+                var bytes = new Uint8Array(buffer);
+                var chunk = 0x8000;
+                var binary = '';
+                for (var i = 0; i < bytes.length; i += chunk) {
+                    binary += String.fromCharCode.apply(null, bytes.subarray(i, Math.min(i + chunk, bytes.length)));
+                }
+                var b64 = btoa(binary);
+                if (!b64 || !/^[A-Za-z0-9+/=]+$/.test(b64)) {
+                    console.error('adjuntoXlsxBufferComoMail: base64 inválido');
+                    return null;
+                }
+                var fn = String(nombreArchivo).endsWith('.xlsx') ? nombreArchivo : nombreArchivo + '.xlsx';
+                return {
+                    filename: fn,
+                    content: b64,
+                    contentType: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+                    encoding: 'base64'
+                };
+            } catch (e) {
+                console.error('adjuntoXlsxBufferComoMail:', e);
+                return null;
+            }
+        }
         
         async function generarReporteExcelComoAdjunto(datos, nombreArchivo, nombreHoja = 'Datos') {
             try {
@@ -15443,7 +15471,7 @@
             try {
                 const mesParaReporte = (window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : obtenerMesActual();
                 const nombreMes = obtenerNombreMes(mesParaReporte);
-                mostrarProgreso('Generando adjuntos del reporte mensual (HTML y Excel)...');
+                mostrarProgreso('Generando adjuntos del reporte mensual (HTML e informe Excel .xlsx)...');
 
                 let nombreComunidad = 'Comunidad';
                 try {
@@ -15454,11 +15482,19 @@
                 }
 
                 let htmlAdjuntoCompleto;
-                let packExcel;
+                let packXlsx;
                 try {
-                    [htmlAdjuntoCompleto, packExcel] = await Promise.all([
+                    const promesaXlsx = typeof exportarInformeMensualXLSX === 'function'
+                        ? exportarInformeMensualXLSX({
+                            mesAnio: mesParaReporte,
+                            nombreMes: nombreMes,
+                            esPrevisualizacion: true,
+                            descargar: false
+                        })
+                        : Promise.resolve(null);
+                    [htmlAdjuntoCompleto, packXlsx] = await Promise.all([
                         generarReportePDF(mesParaReporte, nombreMes, true, null, { soloHtmlCompleto: true }),
-                        generarReporteExcel(mesParaReporte, nombreMes, true, { soloContenidoAdjunto: true })
+                        promesaXlsx
                     ]);
                 } catch (errGen) {
                     console.error(errGen);
@@ -15472,15 +15508,15 @@
                     mostrarAlerta('No se pudo generar el HTML del reporte mensual para adjuntar.', 'Error');
                     return;
                 }
-                if (!packExcel || !packExcel.excelContent || !packExcel.nombreArchivo) {
+                if (!packXlsx || !packXlsx.buffer || !packXlsx.nombreArchivo) {
                     ocultarProgreso();
-                    mostrarAlerta('No se pudo generar el Excel del reporte mensual para adjuntar.', 'Error');
+                    mostrarAlerta('No se pudo generar el informe Excel (.xlsx) para adjuntar. Compruebe que ExcelJS cargue correctamente o intente de nuevo.', 'Error');
                     return;
                 }
 
                 const nombreArchivoAdjunto = `Reporte_Mensual_Gestion_${nombreMes.replace(/\s+/g, '_')}.html`;
                 const adjuntoHtml = await generarReporteHTMLComoAdjunto(htmlAdjuntoCompleto, nombreArchivoAdjunto, { documentoHtmlCompleto: true });
-                const adjuntoExcel = await adjuntoXlsHtmlDesdeString(packExcel.excelContent, packExcel.nombreArchivo);
+                const adjuntoExcel = adjuntoXlsxBufferComoMail(packXlsx.buffer, packXlsx.nombreArchivo);
                 if (!adjuntoHtml || !adjuntoExcel) {
                     ocultarProgreso();
                     mostrarAlerta('Error al preparar los adjuntos del reporte. Por favor, intente nuevamente.', 'Error');
@@ -15562,10 +15598,11 @@
             const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             
             // Sección de adjunto con estilo similar al comprobante
-            const formatoArchivo = titulo.includes('Reporte Comité')
-                ? 'HTML y Excel'
+            const esReporteComite = titulo.includes('Reporte Comité');
+            const formatoArchivo = esReporteComite
+                ? 'HTML e informe Excel (.xlsx)'
                 : (titulo.includes('Mantenciones') || titulo.includes('Caja') || titulo.includes('Insumos') ? 'HTML' : 'Excel');
-            const iconoArchivo = formatoArchivo === 'HTML y Excel' ? '📎' : (formatoArchivo === 'HTML' ? '📄' : '📊');
+            const iconoArchivo = esReporteComite ? '📎' : (formatoArchivo === 'HTML' ? '📄' : '📊');
             
             const seccionAdjunto = tieneAdjunto ? `
               <tr>
@@ -26246,9 +26283,12 @@
         }
         /** Verde tipo Excel / referencia usuario (#70AD47), texto blanco centrado (fila de encabezados de tabla). */
         var _EXCEL_TABLA_ENCABEZADO_VERDE = 'FF70AD47';
+        var _EXCEL_FILA_TOTAL_GRIS = 'FFE8E8E8';
+        var _EXCEL_TAM_TEXTO_CELDA = 14;
+        var _EXCEL_TAM_TITULO_TABLA = 16;
         function _estilizarEncabezadoColumnaTabla(cell) {
             var b = { style: 'thin', color: { argb: 'FF333333' } };
-            cell.font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
+            cell.font = { bold: true, size: _EXCEL_TAM_TEXTO_CELDA, color: { argb: 'FFFFFFFF' } };
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: _EXCEL_TABLA_ENCABEZADO_VERDE } };
             cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             cell.border = { top: b, left: b, bottom: b, right: b };
@@ -26262,7 +26302,7 @@
             if (!aoa || !aoa.length) {
                 var vac = sheet.getCell(1, 1);
                 vac.value = '(Sin datos)';
-                vac.font = { size: 13 };
+                vac.font = { size: _EXCEL_TAM_TEXTO_CELDA };
                 return;
             }
             var numCols = 1;
@@ -26273,7 +26313,7 @@
                 sheet.mergeCells(r, 1, r, Math.max(numCols, 6));
                 var t = sheet.getCell(r, 1);
                 t.value = String(aoa[0][0]);
-                t.font = { bold: true, size: 13, color: { argb: 'FF111827' } };
+                t.font = { bold: true, size: _EXCEL_TAM_TITULO_TABLA, color: { argb: 'FF111827' } };
                 t.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 r += 2;
                 i = 1;
@@ -26293,12 +26333,18 @@
             for (; i < aoa.length; i++) {
                 var row = aoa[i];
                 if (!row || !row.length) continue;
-                var isTotal = row[0] === 'TOTALES' || (typeof row[0] === 'string' && row[0].indexOf('TOTAL') === 0);
-                for (c = 0; c < row.length; c++) {
+                var cel0 = row[0];
+                var isTotal = cel0 === 'TOTALES' || (typeof cel0 === 'string' && cel0.toUpperCase().indexOf('TOTAL') === 0);
+                for (c = 0; c < numCols; c++) {
                     var cell = sheet.getCell(r, c + 1);
-                    cell.value = row[c];
+                    cell.value = c < row.length ? row[c] : '';
                     cell.border = thin;
-                    cell.font = isTotal ? { bold: true, size: 13 } : { size: 13 };
+                    if (isTotal) {
+                        cell.font = { bold: true, size: _EXCEL_TAM_TEXTO_CELDA };
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: _EXCEL_FILA_TOTAL_GRIS } };
+                    } else {
+                        cell.font = { size: _EXCEL_TAM_TEXTO_CELDA };
+                    }
                     cell.alignment = { vertical: 'top', wrapText: true };
                 }
                 r++;
@@ -26464,10 +26510,12 @@
         }
         function _escribirHojaNomina(sheet, nomina, reemplazos) {
             var thin = _excelBordeFino();
+            var numColsNom = 10;
+            var numColsRep = 6;
             var r = 1;
-            sheet.mergeCells(r, 1, r, 10);
+            sheet.mergeCells(r, 1, r, numColsNom);
             sheet.getCell(r, 1).value = 'NÓMINA Y REEMPLAZOS';
-            sheet.getCell(r, 1).font = { bold: true, size: 13, color: { argb: 'FF111827' } };
+            sheet.getCell(r, 1).font = { bold: true, size: _EXCEL_TAM_TITULO_TABLA, color: { argb: 'FF111827' } };
             sheet.getCell(r, 1).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             r += 2;
             var hdr1 = ['N°', 'Nombre', 'Cargo', 'Días trab.', 'Lic. méd.', 'T. fest.', 'T. extra', 'Domingos', 'Anticipos', 'Observaciones'];
@@ -26480,18 +26528,19 @@
             (nomina || []).forEach(function (t, idx) {
                 if (!t) return;
                 var row = [idx + 1, t.nombre, t.cargo, t.diasTrabajados, t.licenciaMedica, t.turnosFestivos, t.turnosExtras, t.domingos, t.anticipos, t.observaciones || '-'];
-                row.forEach(function (v, j) {
+                var j;
+                for (j = 0; j < numColsNom; j++) {
                     var cell = sheet.getCell(r, j + 1);
-                    cell.value = v;
-                    cell.font = { size: 13 };
+                    cell.value = j < row.length ? row[j] : '';
+                    cell.font = { size: _EXCEL_TAM_TEXTO_CELDA };
                     cell.border = thin;
-                });
+                }
                 r++;
             });
             r++;
-            sheet.mergeCells(r, 1, r, 10);
+            sheet.mergeCells(r, 1, r, numColsNom);
             sheet.getCell(r, 1).value = 'Reemplazos';
-            sheet.getCell(r, 1).font = { bold: true, size: 13, color: { argb: 'FF111827' } };
+            sheet.getCell(r, 1).font = { bold: true, size: _EXCEL_TAM_TITULO_TABLA, color: { argb: 'FF111827' } };
             sheet.getCell(r, 1).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             r += 1;
             var hdr2 = ['N°', 'Nombre', 'Reemplaza a', 'Turnos', 'Valor turno', 'Observaciones'];
@@ -26507,22 +26556,26 @@
                 var vt = parseFloat(rep.valorTurno) || 0;
                 sumRep += vt;
                 var row = [idx + 1, rep.nombre, rep.reemplazaA, rep.turnos, typeof formatearMonedaNomina === 'function' ? formatearMonedaNomina(vt) : vt, rep.observaciones || '-'];
-                row.forEach(function (v, j) {
+                var j;
+                for (j = 0; j < numColsRep; j++) {
                     var cel = sheet.getCell(r, j + 1);
-                    cel.value = v;
-                    cel.font = { size: 13 };
+                    cel.value = j < row.length ? row[j] : '';
+                    cel.font = { size: _EXCEL_TAM_TEXTO_CELDA };
                     cel.border = thin;
-                });
+                }
                 r++;
             });
             r++;
-            var tc = sheet.getCell(r, 1);
-            tc.value = 'TOTAL valor reemplazos';
-            tc.font = { bold: true, size: 13 };
-            tc.border = thin;
-            sheet.getCell(r, 5).value = typeof formatearMonedaNomina === 'function' ? formatearMonedaNomina(sumRep) : sumRep;
-            sheet.getCell(r, 5).font = { bold: true, size: 13 };
-            sheet.getCell(r, 5).border = thin;
+            var col;
+            for (col = 1; col <= numColsRep; col++) {
+                var tcell = sheet.getCell(r, col);
+                if (col === 1) tcell.value = 'TOTAL valor reemplazos';
+                else if (col === 5) tcell.value = typeof formatearMonedaNomina === 'function' ? formatearMonedaNomina(sumRep) : sumRep;
+                else tcell.value = '';
+                tcell.font = { bold: true, size: _EXCEL_TAM_TEXTO_CELDA };
+                tcell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: _EXCEL_FILA_TOTAL_GRIS } };
+                tcell.border = thin;
+            }
             for (var c = 1; c <= 10; c++) {
                 var maxL = 8;
                 for (var rr = 1; rr <= r; rr++) {
@@ -26589,12 +26642,12 @@
             sheet.mergeCells(r, 2, r, 5);
             var t1 = sheet.getCell(r, 2);
             t1.value = 'INFORME MENSUAL DE GESTIÓN';
-            t1.font = { bold: true, size: 13, color: { argb: 'FF1F2937' } };
+            t1.font = { bold: true, size: _EXCEL_TAM_TITULO_TABLA, color: { argb: 'FF1F2937' } };
             t1.alignment = { horizontal: 'center', vertical: 'middle' };
             r += 2;
             sheet.mergeCells(r, 2, r, 5);
             sheet.getCell(r, 2).value = ctx.nombreComunidad || '';
-            sheet.getCell(r, 2).font = { bold: true, size: 13 };
+            sheet.getCell(r, 2).font = { bold: true, size: _EXCEL_TAM_TEXTO_CELDA };
             sheet.getCell(r, 2).alignment = { horizontal: 'center' };
             r += 2;
             var filasInfo = [
@@ -26605,24 +26658,24 @@
             ];
             filasInfo.forEach(function (pair) {
                 sheet.getCell(r, 2).value = pair[0];
-                sheet.getCell(r, 2).font = { bold: true, size: 13 };
+                sheet.getCell(r, 2).font = { bold: true, size: _EXCEL_TAM_TEXTO_CELDA };
                 sheet.getCell(r, 2).border = thin;
                 sheet.mergeCells(r, 3, r, 5);
                 sheet.getCell(r, 3).value = pair[1];
-                sheet.getCell(r, 3).font = { size: 13 };
+                sheet.getCell(r, 3).font = { size: _EXCEL_TAM_TEXTO_CELDA };
                 sheet.getCell(r, 3).border = thin;
                 r++;
             });
             r += 1;
             sheet.mergeCells(r, 2, r, 5);
             sheet.getCell(r, 2).value = 'Resumen general';
-            sheet.getCell(r, 2).font = { bold: true, size: 13 };
+            sheet.getCell(r, 2).font = { bold: true, size: _EXCEL_TAM_TITULO_TABLA };
             r += 1;
             (ctx.lineasResumen || []).forEach(function (linea) {
                 sheet.mergeCells(r, 2, r, 5);
                 var c = sheet.getCell(r, 2);
                 c.value = linea;
-                c.font = { size: 13 };
+                c.font = { size: _EXCEL_TAM_TEXTO_CELDA };
                 c.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
                 c.border = thin;
                 r++;
@@ -26742,7 +26795,7 @@
                     if (modulosVisibles.indexOf(clave) === -1) continue;
                     var meta = MODULOS_DISPONIBLES[clave] || { nombre: clave };
                     var nombreHoja = _nombreHojaExcelSeguro(meta.nombre);
-                    var ws = wb.addWorksheet(nombreHoja);
+                    var ws = wb.addWorksheet(nombreHoja, { views: [{ showGridLines: false }] });
 
                     if (clave === 'mudanzas') _escribirHojaDesdeAOA(ws, generarDatosMudanzas(mudanzas || []));
                     else if (clave === 'aperturas') _escribirHojaDesdeAOA(ws, generarDatosAperturas(aperturas || []));
