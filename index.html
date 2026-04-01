@@ -30423,6 +30423,35 @@
             }
         }
         
+        function escapeHtmlArturito(str) {
+            if (str == null || str === '') return '';
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        /** Primeros 5 días del mes (zona Santiago): mensaje de Arturito con nombre de personalización (jefe de edificio). */
+        function construirRecordatorioInicioMesArturito(primerNombre) {
+            let dia;
+            try {
+                const fs = obtenerFechaSantiago();
+                dia = parseInt(fs.split('-')[2], 10);
+            } catch (e) {
+                dia = new Date().getDate();
+            }
+            if (isNaN(dia) || dia < 1 || dia > 5) return null;
+            const raw = (primerNombre && String(primerNombre).trim()) ? String(primerNombre).trim() : '';
+            const nombre = raw ? escapeHtmlArturito(raw) : 'colega';
+            return {
+                tipo: 'importante',
+                arturitoInicioMes: true,
+                mensaje: '¡Felicidades, ' + nombre + '! 🎉<br><br>Arrancamos un nuevo mes, y es el momento perfecto para ponerte al día con todo lo anterior. Recuerda que puedes revisar fácilmente la información del mes pasado y descargar los reportes que necesites en solo unos clics.<br><br>Solo tienes que ir al módulo Herramientas dentro de la app, seleccionar el mes anterior y listo: tendrás acceso a todos tus reportes cuando los necesites.<br><br>¡Que tengas un excelente inicio de mes! 🚀',
+                icono: '🎉'
+            };
+        }
+
         // Función para cargar mensajes de Arturito con saludos, consejos y recordatorios (panel único usa arturitoMensajes2)
         async function cargarMensajesArturito() {
             const contenedor = document.getElementById('arturitoMensajes2') || document.getElementById('arturitoMensajes');
@@ -30484,8 +30513,9 @@
                 consejos.push('✅ Confirma que no haya tareas pendientes para mañana');
             }
             
+            const recordatorioInicioMes = construirRecordatorioInicioMesArturito(nombreJefe);
             // Mostrar vista inicial con saludo y consejos (sin esperar datos)
-            mostrarVistaInicialArturito(contenedor, saludo, emoji, consejos, diasRestantes);
+            mostrarVistaInicialArturito(contenedor, saludo, emoji, consejos, diasRestantes, recordatorioInicioMes);
             
             // Cargar datos en paralelo (sin bloquear la UI) - TODOS LOS MÓDULOS
             Promise.all([
@@ -30543,13 +30573,15 @@
                 var incluyePostventa = Array.isArray(modVisPv) && modVisPv.indexOf('postventa') !== -1;
                 
                 // Procesar recordatorios con TODOS los datos
-                const recordatorios = await procesarRecordatorios(
+                let recordatorios = await procesarRecordatorios(
                     morosos, mantenciones, pagosAseo, proveedores, 
                     mudanzas, aperturas, tarjetas, espacios, multas, caja, nomina, insumos, lecturasAgua,
                     metricasActual, metricasAnterior, diasRestantes,
                     insumosCerrado, nominaCerrada,
                     incluyePostventa ? pvP : 0, incluyePostventa ? pvE : 0
                 );
+                const recIniMes = construirRecordatorioInicioMesArturito(nombreJefe);
+                if (recIniMes) recordatorios = [recIniMes].concat(recordatorios);
                 
                 // Actualizar la vista con los recordatorios
                 actualizarVistaArturito(contenedor, saludo, emoji, consejos, recordatorios);
@@ -30563,8 +30595,9 @@
         }
         
         // Función para mostrar la vista inicial de Arturito (sin esperar datos)
-        function mostrarVistaInicialArturito(contenedor, saludo, emoji, consejos, diasRestantes) {
+        function mostrarVistaInicialArturito(contenedor, saludo, emoji, consejos, diasRestantes, recordatorioInicioMes) {
             const recordatorios = [];
+            if (recordatorioInicioMes) recordatorios.push(recordatorioInicioMes);
             
             // Solo recordatorio de cierre de mes (no requiere datos)
             if (diasRestantes <= 3 && diasRestantes > 0) {
@@ -31270,10 +31303,15 @@
         
         // Función para generar el HTML de Arturito
         function generarHTMLArturito(contenedor, saludo, emoji, consejos, recordatorios) {
-            // Ordenar recordatorios por prioridad (urgente primero)
+            // Ordenar recordatorios por prioridad (urgente primero; mensaje inicio de mes al frente dentro de su grupo)
             recordatorios.sort((a, b) => {
                 const prioridad = { 'urgente': 0, 'importante': 1, 'info': 2 };
-                return (prioridad[a.tipo] || 2) - (prioridad[b.tipo] || 2);
+                const pa = prioridad[a.tipo] ?? 2;
+                const pb = prioridad[b.tipo] ?? 2;
+                if (pa !== pb) return pa - pb;
+                if (a.arturitoInicioMes && !b.arturitoInicioMes) return -1;
+                if (!a.arturitoInicioMes && b.arturitoInicioMes) return 1;
+                return 0;
             });
             
             // Contar recordatorios por tipo
