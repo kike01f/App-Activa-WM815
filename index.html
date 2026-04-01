@@ -25822,45 +25822,36 @@
                         display: String(cell)
                     };
                 };
-                const reporteFinMesIdxCol = (encabezados, nombre) => {
-                    const want = String(nombre || '').trim().toLowerCase();
-                    for (let j = 0; j < encabezados.length; j++) {
-                        if (String(encabezados[j] == null ? '' : encabezados[j]).trim().toLowerCase() === want) return j;
-                    }
-                    return -1;
-                };
-                const reporteFinMesColorFilaHtml = (encabezados, fila, esFilaTotales, moduloColor, zebraPar) => {
-                    if (esFilaTotales) return '#e5e7eb';
-                    if (!moduloColor) return zebraPar ? '#f9fafb' : '#ffffff';
-                    const vTipo = (ix) => (ix >= 0 && fila[ix] != null ? String(fila[ix]) : '').trim().toLowerCase();
-                    if (moduloColor === 'mudanzas') {
-                        const ix = reporteFinMesIdxCol(encabezados, 'Tipo');
-                        const v = vTipo(ix);
+                /** Fondo solo en columna Tipo / Espacio según módulo (resto de celdas usa bgFila). */
+                const reporteFinMesColorColumnaHtml = (moduloCol, headerLabel, valorCelda, esFilaTotales, bgFila) => {
+                    if (esFilaTotales) return bgFila;
+                    const h = String(headerLabel || '').trim().toLowerCase();
+                    const v = String(valorCelda != null ? valorCelda : '').trim().toLowerCase();
+                    if (moduloCol === 'mudanzas') {
+                        if (h !== 'tipo') return bgFila;
                         if (v.includes('propietario')) return '#dceef7';
                         if (v.includes('arrendatario')) return '#fff2cc';
-                        return '#f5f5f5';
+                        return '#eef2f6';
                     }
-                    if (moduloColor === 'tarjetas') {
-                        const ix = reporteFinMesIdxCol(encabezados, 'Tipo');
-                        const v = vTipo(ix);
+                    if (moduloCol === 'tarjetas') {
+                        if (h !== 'tipo') return bgFila;
                         if (v.includes('tag')) return '#e2efda';
                         if (v.includes('tarjeta') && v.includes('acceso')) return '#e4dfec';
-                        if (v.includes('sin cobro')) return '#f3f4f6';
-                        return '#f9fafb';
+                        if (v.includes('sin cobro')) return '#eceff4';
+                        return '#f3f4f6';
                     }
-                    if (moduloColor === 'espacios') {
-                        const ix = reporteFinMesIdxCol(encabezados, 'Espacio');
-                        const v = (ix >= 0 && fila[ix] != null ? String(fila[ix]).trim().toLowerCase() : '');
-                        if (!v || v === '-') return '#f9fafb';
+                    if (moduloCol === 'espacios') {
+                        if (h !== 'espacio') return bgFila;
+                        if (!v || v === '-') return bgFila;
                         const paleta = ['#fde9d9', '#e4f6fc', '#eaf1dd', '#fce4d6', '#e5e0ec', '#d9e1f2', '#f2e8d4', '#e8d4e8'];
-                        let h = 0;
-                        for (let k = 0; k < v.length; k++) h = ((h * 31) + v.charCodeAt(k)) >>> 0;
-                        return paleta[h % paleta.length];
+                        let hash = 0;
+                        for (let k = 0; k < v.length; k++) hash = ((hash * 31) + v.charCodeAt(k)) >>> 0;
+                        return paleta[hash % paleta.length];
                     }
-                    return zebraPar ? '#f9fafb' : '#ffffff';
+                    return bgFila;
                 };
-                // Función auxiliar para generar tabla HTML desde array de arrays (moduloColor: 'mudanzas' | 'tarjetas' | 'espacios' para filas sombreadas)
-                const generarTablaHTML = (datos, titulo, moduloColor) => {
+                // Función auxiliar para generar tabla HTML desde array de arrays; moduloColumnaColor: 'mudanzas' | 'tarjetas' | 'espacios'
+                const generarTablaHTML = (datos, titulo, moduloColumnaColor) => {
                     if (!datos || datos.length === 0) return '';
                     
                     let html = `<div class="section-title">${titulo}</div><table style="table-layout: fixed; width: 100%;"><thead><tr>`;
@@ -25885,8 +25876,7 @@
                         for (let i = filaEncabezado + 1; i < datos.length; i++) {
                             if (Array.isArray(datos[i]) && datos[i].length > 0 && datos[i].some(cell => cell !== '' && cell !== null && cell !== undefined)) {
                                 const esFilaTotales = String(datos[i][0] || '').toUpperCase().trim() === 'TOTALES';
-                                const zebraPar = ((i - filaEncabezado) % 2 === 0);
-                                const bgColorFila = reporteFinMesColorFilaHtml(encabezados, datos[i], esFilaTotales, moduloColor, zebraPar);
+                                const bgColorFila = esFilaTotales ? '#e5e7eb' : ((i - filaEncabezado) % 2 === 0 ? '#f9fafb' : 'white');
                                 html += `<tr>`;
                                 datos[i].forEach((cell, idx) => {
                                     const headerLabel = encabezados[idx];
@@ -25897,7 +25887,10 @@
                                         align = isNumber ? 'right' : 'left';
                                     }
                                     const fontWeight = esFilaTotales ? '700' : 'normal';
-                                    const baseStyle = `text-align: ${align} !important; vertical-align: middle !important; background-color: ${bgColorFila}; font-weight: ${fontWeight}; border: 1px solid ${esFilaTotales ? '#d1d5db' : '#e5e7eb'};`;
+                                    const bgCelda = moduloColumnaColor
+                                        ? reporteFinMesColorColumnaHtml(moduloColumnaColor, headerLabel, cell, esFilaTotales, bgColorFila)
+                                        : bgColorFila;
+                                    const baseStyle = `text-align: ${align} !important; vertical-align: middle !important; background-color: ${bgCelda}; font-weight: ${fontWeight}; border: 1px solid ${esFilaTotales ? '#d1d5db' : '#e5e7eb'};`;
                                     const inner = reporteExcelEscaparCelda(numMeta.display);
                                     const msoStyle = numMeta.attrs && numMeta.attrs.match(/style="([^"]*)"/);
                                     const xNumAttr = numMeta.attrs && numMeta.attrs.match(/x:num="([^"]*)"/);
@@ -26445,31 +26438,28 @@
             }
             return -1;
         }
-        /** Fondo por fila: propietario vs arrendatario (columna Tipo). */
-        function _rellenoArgbMudanzaPorTipo(row, hdr) {
-            var ix = _excelIdxColumnaAOA(hdr, 'Tipo');
-            if (ix < 0) return null;
-            var v = String(row[ix] != null ? row[ix] : '').trim().toLowerCase();
+        /** Color de fondo solo en la columna «Tipo» (mudanzas). */
+        function _rellenoCeldaArgbMudanzaColumnaTipo(row, hdr, colIndex) {
+            if (_excelIdxColumnaAOA(hdr, 'Tipo') !== colIndex) return null;
+            var v = String(row[colIndex] != null ? row[colIndex] : '').trim().toLowerCase();
             if (v.indexOf('propietario') !== -1) return 'FFDCEEF7';
             if (v.indexOf('arrendatario') !== -1) return 'FFFFF2CC';
-            return 'FFF5F5F5';
+            return 'FFEEF2F6';
         }
-        /** Fondo por fila: Tarjeta de acceso, TAG, sin cobro, etc. */
-        function _rellenoArgbTarjetaPorTipo(row, hdr) {
-            var ix = _excelIdxColumnaAOA(hdr, 'Tipo');
-            if (ix < 0) return null;
-            var v = String(row[ix] != null ? row[ix] : '').trim().toLowerCase();
+        /** Color de fondo solo en la columna «Tipo» (tarjetas/TAG). */
+        function _rellenoCeldaArgbTarjetaColumnaTipo(row, hdr, colIndex) {
+            if (_excelIdxColumnaAOA(hdr, 'Tipo') !== colIndex) return null;
+            var v = String(row[colIndex] != null ? row[colIndex] : '').trim().toLowerCase();
             if (v.indexOf('tag') !== -1) return 'FFE2EFDA';
             if (v.indexOf('tarjeta') !== -1 && v.indexOf('acceso') !== -1) return 'FFE4DFEC';
-            if (v.indexOf('sin cobro') !== -1) return 'FFF2F2F2';
-            return 'FFF9FAFB';
+            if (v.indexOf('sin cobro') !== -1) return 'FFECEFF4';
+            return 'FFF3F4F6';
         }
-        /** Fondo por fila según nombre del espacio (paleta estable por hash). */
-        function _rellenoArgbEspacioPorNombre(row, hdr) {
-            var ix = _excelIdxColumnaAOA(hdr, 'Espacio');
-            if (ix < 0) return null;
-            var v = String(row[ix] != null ? row[ix] : '').trim().toLowerCase();
-            if (!v || v === '-') return 'FFF9FAFB';
+        /** Color de fondo solo en la columna «Espacio». */
+        function _rellenoCeldaArgbEspacioColumnaNombre(row, hdr, colIndex) {
+            if (_excelIdxColumnaAOA(hdr, 'Espacio') !== colIndex) return null;
+            var v = String(row[colIndex] != null ? row[colIndex] : '').trim().toLowerCase();
+            if (!v || v === '-') return null;
             var paleta = ['FFFDE9D9', 'FFE4F6FC', 'FFEAF1DD', 'FFFCE4D6', 'FFE5E0EC', 'FFD9E1F2', 'FFF2E8D4', 'FFE8D4E8'];
             var h = 0;
             for (var k = 0; k < v.length; k++) h = ((h * 31) + v.charCodeAt(k)) >>> 0;
@@ -26479,7 +26469,7 @@
         function _escribirHojaDesdeAOA(sheet, aoa, opciones) {
             var thin = _excelBordeFino();
             var maxColWidth = (opciones && opciones.maxColWidth) || 48;
-            var fnRellenoArgb = opciones && typeof opciones.rellenoFilaArgb === 'function' ? opciones.rellenoFilaArgb : null;
+            var fnRellenoCelda = opciones && typeof opciones.rellenoCeldaArgb === 'function' ? opciones.rellenoCeldaArgb : null;
             var r = 1;
             var i = 0;
             if (!aoa || !aoa.length) {
@@ -26528,9 +26518,11 @@
                             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: _EXCEL_FILA_TOTAL_GRIS } };
                         } else {
                             cell.font = { size: _EXCEL_TAM_TEXTO_CELDA };
-                            var argbF = fnRellenoArgb ? fnRellenoArgb(row, hdr) : null;
-                            if (argbF) {
-                                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argbF } };
+                            if (fnRellenoCelda) {
+                                var argbCel = fnRellenoCelda(row, hdr, c);
+                                if (argbCel) {
+                                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: argbCel } };
+                                }
                             }
                         }
                         cell.alignment = { vertical: 'top', wrapText: true };
@@ -26988,10 +26980,10 @@
                     var nombreHoja = _nombreHojaExcelSeguro(meta.nombre);
                     var ws = wb.addWorksheet(nombreHoja, { views: [{ showGridLines: false }] });
 
-                    if (clave === 'mudanzas') _escribirHojaDesdeAOA(ws, generarDatosMudanzas(mudanzas || []), { rellenoFilaArgb: _rellenoArgbMudanzaPorTipo });
+                    if (clave === 'mudanzas') _escribirHojaDesdeAOA(ws, generarDatosMudanzas(mudanzas || []), { rellenoCeldaArgb: _rellenoCeldaArgbMudanzaColumnaTipo });
                     else if (clave === 'aperturas') _escribirHojaDesdeAOA(ws, generarDatosAperturas(aperturas || []));
-                    else if (clave === 'tarjetas') _escribirHojaDesdeAOA(ws, generarDatosTarjetas(tarjetas || []), { rellenoFilaArgb: _rellenoArgbTarjetaPorTipo });
-                    else if (clave === 'espacios') _escribirHojaDesdeAOA(ws, generarDatosEspacios(espacios || []), { rellenoFilaArgb: _rellenoArgbEspacioPorNombre });
+                    else if (clave === 'tarjetas') _escribirHojaDesdeAOA(ws, generarDatosTarjetas(tarjetas || []), { rellenoCeldaArgb: _rellenoCeldaArgbTarjetaColumnaTipo });
+                    else if (clave === 'espacios') _escribirHojaDesdeAOA(ws, generarDatosEspacios(espacios || []), { rellenoCeldaArgb: _rellenoCeldaArgbEspacioColumnaNombre });
                     else if (clave === 'multas') _escribirHojaDesdeAOA(ws, _generarDatosMultasConTotales(multas || []));
                     else if (clave === 'morosos') _escribirHojaDesdeAOA(ws, generarDatosMorosos(morosos || []));
                     else if (clave === 'lecturas-agua') _escribirHojaDesdeAOA(ws, generarDatosLecturasAgua(lecturasAguaCaliente || []));
