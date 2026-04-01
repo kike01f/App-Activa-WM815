@@ -19,6 +19,8 @@
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
     <!-- SheetJS para leer archivos Excel -->
     <script src="https://cdn.sheetjs.com/xlsx-0.20.1/package/dist/xlsx.full.min.js"></script>
+    <!-- ExcelJS: exportación .xlsx con estilos (bordes, negrita, anchos). SheetJS Community no persiste estilos al guardar. -->
+    <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <!-- Chart.js y plugin para mostrar % en tortas -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -26233,6 +26235,574 @@
         
         // Las funciones generarDatos* ya están definidas arriba y generan arrays para SheetJS
         
+        // ========== Informe mensual .xlsx (ExcelJS: portada + hoja por módulo) ==========
+        function _nombreHojaExcelSeguro(nombre) {
+            var s = String(nombre || 'Hoja').replace(/[:\\/?*\[\]]/g, '').trim().substring(0, 31);
+            return s || 'Hoja';
+        }
+        function _excelBordeFino() {
+            var b = { style: 'thin', color: { argb: 'FFAAAAAA' } };
+            return { top: b, left: b, bottom: b, right: b };
+        }
+        /** Escribe una hoja a partir del formato generarDatos* : título fila 0, fila vacía, encabezados, datos, [vacío], TOTALES… */
+        function _escribirHojaDesdeAOA(sheet, aoa, opciones) {
+            var thin = _excelBordeFino();
+            var maxColWidth = (opciones && opciones.maxColWidth) || 48;
+            var r = 1;
+            var i = 0;
+            if (!aoa || !aoa.length) {
+                sheet.getCell(1, 1).value = '(Sin datos)';
+                return;
+            }
+            var numCols = 1;
+            for (var k = 0; k < aoa.length; k++) {
+                if (aoa[k] && aoa[k].length > numCols) numCols = aoa[k].length;
+            }
+            if (aoa[0] && aoa[0][0] !== undefined && aoa[0][0] !== null && String(aoa[0][0]).trim() !== '') {
+                sheet.mergeCells(r, 1, r, Math.max(numCols, 6));
+                var t = sheet.getCell(r, 1);
+                t.value = String(aoa[0][0]);
+                t.font = { bold: true, size: 13 };
+                t.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                r += 2;
+                i = 1;
+            }
+            while (i < aoa.length && (!aoa[i] || !aoa[i].length || aoa[i].every(function (x) { return x === '' || x == null; }))) i++;
+            if (i >= aoa.length) return;
+            var hdr = aoa[i];
+            numCols = Math.max(numCols, hdr.length);
+            var c;
+            for (c = 0; c < hdr.length; c++) {
+                var hc = sheet.getCell(r, c + 1);
+                hc.value = hdr[c];
+                hc.font = { bold: true };
+                hc.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+                hc.border = thin;
+                hc.alignment = { vertical: 'middle', wrapText: true };
+            }
+            r++;
+            i++;
+            for (; i < aoa.length; i++) {
+                var row = aoa[i];
+                if (!row || !row.length) continue;
+                var isTotal = row[0] === 'TOTALES' || (typeof row[0] === 'string' && row[0].indexOf('TOTAL') === 0);
+                for (c = 0; c < row.length; c++) {
+                    var cell = sheet.getCell(r, c + 1);
+                    cell.value = row[c];
+                    cell.border = thin;
+                    if (isTotal) cell.font = { bold: true };
+                    cell.alignment = { vertical: 'top', wrapText: true };
+                }
+                r++;
+            }
+            for (c = 1; c <= numCols; c++) {
+                var maxL = 8;
+                for (var rr = 1; rr < r; rr++) {
+                    var v = sheet.getCell(rr, c).value;
+                    var s = v != null ? String(v) : '';
+                    maxL = Math.max(maxL, Math.min(s.length, maxColWidth));
+                }
+                sheet.getColumn(c).width = Math.min(maxL + 2, 52);
+            }
+        }
+        function _generarDatosMultasConTotales(multas) {
+            var base = generarDatosMultas(multas || []);
+            var u = 0, utm = 0;
+            (multas || []).forEach(function (m) {
+                if (!m) return;
+                var mo = parseFloat(m.monto) || 0;
+                if ((m.tipoUnidad || 'UF') === 'UTM') utm += mo; else u += mo;
+            });
+            base.push([]);
+            base.push(['TOTALES', (multas || []).length, '', '', '', '']);
+            base.push(['Total monto UF', u, '', '', '', '']);
+            base.push(['Total monto UTM', utm, '', '', '', '']);
+            return base;
+        }
+        function _construirAOACajaChica(caja) {
+            var datos = [['CAJA CHICA']];
+            datos.push([]);
+            datos.push(['N°', 'Fecha', 'N° Documento', 'Descripción', 'Monto']);
+            var orden = [].concat(caja || []).sort(function (a, b) { return new Date(a.fecha) - new Date(b.fecha); });
+            var sum = 0;
+            orden.forEach(function (m, idx) {
+                if (!m) return;
+                var mo = parseFloat(m.monto) || 0;
+                sum += mo;
+                datos.push([
+                    idx + 1,
+                    m.fecha ? formatearFechaParaCorreo(m.fecha) : '-',
+                    m.numeroDocumento || '-',
+                    m.descripcion || '-',
+                    mo
+                ]);
+            });
+            datos.push([]);
+            datos.push(['TOTALES', orden.length, '', '', sum]);
+            return datos;
+        }
+        function _construirAOAMantencionesUnificadas(mantenciones, visitasExtra) {
+            var aoa = [['MANTENCIONES Y VISITAS']];
+            aoa.push([]);
+            aoa.push(['Tipo', 'N°', 'Proveedor', 'Servicio', 'Fechas / ref.', 'Próxima o detalle', 'Observaciones']);
+            var mant = Array.isArray(mantenciones) ? mantenciones : [];
+            var mantFiltradas = mant.filter(function (m) {
+                return m && (!m.tipoVisita || m.tipoVisita === 'normal' || m.tipoVisita === 'sin-plazo');
+            });
+            var mantencionesConEstado = mantFiltradas.map(function (m) {
+                if (m.tipoVisita === 'sin-plazo' || !m.plazo) {
+                    return Object.assign({}, m, {
+                        fechaProxima: null,
+                        estado: { estado: 'sin-plazo', dias: null, clase: 'maintenance-ok' }
+                    });
+                }
+                var fp = calcularProximaMantencion(m.fechaUltima, m.plazo);
+                var est = obtenerEstadoMantencion(fp);
+                return Object.assign({}, m, { fechaProxima: fp, estado: est });
+            });
+            var grupos = typeof agruparMantencionesPorProveedorYMes === 'function'
+                ? agruparMantencionesPorProveedorYMes(mantencionesConEstado)
+                : [];
+            grupos.sort(function (a, b) {
+                if (a.estado.estado === 'vencida' && b.estado.estado !== 'vencida') return -1;
+                if (a.estado.estado !== 'vencida' && b.estado.estado === 'vencida') return 1;
+                if (a.estado.estado === 'proxima' && b.estado.estado === 'ok') return -1;
+                if (a.estado.estado === 'ok' && b.estado.estado === 'proxima') return 1;
+                return 0;
+            });
+            grupos.forEach(function (grupo, idx) {
+                var fechasTexto = '';
+                if (grupo.necesitaUnificacion && grupo.fechas.length > 1) {
+                    fechasTexto = grupo.fechas.map(function (f) { return formatearFechaParaCorreo(f); }).join(', ');
+                } else {
+                    fechasTexto = grupo.fechaUltima ? formatearFechaParaCorreo(grupo.fechaUltima) : '-';
+                }
+                var fechaProxTexto = (grupo.tipoVisita === 'sin-plazo' || !grupo.plazo || !grupo.fechaProxima)
+                    ? 'Sin plazo'
+                    : formatearFechaParaCorreo(typeof formatearFechaISO === 'function' ? formatearFechaISO(grupo.fechaProxima) : grupo.fechaProxima);
+                var obs = grupo.observaciones && grupo.observaciones.length ? grupo.observaciones.join(' | ') : '-';
+                if (obs.length > 300) obs = obs.substring(0, 297) + '...';
+                aoa.push(['Programada', idx + 1, grupo.proveedor || '-', grupo.servicio || '-', fechasTexto, fechaProxTexto, obs]);
+            });
+            var ve = Array.isArray(visitasExtra) ? visitasExtra : [];
+            ve.sort(function (a, b) { return new Date(b.fechaUltima) - new Date(a.fechaUltima); });
+            ve.forEach(function (v, j) {
+                aoa.push([
+                    'Visita extra',
+                    j + 1,
+                    v.proveedor || '-',
+                    v.servicio || '-',
+                    v.fechaUltima ? formatearFechaParaCorreo(v.fechaUltima) : '-',
+                    v.tipoVisita || '-',
+                    (v.observaciones || '-').toString().substring(0, 300)
+                ]);
+            });
+            aoa.push([]);
+            aoa.push(['TOTALES', grupos.length + ve.length, '', '', '', '', '']);
+            return aoa;
+        }
+        function _construirAOAPagosAseo(pagos) {
+            var p = Array.isArray(pagos) ? pagos : [];
+            var aoa = [['PAGOS ASEO']];
+            aoa.push([]);
+            aoa.push(['Personal', 'Área común', 'Fecha aseo', 'Monto', 'Estado', 'Modalidad', 'Observaciones']);
+            var sum = 0, sumPag = 0;
+            p.forEach(function (x) {
+                if (!x) return;
+                var mo = parseFloat(x.monto) || 0;
+                sum += mo;
+                if (x.estado === 'pagado') sumPag += mo;
+                aoa.push([
+                    x.personalNombre || '-',
+                    x.areaComun || '-',
+                    x.fechaAseo ? formatearFechaParaCorreo(x.fechaAseo) : '-',
+                    mo,
+                    x.estado || 'pendiente',
+                    x.modalidad || '-',
+                    (x.observaciones || '-').toString().substring(0, 200)
+                ]);
+            });
+            aoa.push([]);
+            aoa.push(['TOTALES', p.length, '', sum, '', '', 'Monto pagado: ' + sumPag]);
+            return aoa;
+        }
+        function _construirAOAInsumos(insumos) {
+            var list = Array.isArray(insumos) ? [...insumos] : [];
+            var prioridadOrden = { Alta: 1, Media: 2, Baja: 3 };
+            list.sort(function (a, b) {
+                var pa = prioridadOrden[a.prioridad] || 4;
+                var pb = prioridadOrden[b.prioridad] || 4;
+                if (pa !== pb) return pa - pb;
+                return (a.nombre || '').localeCompare(b.nombre || '');
+            });
+            var aoa = [['PEDIDO DE INSUMOS']];
+            aoa.push([]);
+            aoa.push(['Producto', 'Cantidad', 'Prioridad', 'Observaciones']);
+            var totalCant = 0;
+            list.forEach(function (it) {
+                if (!it) return;
+                var c = parseFloat(it.cantidad) || 0;
+                totalCant += c;
+                aoa.push([
+                    it.nombre || '-',
+                    c,
+                    it.prioridad || 'Media',
+                    (it.observaciones || '-').toString().substring(0, 200)
+                ]);
+            });
+            aoa.push([]);
+            aoa.push(['TOTALES', list.length, totalCant, '', '']);
+            return aoa;
+        }
+        function _escribirHojaNomina(sheet, nomina, reemplazos) {
+            var thin = _excelBordeFino();
+            var r = 1;
+            sheet.mergeCells(r, 1, r, 10);
+            sheet.getCell(r, 1).value = 'NÓMINA Y REEMPLAZOS';
+            sheet.getCell(r, 1).font = { bold: true, size: 14 };
+            sheet.getCell(r, 1).alignment = { horizontal: 'center' };
+            r += 2;
+            var hdr1 = ['N°', 'Nombre', 'Cargo', 'Días trab.', 'Lic. méd.', 'T. fest.', 'T. extra', 'Domingos', 'Anticipos', 'Observaciones'];
+            hdr1.forEach(function (h, j) {
+                var c = sheet.getCell(r, j + 1);
+                c.value = h;
+                c.font = { bold: true };
+                c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+                c.border = thin;
+            });
+            r++;
+            (nomina || []).forEach(function (t, idx) {
+                if (!t) return;
+                var row = [idx + 1, t.nombre, t.cargo, t.diasTrabajados, t.licenciaMedica, t.turnosFestivos, t.turnosExtras, t.domingos, t.anticipos, t.observaciones || '-'];
+                row.forEach(function (v, j) {
+                    var cell = sheet.getCell(r, j + 1);
+                    cell.value = v;
+                    cell.border = thin;
+                });
+                r++;
+            });
+            r++;
+            sheet.mergeCells(r, 1, r, 10);
+            sheet.getCell(r, 1).value = 'Reemplazos';
+            sheet.getCell(r, 1).font = { bold: true, size: 12 };
+            r += 1;
+            var hdr2 = ['N°', 'Nombre', 'Reemplaza a', 'Turnos', 'Valor turno', 'Observaciones'];
+            hdr2.forEach(function (h, j) {
+                var c = sheet.getCell(r, j + 1);
+                c.value = h;
+                c.font = { bold: true };
+                c.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFF3F4F6' } };
+                c.border = thin;
+            });
+            r++;
+            var sumRep = 0;
+            (reemplazos || []).forEach(function (rep, idx) {
+                if (!rep) return;
+                var vt = parseFloat(rep.valorTurno) || 0;
+                sumRep += vt;
+                var row = [idx + 1, rep.nombre, rep.reemplazaA, rep.turnos, typeof formatearMonedaNomina === 'function' ? formatearMonedaNomina(vt) : vt, rep.observaciones || '-'];
+                row.forEach(function (v, j) {
+                    sheet.getCell(r, j + 1).value = v;
+                    sheet.getCell(r, j + 1).border = thin;
+                });
+                r++;
+            });
+            r++;
+            var tc = sheet.getCell(r, 1);
+            tc.value = 'TOTAL valor reemplazos';
+            tc.font = { bold: true };
+            tc.border = thin;
+            sheet.getCell(r, 5).value = typeof formatearMonedaNomina === 'function' ? formatearMonedaNomina(sumRep) : sumRep;
+            sheet.getCell(r, 5).font = { bold: true };
+            sheet.getCell(r, 5).border = thin;
+            for (var c = 1; c <= 10; c++) {
+                var maxL = 8;
+                for (var rr = 1; rr <= r; rr++) {
+                    var val = sheet.getCell(rr, c).value;
+                    var str = val != null ? String(val) : '';
+                    maxL = Math.max(maxL, Math.min(str.length, 48));
+                }
+                sheet.getColumn(c).width = Math.min(maxL + 2, 45);
+            }
+        }
+        function _construirAOAOcupacion(residentes) {
+            var aoa = [['OCUPACIÓN / RESIDENTES']];
+            aoa.push([]);
+            aoa.push(['Unidad', 'Nombre', 'Tipo', 'Correo', 'Teléfono', 'Notas']);
+            (residentes || []).forEach(function (x) {
+                if (!x) return;
+                aoa.push([
+                    x.unidad || x.departamento || '-',
+                    x.nombre || '-',
+                    x.tipo || x.tipoResidente || '-',
+                    x.correo || x.email || '-',
+                    x.telefono || x.fono || '-',
+                    (x.notas || x.observaciones || '-').toString().substring(0, 200)
+                ]);
+            });
+            aoa.push([]);
+            aoa.push(['TOTALES', (residentes || []).length, '', '', '', '']);
+            return aoa;
+        }
+        function _construirAOAPostventa(registros) {
+            var aoa = [['POSTVENTA']];
+            aoa.push([]);
+            aoa.push(['Fecha', 'Estado', 'Observación']);
+            (registros || []).forEach(function (p) {
+                if (!p) return;
+                aoa.push([
+                    p.fecha ? formatearFechaParaCorreo(p.fecha) : '-',
+                    p.estado || '-',
+                    (p.observacion || p.observaciones || '-').toString().substring(0, 500)
+                ]);
+            });
+            aoa.push([]);
+            aoa.push(['TOTALES', (registros || []).length, '', '']);
+            return aoa;
+        }
+        async function _obtenerRegistrosPostventaInforme() {
+            if (firebaseInitialized && db) {
+                try {
+                    var snap = await db.collection('comunidad').doc('postventa').get();
+                    if (snap.exists) {
+                        var d = snap.data();
+                        if (d.registros && Array.isArray(d.registros)) return d.registros;
+                    }
+                } catch (e1) { /* ignore */ }
+            }
+            try {
+                var raw = localStorage.getItem('postventa-registros');
+                return raw ? JSON.parse(raw) : [];
+            } catch (e2) { return []; }
+        }
+        async function _rellenarPortadaXLSX(sheet, ctx) {
+            var thin = _excelBordeFino();
+            var r = 2;
+            sheet.mergeCells(r, 2, r, 5);
+            var t1 = sheet.getCell(r, 2);
+            t1.value = 'INFORME MENSUAL DE GESTIÓN';
+            t1.font = { bold: true, size: 18, color: { argb: 'FF1F2937' } };
+            t1.alignment = { horizontal: 'center', vertical: 'middle' };
+            r += 2;
+            sheet.mergeCells(r, 2, r, 5);
+            sheet.getCell(r, 2).value = ctx.nombreComunidad || '';
+            sheet.getCell(r, 2).font = { bold: true, size: 14 };
+            sheet.getCell(r, 2).alignment = { horizontal: 'center' };
+            r += 2;
+            var filasInfo = [
+                ['Período', ctx.nombreMes || ''],
+                ['Jefe de edificio', ctx.jefeEdificio || ''],
+                ['Departamentos', ctx.numeroDeptos || ''],
+                ['Generado', ctx.fechaGen || '']
+            ];
+            filasInfo.forEach(function (pair) {
+                sheet.getCell(r, 2).value = pair[0];
+                sheet.getCell(r, 2).font = { bold: true };
+                sheet.getCell(r, 2).border = thin;
+                sheet.mergeCells(r, 3, r, 5);
+                sheet.getCell(r, 3).value = pair[1];
+                sheet.getCell(r, 3).border = thin;
+                r++;
+            });
+            r += 1;
+            sheet.mergeCells(r, 2, r, 5);
+            sheet.getCell(r, 2).value = 'Resumen general';
+            sheet.getCell(r, 2).font = { bold: true, size: 12 };
+            r += 1;
+            (ctx.lineasResumen || []).forEach(function (linea) {
+                sheet.mergeCells(r, 2, r, 5);
+                var c = sheet.getCell(r, 2);
+                c.value = linea;
+                c.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
+                c.border = thin;
+                r++;
+            });
+            sheet.getColumn(1).width = 3;
+            sheet.getColumn(2).width = 22;
+            sheet.getColumn(3).width = 40;
+            sheet.getColumn(4).width = 14;
+            sheet.getColumn(5).width = 14;
+        }
+        /**
+         * Exporta informe mensual real (.xlsx) con portada y una hoja por módulo visible.
+         * Stack: ExcelJS en el navegador (estilos). SheetJS sigue disponible para importaciones.
+         * @param {object} opciones - { mesAnio, nombreMes, esPrevisualizacion, descargar }
+         */
+        async function exportarInformeMensualXLSX(opciones) {
+            opciones = opciones || {};
+            var ExcelJSLib = typeof ExcelJS !== 'undefined' ? ExcelJS : (typeof window !== 'undefined' ? window.ExcelJS : null);
+            if (!ExcelJSLib) {
+                if (typeof mostrarAlerta === 'function') {
+                    mostrarAlerta('No se pudo cargar ExcelJS (revisa la conexión).', 'Error');
+                }
+                return null;
+            }
+            var mesAnio = opciones.mesAnio || ((window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : typeof obtenerMesActual === 'function' ? obtenerMesActual() : '');
+            var nombreMes = opciones.nombreMes || (typeof obtenerNombreMes === 'function' ? obtenerNombreMes(mesAnio) : mesAnio);
+            var esPrevisualizacion = opciones.esPrevisualizacion !== false;
+            var hacerDescarga = opciones.descargar !== false;
+
+            if (hacerDescarga && typeof mostrarProgreso === 'function') {
+                mostrarProgreso('Generando Excel (.xlsx)...');
+            }
+            try {
+                var nombreComunidad = 'Comunidad';
+                var jefeEdificio = 'No especificado';
+                var numeroDeptos = 'No especificado';
+                try {
+                    var pers = await obtenerPersonalizacion();
+                    nombreComunidad = pers.comunidad || nombreComunidad;
+                    jefeEdificio = pers.jefeEdificio || jefeEdificio;
+                    numeroDeptos = pers.deptos || numeroDeptos;
+                } catch (e0) {
+                    try {
+                        nombreComunidad = localStorage.getItem('nombreComunidad') || nombreComunidad;
+                        jefeEdificio = localStorage.getItem('jefeEdificio') || jefeEdificio;
+                        numeroDeptos = localStorage.getItem('numeroDeptos') || numeroDeptos;
+                    } catch (eLs) { /* ignore */ }
+                }
+
+                var modulosVisibles = await obtenerModulosVisibles();
+                if (!Array.isArray(modulosVisibles)) modulosVisibles = Object.keys(MODULOS_DISPONIBLES);
+                // Este reporte mensual .xlsx se limita a módulos operativos definidos por negocio.
+                var modulosPermitidosReporte = ['mudanzas', 'tarjetas', 'multas', 'morosos', 'aperturas'];
+                modulosVisibles = modulosVisibles.filter(function (m) {
+                    return modulosPermitidosReporte.indexOf(m) !== -1;
+                });
+
+                var mudanzas = modulosVisibles.indexOf('mudanzas') !== -1 ? await cargarDatosModulo('mudanzas', mesAnio, esPrevisualizacion) : [];
+                var aperturas = modulosVisibles.indexOf('aperturas') !== -1 ? await cargarDatosModulo('aperturas', mesAnio, esPrevisualizacion) : [];
+                var tarjetas = modulosVisibles.indexOf('tarjetas') !== -1 ? await cargarDatosModulo('tarjetas', mesAnio, esPrevisualizacion) : [];
+                if (typeof filtrarTarjetasParaReporteSinProvisionales === 'function') {
+                    tarjetas = filtrarTarjetasParaReporteSinProvisionales(tarjetas);
+                }
+                var espacios = modulosVisibles.indexOf('espacios') !== -1 ? await cargarDatosModulo('espacios', mesAnio, esPrevisualizacion) : [];
+                var multas = modulosVisibles.indexOf('multas') !== -1 ? await cargarDatosModulo('multas', mesAnio, esPrevisualizacion) : [];
+                var morosos = modulosVisibles.indexOf('morosos') !== -1 ? await cargarDatosModulo('morosos', mesAnio, esPrevisualizacion) : [];
+                var lecturasAguaCaliente = [];
+                if (modulosVisibles.indexOf('lecturas-agua') !== -1) {
+                    lecturasAguaCaliente = esPrevisualizacion
+                        ? await obtenerDatosMes('lecturasAguaCaliente').catch(function () { return []; })
+                        : (window.mesReabierto && window.mesEnConsulta === mesAnio)
+                            ? await obtenerDatosMes('lecturasAguaCaliente').catch(function () { return []; })
+                            : await obtenerDatosArchivados('lecturasAguaCaliente', mesAnio).catch(function () { return []; });
+                }
+
+                var ingresosMudanzas = (mudanzas || []).filter(function (m) { return m && m.aplicaCobro === 'si'; }).reduce(function (s, m) { return s + (parseFloat(m.monto) || 0); }, 0);
+                var ingresosAperturas = (aperturas || []).filter(function (a) { return a && a.aplicaCobro === 'si'; }).reduce(function (s, a) { return s + (parseFloat(a.monto) || 0); }, 0);
+                var ingresosTarjetas = (tarjetas || []).reduce(function (s, t) { return s + (parseFloat(t && t.monto) || 0); }, 0);
+                var ingresosEspaciosAseo = (espacios || []).filter(function (e) { return e && e.aplicaAseo === 'si'; }).reduce(function (s, e) { return s + (parseFloat(e.monto) || 0); }, 0);
+                var ingresosEspaciosUso = (espacios || []).filter(function (e) { return e && e.aplicaCobroEspacio === 'si'; }).reduce(function (s, e) { return s + (parseFloat(e.montoCobroEspacio) || 0); }, 0);
+                var ingresosEspacios = ingresosEspaciosAseo + ingresosEspaciosUso;
+                var ingresosTotales = 0;
+                if (modulosVisibles.indexOf('mudanzas') !== -1) ingresosTotales += ingresosMudanzas;
+                if (modulosVisibles.indexOf('aperturas') !== -1) ingresosTotales += ingresosAperturas;
+                if (modulosVisibles.indexOf('tarjetas') !== -1) ingresosTotales += ingresosTarjetas;
+                if (modulosVisibles.indexOf('espacios') !== -1) ingresosTotales += ingresosEspacios;
+                var totalDeudaMorosos = (morosos || []).reduce(function (s, m) { return s + (parseFloat(m && m.monto) || 0); }, 0);
+
+                var metricas = await obtenerMetricasVinculacion();
+                var lineasResumen = [];
+                lineasResumen.push('Ingresos operativos del período (mudanzas, aperturas, tarjetas/TAG, espacios): ' + (typeof formatearMoneda === 'function' ? formatearMoneda(ingresosTotales) : ingresosTotales));
+                if (modulosVisibles.indexOf('morosos') !== -1) {
+                    lineasResumen.push('Morosidad: ' + (morosos || []).length + ' registro(s). Deuda total: ' + (typeof formatearMoneda === 'function' ? formatearMoneda(totalDeudaMorosos) : totalDeudaMorosos));
+                }
+                if (metricas && !metricas.error) {
+                    lineasResumen.push('Ocupación indicada: ' + (metricas.porcentajeOcupacion != null ? metricas.porcentajeOcupacion : '-') + '%. Unidades entregadas: ' + (metricas.unidadesEntregadas != null ? metricas.unidadesEntregadas : '-') + '. Residentes en edificio: ' + (metricas.totalResidentesViviendo != null ? metricas.totalResidentesViviendo : '-') + '.');
+                }
+
+                var wb = new ExcelJSLib.Workbook();
+                wb.creator = 'Gestión Comunidad';
+                wb.created = new Date();
+
+                var wsPortada = wb.addWorksheet(_nombreHojaExcelSeguro('Portada'), { views: [{ showGridLines: false }] });
+                await _rellenarPortadaXLSX(wsPortada, {
+                    nombreComunidad: nombreComunidad,
+                    nombreMes: nombreMes,
+                    jefeEdificio: jefeEdificio,
+                    numeroDeptos: numeroDeptos,
+                    fechaGen: typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(typeof obtenerFechaHoy === 'function' ? obtenerFechaHoy() : new Date()) : String(new Date()),
+                    lineasResumen: lineasResumen
+                });
+
+                var ordenModulos = ['mudanzas', 'tarjetas', 'multas', 'morosos', 'aperturas'];
+
+                for (var mi = 0; mi < ordenModulos.length; mi++) {
+                    var clave = ordenModulos[mi];
+                    if (modulosVisibles.indexOf(clave) === -1) continue;
+                    var meta = MODULOS_DISPONIBLES[clave] || { nombre: clave };
+                    var nombreHoja = _nombreHojaExcelSeguro(meta.nombre);
+                    var ws = wb.addWorksheet(nombreHoja);
+
+                    if (clave === 'mudanzas') _escribirHojaDesdeAOA(ws, generarDatosMudanzas(mudanzas || []));
+                    else if (clave === 'aperturas') _escribirHojaDesdeAOA(ws, generarDatosAperturas(aperturas || []));
+                    else if (clave === 'tarjetas') _escribirHojaDesdeAOA(ws, generarDatosTarjetas(tarjetas || []));
+                    else if (clave === 'espacios') _escribirHojaDesdeAOA(ws, generarDatosEspacios(espacios || []));
+                    else if (clave === 'multas') _escribirHojaDesdeAOA(ws, _generarDatosMultasConTotales(multas || []));
+                    else if (clave === 'morosos') _escribirHojaDesdeAOA(ws, generarDatosMorosos(morosos || []));
+                    else if (clave === 'lecturas-agua') _escribirHojaDesdeAOA(ws, generarDatosLecturasAgua(lecturasAguaCaliente || []));
+                    else if (clave === 'caja') {
+                        var cajaDatos = await cargarDatosModulo('caja', mesAnio, esPrevisualizacion);
+                        _escribirHojaDesdeAOA(ws, _construirAOACajaChica(cajaDatos || []));
+                    } else if (clave === 'mantenciones') {
+                        var mant = await cargarDatosModulo('mantenciones', mesAnio, esPrevisualizacion);
+                        var ve = await cargarDatosModulo('visitas-extraordinarias', mesAnio, esPrevisualizacion);
+                        _escribirHojaDesdeAOA(ws, _construirAOAMantencionesUnificadas(mant || [], ve || []));
+                    } else if (clave === 'pagos-aseo') {
+                        var pag = await cargarDatosModulo('pagosAseo', mesAnio, esPrevisualizacion);
+                        _escribirHojaDesdeAOA(ws, _construirAOAPagosAseo(pag || []));
+                    } else if (clave === 'insumos') {
+                        var ins = await cargarDatosModulo('insumos', mesAnio, esPrevisualizacion);
+                        _escribirHojaDesdeAOA(ws, _construirAOAInsumos(ins || []));
+                    } else if (clave === 'nomina') {
+                        var nom = await cargarDatosModulo('nomina', mesAnio, esPrevisualizacion);
+                        var rep = await cargarDatosModulo('nomina-reemplazos', mesAnio, esPrevisualizacion);
+                        _escribirHojaNomina(ws, nom || [], rep || []);
+                    } else if (clave === 'ocupacion') {
+                        var occ = await cargarDatosModulo('ocupacion-residentes', mesAnio, esPrevisualizacion);
+                        _escribirHojaDesdeAOA(ws, _construirAOAOcupacion(occ || []));
+                    } else if (clave === 'postventa') {
+                        var pv = await _obtenerRegistrosPostventaInforme();
+                        _escribirHojaDesdeAOA(ws, _construirAOAPostventa(pv || []));
+                    }
+                }
+
+                var nombreArchivo = opciones.nombreArchivo;
+                if (!nombreArchivo) {
+                    var partesMes = String(nombreMes || '').trim().split(/\s+/);
+                    var mesSlug = partesMes[0] || 'Mes';
+                    var anioSlug = partesMes[1] || (String(mesAnio).split('-')[0] || 'anio');
+                    nombreArchivo = 'Informe_Mensual_' + mesSlug.replace(/[^\w\u00C0-\u024f-]/gi, '_') + '_' + anioSlug.replace(/[^\w\u00C0-\u024f-]/gi, '_') + '.xlsx';
+                }
+
+                var buf = await wb.xlsx.writeBuffer();
+                if (hacerDescarga) {
+                    var blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+                    var url = URL.createObjectURL(blob);
+                    var a = document.createElement('a');
+                    a.href = url;
+                    a.download = nombreArchivo;
+                    document.body.appendChild(a);
+                    a.click();
+                    document.body.removeChild(a);
+                    URL.revokeObjectURL(url);
+                    if (typeof ocultarProgreso === 'function') ocultarProgreso();
+                    if (typeof mostrarAlerta === 'function') {
+                        mostrarAlerta('Archivo descargado: ' + nombreArchivo, 'Éxito');
+                    }
+                }
+                return { nombreArchivo: nombreArchivo, buffer: buf };
+            } catch (err) {
+                console.error('exportarInformeMensualXLSX:', err);
+                if (typeof ocultarProgreso === 'function') ocultarProgreso();
+                if (typeof mostrarAlerta === 'function') {
+                    mostrarAlerta('Error al generar Excel: ' + (err && err.message ? err.message : 'Error desconocido'), 'Error');
+                }
+                throw err;
+            }
+        }
+        window.exportarInformeMensualXLSX = exportarInformeMensualXLSX;
+        
         // Función para previsualizar el reporte PDF sin cerrar el mes
         window.previsualizarReportePDF = async function() {
             try {
@@ -32264,9 +32834,18 @@
                 if (btnDescargarExcel) {
                     btnDescargarExcel.addEventListener('click', async function() {
                         try {
-                            const mesParaReporte = (window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : obtenerMesActual();
+                            const mesParaReporte = window.mesEnConsulta || obtenerMesActual();
                             const nombreMes = obtenerNombreMes(mesParaReporte);
-                            await generarReporteExcel(mesParaReporte, nombreMes, true);
+                            if (typeof window.exportarInformeMensualXLSX === 'function') {
+                                await window.exportarInformeMensualXLSX({
+                                    mesAnio: mesParaReporte,
+                                    nombreMes: nombreMes,
+                                    esPrevisualizacion: true,
+                                    descargar: true
+                                });
+                            } else {
+                                await generarReporteExcel(mesParaReporte, nombreMes, true);
+                            }
                         } catch (error) {
                             console.error('Error al descargar Excel:', error);
                             mostrarAlerta('Error al descargar el reporte Excel. Por favor, intente nuevamente.', 'Error');
