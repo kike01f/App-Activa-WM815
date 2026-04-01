@@ -25771,6 +25771,57 @@
                 // Generar secciones de cada módulo usando las funciones existentes
                 const datosResumen = generarDatosResumen(nombreComunidad, jefeEdificio, numeroDeptos, nombreMes, mudanzas, aperturas, tarjetas, espacios, multas, morosos, modulosVisibles);
                 
+                const reporteExcelEscaparCelda = (v) => {
+                    return String(v == null ? '' : v)
+                        .replace(/&/g, '&amp;')
+                        .replace(/</g, '&lt;')
+                        .replace(/>/g, '&gt;')
+                        .replace(/"/g, '&quot;');
+                };
+                /** Indica a Excel (HTML .xls) que la celda es numérica y evita el triángulo "número como texto". */
+                const reporteFinMesAttrsCeldaNumerica = (cell, headerLabel, esFilaTotales) => {
+                    if (esFilaTotales) return { align: null, attrs: '', display: cell !== null && cell !== undefined ? String(cell) : '' };
+                    const h = String(headerLabel || '').trim().toLowerCase();
+                    if (cell === null || cell === undefined) return { align: 'left', attrs: '', display: '' };
+                    if (typeof cell === 'number' && !isNaN(cell)) {
+                        if (h === 'monto' || h === 'lectura anterior' || h === 'lectura actual' || h === 'consumo') {
+                            const dec = (String(cell).indexOf('.') >= 0 || String(cell).indexOf('e') >= 0) ? '0.##########' : '0';
+                            return {
+                                align: 'right',
+                                attrs: ` x:num="${cell}" style="mso-number-format:'${dec}';"`,
+                                display: String(cell)
+                            };
+                        }
+                    }
+                    if ((h === 'depto' || h === 'unidad') && typeof cell === 'number' && !isNaN(cell) && Number.isInteger(cell) && cell >= 0) {
+                        return { align: 'center', attrs: ` x:num="${cell}" style="mso-number-format:'0';"`, display: String(cell) };
+                    }
+                    const str = String(cell).trim();
+                    if (str === '' || str === '-') return { align: 'left', attrs: '', display: str };
+                    if ((h === 'depto' || h === 'unidad') && /^\d+$/.test(str)) {
+                        const n = parseInt(str, 10);
+                        return { align: 'center', attrs: ` x:num="${n}" style="mso-number-format:'0';"`, display: String(n) };
+                    }
+                    if (h === 'cantidad') {
+                        if (typeof cell === 'number' && !isNaN(cell) && Number.isInteger(cell)) {
+                            return { align: 'center', attrs: ` x:num="${cell}" style="mso-number-format:'0';"`, display: String(cell) };
+                        }
+                        if (/^\d+$/.test(str)) {
+                            const n = parseInt(str, 10);
+                            return { align: 'center', attrs: ` x:num="${n}" style="mso-number-format:'0';"`, display: String(n) };
+                        }
+                    }
+                    if (h === 'periodos vencidos' && /^\d+$/.test(str)) {
+                        const n = parseInt(str, 10);
+                        return { align: 'center', attrs: ` x:num="${n}" style="mso-number-format:'0';"`, display: String(n) };
+                    }
+                    const isNumber = typeof cell === 'number' || (!isNaN(cell) && cell !== '' && !isNaN(parseFloat(cell)) && typeof cell !== 'string');
+                    return {
+                        align: isNumber ? 'right' : 'left',
+                        attrs: '',
+                        display: String(cell)
+                    };
+                };
                 // Función auxiliar para generar tabla HTML desde array de arrays
                 const generarTablaHTML = (datos, titulo) => {
                     if (!datos || datos.length === 0) return '';
@@ -25787,8 +25838,9 @@
                     }
                     
                     if (filaEncabezado !== -1) {
-                        datos[filaEncabezado].forEach(col => {
-                            html += `<th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">${col || ''}</th>`;
+                        const encabezados = datos[filaEncabezado];
+                        encabezados.forEach(col => {
+                            html += `<th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">${reporteExcelEscaparCelda(col || '')}</th>`;
                         });
                         html += `</tr></thead><tbody>`;
                         
@@ -25799,11 +25851,21 @@
                                 const bgColorFila = esFilaTotales ? '#e5e7eb' : ((i - filaEncabezado) % 2 === 0 ? '#f9fafb' : 'white');
                                 html += `<tr>`;
                                 datos[i].forEach((cell, idx) => {
-                                    const cellValue = cell !== null && cell !== undefined ? String(cell) : '';
-                                    const isNumber = !isNaN(cell) && cell !== '' && !isNaN(parseFloat(cell));
-                                    const align = isNumber ? 'right' : (idx === 0 ? 'left' : 'left');
+                                    const headerLabel = encabezados[idx];
+                                    const numMeta = reporteFinMesAttrsCeldaNumerica(cell, headerLabel, esFilaTotales);
+                                    let align = numMeta.align;
+                                    if (align == null) {
+                                        const isNumber = !esFilaTotales && !isNaN(cell) && cell !== '' && !isNaN(parseFloat(cell)) && typeof cell !== 'string';
+                                        align = isNumber ? 'right' : 'left';
+                                    }
                                     const fontWeight = esFilaTotales ? '700' : 'normal';
-                                    html += `<td class="text-${align}" style="text-align: ${align} !important; vertical-align: middle !important; background-color: ${bgColorFila}; font-weight: ${fontWeight}; border: 1px solid ${esFilaTotales ? '#d1d5db' : '#e5e7eb'};">${cellValue}</td>`;
+                                    const baseStyle = `text-align: ${align} !important; vertical-align: middle !important; background-color: ${bgColorFila}; font-weight: ${fontWeight}; border: 1px solid ${esFilaTotales ? '#d1d5db' : '#e5e7eb'};`;
+                                    const inner = reporteExcelEscaparCelda(numMeta.display);
+                                    const msoStyle = numMeta.attrs && numMeta.attrs.match(/style="([^"]*)"/);
+                                    const xNumAttr = numMeta.attrs && numMeta.attrs.match(/x:num="([^"]*)"/);
+                                    const fullStyle = msoStyle ? `${baseStyle} ${msoStyle[1]}` : baseStyle;
+                                    const xPart = xNumAttr ? ` x:num="${xNumAttr[1]}"` : '';
+                                    html += `<td class="text-${align}" style="${fullStyle}"${xPart}>${inner}</td>`;
                                 });
                                 html += `</tr>`;
                             }
@@ -25890,6 +25952,25 @@
             }
         }
         
+        /** Links de respaldo / evidencia (link manual, evidencias[], archivos[].url) para exportes de fin de mes. */
+        function reporteFinMesUrlsEvidencia(reg) {
+            if (!reg) return '';
+            const parts = [];
+            const add = (u) => {
+                const s = u == null ? '' : String(u).trim();
+                if (s) parts.push(s);
+            };
+            add(reg.link);
+            (reg.evidencias || []).forEach(function (e) {
+                if (typeof e === 'string') add(e);
+                else if (e && e.url) add(e.url);
+            });
+            (reg.archivos || []).forEach(function (a) {
+                if (a && a.url) add(a.url);
+            });
+            return Array.from(new Set(parts)).join(' | ');
+        }
+        
         // Funciones auxiliares para generar datos en formato array de arrays para SheetJS
         function generarDatosResumen(nombreComunidad, jefeEdificio, numeroDeptos, nombreMes, mudanzas, aperturas, tarjetas, espacios, multas, morosos, modulosVisibles) {
             const datos = [];
@@ -25971,7 +26052,7 @@
             datos.push([]);
             
             // Encabezado de tabla
-            datos.push(['Fecha', 'Residente', 'Depto', 'Tipo', 'Movimiento', 'Cobro', 'Monto', 'Corredor']);
+            datos.push(['Fecha', 'Residente', 'Depto', 'Tipo', 'Movimiento', 'Cobro', 'Monto', 'Corredor', 'Evidencia', 'Comentarios']);
             
             // Ordenar por fecha
             const mudanzasOrdenadas = [...mudanzas].sort((a, b) => {
@@ -25993,7 +26074,9 @@
                     movimientoTexto,
                     m.aplicaCobro === 'si' ? 'Sí' : 'No',
                     formatearMoneda(parseFloat(m.monto) || 0),
-                    m.corredor || '-'
+                    m.corredor || '-',
+                    reporteFinMesUrlsEvidencia(m) || '-',
+                    (m.observaciones && String(m.observaciones).trim()) ? String(m.observaciones).trim() : '-'
                 ]);
             });
             
@@ -26004,7 +26087,7 @@
             const ingresosTotales = mudanzasOrdenadas.filter(m => m && m.aplicaCobro === 'si').reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0);
             
             datos.push([]);
-            datos.push(['TOTALES', mudanzasOrdenadas.length, '', '', `${totalIngresos} / ${totalSalidas}`, mudanzasConCobro, formatearMoneda(ingresosTotales), '']);
+            datos.push(['TOTALES', mudanzasOrdenadas.length, '', '', `${totalIngresos} / ${totalSalidas}`, mudanzasConCobro, formatearMoneda(ingresosTotales), '', '', '']);
             
             return datos;
         }
@@ -26014,7 +26097,7 @@
             
             datos.push(['REGISTRO DE APERTURAS DE PUERTA']);
             datos.push([]);
-            datos.push(['Fecha', 'Hora', 'Residente', 'Depto', 'Cobro', 'Monto']);
+            datos.push(['Fecha', 'Hora', 'Residente', 'Depto', 'Cobro', 'Monto', 'Evidencia', 'Comentarios']);
             
             const aperturasOrdenadas = [...aperturas].sort((a, b) => {
                 const fechaA = a && a.fecha ? new Date(a.fecha) : new Date(0);
@@ -26030,7 +26113,9 @@
                     a.nombre || '-',
                     a.departamento || '-',
                     a.aplicaCobro === 'si' ? 'Sí' : 'No',
-                    formatearMoneda(parseFloat(a.monto) || 0)
+                    formatearMoneda(parseFloat(a.monto) || 0),
+                    reporteFinMesUrlsEvidencia(a) || '-',
+                    '-'
                 ]);
             });
             
@@ -26038,7 +26123,7 @@
             const ingresosTotales = aperturasOrdenadas.filter(a => a && a.aplicaCobro === 'si').reduce((sum, a) => sum + (parseFloat(a.monto) || 0), 0);
             
             datos.push([]);
-            datos.push(['TOTALES', '', '', '', aperturasConCobro, formatearMoneda(ingresosTotales)]);
+            datos.push(['TOTALES', '', '', '', aperturasConCobro, formatearMoneda(ingresosTotales), '', '']);
             
             return datos;
         }
@@ -26047,7 +26132,7 @@
             const datos = [];
             datos.push(['VENTA DE TARJETAS DE ACCESO Y TAG VEHICULAR']);
             datos.push([]);
-            datos.push(['Fecha', 'Residente', 'Depto', 'Tipo', 'Cantidad', 'Monto']);
+            datos.push(['Fecha', 'Residente', 'Depto', 'Tipo', 'Cantidad', 'Monto', 'Evidencia', 'Comentarios']);
             
             const tarjetasLimpias = filtrarTarjetasParaReporteSinProvisionales(tarjetas);
             const tarjetasOrdenadas = [...tarjetasLimpias].sort((a, b) => {
@@ -26071,12 +26156,14 @@
                         t.departamento || '-',
                         tipoTexto,
                         it.cantidad != null ? it.cantidad : 1,
-                        formatearMoneda(monto)
+                        formatearMoneda(monto),
+                        reporteFinMesUrlsEvidencia(t) || '-',
+                        '-'
                     ]);
                 });
             });
             datos.push([]);
-            datos.push(['TOTALES', '', '', '', totalLineas, formatearMoneda(ingresosTotales)]);
+            datos.push(['TOTALES', '', '', '', totalLineas, formatearMoneda(ingresosTotales), '', '']);
             return datos;
         }
         
@@ -26085,7 +26172,7 @@
             
             datos.push(['USO DE ESPACIOS COMUNES']);
             datos.push([]);
-            datos.push(['Fecha', 'Residente', 'Depto', 'Espacio', 'Cobro Aseo', 'Monto Aseo', 'Cobro Uso', 'Monto Uso', 'Total']);
+            datos.push(['Fecha', 'Residente', 'Depto', 'Espacio', 'Cobro Aseo', 'Monto Aseo', 'Cobro Uso', 'Monto Uso', 'Total', 'Evidencia', 'Comentarios']);
             
             const espaciosOrdenados = [...espacios].sort((a, b) => {
                 const fechaA = a && a.fecha ? new Date(a.fecha) : new Date(0);
@@ -26107,7 +26194,9 @@
                     formatearMoneda(montoAseo),
                     e.aplicaCobroEspacio === 'si' ? 'Sí' : 'No',
                     formatearMoneda(montoUso),
-                    formatearMoneda(total)
+                    formatearMoneda(total),
+                    reporteFinMesUrlsEvidencia(e) || '-',
+                    '-'
                 ]);
             });
             
@@ -26118,7 +26207,7 @@
             const ingresosTotales = ingresosAseo + ingresosUso;
             
             datos.push([]);
-            datos.push(['TOTALES', '', '', '', espaciosConAseo, formatearMoneda(ingresosAseo), espaciosConCobroUso, formatearMoneda(ingresosUso), formatearMoneda(ingresosTotales)]);
+            datos.push(['TOTALES', '', '', '', espaciosConAseo, formatearMoneda(ingresosAseo), espaciosConCobroUso, formatearMoneda(ingresosUso), formatearMoneda(ingresosTotales), '', '']);
             
             return datos;
         }
@@ -26128,7 +26217,7 @@
             
             datos.push(['REGISTRO DE MULTAS']);
             datos.push([]);
-            datos.push(['Fecha', 'Residente', 'Depto', 'Motivo', 'Monto', 'Unidad']);
+            datos.push(['Fecha', 'Residente', 'Depto', 'Motivo', 'Monto', 'Unidad', 'Evidencia', 'Comentarios']);
             
             const multasOrdenadas = [...multas].sort((a, b) => {
                 const fechaA = a && a.fecha ? new Date(a.fecha) : new Date(0);
@@ -26144,7 +26233,9 @@
                     m.departamento || '-',
                     m.motivo || '-',
                     parseFloat(m.monto) || 0,
-                    m.tipoUnidad || 'UF'
+                    m.tipoUnidad || 'UF',
+                    reporteFinMesUrlsEvidencia(m) || '-',
+                    '-'
                 ]);
             });
             
@@ -26156,7 +26247,7 @@
             
             datos.push(['REGISTRO DE MOROSOS']);
             datos.push([]);
-            datos.push(['Fecha', 'Depto', 'Estado', 'Monto', 'Periodos vencidos', 'Servicio Eléctrico']);
+            datos.push(['Fecha', 'Depto', 'Estado', 'Monto', 'Periodos vencidos', 'Servicio Eléctrico', 'Evidencia', 'Comentarios']);
             
             const morososOrdenados = [...morosos].sort((a, b) => {
                 const fechaA = a && a.fecha ? new Date(a.fecha) : new Date(0);
@@ -26183,14 +26274,16 @@
                     estadoTexto,
                     formatearMoneda(parseFloat(m.monto) || 0),
                     periodosVencidos,
-                    servicioElectrico
+                    servicioElectrico,
+                    reporteFinMesUrlsEvidencia(m) || '-',
+                    '-'
                 ]);
             });
             
             const totalDeuda = morososOrdenados.reduce((sum, m) => sum + (parseFloat(m && m.monto) || 0), 0);
             
             datos.push([]);
-            datos.push(['TOTALES', '', '', formatearMoneda(totalDeuda), '', '']);
+            datos.push(['TOTALES', '', '', formatearMoneda(totalDeuda), '', '', '', '']);
             
             return datos;
         }
@@ -26219,7 +26312,7 @@
             
             datos.push(['LECTURAS DE AGUA CALIENTE']);
             datos.push([]);
-            datos.push(['Unidad', 'Lectura Anterior', 'Lectura Actual', 'Consumo']);
+            datos.push(['Unidad', 'Lectura Anterior', 'Lectura Actual', 'Consumo', 'Evidencia', 'Comentarios']);
             
             const lecturasValidas = Array.isArray(lecturas) ? lecturas.filter(l => {
                 const unidad = (l.unidad || '').toString().trim();
@@ -26253,7 +26346,9 @@
                     l.unidad || '-',
                     lecturaAnterior,
                     lecturaActual,
-                    consumo
+                    consumo,
+                    reporteFinMesUrlsEvidencia(l) || '-',
+                    (l.comentarios && String(l.comentarios).trim()) ? String(l.comentarios).trim() : '-'
                 ]);
             });
             
@@ -26265,7 +26360,7 @@
             }, 0);
             
             datos.push([]);
-            datos.push(['TOTALES', '', '', consumoTotal]);
+            datos.push(['TOTALES', '', '', consumoTotal, '', '']);
             
             return datos;
         }
@@ -26390,9 +26485,9 @@
                 if ((m.tipoUnidad || 'UF') === 'UTM') utm += mo; else u += mo;
             });
             base.push([]);
-            base.push(['TOTALES', (multas || []).length, '', '', '', '']);
-            base.push(['Total monto UF', u, '', '', '', '']);
-            base.push(['Total monto UTM', utm, '', '', '', '']);
+            base.push(['TOTALES', (multas || []).length, '', '', '', '', '', '']);
+            base.push(['Total monto UF', u, '', '', '', '', '', '']);
+            base.push(['Total monto UTM', utm, '', '', '', '', '', '']);
             return base;
         }
         function _construirAOACajaChica(caja) {
