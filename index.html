@@ -26248,7 +26248,7 @@
         var _EXCEL_TABLA_ENCABEZADO_VERDE = 'FF70AD47';
         function _estilizarEncabezadoColumnaTabla(cell) {
             var b = { style: 'thin', color: { argb: 'FF333333' } };
-            cell.font = { bold: true, color: { argb: 'FFFFFFFF' } };
+            cell.font = { bold: true, size: 13, color: { argb: 'FFFFFFFF' } };
             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: _EXCEL_TABLA_ENCABEZADO_VERDE } };
             cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             cell.border = { top: b, left: b, bottom: b, right: b };
@@ -26260,7 +26260,9 @@
             var r = 1;
             var i = 0;
             if (!aoa || !aoa.length) {
-                sheet.getCell(1, 1).value = '(Sin datos)';
+                var vac = sheet.getCell(1, 1);
+                vac.value = '(Sin datos)';
+                vac.font = { size: 13 };
                 return;
             }
             var numCols = 1;
@@ -26271,7 +26273,7 @@
                 sheet.mergeCells(r, 1, r, Math.max(numCols, 6));
                 var t = sheet.getCell(r, 1);
                 t.value = String(aoa[0][0]);
-                t.font = { bold: true, size: 14, color: { argb: 'FF111827' } };
+                t.font = { bold: true, size: 13, color: { argb: 'FF111827' } };
                 t.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
                 r += 2;
                 i = 1;
@@ -26296,7 +26298,7 @@
                     var cell = sheet.getCell(r, c + 1);
                     cell.value = row[c];
                     cell.border = thin;
-                    if (isTotal) cell.font = { bold: true };
+                    cell.font = isTotal ? { bold: true, size: 13 } : { size: 13 };
                     cell.alignment = { vertical: 'top', wrapText: true };
                 }
                 r++;
@@ -26465,7 +26467,7 @@
             var r = 1;
             sheet.mergeCells(r, 1, r, 10);
             sheet.getCell(r, 1).value = 'NÓMINA Y REEMPLAZOS';
-            sheet.getCell(r, 1).font = { bold: true, size: 14, color: { argb: 'FF111827' } };
+            sheet.getCell(r, 1).font = { bold: true, size: 13, color: { argb: 'FF111827' } };
             sheet.getCell(r, 1).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             r += 2;
             var hdr1 = ['N°', 'Nombre', 'Cargo', 'Días trab.', 'Lic. méd.', 'T. fest.', 'T. extra', 'Domingos', 'Anticipos', 'Observaciones'];
@@ -26481,6 +26483,7 @@
                 row.forEach(function (v, j) {
                     var cell = sheet.getCell(r, j + 1);
                     cell.value = v;
+                    cell.font = { size: 13 };
                     cell.border = thin;
                 });
                 r++;
@@ -26505,18 +26508,20 @@
                 sumRep += vt;
                 var row = [idx + 1, rep.nombre, rep.reemplazaA, rep.turnos, typeof formatearMonedaNomina === 'function' ? formatearMonedaNomina(vt) : vt, rep.observaciones || '-'];
                 row.forEach(function (v, j) {
-                    sheet.getCell(r, j + 1).value = v;
-                    sheet.getCell(r, j + 1).border = thin;
+                    var cel = sheet.getCell(r, j + 1);
+                    cel.value = v;
+                    cel.font = { size: 13 };
+                    cel.border = thin;
                 });
                 r++;
             });
             r++;
             var tc = sheet.getCell(r, 1);
             tc.value = 'TOTAL valor reemplazos';
-            tc.font = { bold: true };
+            tc.font = { bold: true, size: 13 };
             tc.border = thin;
             sheet.getCell(r, 5).value = typeof formatearMonedaNomina === 'function' ? formatearMonedaNomina(sumRep) : sumRep;
-            sheet.getCell(r, 5).font = { bold: true };
+            sheet.getCell(r, 5).font = { bold: true, size: 13 };
             sheet.getCell(r, 5).border = thin;
             for (var c = 1; c <= 10; c++) {
                 var maxL = 8;
@@ -26584,12 +26589,12 @@
             sheet.mergeCells(r, 2, r, 5);
             var t1 = sheet.getCell(r, 2);
             t1.value = 'INFORME MENSUAL DE GESTIÓN';
-            t1.font = { bold: true, size: 18, color: { argb: 'FF1F2937' } };
+            t1.font = { bold: true, size: 13, color: { argb: 'FF1F2937' } };
             t1.alignment = { horizontal: 'center', vertical: 'middle' };
             r += 2;
             sheet.mergeCells(r, 2, r, 5);
             sheet.getCell(r, 2).value = ctx.nombreComunidad || '';
-            sheet.getCell(r, 2).font = { bold: true, size: 14 };
+            sheet.getCell(r, 2).font = { bold: true, size: 13 };
             sheet.getCell(r, 2).alignment = { horizontal: 'center' };
             r += 2;
             var filasInfo = [
@@ -26600,22 +26605,24 @@
             ];
             filasInfo.forEach(function (pair) {
                 sheet.getCell(r, 2).value = pair[0];
-                sheet.getCell(r, 2).font = { bold: true };
+                sheet.getCell(r, 2).font = { bold: true, size: 13 };
                 sheet.getCell(r, 2).border = thin;
                 sheet.mergeCells(r, 3, r, 5);
                 sheet.getCell(r, 3).value = pair[1];
+                sheet.getCell(r, 3).font = { size: 13 };
                 sheet.getCell(r, 3).border = thin;
                 r++;
             });
             r += 1;
             sheet.mergeCells(r, 2, r, 5);
             sheet.getCell(r, 2).value = 'Resumen general';
-            sheet.getCell(r, 2).font = { bold: true, size: 12 };
+            sheet.getCell(r, 2).font = { bold: true, size: 13 };
             r += 1;
             (ctx.lineasResumen || []).forEach(function (linea) {
                 sheet.mergeCells(r, 2, r, 5);
                 var c = sheet.getCell(r, 2);
                 c.value = linea;
+                c.font = { size: 13 };
                 c.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
                 c.border = thin;
                 r++;
