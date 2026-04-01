@@ -26293,6 +26293,24 @@
             cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
             cell.border = { top: b, left: b, bottom: b, right: b };
         }
+        function _excelValorSeguro(v) {
+            if (v === undefined || v === null) return '';
+            if (typeof v === 'number') return isFinite(v) ? v : '';
+            if (typeof v === 'boolean') return v ? 'Si' : 'No';
+            if (v instanceof Date) return isNaN(v.getTime()) ? '' : v;
+            if (typeof v === 'object') {
+                try { return JSON.stringify(v); } catch (_) { return String(v); }
+            }
+            var s = String(v).trim();
+            if (!s) return '';
+            if (/^-?\d+(\.\d+)?$/.test(s)) {
+                if (!(s.length > 1 && s.charAt(0) === '0' && s.charAt(1) !== '.')) {
+                    var n = Number(s);
+                    if (isFinite(n)) return n;
+                }
+            }
+            return s;
+        }
         /** Escribe una hoja a partir del formato generarDatos* : título fila 0, fila vacía, encabezados, datos, [vacío], TOTALES… */
         function _escribirHojaDesdeAOA(sheet, aoa, opciones) {
             var thin = _excelBordeFino();
@@ -26325,29 +26343,33 @@
             var c;
             for (c = 0; c < hdr.length; c++) {
                 var hc = sheet.getCell(r, c + 1);
-                hc.value = hdr[c];
+                hc.value = _excelValorSeguro(hdr[c]);
                 _estilizarEncabezadoColumnaTabla(hc);
             }
             r++;
             i++;
             for (; i < aoa.length; i++) {
-                var row = aoa[i];
-                if (!row || !row.length) continue;
-                var cel0 = row[0];
-                var isTotal = cel0 === 'TOTALES' || (typeof cel0 === 'string' && cel0.toUpperCase().indexOf('TOTAL') === 0);
-                for (c = 0; c < numCols; c++) {
-                    var cell = sheet.getCell(r, c + 1);
-                    cell.value = c < row.length ? row[c] : '';
-                    cell.border = thin;
-                    if (isTotal) {
-                        cell.font = { bold: true, size: _EXCEL_TAM_TEXTO_CELDA };
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: _EXCEL_FILA_TOTAL_GRIS } };
-                    } else {
-                        cell.font = { size: _EXCEL_TAM_TEXTO_CELDA };
+                try {
+                    var row = aoa[i];
+                    if (!row || !row.length) continue;
+                    var cel0 = row[0];
+                    var isTotal = cel0 === 'TOTALES' || (typeof cel0 === 'string' && cel0.toUpperCase().indexOf('TOTAL') === 0);
+                    for (c = 0; c < numCols; c++) {
+                        var cell = sheet.getCell(r, c + 1);
+                        cell.value = _excelValorSeguro(c < row.length ? row[c] : '');
+                        cell.border = thin;
+                        if (isTotal) {
+                            cell.font = { bold: true, size: _EXCEL_TAM_TEXTO_CELDA };
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: _EXCEL_FILA_TOTAL_GRIS } };
+                        } else {
+                            cell.font = { size: _EXCEL_TAM_TEXTO_CELDA };
+                        }
+                        cell.alignment = { vertical: 'top', wrapText: true };
                     }
-                    cell.alignment = { vertical: 'top', wrapText: true };
+                    r++;
+                } catch (e) {
+                    console.warn('⚠️ Fila omitida por dato inválido en Excel:', e);
                 }
-                r++;
             }
             for (c = 1; c <= numCols; c++) {
                 var maxL = 8;
