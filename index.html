@@ -8803,7 +8803,8 @@
                         <h1>📊 Reporte de Lecturas de Agua Caliente</h1>
                         <p><strong>Comunidad:</strong> ${nombreComunidad || 'Comunidad'}</p>
                         <p><strong>Período:</strong> ${nombreMes}</p>
-                        <p><strong>Fecha de Generación:</strong> ${formatearFechaParaCorreo(obtenerFechaHoy())}</p>
+                        <p><strong>Cierre del período:</strong> ${formatearFechaCierrePeriodoReporte(mes)}</p>
+                        <p><strong>Documento generado el:</strong> ${formatearFechaParaCorreo(obtenerFechaHoy())}</p>
                     </div>
                     <table>
                         <colgroup>
@@ -8890,12 +8891,12 @@
 
         async function enviarCorreoConReporteLecturasAgua() {
             try {
-                const mesActual = obtenerMesActual();
-                const nombreMes = obtenerNombreMes(mesActual);
+                const mesReporte = window.mesEnConsulta || obtenerMesActual();
+                const nombreMes = obtenerNombreMes(mesReporte);
                 const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
                 
                 console.log('📧 Iniciando envío de correo con reporte de Lecturas de Agua');
-                console.log('📅 Mes actual:', mesActual, nombreMes);
+                console.log('📅 Mes del reporte:', mesReporte, nombreMes);
                 
                 // Generar reporte Excel como adjunto - SIEMPRE con datos más actuales
                 mostrarProgreso('Obteniendo datos más actuales de Lecturas de Agua...');
@@ -8913,7 +8914,7 @@
                 
                 mostrarProgreso('Generando reporte Excel de Lecturas de Agua...');
                 // Usar la función que genera el Excel exactamente como el módulo
-                const adjunto = await generarExcelLecturasAguaComoAdjunto(lecturasActual, mesActual, nombreMes);
+                const adjunto = await generarExcelLecturasAguaComoAdjunto(lecturasActual, mesReporte, nombreMes);
                 if (!adjunto) {
                     mostrarAlerta('Error al generar el adjunto del reporte. Por favor, intente nuevamente.', 'Error');
                     ocultarProgreso();
@@ -10069,6 +10070,24 @@
             const añoStr = año.toString().padStart(4, '0');
             const mesStr = mes.toString().padStart(2, '0');
             return `${añoStr}-${mesStr}`;
+        }
+
+        /** Último día calendario del mes YYYY-MM (YYYY-MM-DD). Referencia de período en reportes. */
+        function obtenerUltimoDiaMesAnio(mesAnio) {
+            if (!mesAnio || typeof mesAnio !== 'string') return obtenerFechaHoy();
+            const partes = mesAnio.split('-');
+            if (partes.length !== 2) return obtenerFechaHoy();
+            const año = parseInt(partes[0], 10);
+            const mes = parseInt(partes[1], 10);
+            if (isNaN(año) || isNaN(mes) || mes < 1 || mes > 12) return obtenerFechaHoy();
+            const ultimo = new Date(año, mes, 0);
+            const d = ultimo.getDate();
+            return `${año}-${String(mes).padStart(2, '0')}-${String(d).padStart(2, '0')}`;
+        }
+
+        /** Fecha legible del cierre del período reportado (último día del mes del reporte). */
+        function formatearFechaCierrePeriodoReporte(mesAnio) {
+            return formatearFechaParaCorreo(obtenerUltimoDiaMesAnio(mesAnio));
         }
 
         // ============================================
@@ -13618,7 +13637,8 @@
                     totalMonto: totalCaja,
                     fechaGeneracion: new Date().toISOString()
                 });
-                const fechaHoy = formatearFechaParaCorreo(obtenerFechaHoy());
+                const fechaCierrePeriodo = formatearFechaCierrePeriodoReporte(mesAnio);
+                const fechaEmisionDocumento = formatearFechaParaCorreo(obtenerFechaHoy());
                 
                 const personalizacion = await obtenerPersonalizacion();
                 const nombreComunidad = personalizacion.comunidad || 'Activa WM815';
@@ -13667,7 +13687,8 @@
                     </div>
                     <h1>REPORTE DE CAJA CHICA</h1>
                     <p><strong>Período:</strong> ${nombreMes}</p>
-                    <p><strong>Fecha de Generación:</strong> ${fechaHoy}</p>
+                    <p><strong>Cierre del período:</strong> ${fechaCierrePeriodo}</p>
+                    <p style="font-size:0.8125rem;color:#6b7280;"><strong>Documento generado el:</strong> ${fechaEmisionDocumento}</p>
                 </div>
 
                 <div class="reporte-section">
@@ -13688,9 +13709,9 @@
 
                 <div class="reporte-section">
                     <h2>DETALLE DE MOVIMIENTOS</h2>
-                `;
+            `;
                 
-            if (caja.length > 0) {
+                if (caja.length > 0) {
                 contenidoHTML += `
                     <table class="reporte-table">
                         <thead>
@@ -14297,7 +14318,8 @@
                     console.warn('⚠️ Visitas extraordinarias no es un array, inicializando como array vacío');
                     visitasExtraordinarias = [];
                 }
-                const fechaHoy = formatearFechaParaCorreo(obtenerFechaHoy());
+                const fechaCierrePeriodo = formatearFechaCierrePeriodoReporte(mesAnio);
+                const fechaEmisionDocumento = formatearFechaParaCorreo(obtenerFechaHoy());
                 
                 const personalizacion = await obtenerPersonalizacion();
                 const nombreComunidad = personalizacion.comunidad || 'Activa WM815';
@@ -14340,7 +14362,8 @@
                                 </div>
                                 <div style="flex: 1; min-width: 160px;">
                                     <p style="margin: 0.05rem 0; font-size: 0.65rem; color: #6b7280; line-height: 1.2;"><strong>Período:</strong> ${nombreMes}</p>
-                                    <p style="margin: 0.05rem 0; font-size: 0.65rem; color: #6b7280; line-height: 1.2;"><strong>Deptos:</strong> ${numeroDeptos} | <strong>Generado:</strong> ${fechaHoy}</p>
+                                    <p style="margin: 0.05rem 0; font-size: 0.65rem; color: #6b7280; line-height: 1.2;"><strong>Deptos:</strong> ${numeroDeptos}</p>
+                                    <p style="margin: 0.05rem 0; font-size: 0.62rem; color: #6b7280; line-height: 1.2;"><strong>Cierre período:</strong> ${fechaCierrePeriodo} · <strong>Doc. generado:</strong> ${fechaEmisionDocumento}</p>
                                 </div>
                             </div>
                         </div>
@@ -14870,7 +14893,8 @@
                 const nombreComunidad = personalizacion.comunidad || 'Activa WM815';
                 const jefeEdificio = personalizacion.jefeEdificio || 'Angel Avendaño';
                 const numeroDeptos = personalizacion.deptos || '259';
-                const fechaHoy = formatearFechaParaCorreo(obtenerFechaHoy());
+                const fechaCierrePeriodo = formatearFechaCierrePeriodoReporte(mesAnio);
+                const fechaEmisionDocumento = formatearFechaParaCorreo(obtenerFechaHoy());
                 
                 const mapeoModulos = {
                     'mudanzas': 'mudanzas',
@@ -15084,7 +15108,8 @@
                         </div>
                         <h1>REPORTE DE CIERRE DE MES</h1>
                         <p><strong>Período:</strong> ${nombreMes}</p>
-                        <p><strong>Fecha de Generación:</strong> ${fechaHoy}</p>
+                        <p><strong>Cierre del período:</strong> ${fechaCierrePeriodo}</p>
+                        <p style="font-size:0.875rem;color:#6b7280;"><strong>Documento generado el:</strong> ${fechaEmisionDocumento}</p>
                     </div>
                     
                     <div class="reporte-section">
@@ -16542,7 +16567,7 @@
             }
             
             const nombreComunidad = await obtenerNombreComunidad();
-            const mes = obtenerMesActual();
+            const mes = window.mesEnConsulta || obtenerMesActual();
             const nombreMes = obtenerNombreMes(mes);
             const nombreArchivo = `Lecturas_Agua_Caliente_${(nombreComunidad || 'Comunidad').replace(/\s+/g, '_')}_${mes}.xls`;
             
@@ -16608,7 +16633,8 @@
                         <h1>📊 Reporte de Lecturas de Agua Caliente</h1>
                         <p><strong>Comunidad:</strong> ${nombreComunidad || 'Comunidad'}</p>
                         <p><strong>Período:</strong> ${nombreMes}</p>
-                        <p><strong>Fecha de Generación:</strong> ${formatearFechaParaCorreo(obtenerFechaHoy())}</p>
+                        <p><strong>Cierre del período:</strong> ${formatearFechaCierrePeriodoReporte(mes)}</p>
+                        <p><strong>Documento generado el:</strong> ${formatearFechaParaCorreo(obtenerFechaHoy())}</p>
                     </div>
                     <table>
                         <colgroup>
@@ -20070,9 +20096,9 @@
                     return;
                 }
                 
-                // Obtener información del mes actual
-                const mesActual = obtenerMesActual();
-                const nombreMes = obtenerNombreMes(mesActual);
+                // Período = mes en consulta (Herramientas) o mes calendario actual
+                const mesClaveReporte = window.mesEnConsulta || obtenerMesActual();
+                const nombreMes = obtenerNombreMes(mesClaveReporte);
                 
                 // Obtener datos de personalización
                 const personalizacion = await obtenerPersonalizacion();
@@ -20362,8 +20388,8 @@
                                 <div class="info-value">${nombrePersonal}</div>
                             </div>
                             <div class="info-item">
-                                <div class="info-label">Fecha de Generación</div>
-                                <div class="info-value">${formatearFecha(obtenerFechaHoy())}</div>
+                                <div class="info-label">Cierre del período</div>
+                                <div class="info-value">${formatearFecha(obtenerUltimoDiaMesAnio(mesClaveReporte))}</div>
                             </div>
                         </div>
                         
@@ -20454,7 +20480,7 @@
                         
                         <div style="margin-top: 20px; padding-top: 10px; border-top: 2px solid var(--border-color); text-align: center; font-size: 9px; color: var(--text-tertiary); transition: border-color 0.3s ease, color 0.3s ease;">
                             <p style="margin: 3px 0;">Reporte generado automáticamente por el Sistema de Gestión de Comunidad</p>
-                            <p style="margin: 3px 0;">Fecha de generación: ${formatearFechaParaCorreo(obtenerFechaHoy())}</p>
+                            <p style="margin: 3px 0;">Documento generado el: ${formatearFechaParaCorreo(obtenerFechaHoy())}</p>
                         </div>
                         </div>
                     </body>
@@ -20682,8 +20708,8 @@
             }
             
             const fechaHoy = formatearFechaParaCorreo(obtenerFechaHoy());
-            const mesActual = obtenerMesActual();
-            const nombreMes = obtenerNombreMes(mesActual);
+            const mesRefComprobante = window.mesEnConsulta || obtenerMesActual();
+            const nombreMes = obtenerNombreMes(mesRefComprobante);
             
             // Obtener datos de personalización
             const personalizacion = await obtenerPersonalizacion();
@@ -21018,8 +21044,8 @@
             }
             
             const fechaHoy = formatearFechaParaCorreo(obtenerFechaHoy());
-            const mesActual = obtenerMesActual();
-            const nombreMes = obtenerNombreMes(mesActual);
+            const mesRefComprobante = window.mesEnConsulta || obtenerMesActual();
+            const nombreMes = obtenerNombreMes(mesRefComprobante);
             
             // Obtener datos de personalización
             const personalizacion = await obtenerPersonalizacion();
@@ -24259,7 +24285,8 @@
                         </div>
                         <h1>Reporte Mensual de Gestión</h1>
                         <p>Período: ${nombreMes}</p>
-                        <p>Fecha de Generación: ${formatearFechaParaCorreo(obtenerFechaHoy())}</p>
+                        <p><strong>Cierre del período:</strong> ${formatearFechaCierrePeriodoReporte(mesAnio)}</p>
+                        <p style="font-size:0.8125rem;color:#6b7280;">Documento generado el ${formatearFechaParaCorreo(obtenerFechaHoy())}</p>
                     </div>
                     
                     <div class="reporte-section">
@@ -25657,10 +25684,10 @@
                                     <div class="info-cell info-value">${numeroDeptos}</div>
                                 </div>
                                 <div class="info-row">
-                                    <div class="info-cell info-label">Fecha de Generación:</div>
+                                    <div class="info-cell info-label">Cierre del período:</div>
+                                    <div class="info-cell info-value">${formatearFechaCierrePeriodoReporte(mesAnio)}</div>
+                                    <div class="info-cell info-label">Documento generado el:</div>
                                     <div class="info-cell info-value">${formatearFechaParaCorreo(obtenerFechaHoy())}</div>
-                                    <div class="info-cell"></div>
-                                    <div class="info-cell"></div>
                                 </div>
                             </div>
                         </div>
@@ -25787,7 +25814,7 @@
                 `;
                 
                 // Generar secciones de cada módulo usando las funciones existentes
-                const datosResumen = generarDatosResumen(nombreComunidad, jefeEdificio, numeroDeptos, nombreMes, mudanzas, aperturas, tarjetas, espacios, multas, morosos, modulosVisibles);
+                const datosResumen = generarDatosResumen(nombreComunidad, jefeEdificio, numeroDeptos, nombreMes, mudanzas, aperturas, tarjetas, espacios, multas, morosos, modulosVisibles, mesAnio);
                 
                 const reporteExcelEscaparCelda = (v) => {
                     return String(v == null ? '' : v)
@@ -26021,8 +26048,9 @@
         }
         
         // Funciones auxiliares para generar datos en formato array de arrays para SheetJS
-        function generarDatosResumen(nombreComunidad, jefeEdificio, numeroDeptos, nombreMes, mudanzas, aperturas, tarjetas, espacios, multas, morosos, modulosVisibles) {
+        function generarDatosResumen(nombreComunidad, jefeEdificio, numeroDeptos, nombreMes, mudanzas, aperturas, tarjetas, espacios, multas, morosos, modulosVisibles, mesAnio) {
             const datos = [];
+            const mesRef = mesAnio || (typeof obtenerMesActual === 'function' ? obtenerMesActual() : '');
             
             // Encabezado (similar al diseño de nómina)
             datos.push(['REPORTE MENSUAL DE GESTIÓN']);
@@ -26030,7 +26058,7 @@
             datos.push([]);
             datos.push(['Proyecto:', nombreComunidad, '', 'Jefe de Edificio:', jefeEdificio]);
             datos.push(['Período:', nombreMes, '', 'Deptos:', numeroDeptos]);
-            datos.push(['Fecha de Generación:', formatearFechaParaCorreo(obtenerFechaHoy()), '', '', '']);
+            datos.push(['Cierre del período:', formatearFechaCierrePeriodoReporte(mesRef), '', 'Documento generado el:', formatearFechaParaCorreo(obtenerFechaHoy())]);
             datos.push([]);
             
             // Encabezado de tabla
@@ -26849,11 +26877,20 @@
             sheet.getCell(r, 2).font = { bold: true, size: _EXCEL_TAM_TEXTO_CELDA };
             sheet.getCell(r, 2).alignment = { horizontal: 'center' };
             r += 2;
+            var cierreTxt = '';
+            var emisionTxt = '';
+            if (ctx.mesAnio && typeof formatearFechaCierrePeriodoReporte === 'function') {
+                cierreTxt = formatearFechaCierrePeriodoReporte(ctx.mesAnio);
+            }
+            if (typeof formatearFechaParaCorreo === 'function' && typeof obtenerFechaHoy === 'function') {
+                emisionTxt = formatearFechaParaCorreo(obtenerFechaHoy());
+            }
             var filasInfo = [
                 ['Período', ctx.nombreMes || ''],
+                ['Cierre del período', cierreTxt || ctx.fechaGen || ''],
                 ['Jefe de edificio', ctx.jefeEdificio || ''],
                 ['Departamentos', ctx.numeroDeptos || ''],
-                ['Generado', ctx.fechaGen || '']
+                ['Documento generado el', emisionTxt || ctx.fechaGen || '']
             ];
             filasInfo.forEach(function (pair) {
                 sheet.getCell(r, 2).value = pair[0];
@@ -26981,9 +27018,9 @@
                 await _rellenarPortadaXLSX(wsPortada, {
                     nombreComunidad: nombreComunidad,
                     nombreMes: nombreMes,
+                    mesAnio: mesAnio,
                     jefeEdificio: jefeEdificio,
                     numeroDeptos: numeroDeptos,
-                    fechaGen: typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(typeof obtenerFechaHoy === 'function' ? obtenerFechaHoy() : new Date()) : String(new Date()),
                     lineasResumen: lineasResumen
                 });
 
@@ -28415,7 +28452,8 @@
             const caja = (esMesActual || esMesReabierto) ? await obtenerDatosMes('caja') : await obtenerDatosArchivados('caja', mesAnio);
             
             const totalCaja = caja.reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0);
-            const fechaHoy = formatearFecha(obtenerFechaHoy());
+            const fechaCierrePeriodo = formatearFechaCierrePeriodoReporte(mesAnio);
+            const fechaEmisionDocumento = formatearFechaParaCorreo(obtenerFechaHoy());
             
             // Obtener datos de personalización
             const personalizacion = await obtenerPersonalizacion();
@@ -28459,7 +28497,8 @@
                     </div>
                     <h1>REPORTE DE CAJA CHICA</h1>
                     <p><strong>Período:</strong> ${nombreMes}</p>
-                    <p><strong>Fecha de Generación:</strong> ${fechaHoy}</p>
+                    <p><strong>Cierre del período:</strong> ${fechaCierrePeriodo}</p>
+                    <p style="font-size:0.8125rem;color:#6b7280;"><strong>Documento generado el:</strong> ${fechaEmisionDocumento}</p>
                 </div>
 
                 <div class="reporte-section">
@@ -28626,7 +28665,8 @@
             const mantenciones = (usarMesActual || esMesReabierto) ? await obtenerDatosMes('mantenciones') : await obtenerDatosArchivados('mantenciones', mesAnio);
             // Obtener visitas extraordinarias del mes
             const visitasExtraordinarias = (usarMesActual || esMesReabierto) ? await obtenerDatosMes('visitas-extraordinarias') : await obtenerDatosArchivados('visitas-extraordinarias', mesAnio);
-            const fechaHoy = formatearFecha(obtenerFechaHoy());
+            const fechaCierrePeriodoFmt = formatearFechaCierrePeriodoReporte(mesAnio);
+            const fechaEmisionDocumentoFmt = formatearFechaParaCorreo(obtenerFechaHoy());
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);
             
@@ -28700,7 +28740,8 @@
                             </div>
                             <div style="flex: 1; min-width: 160px;">
                                 <p style="margin: 0.05rem 0; font-size: 0.65rem; color: #6b7280; line-height: 1.2;"><strong>Período:</strong> ${nombreMes}</p>
-                                <p style="margin: 0.05rem 0; font-size: 0.65rem; color: #6b7280; line-height: 1.2;"><strong>Deptos:</strong> ${numeroDeptos} | <strong>Generado:</strong> ${fechaHoy}</p>
+                                <p style="margin: 0.05rem 0; font-size: 0.65rem; color: #6b7280; line-height: 1.2;"><strong>Deptos:</strong> ${numeroDeptos}</p>
+                                <p style="margin: 0.05rem 0; font-size: 0.62rem; color: #6b7280; line-height: 1.2;"><strong>Cierre período:</strong> ${fechaCierrePeriodoFmt} · <strong>Doc. generado:</strong> ${fechaEmisionDocumentoFmt}</p>
                             </div>
                         </div>
                     </div>
