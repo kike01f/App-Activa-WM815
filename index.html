@@ -8101,12 +8101,12 @@
         // Funciones para enviar correos con reportes adjuntos desde los módulos
         async function enviarCorreoConReporteCaja() {
             try {
-                const mesActual = obtenerMesActual();
-                const nombreMes = obtenerNombreMes(mesActual);
+                const mesReporte = obtenerMesPeriodoVista();
+                const nombreMes = obtenerNombreMes(mesReporte);
                 const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
                 
                 console.log('📧 Iniciando envío de correo con reporte de Caja Chica');
-                console.log('📅 Mes actual:', mesActual, nombreMes);
+                console.log('📅 Período del reporte:', mesReporte, nombreMes);
                 
                 // Generar reporte como adjunto - SIEMPRE con datos más actuales
                 mostrarProgreso('Obteniendo datos más actuales de Caja Chica...');
@@ -8117,7 +8117,7 @@
                 console.log('✅ Datos actuales obtenidos:', cajaActual.length, 'registros');
                 
                 mostrarProgreso('Generando reporte de Caja Chica con datos actualizados...');
-                const htmlReporte = await generarHTMLReporteCajaChica(mesActual, nombreMes);
+                const htmlReporte = await generarHTMLReporteCajaChica(mesReporte, nombreMes);
                 if (!htmlReporte) {
                     mostrarAlerta('Error al generar el reporte. Por favor, intente nuevamente.', 'Error');
                     return;
@@ -8146,12 +8146,12 @@
         
         async function enviarCorreoConReporteMantenciones() {
             try {
-                const mesActual = obtenerMesActual();
-                const nombreMes = obtenerNombreMes(mesActual);
+                const mesReporte = obtenerMesPeriodoVista();
+                const nombreMes = obtenerNombreMes(mesReporte);
                 const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
                 
                 console.log('📧 Iniciando envío de correo con reporte de Mantenciones');
-                console.log('📅 Mes actual:', mesActual, nombreMes);
+                console.log('📅 Período del reporte:', mesReporte, nombreMes);
                 
                 // Generar reporte como adjunto - SIEMPRE con datos más actuales
                 mostrarProgreso('Obteniendo datos más actuales de Mantenciones...');
@@ -8166,7 +8166,7 @@
                 });
                 
                 mostrarProgreso('Generando reporte de Mantenciones con datos actualizados...');
-                const htmlReporte = await generarHTMLReporteMantenciones(mesActual, nombreMes);
+                const htmlReporte = await generarHTMLReporteMantenciones(mesReporte, nombreMes);
                 if (!htmlReporte) {
                     mostrarAlerta('Error al generar el reporte. Por favor, intente nuevamente.', 'Error');
                     return;
@@ -8195,12 +8195,12 @@
         
         async function enviarCorreoConReporteInsumos() {
             try {
-                const mesActual = obtenerMesActual();
-                const nombreMes = obtenerNombreMes(mesActual);
+                const mesReporte = obtenerMesPeriodoVista();
+                const nombreMes = obtenerNombreMes(mesReporte);
                 const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
                 
                 console.log('📧 Iniciando envío de correo con reporte de Insumos');
-                console.log('📅 Mes actual:', mesActual, nombreMes);
+                console.log('📅 Período del reporte:', mesReporte, nombreMes);
                 
                 // Generar reporte HTML como adjunto - SIEMPRE con datos más actuales
                 mostrarProgreso('Obteniendo datos más actuales de Insumos...');
@@ -8217,7 +8217,7 @@
                 }
                 
                 mostrarProgreso('Generando reporte HTML de Insumos...');
-                const htmlReporte = await generarHTMLReporteInsumos(mesActual, nombreMes);
+                const htmlReporte = await generarHTMLReporteInsumos(mesReporte, nombreMes);
                 if (!htmlReporte) {
                     mostrarAlerta('Error al generar el reporte. Por favor, intente nuevamente.', 'Error');
                     ocultarProgreso();
@@ -8330,6 +8330,8 @@
                 var hoy = new Date();
                 var fechaEmision = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
                 var fechaArchivo = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + String(hoy.getDate()).padStart(2, '0');
+                var mesVistaAdmin = (typeof obtenerMesPeriodoVista === 'function' && typeof obtenerNombreMes === 'function')
+                    ? obtenerNombreMes(obtenerMesPeriodoVista()) : '';
                 var limpiarNombre = function (str) {
                     return String(str || '').replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
                 };
@@ -8368,7 +8370,9 @@
                     '<table width="100%" class="meta" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:22px"><tr>' +
                     '<td width="34%" style="vertical-align:top"><b>Fecha de emisión</b>' + escXml(fechaEmision) + '</td>' +
                     '<td width="33%" style="vertical-align:top"><b>Total registros</b>' + total + '</td>' +
-                    '<td width="33%" style="vertical-align:top"><b>Ítems abiertos</b>' + abiertos + '</td></tr></table>' +
+                    '<td width="33%" style="vertical-align:top"><b>Ítems abiertos</b>' + abiertos + '</td></tr>' +
+                    (mesVistaAdmin ? '<tr><td colspan="3" style="vertical-align:top;padding-top:10px"><b>Referencia vista administrativa (mes)</b>' + escXml(mesVistaAdmin) + '</td></tr>' : '') +
+                    '</table>' +
                     '<div class="sec">Estadísticas por estado</div>' +
                     '<table class="tbl" style="margin-bottom:18px;max-width:560px"><thead><tr><th>Estado</th><th class="c" style="width:90px">Cantidad</th><th class="c" style="width:100px">% del total</th></tr></thead><tbody>' +
                     '<tr><td>⚠️ pendiente</td><td class="c">' + st.pendiente + '</td><td class="c">' + (total ? ((100 * st.pendiente / total).toFixed(1)) : '0') + '%</td></tr>' +
@@ -8507,8 +8511,7 @@
                 
                 const hoy = new Date();
                 const fechaEmision = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
-                const mesActual = obtenerMesActual();
-                const nombreMes = obtenerNombreMes(mesActual);
+                const nombreMesRef = obtenerNombreMes(obtenerMesPeriodoVista());
                 
                 mostrarProgreso('Generando reporte Excel de Postventa...');
                 
@@ -8523,8 +8526,8 @@
                 mostrarProgreso('Preparando correo...');
                 
                 // Generar HTML del correo
-                const html = await generarCorreoNotificacionPostventa(nombreComunidad, nombreMes, '');
-                const asunto = `Reporte de Postventa - ${nombreComunidad} - ${fechaEmision}`;
+                const html = await generarCorreoNotificacionPostventa(nombreComunidad, nombreMesRef, '');
+                const asunto = `Reporte de Postventa - ${nombreComunidad} - ${fechaEmision} (ref. ${nombreMesRef})`;
                 
                 ocultarProgreso();
                 
@@ -8891,7 +8894,7 @@
 
         async function enviarCorreoConReporteLecturasAgua() {
             try {
-                const mesReporte = window.mesEnConsulta || obtenerMesActual();
+                const mesReporte = obtenerMesPeriodoVista();
                 const nombreMes = obtenerNombreMes(mesReporte);
                 const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
                 
@@ -10050,6 +10053,30 @@
             const fechaSantiago = obtenerFechaSantiago();
             const [año, mes] = fechaSantiago.split('-');
             return `${año}-${mes}`;
+        }
+
+        /** Período YYYY-MM alineado con la vista de la app (mes histórico consultado o mes calendario actual). */
+        function obtenerMesPeriodoVista() {
+            return window.mesEnConsulta || obtenerMesActual();
+        }
+
+        /**
+         * True si el reporte del mes `mesAnio` debe leer datos con obtenerDatosMes
+         * (mes en pantalla, reabierto o mes calendario sin consulta histórica).
+         */
+        function periodoReporteUsaObtenerDatosMes(mesAnio) {
+            if (!mesAnio) return true;
+            const cal = obtenerMesActual();
+            if (window.mesEnConsulta === mesAnio) return true;
+            return mesAnio === cal && !window.mesEnConsulta;
+        }
+
+        /** YYYY-MM para encabezados/export de nómina: mes del selector del módulo o vista global. */
+        function obtenerMesAnioNominaParaEncabezadoReporte() {
+            if (window.mesNominaConsulta && window.mesNominaConsulta !== 'actual') {
+                return window.mesNominaConsulta;
+            }
+            return obtenerMesPeriodoVista();
         }
 
         // Función auxiliar para obtener el mes anterior dado un mes/año (YYYY-MM)
@@ -13587,37 +13614,26 @@
                 console.log('🔄 Generando HTML completo de reporte de caja chica...');
                 console.log('📅 Mes solicitado:', mesAnio, nombreMes);
                 
-                // SIEMPRE obtener los datos más actuales del módulo
-                // Si el mes solicitado es el actual, usar datos del mes actual
-                // Si no, intentar obtener datos del mes específico, pero preferir datos actuales si están disponibles
-                const mesActual = obtenerMesActual();
-                const esMesActual = mesAnio === mesActual;
-                
-                console.log('📊 Obteniendo datos más actuales de caja chica...');
+                console.log('📊 Obteniendo datos de caja chica para el período del reporte...');
                 let caja;
                 
-                if (esMesActual) {
-                    // Mes actual: siempre usar datos actuales
+                if (periodoReporteUsaObtenerDatosMes(mesAnio)) {
                     caja = await obtenerDatosMes('caja');
-                    console.log('✅ Datos obtenidos del mes actual:', caja.length, 'registros');
+                    console.log('✅ Datos vía vista activa (mes en pantalla):', caja.length, 'registros');
                 } else {
-                    // Mes diferente: intentar obtener datos del mes específico
-                    // Primero intentar datos activos del mes (por si está reabierto)
                     try {
                         const datosMesEspecifico = await obtenerDatosMesEspecifico('caja', mesAnio);
                         if (datosMesEspecifico && Array.isArray(datosMesEspecifico) && datosMesEspecifico.length > 0) {
                             caja = datosMesEspecifico;
-                            console.log('✅ Datos obtenidos del mes específico (activos):', caja.length, 'registros');
+                            console.log('✅ Datos del mes (activos):', caja.length, 'registros');
                         } else {
-                            // Si no hay datos activos, intentar datos archivados
                             caja = await obtenerDatosArchivados('caja', mesAnio);
-                            console.log('✅ Datos obtenidos del mes archivado:', caja ? caja.length : 0, 'registros');
+                            console.log('✅ Datos del mes archivado:', caja ? caja.length : 0, 'registros');
                         }
                     } catch (error) {
-                        console.warn('⚠️ Error al obtener datos del mes específico, usando datos actuales:', error);
-                        // Como fallback, usar datos actuales para asegurar que siempre haya información
+                        console.warn('⚠️ Error al obtener datos del mes, usando respaldo:', error);
                         caja = await obtenerDatosMes('caja');
-                        console.log('✅ Usando datos del mes actual como fallback:', caja.length, 'registros');
+                        console.log('✅ Fallback vista actual:', caja.length, 'registros');
                     }
                 }
                 
@@ -13645,19 +13661,10 @@
                 const jefeEdificio = personalizacion.jefeEdificio || 'Angel Avendaño';
                 const numeroDeptos = personalizacion.deptos || '259';
                 
-                // Intentar obtener link de carpeta de comprobantes - SIEMPRE datos más actuales
                 let linkCarpetaComprobantes = '';
                 try {
-                    // Primero intentar obtener del mes actual
-                    let configCaja = await obtenerDatosMesEspecifico('caja-config', mesActual);
-                    
-                    // Si no hay en el mes actual, intentar del mes solicitado
-                    if ((!configCaja || !Array.isArray(configCaja) || configCaja.length === 0) && !esMesActual) {
-                        configCaja = await obtenerDatosMesEspecifico('caja-config', mesAnio);
-                    }
-                    
-                    // Si aún no hay, intentar datos archivados
-                    if ((!configCaja || !Array.isArray(configCaja) || configCaja.length === 0) && !esMesActual) {
+                    let configCaja = await obtenerDatosMesEspecifico('caja-config', mesAnio);
+                    if (!configCaja || !Array.isArray(configCaja) || configCaja.length === 0) {
                         configCaja = await obtenerDatosArchivados('caja-config', mesAnio);
                     }
                     
@@ -14259,50 +14266,42 @@
                 console.log('🔄 Generando HTML completo de reporte de mantenciones...');
                 console.log('📅 Mes solicitado:', mesAnio, nombreMes);
                 
-                // SIEMPRE obtener los datos más actuales del módulo
-                const mesActual = obtenerMesActual();
-                const esMesActual = mesAnio === mesActual;
-                
-                console.log('📊 Obteniendo datos más actuales de mantenciones...');
+                console.log('📊 Obteniendo datos de mantenciones para el período del reporte...');
                 let mantenciones;
                 let visitasExtraordinarias;
                 
-                if (esMesActual) {
-                    // Mes actual: siempre usar datos actuales
+                if (periodoReporteUsaObtenerDatosMes(mesAnio)) {
                     mantenciones = await obtenerDatosMes('mantenciones');
                     visitasExtraordinarias = await obtenerDatosMes('visitas-extraordinarias');
-                    console.log('✅ Datos obtenidos del mes actual:', {
+                    console.log('✅ Datos vía vista activa:', {
                         mantenciones: mantenciones.length,
                         visitasExtraordinarias: visitasExtraordinarias.length
                     });
                 } else {
-                    // Mes diferente: intentar obtener datos del mes específico
-                    // Primero intentar datos activos del mes (por si está reabierto)
                     try {
                         const mantencionesMesEspecifico = await obtenerDatosMesEspecifico('mantenciones', mesAnio);
                         const visitasMesEspecifico = await obtenerDatosMesEspecifico('visitas-extraordinarias', mesAnio);
                         
                         if (mantencionesMesEspecifico && Array.isArray(mantencionesMesEspecifico) && mantencionesMesEspecifico.length > 0) {
                             mantenciones = mantencionesMesEspecifico;
-                            console.log('✅ Mantenciones obtenidas del mes específico (activas):', mantenciones.length, 'registros');
+                            console.log('✅ Mantenciones (activas):', mantenciones.length, 'registros');
                         } else {
                             mantenciones = await obtenerDatosArchivados('mantenciones', mesAnio);
-                            console.log('✅ Mantenciones obtenidas del mes archivado:', mantenciones ? mantenciones.length : 0, 'registros');
+                            console.log('✅ Mantenciones archivadas:', mantenciones ? mantenciones.length : 0, 'registros');
                         }
                         
                         if (visitasMesEspecifico && Array.isArray(visitasMesEspecifico) && visitasMesEspecifico.length > 0) {
                             visitasExtraordinarias = visitasMesEspecifico;
-                            console.log('✅ Visitas obtenidas del mes específico (activas):', visitasExtraordinarias.length, 'registros');
+                            console.log('✅ Visitas (activas):', visitasExtraordinarias.length, 'registros');
                         } else {
                             visitasExtraordinarias = await obtenerDatosArchivados('visitas-extraordinarias', mesAnio);
-                            console.log('✅ Visitas obtenidas del mes archivado:', visitasExtraordinarias ? visitasExtraordinarias.length : 0, 'registros');
+                            console.log('✅ Visitas archivadas:', visitasExtraordinarias ? visitasExtraordinarias.length : 0, 'registros');
                         }
                     } catch (error) {
-                        console.warn('⚠️ Error al obtener datos del mes específico, usando datos actuales:', error);
-                        // Como fallback, usar datos actuales para asegurar que siempre haya información
+                        console.warn('⚠️ Error al obtener datos del mes, usando respaldo:', error);
                         mantenciones = await obtenerDatosMes('mantenciones');
                         visitasExtraordinarias = await obtenerDatosMes('visitas-extraordinarias');
-                        console.log('✅ Usando datos del mes actual como fallback:', {
+                        console.log('✅ Fallback vista actual:', {
                             mantenciones: mantenciones.length,
                             visitasExtraordinarias: visitasExtraordinarias.length
                         });
@@ -14326,19 +14325,10 @@
                 const jefeEdificio = personalizacion.jefeEdificio || 'Angel Avendaño';
                 const numeroDeptos = personalizacion.deptos || '259';
                 
-                // Intentar obtener link de carpeta de guías - SIEMPRE datos más actuales
                 let linkCarpetaGuias = '';
                 try {
-                    // Primero intentar obtener del mes actual
-                    let configMantenciones = await obtenerDatosMesEspecifico('mantenciones-config', mesActual);
-                    
-                    // Si no hay en el mes actual, intentar del mes solicitado
-                    if ((!configMantenciones || !Array.isArray(configMantenciones) || configMantenciones.length === 0) && !esMesActual) {
-                        configMantenciones = await obtenerDatosMesEspecifico('mantenciones-config', mesAnio);
-                    }
-                    
-                    // Si aún no hay, intentar datos archivados
-                    if ((!configMantenciones || !Array.isArray(configMantenciones) || configMantenciones.length === 0) && !esMesActual) {
+                    let configMantenciones = await obtenerDatosMesEspecifico('mantenciones-config', mesAnio);
+                    if (!configMantenciones || !Array.isArray(configMantenciones) || configMantenciones.length === 0) {
                         configMantenciones = await obtenerDatosArchivados('mantenciones-config', mesAnio);
                     }
                     
@@ -14639,30 +14629,26 @@
                 console.log('🔄 Generando HTML completo de reporte de insumos...');
                 console.log('📅 Mes solicitado:', mesAnio, nombreMes);
                 
-                // SIEMPRE obtener los datos más actuales del módulo
-                const mesActual = obtenerMesActual();
-                const esMesActual = mesAnio === mesActual;
-                
-                console.log('📊 Obteniendo datos más actuales de insumos...');
+                console.log('📊 Obteniendo datos de insumos para el período del reporte...');
                 let insumos;
                 
-                if (esMesActual) {
+                if (periodoReporteUsaObtenerDatosMes(mesAnio)) {
                     insumos = await obtenerDatosMes('insumos');
-                    console.log('✅ Datos obtenidos del mes actual:', insumos.length, 'registros');
+                    console.log('✅ Datos vía vista activa:', insumos.length, 'registros');
                 } else {
                     try {
                         const datosMesEspecifico = await obtenerDatosMesEspecifico('insumos', mesAnio);
                         if (datosMesEspecifico && Array.isArray(datosMesEspecifico) && datosMesEspecifico.length > 0) {
                             insumos = datosMesEspecifico;
-                            console.log('✅ Datos obtenidos del mes específico (activos):', insumos.length, 'registros');
+                            console.log('✅ Datos del mes (activos):', insumos.length, 'registros');
                         } else {
                             insumos = await obtenerDatosArchivados('insumos', mesAnio);
-                            console.log('✅ Datos obtenidos del mes archivado:', insumos ? insumos.length : 0, 'registros');
+                            console.log('✅ Datos del mes archivado:', insumos ? insumos.length : 0, 'registros');
                         }
                     } catch (error) {
-                        console.warn('⚠️ Error al obtener datos del mes específico, usando datos actuales:', error);
+                        console.warn('⚠️ Error al obtener datos del mes, usando respaldo:', error);
                         insumos = await obtenerDatosMes('insumos');
-                        console.log('✅ Usando datos del mes actual como fallback:', insumos.length, 'registros');
+                        console.log('✅ Fallback vista actual:', insumos.length, 'registros');
                     }
                 }
                 
@@ -15473,9 +15459,8 @@
                 const desde = encabezado.desde;
                 const hasta = encabezado.hasta;
                 
-                // Obtener mes actual para el nombre del mes
-                const mesActual = obtenerMesActual();
-                const nombreMes = obtenerNombreMes(mesActual);
+                const mesPeriodoNomina = obtenerMesAnioNominaParaEncabezadoReporte();
+                const nombreMes = obtenerNombreMes(mesPeriodoNomina);
                 
                 mostrarProgreso('Generando reporte Excel de Nómina...');
                 
@@ -15512,7 +15497,7 @@
         // Función para enviar correo con reporte de cierre de mes (igual que previsualización)
         async function enviarCorreoConReporteCierreMes() {
             try {
-                const mesParaReporte = (window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : obtenerMesActual();
+                const mesParaReporte = obtenerMesPeriodoVista();
                 const nombreMes = obtenerNombreMes(mesParaReporte);
                 mostrarProgreso('Generando adjuntos del reporte mensual (HTML e informe Excel .xlsx)...');
 
@@ -16567,7 +16552,7 @@
             }
             
             const nombreComunidad = await obtenerNombreComunidad();
-            const mes = window.mesEnConsulta || obtenerMesActual();
+            const mes = obtenerMesPeriodoVista();
             const nombreMes = obtenerNombreMes(mes);
             const nombreArchivo = `Lecturas_Agua_Caliente_${(nombreComunidad || 'Comunidad').replace(/\s+/g, '_')}_${mes}.xls`;
             
@@ -17771,10 +17756,10 @@
                 return;
             }
 
-            const mesActual = obtenerMesActual();
-            const [year, month] = mesActual.split('-');
+            const mesReporte = obtenerMesPeriodoVista();
+            const [year, month] = mesReporte.split('-');
             const meses = ['Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio', 'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre'];
-            const nombreMes = meses[parseInt(month) - 1];
+            const nombreMes = meses[parseInt(month, 10) - 1];
             
             // Ordenar por prioridad y luego por nombre
             const prioridadOrden = { 'Alta': 1, 'Media': 2, 'Baja': 3 };
@@ -19147,8 +19132,7 @@
                 return;
             }
             
-            // Usar el mes reabierto si existe, sino el mes actual
-            const mesAUsar = (window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : obtenerMesActual();
+            const mesAUsar = obtenerMesPeriodoVista();
             const configMantenciones = await obtenerDatosMesEspecifico('mantenciones-config', mesAUsar);
             const carpetaConfig = Array.isArray(configMantenciones) && configMantenciones.length > 0 ? configMantenciones[0] : null;
             const tieneLink = carpetaConfig && carpetaConfig.link && carpetaConfig.link.trim();
@@ -21795,8 +21779,7 @@
             if (!contenedor) return;
             
             // Verificar si la nómina está cerrada (lista/enviada)
-            const mesActualNomina = obtenerMesActual();
-            const mesAUsar = (window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : mesActualNomina;
+            const mesAUsar = obtenerMesPeriodoVista();
             const nominaCerrada = await verificarPedidoCerrado('nomina', mesAUsar);
             
             // Si la nómina está cerrada, mostrar mensaje de que ya está lista
@@ -22039,8 +22022,7 @@
             
             const mantenciones = await obtenerDatosMes('mantenciones');
             const proveedores = await obtenerDatos('proveedores');
-            // Usar el mes reabierto si existe, sino el mes actual
-            const mesAUsar = (window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : obtenerMesActual();
+            const mesAUsar = obtenerMesPeriodoVista();
             const hoy = new Date();
             hoy.setHours(0, 0, 0, 0);
             
@@ -23468,6 +23450,8 @@
                 var hoy = new Date();
                 var fechaEmision = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
                 var fechaArchivo = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + String(hoy.getDate()).padStart(2, '0');
+                var mesVistaAdmin = (typeof obtenerMesPeriodoVista === 'function' && typeof obtenerNombreMes === 'function')
+                    ? obtenerNombreMes(obtenerMesPeriodoVista()) : '';
                 var limpiarNombre = function (str) {
                     return String(str || '').replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
                 };
@@ -23506,7 +23490,9 @@
                     '<table width="100%" class="meta" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:22px"><tr>' +
                     '<td width="34%" style="vertical-align:top"><b>Fecha de emisión</b>' + escXml(fechaEmision) + '</td>' +
                     '<td width="33%" style="vertical-align:top"><b>Total registros</b>' + total + '</td>' +
-                    '<td width="33%" style="vertical-align:top"><b>Ítems abiertos</b>' + abiertos + '</td></tr></table>' +
+                    '<td width="33%" style="vertical-align:top"><b>Ítems abiertos</b>' + abiertos + '</td></tr>' +
+                    (mesVistaAdmin ? '<tr><td colspan="3" style="vertical-align:top;padding-top:10px"><b>Referencia vista administrativa (mes)</b>' + escXml(mesVistaAdmin) + '</td></tr>' : '') +
+                    '</table>' +
                     '<div class="sec">Estadísticas por estado</div>' +
                     '<table class="tbl" style="margin-bottom:18px;max-width:560px"><thead><tr><th>Estado</th><th class="c" style="width:90px">Cantidad</th><th class="c" style="width:100px">% del total</th></tr></thead><tbody>' +
                     '<tr><td>⚠️ pendiente</td><td class="c">' + st.pendiente + '</td><td class="c">' + (total ? ((100 * st.pendiente / total).toFixed(1)) : '0') + '%</td></tr>' +
@@ -26936,7 +26922,7 @@
                 }
                 return null;
             }
-            var mesAnio = opciones.mesAnio || ((window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : typeof obtenerMesActual === 'function' ? obtenerMesActual() : '');
+            var mesAnio = opciones.mesAnio || (typeof obtenerMesPeriodoVista === 'function' ? obtenerMesPeriodoVista() : (typeof obtenerMesActual === 'function' ? obtenerMesActual() : ''));
             var nombreMes = opciones.nombreMes || (typeof obtenerNombreMes === 'function' ? obtenerNombreMes(mesAnio) : mesAnio);
             var esPrevisualizacion = opciones.esPrevisualizacion !== false;
             var hacerDescarga = opciones.descargar !== false;
@@ -27105,13 +27091,12 @@
         // Función para previsualizar el reporte PDF sin cerrar el mes
         window.previsualizarReportePDF = async function() {
             try {
-                // Si hay un mes reabierto, usar ese mes; si no, usar el mes actual
-                const mesParaReporte = (window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : obtenerMesActual();
+                const mesParaReporte = obtenerMesPeriodoVista();
                 const nombreMes = obtenerNombreMes(mesParaReporte);
                 
                 // Mostrar progreso
-                const mensajeProgreso = window.mesReabierto 
-                    ? `Generando previsualización del reporte del mes reabierto ${nombreMes}...`
+                const mensajeProgreso = window.mesEnConsulta
+                    ? `Generando previsualización del informe del período ${nombreMes}...`
                     : 'Generando previsualización del reporte...';
                 mostrarProgreso(mensajeProgreso, 'Cargando datos...');
                 
@@ -28464,13 +28449,8 @@
             // Intentar obtener link de carpeta de comprobantes del mes
             let linkCarpetaComprobantes = '';
             try {
-                let configCaja = null;
-                if (esMesActual || esMesReabierto) {
-                    // Mes actual o reabierto: usar helper específico para mes exacto
-                    const mesAUsar = esMesReabierto ? mesAnio : obtenerMesActual();
-                    configCaja = await obtenerDatosMesEspecifico('caja-config', mesAUsar);
-                } else {
-                    // Mes archivado: intentar leer configuración archivada
+                let configCaja = await obtenerDatosMesEspecifico('caja-config', mesAnio);
+                if (!configCaja || !Array.isArray(configCaja) || configCaja.length === 0) {
                     configCaja = await obtenerDatosArchivados('caja-config', mesAnio);
                 }
                 if (Array.isArray(configCaja) && configCaja.length > 0 && configCaja[0].link) {
@@ -28973,7 +28953,7 @@
             // Intentar obtener la configuración con múltiples métodos
             // Primero verificar si es mes reabierto o actual
             if (esMesReabierto || esMesActual) {
-                const mesAUsar = esMesReabierto ? mesAnio : mesActual;
+                const mesAUsar = mesAnio;
                 
                 // Método 1: Verificar directamente en Firestore (datos activos)
                 if (firebaseInitialized && db) {
@@ -29177,10 +29157,10 @@
 
         // Función para descargar reporte de Caja Chica del mes actual (disponible globalmente)
         window.descargarReporteCajaActual = async function() {
-            const mesActual = obtenerMesActual();
-            const nombreMes = obtenerNombreMes(mesActual);
+            const mesReporte = obtenerMesPeriodoVista();
+            const nombreMes = obtenerNombreMes(mesReporte);
             try {
-                await generarReporteCajaChicaPDF(mesActual, nombreMes, true);
+                await generarReporteCajaChicaPDF(mesReporte, nombreMes, true);
                 mostrarAlerta('Reporte de Caja Chica descargado exitosamente.', 'Reporte Descargado');
             } catch (error) {
                 console.error('Error al generar reporte de caja chica:', error);
@@ -29190,10 +29170,10 @@
 
         // Función para descargar reporte de Mantenciones del mes actual (disponible globalmente)
         window.descargarReporteMantencionesActual = async function() {
-            const mesActual = obtenerMesActual();
-            const nombreMes = obtenerNombreMes(mesActual);
+            const mesReporte = obtenerMesPeriodoVista();
+            const nombreMes = obtenerNombreMes(mesReporte);
             try {
-                await generarReporteMantencionesPDF(mesActual, nombreMes, true);
+                await generarReporteMantencionesPDF(mesReporte, nombreMes, true);
                 mostrarAlerta('Reporte de Mantenciones descargado exitosamente.', 'Reporte Descargado');
             } catch (error) {
                 console.error('Error al generar reporte de mantenciones:', error);
@@ -29309,9 +29289,7 @@
                 const fechaHoyObj = new Date(año, mes - 1, dia);
                 fechaHoyObj.setHours(0, 0, 0, 0);
                 
-                // Usar el mes reabierto si existe, sino el mes actual
-                const mesActual = obtenerMesActual();
-                const mesAUsar = (window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : mesActual;
+                const mesAUsar = obtenerMesPeriodoVista();
                 
                 // Calcular último día del mes a usar
                 const [añoMes, mesMes] = mesAUsar.split('-').map(Number);
@@ -30245,8 +30223,7 @@
 
             // Agregar tarjeta de pedido de insumos
             if (modulosVisibles.includes('insumos')) {
-                const mesActual = obtenerMesActual();
-                const mesAUsar = (window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : mesActual;
+                const mesAUsar = obtenerMesPeriodoVista();
                 const pedidoCerrado = await verificarPedidoCerrado('insumos', mesAUsar);
                 
                 // Calcular días hasta 9 días antes del fin de mes
@@ -30413,8 +30390,7 @@
             }
             
             // Calcular días restantes del mes
-            const mesActualLecturas = obtenerMesActual();
-            const mesAUsarLecturas = (window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : mesActualLecturas;
+            const mesAUsarLecturas = obtenerMesPeriodoVista();
             const hoyLecturas = new Date();
             hoyLecturas.setHours(0, 0, 0, 0);
             const [añoLecturas, mesLecturas] = mesAUsarLecturas.split('-').map(Number);
@@ -30526,8 +30502,7 @@
 
             // Agregar indicador de nómina
             const infoNomina = await obtenerInfoNomina();
-            const mesActual = obtenerMesActual();
-            const mesAUsar = (window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : mesActual;
+            const mesAUsar = obtenerMesPeriodoVista();
             const nominaCerrada = await verificarPedidoCerrado('nomina', mesAUsar);
             
             if (infoNomina && (infoNomina.ultimaFecha || infoNomina.ultimaFechaObj)) {
@@ -33137,7 +33112,7 @@
                 if (btnDescargarExcel) {
                     btnDescargarExcel.addEventListener('click', async function() {
                         try {
-                            const mesParaReporte = window.mesEnConsulta || obtenerMesActual();
+                            const mesParaReporte = obtenerMesPeriodoVista();
                             const nombreMes = obtenerNombreMes(mesParaReporte);
                             if (typeof window.exportarInformeMensualXLSX === 'function') {
                                 await window.exportarInformeMensualXLSX({
@@ -33482,8 +33457,7 @@
                     // No cargar si estamos consultando un mes archivado (solo lectura)
                     if (window.mesEnConsulta && !window.mesReabierto) return;
                     
-                    // Usar el mes reabierto si existe, sino el mes actual
-                    const mesAUsar = (window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : obtenerMesActual();
+                    const mesAUsar = obtenerMesPeriodoVista();
                     const configCaja = await obtenerDatosMesEspecifico('caja-config', mesAUsar);
                     const carpetaConfig = Array.isArray(configCaja) && configCaja.length > 0 ? configCaja[0] : null;
                     const input = document.getElementById('carpetaComprobantesCajaChica');
@@ -33851,7 +33825,7 @@
                     // Cargar siempre el link del contexto visible:
                     // - mes en consulta (archivado o reabierto), o
                     // - mes actual
-                    const mesAUsar = window.mesEnConsulta || obtenerMesActual();
+                    const mesAUsar = obtenerMesPeriodoVista();
                     const configMantenciones = await obtenerDatosMesEspecifico('mantenciones-config', mesAUsar);
                     const carpetaConfig = Array.isArray(configMantenciones) && configMantenciones.length > 0 ? configMantenciones[0] : null;
                     const input = document.getElementById('carpetaGuiasMantenciones');
@@ -34015,21 +33989,26 @@
             const comunidad = personalizacion.comunidad || 'N/A';
             const responsable = personalizacion.jefeEdificio || 'N/A';
             
-            // Calcular fechas del mes actual
-            const hoy = new Date();
-            const año = hoy.getFullYear();
-            const mes = hoy.getMonth();
+            const mesAnioRef = obtenerMesAnioNominaParaEncabezadoReporte();
+            const partes = String(mesAnioRef || '').split('-');
+            let año;
+            let mes;
+            if (partes.length === 2) {
+                año = parseInt(partes[0], 10);
+                mes = parseInt(partes[1], 10) - 1;
+            }
+            const hoyCal = new Date();
+            if (partes.length !== 2 || isNaN(año) || isNaN(mes) || mes < 0 || mes > 11) {
+                año = hoyCal.getFullYear();
+                mes = hoyCal.getMonth();
+            }
             
-            // Primer día del mes
             const desde = new Date(año, mes, 1);
             const desdeStr = desde.toISOString().split('T')[0];
-            
-            // Último día del mes
             const hasta = new Date(año, mes + 1, 0);
             const hastaStr = hasta.toISOString().split('T')[0];
             
-            // Fecha de emisión (hoy)
-            const fechaEmision = hoy.toISOString().split('T')[0];
+            const fechaEmision = hoyCal.toISOString().split('T')[0];
             
             return {
                 comunidad,
