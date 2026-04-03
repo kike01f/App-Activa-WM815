@@ -6327,7 +6327,17 @@
         // ============================================
         // CONFIGURACIÓN DE FIRESTORE
         // ============================================
-        // Proyecto administracion-41391 (gestion-wm). No mezclar con gestion-entre-cerros (proyecto activa-entre-cerros).
+        // Proyecto administracion-41391 (gestion-wm). Firestore ≠ activa-entre-cerros; localStorage usa prefijo propio para el mismo origen.
+        const LS_WM_PREFIX = 'wm_gestion_v1:';
+        /** Prefijo localStorage: misma URL que Entre Cerros mezclaría caché sin esto. */
+        function lsKey(storageKey) {
+            return LS_WM_PREFIX + String(storageKey);
+        }
+        /** Clave lógica si pertenece a WM; null si es otra app o dato legacy sin prefijo. */
+        function lsLogicalKey(fullKey) {
+            if (typeof fullKey !== 'string' || !fullKey.startsWith(LS_WM_PREFIX)) return null;
+            return fullKey.slice(LS_WM_PREFIX.length);
+        }
         const firebaseConfig = {
             apiKey: "AIzaSyBSNSOExac8IM4pF__ufuILveNqrOzt1Ns",
             authDomain: "administracion-41391.firebaseapp.com",
@@ -6559,7 +6569,7 @@
             const key = 'notif_local';
             let arr = [];
             try {
-                arr = JSON.parse(localStorage.getItem(key) || '[]');
+                arr = JSON.parse(localStorage.getItem(lsKey(key)) || '[]');
             } catch (e) { return; }
             if (arr.length === 0 || !firebaseInitialized || !db) return;
             const col = db.collection('comunidad').doc('notificaciones').collection('movimientos');
@@ -6574,7 +6584,7 @@
                     });
                 } catch (e) { break; }
             }
-            try { localStorage.setItem(key, '[]'); } catch (e) {}
+            try { localStorage.setItem(lsKey(key), '[]'); } catch (e) {}
         }
 
         async function registrarMovimiento(tipo, modulo, detalle) {
@@ -6602,10 +6612,10 @@
             if (!guardadoEnNube) {
                 try {
                     const key = 'notif_local';
-                    let arr = JSON.parse(localStorage.getItem(key) || '[]');
+                    let arr = JSON.parse(localStorage.getItem(lsKey(key)) || '[]');
                     arr.unshift({ tipo: item.tipo, modulo: item.modulo, detalle: item.detalle, fecha: ahora.toISOString() });
                     arr = arr.slice(0, NOTIF_LIMIT);
-                    localStorage.setItem(key, JSON.stringify(arr));
+                    localStorage.setItem(lsKey(key), JSON.stringify(arr));
                 } catch (e2) {}
             }
             await actualizarBadgeNotif();
@@ -6624,7 +6634,7 @@
             }
             if (ultimaVista === null) {
                 try {
-                    const s = localStorage.getItem('notif_ultima_vista');
+                    const s = localStorage.getItem(lsKey('notif_ultima_vista'));
                     if (s) ultimaVista = new Date(s);
                 } catch (e) {}
             }
@@ -6645,14 +6655,14 @@
                     });
                 } catch (e) {
                     try {
-                        const arr = JSON.parse(localStorage.getItem('notif_local') || '[]');
+                        const arr = JSON.parse(localStorage.getItem(lsKey('notif_local')) || '[]');
                         const uv = ultimaVista ? ultimaVista.getTime() : 0;
                         arr.forEach(x => { if (new Date(x.fecha).getTime() > uv) count++; });
                     } catch (e2) {}
                 }
             } else {
                 try {
-                    const arr = JSON.parse(localStorage.getItem('notif_local') || '[]');
+                    const arr = JSON.parse(localStorage.getItem(lsKey('notif_local')) || '[]');
                     const uv = ultimaVista ? ultimaVista.getTime() : 0;
                     arr.forEach(x => { if (new Date(x.fecha).getTime() > uv) count++; });
                 } catch (e) {}
@@ -6676,7 +6686,7 @@
                 } catch (e) {}
             }
             try {
-                localStorage.setItem('notif_ultima_vista', ahora.toISOString());
+                localStorage.setItem(lsKey('notif_ultima_vista'), ahora.toISOString());
             } catch (e) {}
             await actualizarBadgeNotif();
         }
@@ -6694,13 +6704,13 @@
                 } catch (e) {
                     console.warn('Notificaciones: no se pudo cargar desde la nube. Mostrando respaldo local si existe.', e?.code || '', e?.message || e);
                     try {
-                        const arr = JSON.parse(localStorage.getItem('notif_local') || '[]');
+                        const arr = JSON.parse(localStorage.getItem(lsKey('notif_local')) || '[]');
                         items = arr.map((x, i) => ({ ...x, id: 'local_' + i, fecha: new Date(x.fecha) }));
                     } catch (e2) {}
                 }
             } else {
                 try {
-                    const arr = JSON.parse(localStorage.getItem('notif_local') || '[]');
+                    const arr = JSON.parse(localStorage.getItem(lsKey('notif_local')) || '[]');
                     items = arr.map((x, i) => ({ ...x, id: 'local_' + i, fecha: new Date(x.fecha) }));
                 } catch (e) {}
             }
@@ -6742,10 +6752,10 @@
         async function eliminarNotificacion(id) {
             if (id.startsWith('local_')) {
                 const index = parseInt(id.replace('local_', ''), 10);
-                const arr = JSON.parse(localStorage.getItem('notif_local') || '[]');
+                const arr = JSON.parse(localStorage.getItem(lsKey('notif_local')) || '[]');
                 if (index >= 0 && index < arr.length) {
                     arr.splice(index, 1);
-                    localStorage.setItem('notif_local', JSON.stringify(arr));
+                    localStorage.setItem(lsKey('notif_local'), JSON.stringify(arr));
                 }
             } else if (firebaseInitialized && db) {
                 try {
@@ -6769,8 +6779,8 @@
                 } catch (e) { console.warn('Error al borrar notificaciones:', e); }
             }
             try {
-                localStorage.setItem('notif_local', '[]');
-                localStorage.setItem('notif_ultima_vista', new Date().toISOString());
+                localStorage.setItem(lsKey('notif_local'), '[]');
+                localStorage.setItem(lsKey('notif_ultima_vista'), new Date().toISOString());
             } catch (e) {}
             if (firebaseInitialized && db) {
                 try {
@@ -8103,7 +8113,7 @@
             try {
                 const mesReporte = obtenerMesPeriodoVista();
                 const nombreMes = obtenerNombreMes(mesReporte);
-                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
+                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
                 
                 console.log('📧 Iniciando envío de correo con reporte de Caja Chica');
                 console.log('📅 Período del reporte:', mesReporte, nombreMes);
@@ -8148,7 +8158,7 @@
             try {
                 const mesReporte = obtenerMesPeriodoVista();
                 const nombreMes = obtenerNombreMes(mesReporte);
-                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
+                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
                 
                 console.log('📧 Iniciando envío de correo con reporte de Mantenciones');
                 console.log('📅 Período del reporte:', mesReporte, nombreMes);
@@ -8197,7 +8207,7 @@
             try {
                 const mesReporte = obtenerMesPeriodoVista();
                 const nombreMes = obtenerNombreMes(mesReporte);
-                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
+                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
                 
                 console.log('📧 Iniciando envío de correo con reporte de Insumos');
                 console.log('📅 Período del reporte:', mesReporte, nombreMes);
@@ -8308,7 +8318,7 @@
                     }
                 } catch (e1) { /* ignore */ }
                 if (!comunidad || comunidad === 'Comunidad') {
-                    try { comunidad = localStorage.getItem('nombreComunidad') || comunidad; } catch (e2) { /* ignore */ }
+                    try { comunidad = localStorage.getItem(lsKey('nombreComunidad')) || comunidad; } catch (e2) { /* ignore */ }
                 }
 
                 function escXml(s) {
@@ -8440,7 +8450,7 @@
             // Si no hay datos en Firestore, intentar desde localStorage (mismo lugar que el módulo)
             if (registros.length === 0) {
                 try {
-                    const raw = localStorage.getItem('postventa-registros');
+                    const raw = localStorage.getItem(lsKey('postventa-registros'));
                     if (raw) {
                         registros = JSON.parse(raw) || [];
                     }
@@ -8477,7 +8487,7 @@
                 // Si no hay datos en Firestore, intentar desde localStorage (mismo lugar que el módulo)
                 if (registros.length === 0) {
                     try {
-                        const raw = localStorage.getItem('postventa-registros');
+                        const raw = localStorage.getItem(lsKey('postventa-registros'));
                         if (raw) {
                             registros = JSON.parse(raw) || [];
                         }
@@ -8505,7 +8515,7 @@
                 } catch (e1) { /* ignore */ }
                 if (!nombreComunidad || nombreComunidad === 'Comunidad') {
                     try { 
-                        nombreComunidad = localStorage.getItem('nombreComunidad') || nombreComunidad; 
+                        nombreComunidad = localStorage.getItem(lsKey('nombreComunidad')) || nombreComunidad; 
                     } catch (e2) { /* ignore */ }
                 }
                 
@@ -8665,7 +8675,7 @@
                             }
                         } catch (e1) { /* ignore */ }
                         if (!nombreComunidad || nombreComunidad === 'Comunidad') {
-                            try { nombreComunidad = localStorage.getItem('nombreComunidad') || nombreComunidad; } catch (e2) { /* ignore */ }
+                            try { nombreComunidad = localStorage.getItem(lsKey('nombreComunidad')) || nombreComunidad; } catch (e2) { /* ignore */ }
                         }
                         const hoy = new Date();
                         const fechaEmision = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
@@ -8896,7 +8906,7 @@
             try {
                 const mesReporte = obtenerMesPeriodoVista();
                 const nombreMes = obtenerNombreMes(mesReporte);
-                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
+                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
                 
                 console.log('📧 Iniciando envío de correo con reporte de Lecturas de Agua');
                 console.log('📅 Mes del reporte:', mesReporte, nombreMes);
@@ -9743,7 +9753,7 @@
             
             // Respaldo: LocalStorage
             try {
-                const datos = localStorage.getItem(key);
+                const datos = localStorage.getItem(lsKey(key));
                 if (datos) {
                     const parsed = JSON.parse(datos);
                     if (Array.isArray(parsed)) return parsed;
@@ -9776,7 +9786,7 @@
             }
             
             // Respaldo: LocalStorage
-            localStorage.setItem(key, JSON.stringify(datos));
+            localStorage.setItem(lsKey(key), JSON.stringify(datos));
         }
 
         // Funciones para personalización de la app
@@ -9810,7 +9820,7 @@
             
             // Respaldo: LocalStorage
             try {
-                const datos = localStorage.getItem(key);
+                const datos = localStorage.getItem(lsKey(key));
                 if (datos) {
                     const parsed = JSON.parse(datos);
                     personalizacion = {
@@ -9847,7 +9857,7 @@
             }
             
             // Respaldo: LocalStorage
-            localStorage.setItem(key, JSON.stringify(datos));
+            localStorage.setItem(lsKey(key), JSON.stringify(datos));
         }
 
         // Función para cargar datos de personalización en el formulario
@@ -10173,7 +10183,7 @@
             // Respaldo: LocalStorage - primero intentar datos activos si hay mes en consulta
             if (mesConsulta !== mesActual) {
                 try {
-                    const datosActivos = localStorage.getItem(`${key}_${mesConsulta}`);
+                    const datosActivos = localStorage.getItem(lsKey(`${key}_${mesConsulta}`));
                     if (datosActivos) {
                         const parsed = JSON.parse(datosActivos);
                         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -10187,7 +10197,7 @@
             
             // Si no hay datos activos, buscar archivados o del mes actual
             try {
-                const datos = localStorage.getItem(docKey);
+                const datos = localStorage.getItem(lsKey(docKey));
                 if (datos) {
                     const parsed = JSON.parse(datos);
                     return Array.isArray(parsed) ? parsed : [];
@@ -10241,7 +10251,7 @@
                 
                 // Respaldo: LocalStorage
                 try {
-                    const datosLS = localStorage.getItem(docKey);
+                    const datosLS = localStorage.getItem(lsKey(docKey));
                     if (datosLS && datosLS !== '[]' && datosLS !== 'null') {
                         const parsed = JSON.parse(datosLS);
                         if (Array.isArray(parsed) && parsed.length > 0) {
@@ -10281,7 +10291,7 @@
             
             // Respaldo: LocalStorage
             try {
-                const datos = localStorage.getItem(archivoKey);
+                const datos = localStorage.getItem(lsKey(archivoKey));
                 if (datos) {
                     const parsed = JSON.parse(datos);
                     if (Array.isArray(parsed)) {
@@ -10302,7 +10312,7 @@
             try {
                 if (!Array.isArray(datosActuales) || datosActuales.length === 0) return;
                 const backupKey = `backup_${docKey}`;
-                const raw = localStorage.getItem(backupKey);
+                const raw = localStorage.getItem(lsKey(backupKey));
                 let historial = [];
                 if (raw) {
                     const parsed = JSON.parse(raw);
@@ -10320,10 +10330,10 @@
                     datos: datosActuales
                 });
                 if (historial.length > 25) historial = historial.slice(0, 25);
-                localStorage.setItem(backupKey, JSON.stringify(historial));
+                localStorage.setItem(lsKey(backupKey), JSON.stringify(historial));
                 // Índice liviano para poder auditar y recuperar por módulo/mes rápidamente.
                 const idxKey = 'backup_modulos_index';
-                const idxRaw = localStorage.getItem(idxKey);
+                const idxRaw = localStorage.getItem(lsKey(idxKey));
                 let idx = [];
                 if (idxRaw) {
                     const idxParsed = JSON.parse(idxRaw);
@@ -10333,7 +10343,7 @@
                 if (!idx.includes(token)) {
                     idx.unshift(token);
                     if (idx.length > 200) idx = idx.slice(0, 200);
-                    localStorage.setItem(idxKey, JSON.stringify(idx));
+                    localStorage.setItem(lsKey(idxKey), JSON.stringify(idx));
                 }
             } catch (error) {
                 console.warn('No se pudo guardar snapshot de respaldo local:', error);
@@ -10357,7 +10367,7 @@
             }
             // Fallback local
             try {
-                const raw = localStorage.getItem(docKey);
+                const raw = localStorage.getItem(lsKey(docKey));
                 if (!raw) return [];
                 const parsed = JSON.parse(raw);
                 return Array.isArray(parsed) ? parsed : [];
@@ -10396,7 +10406,7 @@
             }
 
             // Respaldo: LocalStorage
-            localStorage.setItem(docKey, JSON.stringify(datosNormalizados));
+            localStorage.setItem(lsKey(docKey), JSON.stringify(datosNormalizados));
 
             // Actualizar Panel de Control en tiempo real (sin bloquear el guardado)
             if (typeof window.cargarEstadisticasDashboard === 'function') {
@@ -10411,7 +10421,7 @@
             const docKey = `${modulo}_${mes}`;
             const backupKey = `backup_${docKey}`;
             try {
-                const raw = localStorage.getItem(backupKey);
+                const raw = localStorage.getItem(lsKey(backupKey));
                 const historial = raw ? JSON.parse(raw) : [];
                 if (!Array.isArray(historial) || historial.length === 0) {
                     mostrarAlerta(`No hay respaldos locales para ${modulo} (${mes}).`, 'Sin Respaldo');
@@ -10451,7 +10461,7 @@
             }
             
             // Respaldo: LocalStorage
-            localStorage.setItem(estadoKey, JSON.stringify(estado));
+            localStorage.setItem(lsKey(estadoKey), JSON.stringify(estado));
         }
 
         // Función para verificar si el pedido está cerrado
@@ -10474,7 +10484,7 @@
             
             // Respaldo: LocalStorage
             try {
-                const estado = localStorage.getItem(estadoKey);
+                const estado = localStorage.getItem(lsKey(estadoKey));
                 if (estado) {
                     const parsed = JSON.parse(estado);
                     return parsed.cerrado === true;
@@ -10502,7 +10512,7 @@
                     console.error('Error al guardar config de mes procesado:', error);
                 }
             }
-            localStorage.setItem('ultimoMesProcesado', mesActual);
+            localStorage.setItem(lsKey('ultimoMesProcesado'), mesActual);
         }
 
         // Variable global para rastrear edición
@@ -11014,14 +11024,16 @@
 
             // Buscar en LocalStorage archivado
             for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i) || '';
+                const rawKey = localStorage.key(i) || '';
+                const key = lsLogicalKey(rawKey);
+                if (!key) continue;
                 const esAperturas = key.indexOf('aperturas_') === 0 || key.indexOf('aperturas_archivo_') === 0;
                 if (!esAperturas) continue;
                 const mesClaveDoc = key.indexOf('aperturas_archivo_') === 0
                     ? key.replace('aperturas_archivo_', '')
                     : key.replace('aperturas_', '');
                 try {
-                    const raw = localStorage.getItem(key);
+                    const raw = localStorage.getItem(rawKey);
                     if (!raw) continue;
                     agregarDesdeLista(JSON.parse(raw), mesClaveDoc);
                 } catch (e) {}
@@ -11290,7 +11302,7 @@
                     return;
                 }
                 
-                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
+                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
                 const htmlComprobante = generarComprobanteAperturaHtml(apertura, nombreComunidad);
                 const residenteInfo = await obtenerCorreoResidente(apertura.departamento, apertura.nombre);
                 
@@ -11335,7 +11347,7 @@
                 const idx = aperturas.findIndex(a => a.id === id);
                 if (idx !== -1) { aperturas[idx] = { ...aperturas[idx], folio: apertura.folio }; await guardarDatosMes('aperturas', aperturas); }
             }
-            const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
+            const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
             const html = generarComprobanteAperturaHtml(apertura, nombreComunidad);
             abrirHTMLEnNuevaVentana(html, 'Comprobante de Apertura');
         }
@@ -11500,7 +11512,7 @@
                 mostrarAlerta('No se encontró el registro.', 'Error');
                 return;
             }
-            const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
+            const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
             const personalizacion = await obtenerPersonalizacion();
             const html = generarCorreoConfirmacionEventoHtml(reg, nombreComunidad, personalizacion);
             abrirHTMLEnNuevaVentana(html, 'Correo de Confirmación de Evento');
@@ -11516,7 +11528,7 @@
                     return;
                 }
                 
-                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
+                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
                 const personalizacion = await obtenerPersonalizacion();
                 const htmlComprobante = generarCorreoConfirmacionEventoHtml(espacio, nombreComunidad, personalizacion);
                 const residenteInfo = await obtenerCorreoResidente(espacio.departamento, espacio.nombre);
@@ -11763,7 +11775,7 @@
                     return;
                 }
                 
-                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
+                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
                 const htmlComprobante = generarComprobanteTarjetaHtml(tarjeta, nombreComunidad);
                 const esTagProvisional = tarjetaVentaTieneTagProvisional(tarjeta);
                 const asuntoTarjeta = esTagProvisional
@@ -11807,7 +11819,7 @@
                 mostrarAlerta('No se encontró el registro.', 'Error');
                 return;
             }
-            const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
+            const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
             const html = generarComprobanteTarjetaHtml(tarjeta, nombreComunidad);
             const tituloVentana = tarjetaVentaTieneTagProvisional(tarjeta)
                 ? 'Comprobante de TAG Provisional'
@@ -12759,7 +12771,7 @@
                     if (idx !== -1) { multas[idx] = { ...multas[idx], folio: multa.folio }; await guardarDatosMes('multas', multas); }
                 }
                 
-                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
+                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
                 const htmlComprobante = generarComprobanteMultaHtml(multa, nombreComunidad);
                 const residenteInfo = await obtenerCorreoResidente(multa.departamento, multa.nombre);
                 
@@ -12803,7 +12815,7 @@
                 const idx = multas.findIndex(m => m.id === id);
                 if (idx !== -1) { multas[idx] = { ...multas[idx], folio: multa.folio }; await guardarDatosMes('multas', multas); }
             }
-            const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
+            const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
             const html = generarComprobanteMultaHtml(multa, nombreComunidad);
             abrirHTMLEnNuevaVentana(html, 'Comprobante de Multa');
         }
@@ -13181,7 +13193,7 @@
                 // Agregar nombre al objeto moroso para el comprobante
                 const morosoConNombre = { ...moroso, nombre: residenteInfo.nombre };
                 
-                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
+                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
                 const htmlComprobante = generarComprobanteMorosoHtml(morosoConNombre, nombreComunidad);
                 
                 const resultado = await mostrarModalPersonalizarCorreoYEnviar({
@@ -13224,7 +13236,7 @@
             const residenteInfo = await obtenerCorreoResidente(moroso.departamento, null);
             const morosoConNombre = { ...moroso, nombre: residenteInfo?.nombre || 'Residente' };
             
-            const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem('nombreComunidad') || 'Comunidad');
+            const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
             const html = generarComprobanteMorosoHtml(morosoConNombre, nombreComunidad);
             abrirHTMLEnNuevaVentana(html, 'Comprobante de Moroso');
         }
@@ -14911,7 +14923,7 @@
                 if (opciones && opciones.soloCuerpoCorreoResumenEjecutivo === true) {
                     // Misma fuente que generarReportePDF en previsualización: localStorage + datos en vivo (obtenerDatosMes)
                     try {
-                        const modulosStr = localStorage.getItem('modulosVisibles') || '["mudanzas","aperturas","tarjetas","espacios","multas","morosos"]';
+                        const modulosStr = localStorage.getItem(lsKey('modulosVisibles')) || '["mudanzas","aperturas","tarjetas","espacios","multas","morosos"]';
                         modulosVisibles = JSON.parse(modulosStr);
                         if (!Array.isArray(modulosVisibles)) modulosVisibles = ['mudanzas', 'aperturas', 'tarjetas', 'espacios', 'multas', 'morosos'];
                     } catch (e) {
@@ -15506,7 +15518,7 @@
                     const personalizacion = await obtenerPersonalizacion();
                     nombreComunidad = personalizacion.comunidad || nombreComunidad;
                 } catch (e) {
-                    try { nombreComunidad = localStorage.getItem('nombreComunidad') || nombreComunidad; } catch (_) {}
+                    try { nombreComunidad = localStorage.getItem(lsKey('nombreComunidad')) || nombreComunidad; } catch (_) {}
                 }
 
                 let htmlAdjuntoCompleto;
@@ -16148,11 +16160,11 @@
                     const doc = await db.collection('comunidad').doc(key).get();
                     if (doc.exists && doc.data().listas === true) {
                         // Sincronizar con localStorage para acceso rápido
-                        localStorage.setItem(key, 'true');
+                        localStorage.setItem(lsKey(key), 'true');
                         return true;
                     } else if (doc.exists === false) {
                         // Si el documento no existe en Firestore, eliminar de localStorage para mantener consistencia
-                        localStorage.removeItem(key);
+                        localStorage.removeItem(lsKey(key));
                         return false;
                     }
                 } catch (error) {
@@ -16162,7 +16174,7 @@
             }
             
             // Fallback a localStorage
-            const estado = localStorage.getItem(key);
+            const estado = localStorage.getItem(lsKey(key));
             return estado === 'true';
         }
         
@@ -16195,7 +16207,7 @@
                 }
                 
                 // Guardar también en localStorage para acceso rápido
-                localStorage.setItem(key, 'true');
+                localStorage.setItem(lsKey(key), 'true');
                 
                 // Pequeña pausa para asegurar que los cambios se propaguen
                 await new Promise(resolve => setTimeout(resolve, 100));
@@ -16203,7 +16215,7 @@
                 // Verificar que el estado se haya guardado correctamente
                 const estadoVerificado = await verificarLecturasAguaListas(mesDestino);
                 if (!estadoVerificado) {
-                    localStorage.setItem(key, 'true');
+                    localStorage.setItem(lsKey(key), 'true');
                     if (firebaseInitialized && db) {
                         try {
                             await db.collection('comunidad').doc(key).set({
@@ -16248,7 +16260,7 @@
                 }
                 
                 // Eliminar de localStorage
-                localStorage.removeItem(key);
+                localStorage.removeItem(lsKey(key));
                 
                 // Pequeña pausa para asegurar que los cambios se propaguen
                 await new Promise(resolve => setTimeout(resolve, 100));
@@ -16257,7 +16269,7 @@
                 const estadoVerificado = await verificarLecturasAguaListas(mesDestino);
                 if (estadoVerificado) {
                     // Forzar eliminación nuevamente
-                    localStorage.removeItem(key);
+                    localStorage.removeItem(lsKey(key));
                     if (firebaseInitialized && db) {
                         try {
                             await db.collection('comunidad').doc(key).delete();
@@ -16869,7 +16881,7 @@
                         return doc.data().productos || [];
                     }
                 }
-                const datos = localStorage.getItem('inventario-productos');
+                const datos = localStorage.getItem(lsKey('inventario-productos'));
                 return datos ? JSON.parse(datos) : [];
             } catch (error) {
                 console.error('Error al obtener inventario:', error);
@@ -16889,7 +16901,7 @@
                         actualizado: firebase.firestore.FieldValue.serverTimestamp()
                     });
                 }
-                localStorage.setItem('inventario-productos', JSON.stringify(productos));
+                localStorage.setItem(lsKey('inventario-productos'), JSON.stringify(productos));
             } catch (error) {
                 console.error('Error al guardar inventario:', error);
             }
@@ -17398,7 +17410,7 @@
                     
                     // Si aún no se encontró, buscar en LocalStorage
                     if (!pedidoAnterior || pedidoAnterior.length === 0) {
-                        const datosLS = localStorage.getItem(`insumos_${mesAnteriorStr}`);
+                        const datosLS = localStorage.getItem(lsKey(`insumos_${mesAnteriorStr}`));
                         if (datosLS && datosLS !== '[]' && datosLS !== 'null') {
                             try {
                                 const parsed = JSON.parse(datosLS);
@@ -18267,7 +18279,7 @@
             const proveedoresFuente = await obtenerDatos('proveedores');
             let proveedores = Array.isArray(proveedoresFuente) ? [...proveedoresFuente] : [];
             try {
-                const ls = JSON.parse(localStorage.getItem('proveedores') || '[]');
+                const ls = JSON.parse(localStorage.getItem(lsKey('proveedores')) || '[]');
                 if (Array.isArray(ls) && ls.length > 0) {
                     proveedores = [...proveedores, ...ls];
                 }
@@ -21471,7 +21483,7 @@
                 // Respaldo: LocalStorage
                 if (!modulosVisibles) {
                     try {
-                        const datos = localStorage.getItem('config-modulos');
+                        const datos = localStorage.getItem(lsKey('config-modulos'));
                         if (datos) {
                             const parsed = JSON.parse(datos);
                             if (parsed.modulosVisibles && Array.isArray(parsed.modulosVisibles)) {
@@ -21552,7 +21564,7 @@
                 }
                 
                 // Respaldo: LocalStorage
-                localStorage.setItem('config-modulos', JSON.stringify(configData));
+                localStorage.setItem(lsKey('config-modulos'), JSON.stringify(configData));
             } catch (error) {
                 console.error('Error al guardar módulos visibles:', error);
             }
@@ -22329,36 +22341,34 @@
             
             // Buscar todos los meses archivados en localStorage
             for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && key.includes('_archivo_')) {
-                    const partes = key.split('_archivo_');
-                    if (partes.length === 2 && modulos.includes(partes[0])) {
-                        const mesArchivado = partes[1];
-                        // Solo incluir meses que no sean el mes actual
-                        if (mesArchivado !== mesActual) {
-                            mesesArchivados.add(mesArchivado);
-                        }
+                const rawKey = localStorage.key(i);
+                const key = lsLogicalKey(rawKey);
+                if (!key || !key.includes('_archivo_')) continue;
+                const partes = key.split('_archivo_');
+                if (partes.length === 2 && modulos.includes(partes[0])) {
+                    const mesArchivado = partes[1];
+                    if (mesArchivado !== mesActual) {
+                        mesesArchivados.add(mesArchivado);
                     }
                 }
             }
             
             // Buscar meses reabiertos en localStorage (verificar si tienen datos activos sin ser el mes actual)
             for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && !key.includes('_archivo_') && !key.includes('config') && !key.includes('personalizacion')) {
-                    const partes = key.split('_');
-                    if (partes.length === 2 && modulos.includes(partes[0])) {
-                        const mesReabierto = partes[1];
-                        if (mesReabierto !== mesActual && !mesesArchivados.has(mesReabierto)) {
-                            // Verificar si hay datos (no está vacío)
-                            try {
-                                const datos = localStorage.getItem(key);
-                                if (datos && datos !== '[]' && datos !== 'null') {
-                                    mesesReabiertos.add(mesReabierto);
-                                }
-                            } catch (e) {
-                                // Ignorar errores de parseo
+                const rawKey = localStorage.key(i);
+                const key = lsLogicalKey(rawKey);
+                if (!key || key.includes('_archivo_') || key.includes('config') || key.includes('personalizacion')) continue;
+                const partes = key.split('_');
+                if (partes.length === 2 && modulos.includes(partes[0])) {
+                    const mesReabierto = partes[1];
+                    if (mesReabierto !== mesActual && !mesesArchivados.has(mesReabierto)) {
+                        try {
+                            const datos = localStorage.getItem(rawKey);
+                            if (datos && datos !== '[]' && datos !== 'null') {
+                                mesesReabiertos.add(mesReabierto);
                             }
+                        } catch (e) {
+                            // Ignorar errores de parseo
                         }
                     }
                 }
@@ -22431,8 +22441,8 @@
                     
                     // Eliminar de LocalStorage
                     try {
-                        if (localStorage.getItem(archivoKey)) {
-                            localStorage.removeItem(archivoKey);
+                        if (localStorage.getItem(lsKey(archivoKey))) {
+                            localStorage.removeItem(lsKey(archivoKey));
                             eliminados++;
                         }
                     } catch (error) {
@@ -22520,7 +22530,7 @@
                 // Si no se encontró en Firestore, verificar en LocalStorage
                 if (!tieneDatosActivos) {
                     tieneDatosActivos = modulos.some(modulo => {
-                        const datosActivos = localStorage.getItem(`${modulo}_${mesSeleccionado}`);
+                        const datosActivos = localStorage.getItem(lsKey(`${modulo}_${mesSeleccionado}`));
                         return datosActivos && datosActivos !== '[]' && datosActivos !== 'null';
                     });
                 }
@@ -23022,7 +23032,7 @@
                     }
                 }
                 try {
-                    localStorage.setItem(POSTVENTA_LS, JSON.stringify(registrosPostventa));
+                    localStorage.setItem(lsKey(POSTVENTA_LS), JSON.stringify(registrosPostventa));
                 } catch (e) { /* ignore */ }
             }
 
@@ -23247,7 +23257,7 @@
                 }
                 if (registrosPostventa.length === 0) {
                     try {
-                        var raw = localStorage.getItem(POSTVENTA_LS);
+                        var raw = localStorage.getItem(lsKey(POSTVENTA_LS));
                         if (raw) registrosPostventa = JSON.parse(raw) || [];
                     } catch (e) { /* ignore */ }
                 }
@@ -23428,7 +23438,7 @@
                     }
                 } catch (e1) { /* ignore */ }
                 if (!comunidad || comunidad === 'Comunidad') {
-                    try { comunidad = localStorage.getItem('nombreComunidad') || comunidad; } catch (e2) { /* ignore */ }
+                    try { comunidad = localStorage.getItem(lsKey('nombreComunidad')) || comunidad; } catch (e2) { /* ignore */ }
                 }
 
                 function escXml(s) {
@@ -24086,15 +24096,15 @@
                 } catch (error) {
                     console.warn('⚠️ Error al obtener personalización, usando valores por defecto:', error);
                     // Fallback a localStorage si existe
-                    nombreComunidad = localStorage.getItem('nombreComunidad') || nombreComunidad;
-                    jefeEdificio = localStorage.getItem('jefeEdificio') || jefeEdificio;
-                    numeroDeptos = localStorage.getItem('numeroDeptos') || numeroDeptos;
+                    nombreComunidad = localStorage.getItem(lsKey('nombreComunidad')) || nombreComunidad;
+                    jefeEdificio = localStorage.getItem(lsKey('jefeEdificio')) || jefeEdificio;
+                    numeroDeptos = localStorage.getItem(lsKey('numeroDeptos')) || numeroDeptos;
                 }
                 
                 
                 let modulosVisibles = [];
                 try {
-                    const modulosStr = localStorage.getItem('modulosVisibles') || '["mudanzas","aperturas","tarjetas","espacios","multas","morosos"]';
+                    const modulosStr = localStorage.getItem(lsKey('modulosVisibles')) || '["mudanzas","aperturas","tarjetas","espacios","multas","morosos"]';
                     modulosVisibles = JSON.parse(modulosStr);
                     if (!Array.isArray(modulosVisibles)) modulosVisibles = ['mudanzas','aperturas','tarjetas','espacios','multas','morosos'];
                 } catch (e) {
@@ -25392,15 +25402,15 @@
                     numeroDeptos = personalizacion.deptos || numeroDeptos;
                 } catch (error) {
                     console.warn('⚠️ Error al obtener personalización, usando valores por defecto:', error);
-                    nombreComunidad = localStorage.getItem('nombreComunidad') || nombreComunidad;
-                    jefeEdificio = localStorage.getItem('jefeEdificio') || jefeEdificio;
-                    numeroDeptos = localStorage.getItem('numeroDeptos') || numeroDeptos;
+                    nombreComunidad = localStorage.getItem(lsKey('nombreComunidad')) || nombreComunidad;
+                    jefeEdificio = localStorage.getItem(lsKey('jefeEdificio')) || jefeEdificio;
+                    numeroDeptos = localStorage.getItem(lsKey('numeroDeptos')) || numeroDeptos;
                 }
                 
                 // Obtener módulos visibles
                 let modulosVisibles = [];
                 try {
-                    const modulosStr = localStorage.getItem('modulosVisibles') || '["mudanzas","aperturas","tarjetas","espacios","multas","morosos"]';
+                    const modulosStr = localStorage.getItem(lsKey('modulosVisibles')) || '["mudanzas","aperturas","tarjetas","espacios","multas","morosos"]';
                     modulosVisibles = JSON.parse(modulosStr);
                     if (!Array.isArray(modulosVisibles)) modulosVisibles = ['mudanzas','aperturas','tarjetas','espacios','multas','morosos'];
                 } catch (e) {
@@ -26845,7 +26855,7 @@
                 } catch (e1) { /* ignore */ }
             }
             try {
-                var raw = localStorage.getItem('postventa-registros');
+                var raw = localStorage.getItem(lsKey('postventa-registros'));
                 return raw ? JSON.parse(raw) : [];
             } catch (e2) { return []; }
         }
@@ -26941,9 +26951,9 @@
                     numeroDeptos = pers.deptos || numeroDeptos;
                 } catch (e0) {
                     try {
-                        nombreComunidad = localStorage.getItem('nombreComunidad') || nombreComunidad;
-                        jefeEdificio = localStorage.getItem('jefeEdificio') || jefeEdificio;
-                        numeroDeptos = localStorage.getItem('numeroDeptos') || numeroDeptos;
+                        nombreComunidad = localStorage.getItem(lsKey('nombreComunidad')) || nombreComunidad;
+                        jefeEdificio = localStorage.getItem(lsKey('jefeEdificio')) || jefeEdificio;
+                        numeroDeptos = localStorage.getItem(lsKey('numeroDeptos')) || numeroDeptos;
                     } catch (eLs) { /* ignore */ }
                 }
 
@@ -27235,10 +27245,10 @@
                             
                             // Guardar en LocalStorage
                             try {
-                                localStorage.setItem(archivoKey, JSON.stringify(datos));
+                                localStorage.setItem(lsKey(archivoKey), JSON.stringify(datos));
                                 // Limpiar datos del mes actual (solo si no es un módulo de configuración)
                                 if (!modulo.includes('config') && !modulo.includes('personalizacion')) {
-                                    localStorage.removeItem(`${modulo}_${mesActual}`);
+                                    localStorage.removeItem(lsKey(`${modulo}_${mesActual}`));
                                 }
                                 modulosArchivados++;
                             } catch (error) {
@@ -27299,7 +27309,7 @@
                         console.error('❌ Error al actualizar config en Firestore:', error);
                     }
                 }
-                localStorage.setItem('ultimoMesProcesado', mesActual);
+                localStorage.setItem(lsKey('ultimoMesProcesado'), mesActual);
                 
                 // Generar reporte: si se archivaron tarjetas, usar snapshot (garantiza todas las líneas en el PDF al cierre)
                 progreso.actualizar(totalModulos + 3, totalModulos + 3, 'Generando reporte mensual...');
@@ -27387,7 +27397,7 @@
                     }
                     
                     // Respaldo: LocalStorage
-                    const datosLS = localStorage.getItem(archivoKey);
+                    const datosLS = localStorage.getItem(lsKey(archivoKey));
                     if (datosLS) {
                         try {
                             const datosArray = JSON.parse(datosLS);
@@ -27415,8 +27425,8 @@
                                 }
                                 
                                 // Guardar en LocalStorage como activo
-                                localStorage.setItem(activoKey, datosLS);
-                                localStorage.removeItem(archivoKey);
+                                localStorage.setItem(lsKey(activoKey), datosLS);
+                                localStorage.removeItem(lsKey(archivoKey));
                             }
                         } catch (error) {
                             console.error(`Error al reabrir ${modulo} en LocalStorage:`, error);
@@ -27459,7 +27469,7 @@
                     }
                     
                     // Respaldo: LocalStorage
-                    const datosLS = localStorage.getItem(archivoKey);
+                    const datosLS = localStorage.getItem(lsKey(archivoKey));
                     if (datosLS) {
                         try {
                             const datosArray = JSON.parse(datosLS);
@@ -27485,8 +27495,8 @@
                                 }
                                 
                                 // Guardar en LocalStorage como activo
-                                localStorage.setItem(activoKey, datosLS);
-                                localStorage.removeItem(archivoKey);
+                                localStorage.setItem(lsKey(activoKey), datosLS);
+                                localStorage.removeItem(lsKey(archivoKey));
                             }
                         } catch (error) {
                             console.error(`Error al reabrir ${moduloConfig} en LocalStorage:`, error);
@@ -27495,7 +27505,7 @@
                 }
                 
                 // Actualizar último mes procesado si el mes reabierto es más reciente
-                const ultimoMes = localStorage.getItem('ultimoMesProcesado');
+                const ultimoMes = localStorage.getItem(lsKey('ultimoMesProcesado'));
                 if (!ultimoMes || mesAnio > ultimoMes) {
                     if (firebaseInitialized && db) {
                         try {
@@ -27508,7 +27518,7 @@
                             console.error('Error al actualizar config en Firestore:', error);
                         }
                     }
-                    localStorage.setItem('ultimoMesProcesado', mesAnio);
+                    localStorage.setItem(lsKey('ultimoMesProcesado'), mesAnio);
                 }
                 
                 // Recargar lista de meses archivados (el mes reabierto ya no debería aparecer)
@@ -28612,11 +28622,11 @@
                 const modulos = ['mudanzas', 'aperturas', 'tarjetas', 'espacios', 'multas', 'morosos', 'caja', 'mantenciones'];
                 const modulosConfig = ['mantenciones-config', 'caja-config'];
                 const tieneDatosActivos = modulos.some(modulo => {
-                    const datosActivos = localStorage.getItem(`${modulo}_${mesAnio}`);
+                    const datosActivos = localStorage.getItem(lsKey(`${modulo}_${mesAnio}`));
                     return datosActivos && datosActivos !== '[]';
                 });
                 const tieneConfigActiva = modulosConfig.some(modulo => {
-                    const datosActivos = localStorage.getItem(`${modulo}_${mesAnio}`);
+                    const datosActivos = localStorage.getItem(lsKey(`${modulo}_${mesAnio}`));
                     return datosActivos && datosActivos !== '[]' && datosActivos !== 'null';
                 });
                 
@@ -28976,7 +28986,7 @@
                 // Método 2: Verificar directamente en LocalStorage
                 if (!carpetaConfig) {
                     const docKey = `${keyConfig}_${mesAUsar}`;
-                    const datosLS = localStorage.getItem(docKey);
+                    const datosLS = localStorage.getItem(lsKey(docKey));
                     if (datosLS && datosLS !== '[]' && datosLS !== 'null') {
                         try {
                             const parsed = JSON.parse(datosLS);
@@ -32369,7 +32379,7 @@
             
             // Respaldo: LocalStorage
             try {
-                const datosLocal = localStorage.getItem(docKey);
+                const datosLocal = localStorage.getItem(lsKey(docKey));
                 if (datosLocal) {
                     const parsed = JSON.parse(datosLocal);
                     return Array.isArray(parsed) ? parsed : [];
@@ -32499,8 +32509,10 @@
             
             // Buscar meses en localStorage
             for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && key.includes('_')) {
+                const rawKey = localStorage.key(i);
+                const key = lsLogicalKey(rawKey);
+                if (!key) continue;
+                if (key.includes('_')) {
                     const partes = key.split('_');
                     if (partes.length >= 2 && modulos.includes(partes[0])) {
                         const posibleMes = partes.slice(1).join('_');
@@ -32509,7 +32521,7 @@
                         }
                     }
                 }
-                if (key && key.includes('_archivo_')) {
+                if (key.includes('_archivo_')) {
                     const partes = key.split('_archivo_');
                     if (partes.length === 2 && modulos.includes(partes[0])) {
                         meses.add(partes[1]);
@@ -32955,7 +32967,7 @@
                         tabsMenu.classList.add('collapsed');
                         mainContent.classList.add('menu-collapsed');
                     } else {
-                        var collapsed = localStorage.getItem('menuCollapsed') === 'true';
+                        var collapsed = localStorage.getItem(lsKey('menuCollapsed')) === 'true';
                         if (collapsed) {
                             tabsMenu.classList.add('collapsed');
                             mainContent.classList.add('menu-collapsed');
@@ -32973,7 +32985,7 @@
                     if (!tabsMenu.classList.contains('collapsed')) {
                         tabsMenu.classList.add('collapsed');
                         mainContent.classList.add('menu-collapsed');
-                        localStorage.setItem('menuCollapsed', 'true');
+                        localStorage.setItem(lsKey('menuCollapsed'), 'true');
                         syncMenuBackdrop();
                         updateToggleButtonPosition();
                     }
@@ -32983,7 +32995,7 @@
                     if (tabsMenu && mainContent) {
                         tabsMenu.classList.toggle('collapsed');
                         mainContent.classList.toggle('menu-collapsed');
-                        localStorage.setItem('menuCollapsed', tabsMenu.classList.contains('collapsed'));
+                        localStorage.setItem(lsKey('menuCollapsed'), tabsMenu.classList.contains('collapsed'));
                         updateToggleButtonPosition();
                         syncMenuBackdrop();
                     }
@@ -36849,12 +36861,12 @@
             toggle.style.transform = isHidden ? 'rotate(180deg)' : 'rotate(0deg)';
             
             // Guardar estado en localStorage
-            localStorage.setItem('personalEdificioExpanded', isHidden ? 'true' : 'false');
+            localStorage.setItem(lsKey('personalEdificioExpanded'), isHidden ? 'true' : 'false');
         }
 
         // Función para restaurar estado de la sección de personal
         function restaurarEstadoPersonalEdificio() {
-            const savedState = localStorage.getItem('personalEdificioExpanded');
+            const savedState = localStorage.getItem(lsKey('personalEdificioExpanded'));
             if (savedState === 'false') {
                 const content = document.getElementById('personalEdificioContent');
                 const toggle = document.getElementById('personalEdificioToggle');
@@ -36875,12 +36887,12 @@
             toggle.textContent = isHidden ? '▼' : '▶';
             
             // Guardar estado en localStorage
-            localStorage.setItem('proveedoresExpanded', isHidden ? 'true' : 'false');
+            localStorage.setItem(lsKey('proveedoresExpanded'), isHidden ? 'true' : 'false');
         };
 
         // Función para restaurar estado de la sección de proveedores
         function restaurarEstadoProveedores() {
-            const savedState = localStorage.getItem('proveedoresExpanded');
+            const savedState = localStorage.getItem(lsKey('proveedoresExpanded'));
             // Por defecto, ocultar (solo mostrar si el usuario lo expandió previamente)
             if (savedState !== 'true') {
                 const content = document.getElementById('contenedorProveedores');
@@ -36994,23 +37006,22 @@
 
             // Buscar en localStorage
             for (let i = 0; i < localStorage.length; i++) {
-                const key = localStorage.key(i);
-                if (key && key.includes('nomina_archivo_')) {
+                const rawKey = localStorage.key(i);
+                const key = lsLogicalKey(rawKey);
+                if (!key) continue;
+                if (key.includes('nomina_archivo_')) {
                     const partes = key.split('nomina_archivo_');
                     if (partes.length === 2) {
                         mesesArchivados.add(partes[1]);
                     }
                 }
-                
-                // Buscar meses reabiertos en localStorage
-                if (key && key.startsWith('nomina_') && !key.includes('_archivo_') && !key.includes('nomina-reemplazos')) {
+                if (key.startsWith('nomina_') && !key.includes('_archivo_') && !key.includes('nomina-reemplazos')) {
                     const partes = key.split('_');
                     if (partes.length === 2 && partes[0] === 'nomina') {
                         const mesReabierto = partes[1];
                         if (mesReabierto !== mesActual && !mesesArchivados.has(mesReabierto)) {
-                            // Verificar si hay datos (no está vacío)
                             try {
-                                const datos = localStorage.getItem(key);
+                                const datos = localStorage.getItem(rawKey);
                                 if (datos && datos !== '[]' && datos !== 'null') {
                                     mesesReabiertos.add(mesReabierto);
                                 }
@@ -37216,7 +37227,7 @@
                 
                 // Si no se encontró en datos activos, buscar en LocalStorage
                 if (nominaArchivada.length === 0) {
-                    const datosLS = localStorage.getItem(`nomina_${mes}`);
+                    const datosLS = localStorage.getItem(lsKey(`nomina_${mes}`));
                     if (datosLS && datosLS !== '[]' && datosLS !== 'null') {
                         try {
                             const parsed = JSON.parse(datosLS);
@@ -37255,7 +37266,7 @@
                 }
                 
                 if (reemplazosArchivados.length === 0) {
-                    const datosLS = localStorage.getItem(`nomina-reemplazos_${mes}`);
+                    const datosLS = localStorage.getItem(lsKey(`nomina-reemplazos_${mes}`));
                     if (datosLS && datosLS !== '[]' && datosLS !== 'null') {
                         try {
                             const parsed = JSON.parse(datosLS);
