@@ -5473,7 +5473,7 @@
         <div id="ocupacion" class="tab-content">
             <div style="margin-bottom: 1.5rem;">
                 <h2 style="margin: 0; color: var(--gray-900); font-size: 1.5rem; font-weight: 700;">🏢 Ocupación del Edificio</h2>
-                <p style="color: var(--gray-600); font-size: 0.875rem; margin: 0.5rem 0 0 0;">Datos desde Vinculación Comunidad. Para editar unidades o residentes, abra Vinculación Comunidad.</p>
+                <p id="ocupacionFuenteDatos" style="color: var(--gray-600); font-size: 0.875rem; margin: 0.5rem 0 0 0;">Cargando fuente de residentes…</p>
             </div>
             <!-- Resumen ocupación (igual que activa-entre-cerros) -->
             <div id="resumenOcupacion" class="resumen-ocupacion-map" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
@@ -5508,9 +5508,12 @@
                     <input type="text" id="buildingMapFilterOcupacion" class="form-input" placeholder="🔍 Filtrar por número de unidad, uso, residente, estacionamiento, bodega..." style="width: 100%; max-width: 400px; padding: 0.5rem 0.75rem; font-size: 0.875rem;">
                 </div>
                 <div class="building-map-edificio" id="buildingMapOcupacion"></div>
-                <div style="margin-top: 15px; display: flex; justify-content: flex-end;">
+                <div style="margin-top: 15px; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px;">
+                    <a href="index-fabrica.html" target="_blank" rel="noopener" class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 12px; text-decoration: none;">
+                        🏠 Conserjería / residentes (index-fabrica)
+                    </a>
                     <a href="vinculacion-comunidad.html#building" target="_blank" rel="noopener" class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 12px; text-decoration: none;">
-                        📄 PDF AssetPlan — Arrendatarios 2 sem. (abre Vinculación)
+                        📄 PDF AssetPlan — Vinculación
                     </a>
                 </div>
             </section>
@@ -6345,6 +6348,27 @@
             storageBucket: "administracion-41391.firebasestorage.app",
             messagingSenderId: "884674976934",
             appId: "1:884674976934:web:e8b0d09a3621d14fa6e867"
+        };
+
+        /**
+         * Residentes + estadísticas de ocupación desde index-fabrica.html (Firestore cgSites/{siteId}/kv/{unitsKvKey}).
+         * Debe coincidir con CG_FIREBASE_CONFIG + CG_FABRICA_DEPT_SOURCE de index-fabrica.
+         * Reglas Firestore del proyecto conserjeriawm2: permitir lectura (p. ej. auth anónima o usuario autorizado).
+         */
+        window.CG_GESTION_FABRICA_INTEGRATION = {
+            enabled: true,
+            firebase: {
+                apiKey: "AIzaSyA_IsH2eJyQf20SdWSFvZjTblPZOlFU9Y8",
+                authDomain: "conserjeriawm2.firebaseapp.com",
+                projectId: "conserjeriawm2",
+                storageBucket: "conserjeriawm2.firebasestorage.app",
+                messagingSenderId: "470166692685",
+                appId: "1:470166692685:web:80da0c3beccf001d4b0d04"
+            },
+            siteId: "conserjeriawm2",
+            unitsKvKey: "wm815_units",
+            useAnonymousAuth: true,
+            kpiTotalUnidadesEdificio: 259
         };
 
         // Inicializar Firebase
@@ -22666,9 +22690,167 @@
         // ============================================
         // SISTEMA DE REPORTE DE CIERRE DE MES - NUEVO
         // ============================================
+
+        async function ensureFirebaseModularExtended() {
+            if (window.firebaseModularExtended && window.firebaseModularExtendedReady) {
+                return window.firebaseModularExtended;
+            }
+            await new Promise(function (resolve, reject) {
+                if (window.firebaseModularExtendedReady) {
+                    resolve();
+                    return;
+                }
+                var script = document.createElement('script');
+                script.type = 'module';
+                script.textContent =
+                    "import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';" +
+                    "import { getFirestore, collection, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';" +
+                    "import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';" +
+                    "window.firebaseModularExtended = { initializeApp, getApps, getFirestore, collection, getDocs, doc, getDoc, getAuth, signInAnonymously };" +
+                    "window.firebaseModularExtendedReady = true;";
+                document.head.appendChild(script);
+                var attempts = 0;
+                var timer = setInterval(function () {
+                    attempts++;
+                    if (window.firebaseModularExtendedReady) {
+                        clearInterval(timer);
+                        resolve();
+                    } else if (attempts > 80) {
+                        clearInterval(timer);
+                        reject(new Error('Timeout cargando Firebase modular (extended)'));
+                    }
+                }, 100);
+            });
+            return window.firebaseModularExtended;
+        }
+
+        function __gestionNormalizaUnidadVincStyle(unitData, fallbackId) {
+            if (!unitData || typeof unitData !== 'object') return null;
+            var u = Object.assign({}, unitData);
+            u.id = u.id || fallbackId || ('wmimp_' + Math.random().toString(36).slice(2, 10));
+            if (!Array.isArray(u.residents)) u.residents = [];
+            if (u.unitNote === undefined || u.unitNote === null) u.unitNote = '';
+            if (u.unitNoteUpdatedAt === undefined || u.unitNoteUpdatedAt === null) u.unitNoteUpdatedAt = '';
+            if (u.hasRentalContract === undefined || u.hasRentalContract === null) u.hasRentalContract = false;
+            if (u.rentalParkingNumber === undefined || u.rentalParkingNumber === null) u.rentalParkingNumber = '';
+            if (!Array.isArray(u.parkingNumbers)) u.parkingNumbers = u.parkingNumber ? [u.parkingNumber] : [];
+            if (!Array.isArray(u.storageNumbers)) u.storageNumbers = u.storageNumber ? [u.storageNumber] : [];
+            if (!Array.isArray(u.bikeStorageNumbers)) u.bikeStorageNumbers = [];
+            if (!Array.isArray(u.bikeStorageDetails)) u.bikeStorageDetails = [];
+            return u;
+        }
+
+        function __gestionComputeOcupacionMetrics(units, totalUnidadesProyecto) {
+            var unidadesEfectivamenteOcupadas = 0;
+            var unidadesConPropietarioAsignado = 0;
+            var totalResidentesViviendo = 0;
+            units.forEach(function (unit, index) {
+                try {
+                    var residents = Array.isArray(unit.residents) ? unit.residents : [];
+                    var uUseRaw = String(unit.unitUse || 'Habitacional').trim();
+                    var esHab = uUseRaw === 'Habitacional' || uUseRaw.toLowerCase() === 'habitacional';
+                    var propietariosEnUnidad = residents.filter(function (r) { return r && r.type === 'Propietario'; });
+                    var residentesEfectivos = residents.filter(function (r) {
+                        return r && r.type && (r.type === 'Propietario' || r.type === 'Arrendatario' || r.type === 'Familiar');
+                    });
+                    var esUnidadEfectivamenteOcupada =
+                        (esHab && propietariosEnUnidad.length > 0) ||
+                        (!esHab && residentesEfectivos.filter(function (r) { return r && r.type && r.type !== 'Propietario'; }).length > 0);
+                    if (esUnidadEfectivamenteOcupada) unidadesEfectivamenteOcupadas++;
+                    if (propietariosEnUnidad.length > 0) unidadesConPropietarioAsignado++;
+                    if (esHab) {
+                        totalResidentesViviendo += residents.filter(function (r) { return r && r.type === 'Propietario'; }).length;
+                        totalResidentesViviendo += residents.filter(function (r) { return r && r.type === 'Familiar'; }).length;
+                    } else {
+                        totalResidentesViviendo += residents.filter(function (r) { return r && r.type === 'Arrendatario'; }).length;
+                        totalResidentesViviendo += residents.filter(function (r) { return r && r.type === 'Familiar'; }).length;
+                    }
+                } catch (errU) {
+                    console.error('❌ Error procesando unidad (métricas)', index, errU);
+                }
+            });
+            var tu = totalUnidadesProyecto > 0 ? totalUnidadesProyecto : 259;
+            var unidadesSinVender = tu - unidadesConPropietarioAsignado;
+            var porcentajeOcupacion = tu > 0 ? Math.round((unidadesEfectivamenteOcupadas / tu) * 100) : 0;
+            var porcentajeUnidadesEntregadas = tu > 0 ? Math.round((unidadesConPropietarioAsignado / tu) * 100) : 0;
+            var porcentajeUnidadesSinVender = tu > 0 ? Math.round((unidadesSinVender / tu) * 100) : 0;
+            return {
+                ocupacionActual: unidadesEfectivamenteOcupadas,
+                porcentajeOcupacion: porcentajeOcupacion,
+                unidadesEntregadas: unidadesConPropietarioAsignado,
+                porcentajeUnidadesEntregadas: porcentajeUnidadesEntregadas,
+                unidadesSinVender: unidadesSinVender,
+                porcentajeUnidadesSinVender: porcentajeUnidadesSinVender,
+                totalResidentesViviendo: totalResidentesViviendo,
+                totalUnidades: tu,
+                unidadesObtenidas: units.length
+            };
+        }
+
+        async function obtenerMetricasDesdeIndexFabrica(cfg) {
+            var fm = await ensureFirebaseModularExtended();
+            if (!fm || !fm.initializeApp || !fm.getFirestore || !fm.doc || !fm.getDoc) {
+                throw new Error('Firebase modular incompleto');
+            }
+            var appName = 'gestion-wm-index-fabrica';
+            var apps = fm.getApps();
+            var app = null;
+            var ai;
+            for (ai = 0; ai < apps.length; ai++) {
+                if (apps[ai].name === appName) {
+                    app = apps[ai];
+                    break;
+                }
+            }
+            if (!app) {
+                app = fm.initializeApp(cfg.firebase, appName);
+            }
+            var db = fm.getFirestore(app);
+            if (cfg.useAnonymousAuth && fm.getAuth && fm.signInAnonymously) {
+                try {
+                    var auth0 = fm.getAuth(app);
+                    if (auth0 && !auth0.currentUser) {
+                        await fm.signInAnonymously(auth0);
+                    }
+                } catch (eAuth) {
+                    console.warn('[Gestión] signInAnonymously (fabrica):', eAuth);
+                }
+            }
+            var siteId = String(cfg.siteId || '').trim();
+            var kvKey = String(cfg.unitsKvKey || 'wm815_units').trim();
+            var ref = fm.doc(db, 'cgSites', siteId, 'kv', kvKey);
+            var snap = await fm.getDoc(ref);
+            var exists = snap && (typeof snap.exists === 'boolean' ? snap.exists : (typeof snap.exists === 'function' ? snap.exists() : false));
+            if (!exists) {
+                throw new Error('Documento Firestore cgSites/' + siteId + '/kv/' + kvKey + ' no existe');
+            }
+            var d = snap.data();
+            var raw = d && d.json != null ? String(d.json) : '';
+            if (!raw) {
+                throw new Error('Campo json vacío en documento kv');
+            }
+            var parsed;
+            try {
+                parsed = JSON.parse(raw);
+            } catch (eJ) {
+                throw new Error('JSON de unidades inválido');
+            }
+            if (!Array.isArray(parsed)) {
+                throw new Error('json no es un array de unidades');
+            }
+            var units = [];
+            parsed.forEach(function (row, idx) {
+                var nu = __gestionNormalizaUnidadVincStyle(row, row && row.id ? String(row.id) : 'wmidx_' + idx);
+                if (nu) units.push(nu);
+            });
+            window.vinculacionUnits = units;
+            var kpi = Number(cfg.kpiTotalUnidadesEdificio);
+            var totalProy = kpi > 0 && kpi === kpi ? Math.floor(kpi) : 259;
+            return __gestionComputeOcupacionMetrics(units, totalProy);
+        }
         
-        // Función para obtener métricas de ocupación desde vinculacion-comunidad
-        async function obtenerMetricasVinculacion() {
+        // Métricas legacy: proyecto residentes-82233 (colección units)
+        async function obtenerMetricasVinculacionLegacy() {
             try {
                 // Configuración de Firebase de vinculacion-comunidad
                 const vinculacionFirebaseConfig = {
@@ -22902,6 +23084,38 @@
                 };
                 return valoresDefecto;
             }
+        }
+
+        function actualizarTextoFuenteResidentesOcupacion() {
+            var el = document.getElementById('ocupacionFuenteDatos');
+            if (!el) return;
+            var src = window.__gestionResidentesFuente;
+            if (src === 'index-fabrica') {
+                el.textContent = 'Datos de residentes y ocupación desde Conserjería (index-fabrica, Firestore cgSites/…/kv). Para editar unidades o residentes, abra index-fabrica.html.';
+            } else if (src === 'legacy-vinculacion') {
+                el.textContent = 'Datos desde proyecto legacy (residentes-82233, colección units). Index-fabrica no respondió: revise red, reglas Firestore y CG_GESTION_FABRICA_INTEGRATION. Opcional: Vinculación Comunidad.';
+            } else {
+                el.textContent = 'Cargando fuente de residentes…';
+            }
+        }
+
+        async function obtenerMetricasVinculacion() {
+            var integ = window.CG_GESTION_FABRICA_INTEGRATION;
+            if (integ && integ.enabled !== false && integ.firebase && integ.firebase.apiKey && integ.firebase.projectId && String(integ.siteId || '').trim()) {
+                try {
+                    var rFab = await obtenerMetricasDesdeIndexFabrica(integ);
+                    if (rFab) {
+                        window.__gestionResidentesFuente = 'index-fabrica';
+                        try { actualizarTextoFuenteResidentesOcupacion(); } catch (eT0) {}
+                        return rFab;
+                    }
+                } catch (eFab) {
+                    console.warn('[Gestión] Integración index-fabrica no disponible:', eFab);
+                }
+            }
+            window.__gestionResidentesFuente = 'legacy-vinculacion';
+            try { actualizarTextoFuenteResidentesOcupacion(); } catch (eT1) {}
+            return await obtenerMetricasVinculacionLegacy();
         }
 
         // Estructura del edificio (misma que vinculacion-comunidad) para módulo Ocupación
