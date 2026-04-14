@@ -5544,8 +5544,8 @@
                 </div>
                 <div class="building-map-edificio" id="buildingMapOcupacion"></div>
                 <div style="margin-top: 15px; display: flex; justify-content: flex-end; flex-wrap: wrap; gap: 8px;">
-                    <a href="index-fabrica.html" target="_blank" rel="noopener" class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 12px; text-decoration: none;">
-                        🏠 Conserjería / residentes (index-fabrica)
+                    <a href="prueba-conserjeria.html" target="_blank" rel="noopener" class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 12px; text-decoration: none;">
+                        🏠 Conserjería / residentes (prueba-conserjeria)
                     </a>
                     <a href="vinculacion-comunidad.html#building" target="_blank" rel="noopener" class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 12px; text-decoration: none;">
                         📄 PDF AssetPlan — Vinculación
@@ -6386,10 +6386,9 @@
         };
 
         /**
-         * Residentes + estadísticas de ocupación desde index-fabrica.html (Firestore cgSites/{siteId}/kv/{unitsKvKey}).
-         * Debe coincidir con CG_FIREBASE_CONFIG + CG_FABRICA_DEPT_SOURCE de index-fabrica.
-         * Reglas Firestore del proyecto conserjeriawm2: permitir lectura (p. ej. auth anónima o usuario autorizado).
-         * Origen puede alimentarse desde prueba-conserjeria (envío a cgSites/…/kv); mismo firebase/siteId/unitsKvKey en window.__PCSH_GESTION_WM_BRIDGE__.
+         * Residentes + estadísticas: Firestore cgSites/{siteId}/kv/{unitsKvKey} (mismo doc que envía prueba-conserjería con «Enviar unidades a Gestión WM»).
+         * Respaldo mismo origen: localStorage vlcom_wm815_units_v1 / pcsh_demo_v1_wm815_units (caché del panel prueba-conserjeria.html).
+         * Reglas Firestore (conserjeriawm2): lectura con auth anónima o autorizada. Bridge: window.__PCSH_GESTION_WM_BRIDGE__ en prueba-conserjeria.
          */
         window.CG_GESTION_FABRICA_INTEGRATION = {
             enabled: true,
@@ -22994,6 +22993,39 @@
             var totalProy = kpi > 0 && kpi === kpi ? Math.floor(kpi) : 259;
             return __gestionComputeOcupacionMetrics(units, totalProy);
         }
+
+        /** Mismas claves que prueba-conserjeria.html (VLCOM + caché WM815). Mismo origen → mismo localStorage si ambas páginas se sirven desde el mismo host. */
+        function __gestionLeerArrayUnidadesDesdeLsPrueba() {
+            var keys = ['vlcom_wm815_units_v1', 'pcsh_demo_v1_wm815_units'];
+            var i;
+            for (i = 0; i < keys.length; i++) {
+                try {
+                    var raw = localStorage.getItem(keys[i]);
+                    if (!raw) continue;
+                    var p = JSON.parse(raw);
+                    var list = Array.isArray(p) ? p : p && Array.isArray(p.units) ? p.units : null;
+                    if (list && list.length) return list;
+                } catch (eLs) {
+                    /* ignore */
+                }
+            }
+            return null;
+        }
+
+        function obtenerMetricasDesdeCachePruebaConserjeria(integ) {
+            var rawArr = __gestionLeerArrayUnidadesDesdeLsPrueba();
+            if (!rawArr || !rawArr.length) return null;
+            var units = [];
+            rawArr.forEach(function (row, idx) {
+                var nu = __gestionNormalizaUnidadVincStyle(row, row && row.id ? String(row.id) : 'pcshls_' + idx);
+                if (nu) units.push(nu);
+            });
+            if (!units.length) return null;
+            window.vinculacionUnits = units;
+            var kpi = integ && Number(integ.kpiTotalUnidadesEdificio);
+            var totalProy = kpi > 0 && kpi === kpi ? Math.floor(kpi) : 259;
+            return __gestionComputeOcupacionMetrics(units, totalProy);
+        }
         
         // Métricas legacy: proyecto residentes-82233 (colección units)
         async function obtenerMetricasVinculacionLegacy() {
@@ -23237,9 +23269,13 @@
             if (!el) return;
             var src = window.__gestionResidentesFuente;
             if (src === 'index-fabrica') {
-                el.textContent = 'Datos de residentes y ocupación desde Conserjería (index-fabrica, Firestore cgSites/…/kv). Para editar unidades o residentes, abra index-fabrica.html.';
+                el.textContent = 'Datos de residentes y ocupación desde la nube (Firestore cgSites/…/kv), alimentada por el panel Conserjería (prueba-conserjeria). Para editar unidades o residentes, abra prueba-conserjeria.html.';
+            } else if (src === 'prueba-conserjeria-local') {
+                el.textContent = 'Datos desde la caché local del panel Conserjería (vlcom_wm815_units_v1 en este navegador). Para subir a la nube y alinear con otros equipos, use en Conserjería «Enviar unidades a Gestión WM».';
+            } else if (src === 'index-fabrica-vacio') {
+                el.textContent = 'El documento en la nube no tiene unidades aún. Edite residentes en prueba-conserjeria.html y use «Enviar unidades a Gestión WM», o trabaje con la caché local si ya cargó datos en Conserjería en este mismo navegador.';
             } else if (src === 'legacy-vinculacion') {
-                el.textContent = 'Datos desde proyecto legacy (residentes-82233, colección units). Index-fabrica no respondió: revise red, reglas Firestore y CG_GESTION_FABRICA_INTEGRATION. Opcional: Vinculación Comunidad.';
+                el.textContent = 'Datos desde proyecto legacy (residentes-82233, colección units). No hubo datos en la nube (conserjeriawm2) ni caché local de Conserjería: revise red, reglas Firestore y que prueba-conserjeria haya enviado unidades.';
             } else {
                 el.textContent = 'Cargando fuente de residentes…';
             }
@@ -23247,18 +23283,43 @@
 
         async function obtenerMetricasVinculacion() {
             var integ = window.CG_GESTION_FABRICA_INTEGRATION;
-            if (integ && integ.enabled !== false && integ.firebase && integ.firebase.apiKey && integ.firebase.projectId && String(integ.siteId || '').trim()) {
+            var fabConfigured = integ && integ.enabled !== false && integ.firebase && integ.firebase.apiKey && integ.firebase.projectId && String(integ.siteId || '').trim();
+            var fabRespondedOk = false;
+
+            if (fabConfigured) {
                 try {
                     var rFab = await obtenerMetricasDesdeIndexFabrica(integ);
-                    if (rFab) {
+                    fabRespondedOk = true;
+                    if (window.vinculacionUnits && window.vinculacionUnits.length > 0) {
                         window.__gestionResidentesFuente = 'index-fabrica';
                         try { actualizarTextoFuenteResidentesOcupacion(); } catch (eT0) {}
                         return rFab;
                     }
                 } catch (eFab) {
-                    console.warn('[Gestión] Integración index-fabrica no disponible:', eFab);
+                    console.warn('[Gestión] Firestore cgSites/kv (Conserjería):', eFab);
                 }
             }
+
+            try {
+                var rLocal = obtenerMetricasDesdeCachePruebaConserjeria(integ);
+                if (rLocal && window.vinculacionUnits && window.vinculacionUnits.length > 0) {
+                    window.__gestionResidentesFuente = 'prueba-conserjeria-local';
+                    try { actualizarTextoFuenteResidentesOcupacion(); } catch (eTloc) {}
+                    return rLocal;
+                }
+            } catch (eLoc) {
+                console.warn('[Gestión] Caché local prueba-conserjeria:', eLoc);
+            }
+
+            if (fabRespondedOk) {
+                window.__gestionResidentesFuente = 'index-fabrica-vacio';
+                window.vinculacionUnits = [];
+                try { actualizarTextoFuenteResidentesOcupacion(); } catch (eTempty) {}
+                var kpiE = integ ? Number(integ.kpiTotalUnidadesEdificio) : 0;
+                var totalProyE = kpiE > 0 && kpiE === kpiE ? Math.floor(kpiE) : 259;
+                return __gestionComputeOcupacionMetrics([], totalProyE);
+            }
+
             window.__gestionResidentesFuente = 'legacy-vinculacion';
             try { actualizarTextoFuenteResidentesOcupacion(); } catch (eT1) {}
             return await obtenerMetricasVinculacionLegacy();
