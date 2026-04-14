@@ -5467,6 +5467,41 @@
                     </table>
                 </div>
             </div>
+
+            <!-- Correos de consejería: CCO en comprobantes de apertura -->
+            <div class="form-section" style="margin-bottom: 2rem;">
+                <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700;">Correos de consejería</h3>
+                <p style="color: var(--text-tertiary); font-size: 0.8125rem; margin: 0 0 0.75rem 0; line-height: 1.45;">Estas direcciones reciben <strong>copia oculta (CCO)</strong> cuando se envía por correo el comprobante de <strong>apertura de puerta</strong> al residente.</p>
+                <form id="formCorreoConsejeria">
+                    <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.5rem;">
+                        <div class="form-group" style="flex: 1; margin-bottom: 0.5rem;">
+                            <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Nombre *</label>
+                            <input type="text" id="correoConsejeriaNombre" required placeholder="Ej: Conserje, turno noche" style="padding: 0.5rem; font-size: 0.875rem;">
+                        </div>
+                        <div class="form-group" style="flex: 1; margin-bottom: 0.5rem;">
+                            <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Correo electrónico *</label>
+                            <input type="email" id="correoConsejeriaEmail" required placeholder="consejeria@ejemplo.com" style="padding: 0.5rem; font-size: 0.875rem;">
+                        </div>
+                        <div class="form-group" style="display: flex; align-items: flex-end; margin-bottom: 0.5rem;">
+                            <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Agregar</button>
+                        </div>
+                    </div>
+                </form>
+                <div style="margin-top: 1rem;">
+                    <table id="tablaCorreosConsejeria" style="width: 100%; border-collapse: collapse; background: var(--bg-primary); border-radius: 8px; overflow: hidden;">
+                        <thead>
+                            <tr style="background: linear-gradient(135deg, #75bb21 0%, #5a9219 100%); color: white;">
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Nombre</th>
+                                <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Correo</th>
+                                <th style="padding: 0.75rem; text-align: center; font-weight: 600; width: 100px;">Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyCorreosConsejeria">
+                            <!-- Se llena dinámicamente -->
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <!-- MÓDULO: OCUPACIÓN (mismo diseño que activa-entre-cerros; datos desde Vinculación Comunidad / Firebase) -->
@@ -7747,7 +7782,8 @@
         }
 
         // Requiere que la extensión "Trigger Email" esté instalada en Firebase
-        async function enviarCorreo(residente, asunto, mensaje, html = null, adjuntos = null) {
+        // opciones: { bcc: string|string[] } — copia oculta (p. ej. consejería en aperturas)
+        async function enviarCorreo(residente, asunto, mensaje, html = null, adjuntos = null, opciones = null) {
             if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
                 const msgFile = 'No se puede enviar correos ejecutando la app con file://. Abra la app en http://localhost (por ejemplo: python3 -m http.server 5500) y luego inicie sesión.';
                 console.error(msgFile);
@@ -7965,6 +8001,21 @@
                     });
                 }
 
+                // CCO (BCC): no repetir direcciones que ya están en Para
+                if (opciones && opciones.bcc != null && opciones.bcc !== '') {
+                    const bccBruto = Array.isArray(opciones.bcc)
+                        ? opciones.bcc
+                        : normalizarListaCorreosDestino(opciones.bcc);
+                    const bccLista = normalizarListaCorreosDestino(bccBruto);
+                    const enPara = new Set(listaCorreos.map(e => String(e).toLowerCase()));
+                    const bccFiltrado = bccLista.filter(e => e && !enPara.has(String(e).toLowerCase()));
+                    if (bccFiltrado.length === 1) {
+                        mailData.bcc = bccFiltrado[0];
+                    } else if (bccFiltrado.length > 1) {
+                        mailData.bcc = bccFiltrado;
+                    }
+                }
+
                 // Agregar metadatos para seguimiento
                 mailData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
                 mailData.createdBy = usuarioActual?.email || 'unknown';
@@ -7975,6 +8026,9 @@
                 // Logs detallados del correo que se está enviando
                 console.log('📧 ===== DETALLES DEL CORREO A ENVIAR =====');
                 console.log('📬 Destinatario(s):', listaCorreos.length > 1 ? listaCorreos : listaCorreos[0]);
+                if (mailData.bcc) {
+                    console.log('📋 CCO (BCC):', Array.isArray(mailData.bcc) ? mailData.bcc : mailData.bcc);
+                }
                 console.log('👤 Nombre del residente:', residente.nombre || 'No especificado');
                 console.log('📝 Asunto:', asunto);
                 console.log('📄 Tipo:', html ? 'HTML (con plantilla)' : 'Texto plano');
@@ -9128,13 +9182,13 @@
         }
         
         // Función auxiliar para enviar correo con HTML (para comprobantes)
-        async function enviarCorreoHTML(residente, asunto, htmlContent, adjuntos = null) {
+        async function enviarCorreoHTML(residente, asunto, htmlContent, adjuntos = null, opciones = null) {
             // Extraer texto del HTML para el campo text
             const tempDiv = document.createElement('div');
             tempDiv.innerHTML = htmlContent;
             const texto = tempDiv.textContent || tempDiv.innerText || '';
             
-            return await enviarCorreo(residente, asunto, texto, htmlContent, adjuntos);
+            return await enviarCorreo(residente, asunto, texto, htmlContent, adjuntos, opciones);
         }
 
         /**
@@ -9148,7 +9202,8 @@
                 htmlBase = '',
                 residente = null,
                 adjuntos = null,
-                etiquetaDestino = 'Destinatario'
+                etiquetaDestino = 'Destinatario',
+                enviarOpciones = null
             } = opciones || {};
 
             return new Promise((resolve) => {
@@ -9212,7 +9267,7 @@
                     const combinado = combinarPrefijoCorreo(mensajeIni, htmlBase);
                     try {
                         mostrarProgreso('Enviando correo…');
-                        const resultado = await enviarCorreoHTML(residente, asuntoFinal, combinado.html, adjuntos);
+                        const resultado = await enviarCorreoHTML(residente, asuntoFinal, combinado.html, adjuntos, enviarOpciones);
                         ocultarProgreso();
                         if (!resultado || !resultado.exito) {
                             mostrarAlerta('Error al enviar correo: ' + ((resultado && resultado.error) || 'Error desconocido'), 'Error');
@@ -11334,12 +11389,21 @@
                     mostrarAlerta('No se encontró el correo del residente. Por favor, verifique que el residente tenga su correo registrado en el módulo de Ocupación y Residentes.', 'Correo no encontrado');
                     return;
                 }
+
+                await cargarCorreosConsejeria();
+                const emailsBccConsejeria = normalizarListaCorreosDestino(
+                    (correosConsejeria || []).map(c => c.correo).filter(Boolean)
+                );
+                const enviarOpcionesApertura = emailsBccConsejeria.length
+                    ? { bcc: emailsBccConsejeria.length === 1 ? emailsBccConsejeria[0] : emailsBccConsejeria }
+                    : null;
                 
                 const resultado = await mostrarModalPersonalizarCorreoYEnviar({
                     titulo: 'Enviar comprobante de apertura',
                     asuntoDefecto: `Comprobante de Apertura de Puerta - ${nombreComunidad}`,
                     htmlBase: htmlComprobante,
-                    residente: residenteInfo
+                    residente: residenteInfo,
+                    enviarOpciones: enviarOpcionesApertura
                 });
                 if (resultado === null) return;
                 
@@ -13289,6 +13353,78 @@
         
         // Variables globales para notificaciones
         let correosAdministrativos = [];
+        let correosConsejeria = [];
+
+        async function cargarCorreosConsejeria() {
+            try {
+                const datos = await obtenerDatos('correosConsejeria');
+                correosConsejeria = Array.isArray(datos) ? datos : [];
+                renderizarCorreosConsejeria();
+            } catch (error) {
+                console.error('Error al cargar correos de consejería:', error);
+                correosConsejeria = [];
+                renderizarCorreosConsejeria();
+            }
+        }
+
+        function renderizarCorreosConsejeria() {
+            const tbody = document.getElementById('tbodyCorreosConsejeria');
+            if (!tbody) return;
+
+            if (correosConsejeria.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="3" style="padding: 2rem; text-align: center; color: var(--text-tertiary); font-style: italic; background: var(--bg-primary);"><p>No hay correos de consejería registrados (no se enviará CCO en aperturas)</p></td></tr>';
+                return;
+            }
+
+            tbody.innerHTML = correosConsejeria.map((correo, index) => `
+                <tr style="background: ${index % 2 === 0 ? 'var(--bg-primary)' : 'var(--bg-secondary)'}; border-bottom: 1px solid var(--border-color);">
+                    <td style="padding: 0.75rem; color: var(--text-primary); font-weight: 500;">${correo.nombre || 'Sin nombre'}</td>
+                    <td style="padding: 0.75rem; color: var(--text-secondary); font-size: 0.875rem;">${correo.correo || ''}</td>
+                    <td style="padding: 0.75rem; text-align: center;">
+                        <button class="btn btn-danger btn-sm" onclick="eliminarCorreoConsejeria(${index})" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Eliminar</button>
+                    </td>
+                </tr>
+            `).join('');
+        }
+
+        async function agregarCorreoConsejeria(event) {
+            event.preventDefault();
+            const nombre = document.getElementById('correoConsejeriaNombre').value.trim();
+            const correo = document.getElementById('correoConsejeriaEmail').value.trim();
+
+            if (!nombre || !correo) {
+                mostrarAlerta('Complete todos los campos', 'Error');
+                return;
+            }
+
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(correo)) {
+                mostrarAlerta('Ingrese un correo electrónico válido', 'Error');
+                return;
+            }
+
+            if (correosConsejeria.some(c => c.correo.toLowerCase() === correo.toLowerCase())) {
+                mostrarAlerta('Este correo ya está registrado', 'Error');
+                return;
+            }
+
+            correosConsejeria.push({ nombre, correo });
+            await guardarDatos('correosConsejeria', correosConsejeria);
+            document.getElementById('formCorreoConsejeria').reset();
+            renderizarCorreosConsejeria();
+            mostrarAlerta('Correo de consejería agregado correctamente', 'Éxito');
+        }
+
+        async function eliminarCorreoConsejeria(index) {
+            const confirmado = await confirmarAccion('¿Está seguro de eliminar este correo de consejería?', 'Eliminar correo');
+            if (confirmado) {
+                correosConsejeria.splice(index, 1);
+                await guardarDatos('correosConsejeria', correosConsejeria);
+                renderizarCorreosConsejeria();
+                mostrarAlerta('Correo eliminado correctamente', 'Éxito');
+            }
+        }
+
         // Cargar correos administrativos al iniciar
         async function cargarCorreosAdministrativos() {
             try {
@@ -15226,6 +15362,10 @@
                 if (formCorreoAdmin) {
                     formCorreoAdmin.addEventListener('submit', agregarCorreoAdmin);
                 }
+                const formCorreoConsejeria = document.getElementById('formCorreoConsejeria');
+                if (formCorreoConsejeria) {
+                    formCorreoConsejeria.addEventListener('submit', agregarCorreoConsejeria);
+                }
                 
                 // Cargar correos al mostrar el módulo
                 const tabNotificaciones = document.querySelector('.tab-button[data-tab="notificaciones"]');
@@ -15233,6 +15373,7 @@
                     tabNotificaciones.addEventListener('click', function() {
                         setTimeout(() => {
                             cargarCorreosAdministrativos();
+                            cargarCorreosConsejeria();
                         }, 100);
                     });
                 }
