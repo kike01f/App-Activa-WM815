@@ -6389,6 +6389,7 @@
          * Residentes + estadísticas de ocupación desde index-fabrica.html (Firestore cgSites/{siteId}/kv/{unitsKvKey}).
          * Debe coincidir con CG_FIREBASE_CONFIG + CG_FABRICA_DEPT_SOURCE de index-fabrica.
          * Reglas Firestore del proyecto conserjeriawm2: permitir lectura (p. ej. auth anónima o usuario autorizado).
+         * Origen puede alimentarse desde prueba-conserjeria (envío a cgSites/…/kv); mismo firebase/siteId/unitsKvKey en window.__PCSH_GESTION_WM_BRIDGE__.
          */
         window.CG_GESTION_FABRICA_INTEGRATION = {
             enabled: true,
