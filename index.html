@@ -5471,7 +5471,7 @@
             <!-- Correos de consejería: CCO en comprobantes de apertura -->
             <div class="form-section" style="margin-bottom: 2rem;">
                 <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700;">Correos de consejería</h3>
-                <p style="color: var(--text-tertiary); font-size: 0.8125rem; margin: 0 0 0.75rem 0; line-height: 1.45;">Estas direcciones reciben <strong>copia oculta (CCO)</strong> cuando se envía por correo el comprobante de <strong>apertura de puerta</strong> al residente.</p>
+                <p style="color: var(--text-tertiary); font-size: 0.8125rem; margin: 0 0 0.75rem 0; line-height: 1.45;">Además del buzón fijo de conserjería del edificio, estas direcciones reciben <strong>copia oculta (CCO)</strong> al enviar el comprobante de <strong>apertura de puerta</strong> al residente.</p>
                 <form id="formCorreoConsejeria">
                     <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.5rem;">
                         <div class="form-group" style="flex: 1; margin-bottom: 0.5rem;">
@@ -11371,6 +11371,9 @@
 </html>`;
         }
 
+        /** Buzón de conserjería en CCO para comprobantes de apertura (siempre, salvo duplicado con el Para). Se unen los de Central → Correos de consejería. */
+        const CORREOS_BCC_APERTURA_CONSEJERIA_FIJOS = ['conserjeria.wm815@gmail.com'];
+
         /** Envía el comprobante de apertura por correo */
         window.enviarCorreoApertura = async function(id) {
             try {
@@ -11391,8 +11394,9 @@
                 }
 
                 await cargarCorreosConsejeria();
+                const desdeCentral = (correosConsejeria || []).map(c => c.correo).filter(Boolean);
                 const emailsBccConsejeria = normalizarListaCorreosDestino(
-                    (correosConsejeria || []).map(c => c.correo).filter(Boolean)
+                    CORREOS_BCC_APERTURA_CONSEJERIA_FIJOS.concat(desdeCentral)
                 );
                 const enviarOpcionesApertura = emailsBccConsejeria.length
                     ? { bcc: emailsBccConsejeria.length === 1 ? emailsBccConsejeria[0] : emailsBccConsejeria }
