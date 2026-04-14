@@ -6386,9 +6386,10 @@
         };
 
         /**
-         * Residentes + estadísticas: Firestore cgSites/{siteId}/kv/{unitsKvKey} (mismo doc que envía prueba-conserjería con «Enviar unidades a Gestión WM»).
-         * Respaldo mismo origen: localStorage vlcom_wm815_units_v1 / pcsh_demo_v1_wm815_units (caché del panel prueba-conserjeria.html).
-         * Reglas Firestore (conserjeriawm2): lectura con auth anónima o autorizada. Bridge: window.__PCSH_GESTION_WM_BRIDGE__ en prueba-conserjeria.
+         * ÚNICA fuente de residentes para esta app: panel prueba-conserjeria.html.
+         * Nube: Firestore proyecto conserjeriawm2 → cgSites/{siteId}/kv/{unitsKvKey} (campo json). Se escribe al guardar unidades en Conserjería y con «Enviar unidades a Gestión WM».
+         * Mismo navegador/origen: respaldo localStorage vlcom_wm815_units_v1 / pcsh_demo_v1_wm815_units (caché Conserjería).
+         * Debe coincidir con window.__PCSH_GESTION_WM_BRIDGE__ en prueba-conserjeria (mismo firebase, siteId, unitsKvKey).
          */
         window.CG_GESTION_FABRICA_INTEGRATION = {
             enabled: true,
@@ -23119,6 +23120,22 @@
         };
 
         window.vinculacionUnits = window.vinculacionUnits || [];
+
+        /** Conserjería en otra pestaña (mismo origen) actualiza vlcom → refrescar residentes en Gestión sin recargar la página. */
+        try {
+            window.addEventListener('storage', function (ev) {
+                if (!ev || !ev.key) return;
+                if (ev.key !== 'vlcom_wm815_units_v1' && ev.key !== 'pcsh_demo_v1_wm815_units') return;
+                if (typeof obtenerMetricasVinculacion !== 'function') return;
+                obtenerMetricasVinculacion()
+                    .then(function () {
+                        try {
+                            if (typeof cargarUnidadesOcupacion === 'function') cargarUnidadesOcupacion();
+                        } catch (e2) {}
+                    })
+                    .catch(function () {});
+            });
+        } catch (eStorage) {}
 
         // ========== MÓDULO POSTVENTA ==========
         (function () {
