@@ -5504,7 +5504,7 @@
             </div>
         </div>
 
-        <!-- MÓDULO: OCUPACIÓN (mismo diseño que activa-entre-cerros; datos desde Vinculación Comunidad / Firebase) -->
+        <!-- MÓDULO: OCUPACIÓN — datos solo desde Conserjería (prueba-conserjeria): Firestore conserjeriawm2 cgSites/kv o caché local compartida -->
         <div id="ocupacion" class="tab-content">
             <div style="margin-bottom: 1.5rem;">
                 <h2 style="margin: 0; color: var(--gray-900); font-size: 1.5rem; font-weight: 700;">🏢 Ocupación del Edificio</h2>
@@ -5547,8 +5547,8 @@
                     <a href="prueba-conserjeria.html" target="_blank" rel="noopener" class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 12px; text-decoration: none;">
                         🏠 Conserjería / residentes (prueba-conserjeria)
                     </a>
-                    <a href="vinculacion-comunidad.html#building" target="_blank" rel="noopener" class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 12px; text-decoration: none;">
-                        📄 PDF AssetPlan — Vinculación
+                    <a href="prueba-conserjeria.html#building" target="_blank" rel="noopener" class="btn btn-primary" style="font-size: 0.8rem; padding: 6px 12px; text-decoration: none;">
+                        🗺️ Mapa residentes (Conserjería)
                     </a>
                 </div>
             </section>
@@ -9696,7 +9696,7 @@
                     }
                 }
                 
-                // Primero intentar obtener de window.vinculacionUnits (estructura de Vinculación Comunidad)
+                // Primero intentar obtener de window.vinculacionUnits (unidades desde Conserjería / prueba-conserjeria)
                 if (window.vinculacionUnits && Array.isArray(window.vinculacionUnits)) {
                     console.log('📋 Total unidades en vinculacionUnits:', window.vinculacionUnits.length);
                     
@@ -23027,241 +23027,14 @@
             return __gestionComputeOcupacionMetrics(units, totalProy);
         }
         
-        // Métricas legacy: proyecto residentes-82233 (colección units)
-        async function obtenerMetricasVinculacionLegacy() {
-            try {
-                // Configuración de Firebase de vinculacion-comunidad
-                const vinculacionFirebaseConfig = {
-                    apiKey: "AIzaSyBpg9pLCNkI6eTxLgRvunRmN67fXvrjBMg",
-                    authDomain: "residentes-82233.firebaseapp.com",
-                    projectId: "residentes-82233",
-                    storageBucket: "residentes-82233.firebasestorage.app",
-                    messagingSenderId: "68080222425",
-                    appId: "1:68080222425:web:e6069c7093cdb3f2283ec8"
-                };
-                
-                // Cargar SDK modular de Firebase dinámicamente usando función auxiliar
-                if (!window.firebaseModularVinculacion) {
-                    await new Promise((resolve, reject) => {
-                        // Crear un script module que cargue Firebase
-                        const script = document.createElement('script');
-                        script.type = 'module';
-                        script.textContent = `
-                            import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';
-                            import { getFirestore, collection, getDocs } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';
-                            
-                            window.firebaseModularVinculacion = {
-                                initializeApp,
-                                getApps,
-                                getFirestore,
-                                collection,
-                                getDocs
-                            };
-                            window.firebaseModularVinculacionReady = true;
-                        `;
-                        document.head.appendChild(script);
-                        
-                        // Esperar a que se cargue
-                        let attempts = 0;
-                        const checkReady = setInterval(() => {
-                            attempts++;
-                            if (window.firebaseModularVinculacionReady) {
-                                clearInterval(checkReady);
-                                resolve();
-                            } else if (attempts > 50) {
-                                clearInterval(checkReady);
-                                reject(new Error('Timeout cargando Firebase modular'));
-                            }
-                        }, 100);
-                    });
-                }
-                
-                const firebaseModular = window.firebaseModularVinculacion;
-                
-                if (!firebaseModular) {
-                    throw new Error('Firebase modular no se cargó correctamente');
-                }
-                
-                // Inicializar Firebase de vinculacion-comunidad con nombre único
-                let vinculacionApp;
-                const appName = 'vinculacion-comunidad-metricas';
-                const existingApps = firebaseModular.getApps();
-                const existingApp = existingApps.find(app => app.name === appName);
-                
-                if (existingApp) {
-                    vinculacionApp = existingApp;
-                } else {
-                    try {
-                        vinculacionApp = firebaseModular.initializeApp(vinculacionFirebaseConfig, appName);
-                    } catch (initError) {
-                        console.error('❌ Error inicializando Firebase:', initError);
-                        throw new Error(`Error al inicializar Firebase: ${initError.message}`);
-                    }
-                }
-                
-                if (!vinculacionApp) {
-                    throw new Error('No se pudo inicializar la aplicación de Firebase');
-                }
-                
-                const vinculacionDB = firebaseModular.getFirestore(vinculacionApp);
-                
-                if (!vinculacionDB) {
-                    throw new Error('No se pudo obtener la instancia de Firestore');
-                }
-                
-                // Obtener todas las unidades
-                const unitsRef = firebaseModular.collection(vinculacionDB, 'units');
-                
-                if (!unitsRef) {
-                    throw new Error('No se pudo crear la referencia a la colección "units"');
-                }
-                
-                let querySnapshot;
-                try {
-                    querySnapshot = await firebaseModular.getDocs(unitsRef);
-                } catch (queryError) {
-                    console.error('❌ Error al consultar Firestore:', queryError);
-                    throw new Error(`Error al obtener datos de Firestore: ${queryError.message}`);
-                }
-                const units = [];
-                querySnapshot.forEach((doc) => {
-                    const unitData = doc.data();
-                    // Validar que la unidad tenga la estructura esperada
-                    if (unitData && typeof unitData === 'object') {
-                        unitData.id = unitData.id || doc.id;
-                        if (!Array.isArray(unitData.residents)) unitData.residents = [];
-                        if (unitData.unitNote === undefined || unitData.unitNote === null) unitData.unitNote = '';
-                        if (unitData.unitNoteUpdatedAt === undefined || unitData.unitNoteUpdatedAt === null) unitData.unitNoteUpdatedAt = '';
-                        if (unitData.hasRentalContract === undefined || unitData.hasRentalContract === null) unitData.hasRentalContract = false;
-                        if (unitData.rentalParkingNumber === undefined || unitData.rentalParkingNumber === null) unitData.rentalParkingNumber = '';
-                        if (!Array.isArray(unitData.parkingNumbers)) unitData.parkingNumbers = unitData.parkingNumber ? [unitData.parkingNumber] : [];
-                        if (!Array.isArray(unitData.storageNumbers)) unitData.storageNumbers = unitData.storageNumber ? [unitData.storageNumber] : [];
-                        if (!Array.isArray(unitData.bikeStorageNumbers)) unitData.bikeStorageNumbers = [];
-                        if (!Array.isArray(unitData.bikeStorageDetails)) unitData.bikeStorageDetails = [];
-                        units.push(unitData);
-                    } else {
-                        console.warn('⚠️ Unidad con datos inválidos encontrada:', doc.id);
-                    }
-                });
-                window.vinculacionUnits = units;
-
-                // Calcular métricas (misma lógica que en vinculacion-comunidad.html)
-                const totalUnidades = 259; // Total fijo según vinculacion-comunidad.html
-                let unidadesEfectivamenteOcupadas = 0;
-                let unidadesConPropietarioAsignado = 0;
-                let totalResidentesViviendo = 0;
-                
-                units.forEach((unit, index) => {
-                    try {
-                        // Asegurar que residents es un array
-                        const residents = Array.isArray(unit.residents) ? unit.residents : [];
-                        
-                        // Validar que unit.unitUse exista
-                        const unitUse = unit.unitUse || 'Habitacional';
-                        
-                        const propietariosEnUnidad = residents.filter(r => r && r.type === 'Propietario');
-                        const residentesEfectivos = residents.filter(r => 
-                            r && r.type && (r.type === 'Propietario' || r.type === 'Arrendatario' || r.type === 'Familiar')
-                        );
-                        
-                        // Para el cálculo de ocupación efectiva:
-                        // - Unidades habitacionales: contar si tienen propietarios
-                        // - Unidades de arriendo: SOLO contar si tienen residentes efectivos (NO propietarios)
-                        const esUnidadEfectivamenteOcupada = 
-                            (unitUse === 'Habitacional' && propietariosEnUnidad.length > 0) ||
-                            (unitUse !== 'Habitacional' && residentesEfectivos.filter(r => r && r.type && r.type !== 'Propietario').length > 0);
-                        
-                        if (esUnidadEfectivamenteOcupada) {
-                            unidadesEfectivamenteOcupadas++;
-                        }
-                        
-                        // Calcular unidades entregadas (con propietario asignado)
-                        if (propietariosEnUnidad.length > 0) {
-                            unidadesConPropietarioAsignado++;
-                        }
-                        
-                        // Calcular residentes viviendo en el edificio
-                        // Misma lógica que en vinculacion-comunidad.html:
-                        // - Unidades habitacionales: propietarios + familiares
-                        // - Unidades de arriendo: arrendatarios + familiares (NO propietarios)
-                        if (unitUse === 'Habitacional') {
-                            // En unidades habitacionales: contar propietarios y familiares
-                            const propietarios = residents.filter(r => r && r.type === 'Propietario').length;
-                            const familiares = residents.filter(r => r && r.type === 'Familiar').length;
-                            totalResidentesViviendo += propietarios + familiares;
-                        } else {
-                            // En unidades de arriendo: contar arrendatarios y familiares (NO propietarios)
-                            const arrendatarios = residents.filter(r => r && r.type === 'Arrendatario').length;
-                            const familiares = residents.filter(r => r && r.type === 'Familiar').length;
-                            totalResidentesViviendo += arrendatarios + familiares;
-                        }
-                    } catch (error) {
-                        console.error(`❌ Error procesando unidad ${index}:`, error);
-                        console.error('Unidad:', unit);
-                    }
-                });
-                
-                // Calcular unidades sin vender
-                const unidadesSinVender = totalUnidades - unidadesConPropietarioAsignado;
-                
-                // Calcular porcentajes
-                const porcentajeOcupacion = totalUnidades > 0 
-                    ? Math.round((unidadesEfectivamenteOcupadas / totalUnidades) * 100) 
-                    : 0;
-                const porcentajeUnidadesEntregadas = totalUnidades > 0
-                    ? Math.round((unidadesConPropietarioAsignado / totalUnidades) * 100)
-                    : 0;
-                const porcentajeUnidadesSinVender = totalUnidades > 0
-                    ? Math.round((unidadesSinVender / totalUnidades) * 100)
-                    : 0;
-                
-                const resultado = {
-                    ocupacionActual: unidadesEfectivamenteOcupadas,
-                    porcentajeOcupacion: porcentajeOcupacion,
-                    unidadesEntregadas: unidadesConPropietarioAsignado,
-                    porcentajeUnidadesEntregadas: porcentajeUnidadesEntregadas,
-                    unidadesSinVender: unidadesSinVender,
-                    porcentajeUnidadesSinVender: porcentajeUnidadesSinVender,
-                    totalResidentesViviendo: totalResidentesViviendo,
-                    totalUnidades: totalUnidades,
-                    unidadesObtenidas: units.length // Agregar información de debugging
-                };
-                
-                return resultado;
-            } catch (error) {
-                console.error('❌ Error al obtener métricas de vinculación:', error);
-                console.error('❌ Tipo de error:', error.name);
-                console.error('❌ Mensaje:', error.message);
-                console.error('❌ Stack:', error.stack);
-                window.vinculacionUnits = [];
-                // Determinar el tipo de error para mensaje más específico
-                let mensajeError = 'Error desconocido';
-                if (error.message.includes('Firebase')) {
-                    mensajeError = 'Error de conexión con Firebase. Verifique la configuración y la conexión a internet.';
-                } else if (error.message.includes('Timeout')) {
-                    mensajeError = 'Timeout al cargar Firebase. Intente nuevamente.';
-                } else if (error.message.includes('Firestore')) {
-                    mensajeError = 'Error al acceder a Firestore. Verifique los permisos y la configuración.';
-                } else {
-                    mensajeError = `Error: ${error.message}`;
-                }
-                
-                // Retornar valores por defecto en caso de error
-                const valoresDefecto = {
-                    ocupacionActual: 0,
-                    porcentajeOcupacion: 0,
-                    unidadesEntregadas: 0,
-                    porcentajeUnidadesEntregadas: 0,
-                    unidadesSinVender: 259, // Total de unidades si no hay entregadas
-                    porcentajeUnidadesSinVender: 100,
-                    totalResidentesViviendo: 0,
-                    totalUnidades: 259,
-                    unidadesObtenidas: 0,
-                    error: true,
-                    mensajeError: mensajeError
-                };
-                return valoresDefecto;
-            }
+        /** Sin datos en Firestore (conserjeriawm2) ni caché local de Conserjería: lista vacía (no hay otras bases). */
+        function obtenerMetricasSinFuenteConserjeria(integ) {
+            window.vinculacionUnits = [];
+            window.__gestionResidentesFuente = 'sin-conserjeria';
+            try { actualizarTextoFuenteResidentesOcupacion(); } catch (e0) {}
+            var kpi = integ ? Number(integ.kpiTotalUnidadesEdificio) : 0;
+            var totalProy = kpi > 0 && kpi === kpi ? Math.floor(kpi) : 259;
+            return __gestionComputeOcupacionMetrics([], totalProy);
         }
 
         function actualizarTextoFuenteResidentesOcupacion() {
@@ -23271,11 +23044,11 @@
             if (src === 'index-fabrica') {
                 el.textContent = 'Datos de residentes y ocupación desde la nube (Firestore cgSites/…/kv), alimentada por el panel Conserjería (prueba-conserjeria). Para editar unidades o residentes, abra prueba-conserjeria.html.';
             } else if (src === 'prueba-conserjeria-local') {
-                el.textContent = 'Datos desde la caché local del panel Conserjería (vlcom_wm815_units_v1 en este navegador). Para subir a la nube y alinear con otros equipos, use en Conserjería «Enviar unidades a Gestión WM».';
+                el.textContent = 'Datos desde la caché local del panel Conserjería (vlcom_wm815_units_v1). Al guardar en Conserjería se sincroniza la nube con Gestión; el botón «Enviar unidades a Gestión WM» fuerza otro envío.';
             } else if (src === 'index-fabrica-vacio') {
-                el.textContent = 'El documento en la nube no tiene unidades aún. Edite residentes en prueba-conserjeria.html y use «Enviar unidades a Gestión WM», o trabaje con la caché local si ya cargó datos en Conserjería en este mismo navegador.';
-            } else if (src === 'legacy-vinculacion') {
-                el.textContent = 'Datos desde proyecto legacy (residentes-82233, colección units). No hubo datos en la nube (conserjeriawm2) ni caché local de Conserjería: revise red, reglas Firestore y que prueba-conserjeria haya enviado unidades.';
+                el.textContent = 'El documento en la nube no tiene unidades aún. Registre residentes en prueba-conserjeria.html (al guardar se sincroniza con Gestión) o abra Conserjería en este mismo navegador para usar la caché local.';
+            } else if (src === 'sin-conserjeria') {
+                el.textContent = 'No hay residentes cargados desde Conserjería. Use prueba-conserjeria.html en el mismo origen (misma URL/puerto) o compruebe red y reglas de lectura en Firestore (proyecto conserjeriawm2, cgSites/…/kv).';
             } else {
                 el.textContent = 'Cargando fuente de residentes…';
             }
@@ -23320,12 +23093,10 @@
                 return __gestionComputeOcupacionMetrics([], totalProyE);
             }
 
-            window.__gestionResidentesFuente = 'legacy-vinculacion';
-            try { actualizarTextoFuenteResidentesOcupacion(); } catch (eT1) {}
-            return await obtenerMetricasVinculacionLegacy();
+            return obtenerMetricasSinFuenteConserjeria(integ);
         }
 
-        // Estructura del edificio (misma que vinculacion-comunidad) para módulo Ocupación
+        // Estructura del edificio (Entre Cerros) para módulo Ocupación
         var BUILDING_STRUCTURE_OCUPACION = {
             19: ['1907', '1908', '1909', '1910', '1911', '1912', '1913', '1914', '1915'],
             18: ['1801', '1804', '1805', '1807', '1808', '1809', '1810', '1811', '1812', '1813', '1814', '1815'],
@@ -24448,8 +24219,8 @@
                 '<div style="padding:6px 8px;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border-color);"><div style="color:var(--gray-600);font-size:0.7rem;">Residentes</div><div style="font-weight:600;font-size:0.82rem;">' + (unit.residents ? unit.residents.length : 0) + '</div></div></div>' +
                 parkingHtml + rentalParkingHtml + storageHtml + bikeHtml + contratoHtml + noteHtml +
                 '<div style="margin-top:8px;"><div style="color:var(--gray-600);font-size:0.75rem;margin-bottom:3px;font-weight:600;">👥 Residentes:</div><div style="max-height:280px;overflow-y:auto;padding:6px 8px;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border-color);">' + residentsHtml + '</div></div>' +
-                '<p style="margin:12px 0 0 0;font-size:0.75rem;color:var(--gray-500);">Para editar residentes, notas o imprimir la ficha, use la app Vinculación Comunidad.</p>' +
-                '<a href="vinculacion-comunidad.html" target="_blank" rel="noopener" class="btn btn-primary" style="margin-top:10px;width:100%;padding:8px;font-size:0.8rem;text-align:center;display:block;text-decoration:none;">Abrir en Vinculación Comunidad (editar / imprimir)</a>' +
+                '<p style="margin:12px 0 0 0;font-size:0.75rem;color:var(--gray-500);">Para editar residentes, notas o imprimir la ficha, use el panel Conserjería.</p>' +
+                '<a href="prueba-conserjeria.html#building" target="_blank" rel="noopener" class="btn btn-primary" style="margin-top:10px;width:100%;padding:8px;font-size:0.8rem;text-align:center;display:block;text-decoration:none;">Abrir Conserjería (residentes)</a>' +
                 '<button type="button" class="btn btn-secondary" style="margin-top:8px;width:100%;padding:8px;font-size:0.8rem;" onclick="this.closest(\'.modal\').remove()">Cerrar</button></div>';
             document.body.appendChild(modal);
             modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
@@ -24822,7 +24593,7 @@
                             ${(metricasVinculacion.error || (metricasVinculacion.ocupacionActual === 0 && metricasVinculacion.unidadesEntregadas === 0 && metricasVinculacion.unidadesObtenidas === 0)) ? 
                                 `<div style="padding: 0.5rem; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; margin-bottom: 0.5rem;">
                                     <p style="margin: 0; color: #92400e; font-size: 0.875rem;">
-                                        ⚠️ ${metricasVinculacion.mensajeError || 'No se pudieron obtener las métricas desde la aplicación de Vinculación Comunidad. Verifique la conexión a Firebase.'}
+                                        ⚠️ ${metricasVinculacion.mensajeError || 'No hay datos de ocupación desde Conserjería (Firestore conserjeriawm2 o caché local). Registre unidades en prueba-conserjeria.html y recargue Gestión.'}
                                     </p>
                                     ${metricasVinculacion.unidadesObtenidas !== undefined ? 
                                         `<p style="margin: 0.5rem 0 0 0; color: #92400e; font-size: 0.8rem;">Unidades obtenidas: ${metricasVinculacion.unidadesObtenidas}</p>` 
