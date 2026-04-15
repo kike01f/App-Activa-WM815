@@ -5471,7 +5471,7 @@
             <!-- Correos de consejería: CCO en comprobantes de apertura -->
             <div class="form-section" style="margin-bottom: 2rem;">
                 <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700;">Correos de consejería</h3>
-                <p style="color: var(--text-tertiary); font-size: 0.8125rem; margin: 0 0 0.75rem 0; line-height: 1.45;">Además del buzón fijo de conserjería del edificio, estas direcciones reciben <strong>copia oculta (CCO)</strong> al enviar el comprobante de <strong>apertura de puerta</strong> al residente.</p>
+                <p style="color: var(--text-tertiary); font-size: 0.8125rem; margin: 0 0 0.75rem 0; line-height: 1.45;">Además del buzón fijo de conserjería del edificio, estas direcciones reciben <strong>copia oculta (CCO)</strong> al enviar el comprobante de <strong>apertura de puerta</strong> al residente, y <strong>copia (CC)</strong> al enviar la <strong>confirmación de reserva de espacio / evento</strong>.</p>
                 <form id="formCorreoConsejeria">
                     <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.5rem;">
                         <div class="form-group" style="flex: 1; margin-bottom: 0.5rem;">
@@ -7783,7 +7783,7 @@
         }
 
         // Requiere que la extensión "Trigger Email" esté instalada en Firebase
-        // opciones: { bcc: string|string[] } — copia oculta (p. ej. consejería en aperturas)
+        // opciones: { cc?: string|string[], bcc?: string|string[] } — copia / copia oculta
         async function enviarCorreo(residente, asunto, mensaje, html = null, adjuntos = null, opciones = null) {
             if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
                 const msgFile = 'No se puede enviar correos ejecutando la app con file://. Abra la app en http://localhost (por ejemplo: python3 -m http.server 5500) y luego inicie sesión.';
@@ -8002,14 +8002,29 @@
                     });
                 }
 
+                const enParaSet = new Set(listaCorreos.map(e => String(e).toLowerCase()));
+
+                // CC (copia): no repetir direcciones que ya están en Para
+                if (opciones && opciones.cc != null && opciones.cc !== '') {
+                    const ccBruto = Array.isArray(opciones.cc)
+                        ? opciones.cc
+                        : normalizarListaCorreosDestino(opciones.cc);
+                    const ccLista = normalizarListaCorreosDestino(ccBruto);
+                    const ccFiltrado = ccLista.filter(e => e && !enParaSet.has(String(e).toLowerCase()));
+                    if (ccFiltrado.length === 1) {
+                        mailData.cc = ccFiltrado[0];
+                    } else if (ccFiltrado.length > 1) {
+                        mailData.cc = ccFiltrado;
+                    }
+                }
+
                 // CCO (BCC): no repetir direcciones que ya están en Para
                 if (opciones && opciones.bcc != null && opciones.bcc !== '') {
                     const bccBruto = Array.isArray(opciones.bcc)
                         ? opciones.bcc
                         : normalizarListaCorreosDestino(opciones.bcc);
                     const bccLista = normalizarListaCorreosDestino(bccBruto);
-                    const enPara = new Set(listaCorreos.map(e => String(e).toLowerCase()));
-                    const bccFiltrado = bccLista.filter(e => e && !enPara.has(String(e).toLowerCase()));
+                    const bccFiltrado = bccLista.filter(e => e && !enParaSet.has(String(e).toLowerCase()));
                     if (bccFiltrado.length === 1) {
                         mailData.bcc = bccFiltrado[0];
                     } else if (bccFiltrado.length > 1) {
@@ -8027,6 +8042,9 @@
                 // Logs detallados del correo que se está enviando
                 console.log('📧 ===== DETALLES DEL CORREO A ENVIAR =====');
                 console.log('📬 Destinatario(s):', listaCorreos.length > 1 ? listaCorreos : listaCorreos[0]);
+                if (mailData.cc) {
+                    console.log('📋 CC (copia):', Array.isArray(mailData.cc) ? mailData.cc : mailData.cc);
+                }
                 if (mailData.bcc) {
                     console.log('📋 CCO (BCC):', Array.isArray(mailData.bcc) ? mailData.bcc : mailData.bcc);
                 }
@@ -11639,12 +11657,22 @@
                     mostrarAlerta('No se encontró el correo del residente. Por favor, verifique que el residente tenga su correo registrado en el módulo de Ocupación y Residentes.', 'Correo no encontrado');
                     return;
                 }
-                
+
+                await cargarCorreosConsejeria();
+                const desdeCentralEvento = (correosConsejeria || []).map(c => c.correo).filter(Boolean);
+                const emailsCcConsejeriaEvento = normalizarListaCorreosDestino(
+                    CORREOS_BCC_APERTURA_CONSEJERIA_FIJOS.concat(desdeCentralEvento)
+                );
+                const enviarOpcionesEvento = emailsCcConsejeriaEvento.length
+                    ? { cc: emailsCcConsejeriaEvento.length === 1 ? emailsCcConsejeriaEvento[0] : emailsCcConsejeriaEvento }
+                    : null;
+
                 const resultado = await mostrarModalPersonalizarCorreoYEnviar({
                     titulo: 'Enviar confirmación de reserva',
                     asuntoDefecto: `Confirmación de Reserva - ${espacio.espacio} - ${nombreComunidad}`,
                     htmlBase: htmlComprobante,
-                    residente: residenteInfo
+                    residente: residenteInfo,
+                    enviarOpciones: enviarOpcionesEvento
                 });
                 if (resultado === null) return;
                 
