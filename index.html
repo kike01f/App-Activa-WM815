@@ -9061,18 +9061,101 @@
             return d.textContent || d.innerText || '';
         }
 
-        /** Texto libre opcional antes del HTML generado (reportes y comprobantes). */
-        function combinarPrefijoCorreo(textoUsuario, htmlBase) {
-            const t = String(textoUsuario || '').trim();
-            if (!t) {
-                return { html: htmlBase, textoPlano: htmlATextoPlanoEmail(htmlBase) };
+        /** Texto libre opcional antes y/o después del HTML generado (reportes y comprobantes). */
+        function combinarCuerpoCorreoComprobante(textoInicio, htmlBase, textoFin) {
+            let html = htmlBase || '';
+            let textoPlano = htmlATextoPlanoEmail(html);
+            const tIni = String(textoInicio || '').trim();
+            const tFin = String(textoFin || '').trim();
+            if (tIni) {
+                const bloqueIni = '<div style="margin: 0 0 18px 0; padding: 12px 14px; background: #f8fafc; border-left: 4px solid #75BB21; border-radius: 4px; font-size: 14px; color: #1f2937; line-height: 1.55;">' +
+                    escaparHtmlEmailUsuario(tIni).split(/\r?\n/).join('<br>') + '</div>';
+                html = bloqueIni + html;
+                textoPlano = tIni + '\n\n' + textoPlano;
             }
-            const bloque = '<div style="margin: 0 0 18px 0; padding: 12px 14px; background: #f8fafc; border-left: 4px solid #75BB21; border-radius: 4px; font-size: 14px; color: #1f2937; line-height: 1.55;">' +
-                escaparHtmlEmailUsuario(t).split(/\r?\n/).join('<br>') + '</div>';
-            return {
-                html: bloque + htmlBase,
-                textoPlano: t + '\n\n' + htmlATextoPlanoEmail(htmlBase)
+            if (tFin) {
+                const bloqueFin = '<div style="margin: 18px 0 0 0; padding: 12px 14px; background: #fffbeb; border-left: 4px solid #f59e0b; border-radius: 4px; font-size: 14px; color: #1f2937; line-height: 1.55;">' +
+                    '<span style="display:block;margin-bottom:6px;font-weight:700;color:#b45309;font-size:12px;text-transform:uppercase;letter-spacing:0.04em;">Notas</span>' +
+                    escaparHtmlEmailUsuario(tFin).split(/\r?\n/).join('<br>') + '</div>';
+                html = html + bloqueFin;
+                textoPlano = textoPlano + '\n\n' + tFin;
+            }
+            return { html, textoPlano };
+        }
+
+        /** Compatibilidad: solo prefijo (reportes y código existente). */
+        function combinarPrefijoCorreo(textoUsuario, htmlBase) {
+            return combinarCuerpoCorreoComprobante(textoUsuario, htmlBase, '');
+        }
+
+        /** Descarga una URL (p. ej. Firebase Storage) y la convierte al formato de adjunto del correo. */
+        async function obtenerAdjuntoDesdeUrlCorreo(url, filename, contentTypeHint) {
+            const r = await fetch(url, { mode: 'cors', credentials: 'omit' });
+            if (!r.ok) throw new Error('No se pudo descargar (' + r.status + ')');
+            const blob = await r.blob();
+            const contentType = blob.type || contentTypeHint || 'application/octet-stream';
+            let name = String(filename || 'adjunto').replace(/[/\\\\?%*:|"<>]/g, '_').trim() || 'adjunto';
+            return await new Promise((resolve, reject) => {
+                const reader = new FileReader();
+                reader.onloadend = () => {
+                    const s = reader.result;
+                    const b64 = typeof s === 'string' && s.indexOf(',') !== -1 ? s.split(',')[1] : '';
+                    if (!b64) {
+                        reject(new Error('Sin datos'));
+                        return;
+                    }
+                    resolve({ filename: name, content: b64, contentType });
+                };
+                reader.onerror = () => reject(reader.error || new Error('Lectura fallida'));
+                reader.readAsDataURL(blob);
+            });
+        }
+
+        /** Archivos subidos + enlaces de evidencia de una multa, para elegir cuáles adjuntar al correo. */
+        function listarEvidenciasMultaParaCorreo(multa) {
+            const items = [];
+            const seen = new Set();
+            const pushUrl = (url, etiqueta, nombreArchivoSugerido, contentType) => {
+                if (!url || typeof url !== 'string') return;
+                const u = url.trim();
+                if (!u || seen.has(u)) return;
+                seen.add(u);
+                items.push({
+                    etiqueta,
+                    url: u,
+                    nombreArchivoSugerido: String(nombreArchivoSugerido || 'adjunto').replace(/[/\\\\?%*:|"<>]/g, '_'),
+                    contentType: contentType || ''
+                });
             };
+            (multa.archivos || []).forEach((a, i) => {
+                if (a && a.url) {
+                    const nom = (a.nombre || 'archivo_' + (i + 1)).replace(/[/\\\\?%*:|"<>]/g, '_');
+                    pushUrl(a.url, '📎 ' + (a.nombre || nom), nom, a.tipo || '');
+                }
+            });
+            (multa.evidencias || []).forEach((ev, i) => {
+                const url = typeof ev === 'string' ? ev : (ev && ev.url ? ev.url : '');
+                if (!url) return;
+                let name = 'enlace_' + (i + 1);
+                try {
+                    const uo = new URL(url.trim());
+                    const last = uo.pathname.split('/').filter(Boolean).pop();
+                    if (last) name = last.split('?')[0] || name;
+                } catch (e) { /* ignorar URL inválida */ }
+                const short = name.length > 48 ? name.slice(0, 45) + '…' : name;
+                pushUrl(typeof ev === 'string' ? ev : ev.url, '🔗 ' + short, name.replace(/[/\\\\?%*:|"<>]/g, '_'), '');
+            });
+            if (multa.link && String(multa.link).trim()) {
+                const url = multa.link.trim();
+                let name = 'respaldo';
+                try {
+                    const uo = new URL(url);
+                    const last = uo.pathname.split('/').filter(Boolean).pop();
+                    if (last) name = last.split('?')[0] || name;
+                } catch (e) { /* ignorar */ }
+                pushUrl(url, '🔗 Enlace de respaldo', name.replace(/[/\\\\?%*:|"<>]/g, '_'), '');
+            }
+            return items;
         }
         
         // Modal para seleccionar destinatarios y enviar correo con reporte
@@ -9222,8 +9305,28 @@
                 residente = null,
                 adjuntos = null,
                 etiquetaDestino = 'Destinatario',
-                enviarOpciones = null
+                enviarOpciones = null,
+                evidenciasSelectables = null
             } = opciones || {};
+
+            const listaEvidFiltrada = Array.isArray(evidenciasSelectables)
+                ? evidenciasSelectables.filter((e) => e && e.url)
+                : [];
+            let htmlBloqueEvid = '';
+            if (listaEvidFiltrada.length > 0) {
+                const escAttr = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
+                htmlBloqueEvid = `
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Evidencia <span style="font-weight: 500; color: var(--text-tertiary); font-size: 0.8125rem;">(marque qué desea adjuntar al correo)</span></label>
+                            <div style="max-height: 180px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem 0.65rem; font-size: 0.8125rem;">
+                                ${listaEvidFiltrada.map((ev, idx) => `
+                                <label style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.4rem; cursor: pointer;">
+                                    <input type="checkbox" data-mcc-evid-chk value="${idx}" style="margin-top: 0.15rem; flex-shrink: 0;">
+                                    <span style="color: var(--text-secondary); word-break: break-word;">${escAttr(ev.etiqueta)}</span>
+                                </label>`).join('')}
+                            </div>
+                        </div>`;
+            }
 
             return new Promise((resolve) => {
                 const listaTo = residente ? normalizarListaCorreosDestino(residente.correo) : [];
@@ -9260,6 +9363,11 @@
                             <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Mensaje al inicio del correo <span style="font-weight: 500; color: var(--text-tertiary); font-size: 0.8125rem;">(opcional)</span></label>
                             <textarea data-mcc-mensaje rows="4" placeholder="Ej.: Cordial saludo, les informamos o solicitamos…" style="width: 100%; padding: 0.65rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.875rem; background: var(--bg-primary); color: var(--text-primary); font-family: inherit; resize: vertical; min-height: 88px; box-sizing: border-box;"></textarea>
                         </div>
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Notas al final del correo <span style="font-weight: 500; color: var(--text-tertiary); font-size: 0.8125rem;">(opcional, tras el comprobante)</span></label>
+                            <textarea data-mcc-notas-final rows="3" placeholder="Ej.: plazo de pago, canal de consultas, observaciones administrativas…" style="width: 100%; padding: 0.65rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.875rem; background: var(--bg-primary); color: var(--text-primary); font-family: inherit; resize: vertical; min-height: 72px; box-sizing: border-box;"></textarea>
+                        </div>
+                        ${htmlBloqueEvid}
                         <div style="display: flex; gap: 0.75rem; justify-content: flex-end; margin-top: 1.25rem;">
                             <button type="button" class="btn btn-secondary mcc-btn-cerrar" style="padding: 0.65rem 1.25rem;">Cancelar</button>
                             <button type="button" class="btn btn-primary mcc-btn-enviar" style="padding: 0.65rem 1.25rem;">📧 Enviar</button>
@@ -9280,13 +9388,52 @@
                 modal.querySelector('.mcc-btn-enviar').addEventListener('click', async () => {
                     const inpAsunto = modal.querySelector('[data-mcc-asunto]');
                     const txMensaje = modal.querySelector('[data-mcc-mensaje]');
+                    const txNotasFin = modal.querySelector('[data-mcc-notas-final]');
                     const asuntoIngresado = inpAsunto && inpAsunto.value ? inpAsunto.value.trim() : '';
                     const asuntoFinal = asuntoIngresado || asuntoDefecto;
                     const mensajeIni = txMensaje ? txMensaje.value : '';
-                    const combinado = combinarPrefijoCorreo(mensajeIni, htmlBase);
+                    const notasFin = txNotasFin ? txNotasFin.value : '';
+                    const combinado = combinarCuerpoCorreoComprobante(mensajeIni, htmlBase, notasFin);
+                    let adjuntosFinales = Array.isArray(adjuntos) ? adjuntos.slice() : [];
+                    if (listaEvidFiltrada.length > 0) {
+                        const checks = modal.querySelectorAll('[data-mcc-evid-chk]:checked');
+                        const indicesSel = Array.from(checks)
+                            .map((c) => parseInt(c.value, 10))
+                            .filter((i) => !isNaN(i) && listaEvidFiltrada[i]);
+                        if (indicesSel.length > 0) {
+                            try {
+                                mostrarProgreso('Descargando evidencia seleccionada…');
+                                for (const idx of indicesSel) {
+                                    const ev = listaEvidFiltrada[idx];
+                                    try {
+                                        const adjPart = await obtenerAdjuntoDesdeUrlCorreo(
+                                            ev.url,
+                                            ev.nombreArchivoSugerido || ('adjunto_' + (idx + 1)),
+                                            ev.contentType
+                                        );
+                                        adjuntosFinales.push(adjPart);
+                                    } catch (e1) {
+                                        console.error('Adjunto evidencia:', e1);
+                                        mostrarAlerta(
+                                            'No se pudo adjuntar: ' + (ev.etiqueta || 'Ítem ' + (idx + 1)) + ' — ' + (e1 && e1.message ? e1.message : 'red o permisos (CORS)'),
+                                            'Advertencia'
+                                        );
+                                    }
+                                }
+                            } finally {
+                                ocultarProgreso();
+                            }
+                        }
+                    }
                     try {
                         mostrarProgreso('Enviando correo…');
-                        const resultado = await enviarCorreoHTML(residente, asuntoFinal, combinado.html, adjuntos, enviarOpciones);
+                        const resultado = await enviarCorreoHTML(
+                            residente,
+                            asuntoFinal,
+                            combinado.html,
+                            adjuntosFinales.length ? adjuntosFinales : null,
+                            enviarOpciones
+                        );
                         ocultarProgreso();
                         if (!resultado || !resultado.exito) {
                             mostrarAlerta('Error al enviar correo: ' + ((resultado && resultado.error) || 'Error desconocido'), 'Error');
@@ -12914,7 +13061,8 @@
                     titulo: 'Enviar comprobante de multa',
                     asuntoDefecto: `Comprobante de Multa - ${nombreComunidad}`,
                     htmlBase: htmlComprobante,
-                    residente: residenteInfo
+                    residente: residenteInfo,
+                    evidenciasSelectables: listarEvidenciasMultaParaCorreo(multa)
                 });
                 if (resultado === null) return;
                 
