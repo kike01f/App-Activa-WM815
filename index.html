@@ -9061,12 +9061,32 @@
             return d.textContent || d.innerText || '';
         }
 
+        /** Marcador en plantilla de comprobante multa: notas del correo van debajo del monto UF. */
+        const MCC_PLACEHOLDER_NOTAS_MULTA = '@@MCC_NOTAS_MULTA@@';
+
         /** Texto libre opcional antes y/o después del HTML generado (reportes y comprobantes). */
-        function combinarCuerpoCorreoComprobante(textoInicio, htmlBase, textoFin) {
+        function combinarCuerpoCorreoComprobante(textoInicio, htmlBase, textoFin, opcionesCombinar) {
+            const opts = opcionesCombinar || {};
+            const insertarNotasDebajoMontoMulta = opts.insertarNotasDebajoMontoEnComprobanteMulta === true;
             let html = htmlBase || '';
-            let textoPlano = htmlATextoPlanoEmail(html);
             const tIni = String(textoInicio || '').trim();
-            const tFin = String(textoFin || '').trim();
+            let tFin = String(textoFin || '').trim();
+
+            if (insertarNotasDebajoMontoMulta) {
+                const bloqueDebajoMonto = tFin
+                    ? ('<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:10px;background-color:#fffbeb;border-radius:8px;border:1px solid #fde68a;">' +
+                        '<tr><td style="padding:10px 14px;font-size:13px;color:#1f2937;line-height:1.5;">' +
+                        '<span style="display:block;margin-bottom:4px;font-weight:700;color:#b45309;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;">Notas</span>' +
+                        escaparHtmlEmailUsuario(tFin).split(/\r?\n/).join('<br>') +
+                        '</td></tr></table>')
+                    : '';
+                html = html.split(MCC_PLACEHOLDER_NOTAS_MULTA).join(bloqueDebajoMonto);
+                tFin = '';
+            } else if (html.indexOf(MCC_PLACEHOLDER_NOTAS_MULTA) !== -1) {
+                html = html.split(MCC_PLACEHOLDER_NOTAS_MULTA).join('');
+            }
+
+            let textoPlano = htmlATextoPlanoEmail(html);
             if (tIni) {
                 const bloqueIni = '<div style="margin: 0 0 18px 0; padding: 12px 14px; background: #f8fafc; border-left: 4px solid #75BB21; border-radius: 4px; font-size: 14px; color: #1f2937; line-height: 1.55;">' +
                     escaparHtmlEmailUsuario(tIni).split(/\r?\n/).join('<br>') + '</div>';
@@ -9085,15 +9105,49 @@
 
         /** Compatibilidad: solo prefijo (reportes y código existente). */
         function combinarPrefijoCorreo(textoUsuario, htmlBase) {
-            return combinarCuerpoCorreoComprobante(textoUsuario, htmlBase, '');
+            return combinarCuerpoCorreoComprobante(textoUsuario, htmlBase, '', null);
         }
 
-        /** Descarga una URL (p. ej. Firebase Storage) y la convierte al formato de adjunto del correo. */
+        /** Descarga bytes (Firebase Storage con SDK si aplica; si no XHR/fetch) → adjunto correo. */
         async function obtenerAdjuntoDesdeUrlCorreo(url, filename, contentTypeHint) {
-            const r = await fetch(url, { mode: 'cors', credentials: 'omit' });
-            if (!r.ok) throw new Error('No se pudo descargar (' + r.status + ')');
-            const blob = await r.blob();
-            const contentType = blob.type || contentTypeHint || 'application/octet-stream';
+            const u = String(url || '').trim();
+            let blob = null;
+
+            if (typeof storage !== 'undefined' && storage && firebaseInitialized && typeof storage.refFromURL === 'function') {
+                const pareceUrlStorage = /firebasestorage\.googleapis\.com|googleapis\.com\/v0\/b\//.test(u);
+                if (pareceUrlStorage) {
+                    try {
+                        const ref = storage.refFromURL(u);
+                        if (ref && typeof ref.getBlob === 'function') {
+                            blob = await ref.getBlob();
+                        }
+                    } catch (e) {
+                        console.warn('Storage refFromURL/getBlob:', e);
+                    }
+                }
+            }
+
+            if (!blob) {
+                try {
+                    blob = await new Promise((resolve, reject) => {
+                        const xhr = new XMLHttpRequest();
+                        xhr.open('GET', u, true);
+                        xhr.responseType = 'blob';
+                        xhr.onload = function () {
+                            if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.response);
+                            else reject(new Error('HTTP ' + xhr.status));
+                        };
+                        xhr.onerror = function () { reject(new Error('Error de red')); };
+                        xhr.send();
+                    });
+                } catch (e1) {
+                    const r = await fetch(u, { mode: 'cors', credentials: 'omit' });
+                    if (!r.ok) throw new Error('No se pudo descargar (' + r.status + ')');
+                    blob = await r.blob();
+                }
+            }
+
+            const contentType = (blob && blob.type) ? blob.type : (contentTypeHint || 'application/octet-stream');
             let name = String(filename || 'adjunto').replace(/[/\\\\?%*:|"<>]/g, '_').trim() || 'adjunto';
             return await new Promise((resolve, reject) => {
                 const reader = new FileReader();
@@ -9306,8 +9360,14 @@
                 adjuntos = null,
                 etiquetaDestino = 'Destinatario',
                 enviarOpciones = null,
-                evidenciasSelectables = null
+                evidenciasSelectables = null,
+                insertarNotasDebajoMontoMulta = false,
+                etiquetaNotasFinal = null
             } = opciones || {};
+
+            const etiquetaCampoNotas = etiquetaNotasFinal || (insertarNotasDebajoMontoMulta
+                ? 'Notas (debajo del monto en UF) (opcional)'
+                : 'Notas al final del correo (opcional, tras el comprobante)');
 
             const listaEvidFiltrada = Array.isArray(evidenciasSelectables)
                 ? evidenciasSelectables.filter((e) => e && e.url)
@@ -9364,7 +9424,7 @@
                             <textarea data-mcc-mensaje rows="4" placeholder="Ej.: Cordial saludo, les informamos o solicitamos…" style="width: 100%; padding: 0.65rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.875rem; background: var(--bg-primary); color: var(--text-primary); font-family: inherit; resize: vertical; min-height: 88px; box-sizing: border-box;"></textarea>
                         </div>
                         <div style="margin-bottom: 1rem;">
-                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Notas al final del correo <span style="font-weight: 500; color: var(--text-tertiary); font-size: 0.8125rem;">(opcional, tras el comprobante)</span></label>
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">${escAttr(etiquetaCampoNotas)}</label>
                             <textarea data-mcc-notas-final rows="3" placeholder="Ej.: plazo de pago, canal de consultas, observaciones administrativas…" style="width: 100%; padding: 0.65rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.875rem; background: var(--bg-primary); color: var(--text-primary); font-family: inherit; resize: vertical; min-height: 72px; box-sizing: border-box;"></textarea>
                         </div>
                         ${htmlBloqueEvid}
@@ -9393,7 +9453,7 @@
                     const asuntoFinal = asuntoIngresado || asuntoDefecto;
                     const mensajeIni = txMensaje ? txMensaje.value : '';
                     const notasFin = txNotasFin ? txNotasFin.value : '';
-                    const combinado = combinarCuerpoCorreoComprobante(mensajeIni, htmlBase, notasFin);
+                    const combinado = combinarCuerpoCorreoComprobante(mensajeIni, htmlBase, notasFin, insertarNotasDebajoMontoMulta ? { insertarNotasDebajoMontoEnComprobanteMulta: true } : null);
                     let adjuntosFinales = Array.isArray(adjuntos) ? adjuntos.slice() : [];
                     if (listaEvidFiltrada.length > 0) {
                         const checks = modal.querySelectorAll('[data-mcc-evid-chk]:checked');
@@ -13016,6 +13076,7 @@
                   </td>
                 </tr>
               </table>
+              ${MCC_PLACEHOLDER_NOTAS_MULTA}
             </td>
           </tr>
           <tr>
@@ -13062,7 +13123,8 @@
                     asuntoDefecto: `Comprobante de Multa - ${nombreComunidad}`,
                     htmlBase: htmlComprobante,
                     residente: residenteInfo,
-                    evidenciasSelectables: listarEvidenciasMultaParaCorreo(multa)
+                    evidenciasSelectables: listarEvidenciasMultaParaCorreo(multa),
+                    insertarNotasDebajoMontoMulta: true
                 });
                 if (resultado === null) return;
                 
@@ -13094,7 +13156,8 @@
                 if (idx !== -1) { multas[idx] = { ...multas[idx], folio: multa.folio }; await guardarDatosMes('multas', multas); }
             }
             const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
-            const html = generarComprobanteMultaHtml(multa, nombreComunidad);
+            let html = generarComprobanteMultaHtml(multa, nombreComunidad);
+            html = html.split(MCC_PLACEHOLDER_NOTAS_MULTA).join('');
             abrirHTMLEnNuevaVentana(html, 'Comprobante de Multa');
         }
 
