@@ -9169,7 +9169,7 @@
         function listarEvidenciasMultaParaCorreo(multa) {
             const items = [];
             const seen = new Set();
-            const pushUrl = (url, etiqueta, nombreArchivoSugerido, contentType) => {
+            const pushUrl = (url, etiqueta, nombreArchivoSugerido, contentType, adjuntarPorDefecto) => {
                 if (!url || typeof url !== 'string') return;
                 const u = url.trim();
                 if (!u || seen.has(u)) return;
@@ -9178,13 +9178,14 @@
                     etiqueta,
                     url: u,
                     nombreArchivoSugerido: String(nombreArchivoSugerido || 'adjunto').replace(/[/\\\\?%*:|"<>]/g, '_'),
-                    contentType: contentType || ''
+                    contentType: contentType || '',
+                    adjuntarPorDefecto: adjuntarPorDefecto === true
                 });
             };
             (multa.archivos || []).forEach((a, i) => {
                 if (a && a.url) {
                     const nom = (a.nombre || 'archivo_' + (i + 1)).replace(/[/\\\\?%*:|"<>]/g, '_');
-                    pushUrl(a.url, '📎 ' + (a.nombre || nom), nom, a.tipo || '');
+                    pushUrl(a.url, '📎 ' + (a.nombre || nom), nom, a.tipo || '', true);
                 }
             });
             (multa.evidencias || []).forEach((ev, i) => {
@@ -9197,7 +9198,7 @@
                     if (last) name = last.split('?')[0] || name;
                 } catch (e) { /* ignorar URL inválida */ }
                 const short = name.length > 48 ? name.slice(0, 45) + '…' : name;
-                pushUrl(typeof ev === 'string' ? ev : ev.url, '🔗 ' + short, name.replace(/[/\\\\?%*:|"<>]/g, '_'), '');
+                pushUrl(typeof ev === 'string' ? ev : ev.url, '🔗 Respaldo / evidencia (' + (i + 1) + ')', name.replace(/[/\\\\?%*:|"<>]/g, '_'), '', false);
             });
             if (multa.link && String(multa.link).trim()) {
                 const url = multa.link.trim();
@@ -9207,9 +9208,40 @@
                     const last = uo.pathname.split('/').filter(Boolean).pop();
                     if (last) name = last.split('?')[0] || name;
                 } catch (e) { /* ignorar */ }
-                pushUrl(url, '🔗 Enlace de respaldo', name.replace(/[/\\\\?%*:|"<>]/g, '_'), '');
+                pushUrl(url, '🔗 Enlace de respaldo', name.replace(/[/\\\\?%*:|"<>]/g, '_'), '', true);
             }
             return items;
+        }
+
+        /** Bloque HTML del comprobante: enlaces de respaldo y evidencia siempre visibles en el correo. */
+        function htmlBloqueRespaldoEvidenciaMulta(multa) {
+            const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const seen = new Set();
+            const filas = [];
+            const addFila = (url, titulo) => {
+                const u = String(url || '').trim();
+                if (!u || seen.has(u)) return;
+                seen.add(u);
+                filas.push(
+                    '<tr><td style="padding:8px 0;border-bottom:1px solid #e0f2fe;font-size:13px;line-height:1.45;color:#0c4a6e;">' +
+                    '<a href="' + linkEsc(u) + '" target="_blank" rel="noopener noreferrer" style="color:#0369a1;font-weight:600;text-decoration:underline;word-break:break-all;">' + linkEsc(titulo) + '</a>' +
+                    '<br><span style="font-size:11px;color:#64748b;word-break:break-all;">' + linkEsc(u) + '</span></td></tr>'
+                );
+            };
+            (multa.archivos || []).forEach((a, i) => {
+                if (a && a.url) addFila(a.url, '📎 ' + (a.nombre || ('Archivo ' + (i + 1))));
+            });
+            (multa.evidencias || []).forEach((ev, i) => {
+                const url = typeof ev === 'string' ? ev : (ev && ev.url ? ev.url : '');
+                if (url) addFila(url, 'Respaldo / evidencia (' + (i + 1) + ')');
+            });
+            if (multa.link && String(multa.link).trim()) addFila(multa.link.trim(), 'Enlace de respaldo');
+            if (filas.length === 0) return '';
+            return '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="margin-top:12px;background:#f0f9ff;border-radius:8px;border:1px solid #bae6fd;">' +
+                '<tr><td style="padding:12px 14px;">' +
+                '<p style="margin:0 0 10px 0;font-size:12px;font-weight:700;color:#0369a1;text-transform:uppercase;letter-spacing:0.04em;">Respaldo y evidencia</p>' +
+                '<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">' + filas.join('') + '</table>' +
+                '</td></tr></table>';
         }
         
         // Modal para seleccionar destinatarios y enviar correo con reporte
@@ -9381,7 +9413,7 @@
                             <div style="max-height: 180px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem 0.65rem; font-size: 0.8125rem;">
                                 ${listaEvidFiltrada.map((ev, idx) => `
                                 <label style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.4rem; cursor: pointer;">
-                                    <input type="checkbox" data-mcc-evid-chk value="${idx}" style="margin-top: 0.15rem; flex-shrink: 0;">
+                                    <input type="checkbox" data-mcc-evid-chk value="${idx}" ${ev.adjuntarPorDefecto ? 'checked' : ''} style="margin-top: 0.15rem; flex-shrink: 0;">
                                     <span style="color: var(--text-secondary); word-break: break-word;">${escAttr(ev.etiqueta)}</span>
                                 </label>`).join('')}
                             </div>
@@ -13077,6 +13109,7 @@
                 </tr>
               </table>
               ${MCC_PLACEHOLDER_NOTAS_MULTA}
+              ${htmlBloqueRespaldoEvidenciaMulta(multa)}
             </td>
           </tr>
           <tr>
