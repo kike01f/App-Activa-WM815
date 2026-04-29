@@ -8670,8 +8670,14 @@
         }
 
         /** HTML de notificación solo con los registros seleccionados (pendientes/en proceso). */
-        async function generarCorreoNotificacionPostventaPendientes(nombreComunidad, nombreMes, registrosSeleccionados) {
+        async function generarCorreoNotificacionPostventaPendientes(nombreComunidad, nombreMes, registrosSeleccionados, textoIntro = null) {
             const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const introSaludo = textoIntro && typeof textoIntro.saludo === 'string' && textoIntro.saludo.trim()
+                ? textoIntro.saludo.trim()
+                : 'Estimado/a,';
+            const introCuerpo = textoIntro && typeof textoIntro.cuerpo === 'string' && textoIntro.cuerpo.trim()
+                ? textoIntro.cuerpo.trim()
+                : 'Junto con saludar, se informa los nuevos requerimientos para su revisión.';
             const filas = (registrosSeleccionados || []).map((r) => {
                 const est = postventaNormalizarEstadoRegistro(r);
                 const obs = String(r.observacion == null ? '' : r.observacion).replace(/\s+/g, ' ').trim();
@@ -8696,8 +8702,8 @@
                 <tbody>${filas}</tbody>
               </table>` : '';
             const contenido = `
-                <p style="margin: 0 0 10px 0; font-size: 15px; color: #1a1a1a; line-height: 1.5;">Estimado/a,</p>
-                <p style="margin: 0 0 8px 0; font-size: 14px; color: #333333; line-height: 1.55;">Junto con saludar, se informa los nuevos requerimientos para su revisión.</p>
+                <p style="margin: 0 0 10px 0; font-size: 15px; color: #1a1a1a; line-height: 1.5;">${linkEsc(introSaludo)}</p>
+                <p style="margin: 0 0 8px 0; font-size: 14px; color: #333333; line-height: 1.55;">${linkEsc(introCuerpo)}</p>
                 ${tabla}
             `;
             return generarPlantillaCorreoNotificacion('Postventa — Observaciones areas comunes', nombreComunidad, nombreMes, contenido, true, true);
@@ -8734,6 +8740,14 @@
                         <div style="padding:0.75rem 1.25rem 0;font-size:0.8125rem;color:var(--text-secondary);line-height:1.45;">
                             Marque solo los registros en <strong>Pendiente</strong> o <strong>En proceso</strong> que desea incluir en el correo y en el Excel adjunto.
                         </div>
+                        <div style="padding:0.75rem 1.25rem 0.25rem;">
+                            <label for="pvIntroSaludo" style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-primary);margin-bottom:0.25rem;">Saludo inicial del correo</label>
+                            <input type="text" id="pvIntroSaludo" value="Estimado/a," style="width:100%;padding:0.45rem 0.55rem;font-size:0.8125rem;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-primary);color:var(--text-primary);box-sizing:border-box;">
+                        </div>
+                        <div style="padding:0.35rem 1.25rem 0.25rem;">
+                            <label for="pvIntroCuerpo" style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-primary);margin-bottom:0.25rem;">Texto introductorio</label>
+                            <textarea id="pvIntroCuerpo" rows="2" style="width:100%;padding:0.5rem 0.55rem;font-size:0.8125rem;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-primary);color:var(--text-primary);font-family:inherit;resize:vertical;box-sizing:border-box;">Junto con saludar, se informa los nuevos requerimientos para su revisión.</textarea>
+                        </div>
                         <div style="padding:0.5rem 1.25rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
                             <button type="button" class="btn btn-secondary btn-sm" id="pvPendSelTodos" style="padding:0.35rem 0.65rem;font-size:0.75rem;">Marcar todos</button>
                             <button type="button" class="btn btn-secondary btn-sm" id="pvPendSelNinguno" style="padding:0.35rem 0.65rem;font-size:0.75rem;">Desmarcar todos</button>
@@ -8763,6 +8777,12 @@
                         return;
                     }
                     const seleccionados = idxs.map((i) => candidatos[i]).filter(Boolean);
+                    const inpSaludo = modal.querySelector('#pvIntroSaludo');
+                    const taCuerpo = modal.querySelector('#pvIntroCuerpo');
+                    const textoIntro = {
+                        saludo: inpSaludo && inpSaludo.value ? inpSaludo.value.trim() : 'Estimado/a,',
+                        cuerpo: taCuerpo && taCuerpo.value ? taCuerpo.value.trim() : 'Junto con saludar, se informa los nuevos requerimientos para su revisión.'
+                    };
                     modal.remove();
                     try {
                         let nombreComunidad = 'Comunidad';
@@ -8787,7 +8807,7 @@
                             resolve();
                             return;
                         }
-                        const html = await generarCorreoNotificacionPostventaPendientes(nombreComunidad, nombreMes, seleccionados);
+                        const html = await generarCorreoNotificacionPostventaPendientes(nombreComunidad, nombreMes, seleccionados, textoIntro);
                         const asunto = `Postventa — Observaciones areas comunes. — Activa WM815 — ${fechaEmision}`;
                         ocultarProgreso();
                         await mostrarModalSeleccionDestinatarios(asunto, html, [adjunto]);
@@ -12002,14 +12022,14 @@
             const incluirProcedimientoTag = !esTagProvisional && tarjetaVentaIncluyeProcedimientoTag(tarjeta);
             const tituloComprobante = esTagProvisional
                 ? 'Asignación de TAG Provisional'
-                : (incluirProcedimientoTag ? 'Venta de Tarjeta de Acceso / TAG' : 'Venta de Tarjeta de Acceso');
+                : (incluirProcedimientoTag ? 'Venta de TAG' : 'Venta de Tarjeta de Acceso');
             const tituloDoc = esTagProvisional
                 ? 'Comprobante - TAG Provisional'
-                : (incluirProcedimientoTag ? 'Comprobante - Venta Tarjeta / TAG' : 'Comprobante - Venta Tarjeta de Acceso');
+                : (incluirProcedimientoTag ? 'Comprobante - Venta TAG' : 'Comprobante - Venta Tarjeta de Acceso');
             const parrafoIntro = esTagProvisional
                 ? 'Le hacemos llegar el comprobante de la <strong>asignación de TAG provisional</strong> registrada a su nombre. Este documento deja constancia de entrega y condiciones de uso.'
                 : (incluirProcedimientoTag
-                ? 'Le hacemos llegar el comprobante de la <strong>venta de tarjeta(s) / TAG</strong> registrada a su nombre. Este documento queda como respaldo para la administración y para su propio registro.'
+                ? 'Le hacemos llegar el comprobante de la <strong>venta de TAG</strong> registrada a su nombre. Este documento queda como respaldo para la administración y para su propio registro.'
                 : 'Le hacemos llegar el comprobante de la <strong>venta de tarjeta(s) de acceso</strong> registrada a su nombre. Este documento queda como respaldo para la administración y para su propio registro.');
             const bloqueProcedimientoTag = incluirProcedimientoTag ? `
           <tr>
@@ -12017,7 +12037,7 @@
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f0f7ff; border: 1px solid #1976d2; border-radius: 8px;">
                 <tr>
                   <td style="padding: 12px 14px;">
-                    <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 700; color: #1976d2; text-transform: uppercase; letter-spacing: 0.04em;">Procedimiento de TAG y Tarjetas</p>
+                    <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 700; color: #1976d2; text-transform: uppercase; letter-spacing: 0.04em;">Procedimiento de TAG</p>
                     <p style="margin: 0 0 6px 0; font-size: 13px; color: #333333; line-height: 1.6;"><strong>1. Asignación:</strong> Un TAG por espacio asignado; se entrega solo al propietario o arrendatario registrado.</p>
                     <p style="margin: 0 0 6px 0; font-size: 13px; color: #333333; line-height: 1.6;"><strong>2. Uso:</strong> Personal e intransferible. No prestar, no ingresar vehículos no registrados ni usar para vehículos ajenos.</p>
                     <p style="margin: 0 0 6px 0; font-size: 13px; color: #333333; line-height: 1.6;"><strong>3. Pérdida o daño:</strong> Informar de inmediato a edificio.wm815@gmail.com. Reposición: $5.000 (se carga en el gasto común del mes siguiente).</p>
