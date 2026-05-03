@@ -9085,6 +9085,9 @@
         /** Marcador en plantilla de comprobante multa: notas del correo van debajo del monto UF. */
         const MCC_PLACEHOLDER_NOTAS_MULTA = '@@MCC_NOTAS_MULTA@@';
 
+        /** Marcador en confirmación de reserva: nota opcional debajo de la fila «Horario aplicable». */
+        const MCC_PLACEHOLDER_NOTAS_HORARIO_EVENTO = '<!--MCC_NOTAS_HORARIO_EVENTO-->';
+
         /** Texto libre opcional antes y/o después del HTML generado (reportes y comprobantes). */
         function combinarCuerpoCorreoComprobante(textoInicio, htmlBase, textoFin, opcionesCombinar) {
             const opts = opcionesCombinar || {};
@@ -9105,6 +9108,17 @@
                 tFin = '';
             } else if (html.indexOf(MCC_PLACEHOLDER_NOTAS_MULTA) !== -1) {
                 html = html.split(MCC_PLACEHOLDER_NOTAS_MULTA).join('');
+            }
+
+            if (html.indexOf(MCC_PLACEHOLDER_NOTAS_HORARIO_EVENTO) !== -1) {
+                const tHorario = String(opts.textoNotasHorarioReserva || '').trim();
+                const bloqueHorario = tHorario
+                    ? ('<tr><td colspan="2" style="padding:12px 14px;font-size:13px;color:#333;line-height:1.55;border-top:1px solid #e8eee8;background:#f5faf6;">' +
+                        '<span style="display:block;margin-bottom:6px;font-weight:700;color:#2e7d32;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;">Nota</span>' +
+                        escaparHtmlEmailUsuario(tHorario).split(/\r?\n/).join('<br>') +
+                        '</td></tr>')
+                    : '';
+                html = html.split(MCC_PLACEHOLDER_NOTAS_HORARIO_EVENTO).join(bloqueHorario);
             }
 
             let textoPlano = htmlATextoPlanoEmail(html);
@@ -9425,6 +9439,7 @@
             const listaEvidFiltrada = Array.isArray(evidenciasSelectables)
                 ? evidenciasSelectables.filter((e) => e && e.url)
                 : [];
+            const tieneMarcadorNotaHorarioEvento = (htmlBase || '').indexOf(MCC_PLACEHOLDER_NOTAS_HORARIO_EVENTO) !== -1;
             let htmlBloqueEvid = '';
             if (listaEvidFiltrada.length > 0) {
                 const escAttr = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
@@ -9476,6 +9491,11 @@
                             <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Mensaje al inicio del correo <span style="font-weight: 500; color: var(--text-tertiary); font-size: 0.8125rem;">(opcional)</span></label>
                             <textarea data-mcc-mensaje rows="4" placeholder="Ej.: Cordial saludo, les informamos o solicitamos…" style="width: 100%; padding: 0.65rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.875rem; background: var(--bg-primary); color: var(--text-primary); font-family: inherit; resize: vertical; min-height: 88px; box-sizing: border-box;"></textarea>
                         </div>
+                        ${tieneMarcadorNotaHorarioEvento ? `
+                        <div style="margin-bottom: 1rem;">
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">Nota bajo «Horario aplicable» <span style="font-weight: 500; color: var(--text-tertiary); font-size: 0.8125rem;">(opcional, dentro del cuadro resumen)</span></label>
+                            <textarea data-mcc-nota-horario-reserva rows="3" placeholder="Ej.: condición especial acordada, recordatorio de entrega del espacio…" style="width: 100%; padding: 0.65rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.875rem; background: var(--bg-primary); color: var(--text-primary); font-family: inherit; resize: vertical; min-height: 72px; box-sizing: border-box;"></textarea>
+                        </div>` : ''}
                         <div style="margin-bottom: 1rem;">
                             <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">${escAttr(etiquetaCampoNotas)}</label>
                             <textarea data-mcc-notas-final rows="3" placeholder="Ej.: plazo de pago, canal de consultas, observaciones administrativas…" style="width: 100%; padding: 0.65rem; border: 1px solid var(--border-color); border-radius: 8px; font-size: 0.875rem; background: var(--bg-primary); color: var(--text-primary); font-family: inherit; resize: vertical; min-height: 72px; box-sizing: border-box;"></textarea>
@@ -9502,11 +9522,17 @@
                     const inpAsunto = modal.querySelector('[data-mcc-asunto]');
                     const txMensaje = modal.querySelector('[data-mcc-mensaje]');
                     const txNotasFin = modal.querySelector('[data-mcc-notas-final]');
+                    const txNotaHorarioReserva = modal.querySelector('[data-mcc-nota-horario-reserva]');
                     const asuntoIngresado = inpAsunto && inpAsunto.value ? inpAsunto.value.trim() : '';
                     const asuntoFinal = asuntoIngresado || asuntoDefecto;
                     const mensajeIni = txMensaje ? txMensaje.value : '';
                     const notasFin = txNotasFin ? txNotasFin.value : '';
-                    const combinado = combinarCuerpoCorreoComprobante(mensajeIni, htmlBase, notasFin, insertarNotasDebajoMontoMulta ? { insertarNotasDebajoMontoEnComprobanteMulta: true } : null);
+                    const optsComb = {};
+                    if (insertarNotasDebajoMontoMulta) optsComb.insertarNotasDebajoMontoEnComprobanteMulta = true;
+                    if (tieneMarcadorNotaHorarioEvento) {
+                        optsComb.textoNotasHorarioReserva = txNotaHorarioReserva ? (txNotaHorarioReserva.value || '') : '';
+                    }
+                    const combinado = combinarCuerpoCorreoComprobante(mensajeIni, htmlBase, notasFin, Object.keys(optsComb).length ? optsComb : null);
                     let adjuntosFinales = Array.isArray(adjuntos) ? adjuntos.slice() : [];
                     if (listaEvidFiltrada.length > 0) {
                         const checks = modal.querySelectorAll('[data-mcc-evid-chk]:checked');
@@ -11848,6 +11874,7 @@
           <tr><td style="padding:10px 14px;font-size:13px;color:#666;border-bottom:1px solid #e8eee8;">Fecha del evento</td><td style="padding:10px 14px;font-size:14px;color:#1a1a1a;border-bottom:1px solid #e8eee8;">${fechaStr}${diaNombre ? ` <span style="color:#666;font-weight:400;">(${diaNombre})</span>` : ''}</td></tr>
           <tr><td style="padding:10px 14px;font-size:13px;color:#666;border-bottom:1px solid #e8eee8;">Espacio</td><td style="padding:10px 14px;font-size:14px;color:#1a1a1a;border-bottom:1px solid #e8eee8;">${espacio}</td></tr>
           <tr><td style="padding:10px 14px;font-size:13px;color:#666;">Horario aplicable</td><td style="padding:10px 14px;font-size:15px;font-weight:700;color:#2e7d32;">${linkEsc(h.horario)}${h.detalle ? ' <span style="font-size:12px;font-weight:400;color:#555;">(' + linkEsc(h.detalle) + ')</span>' : ''}</td></tr>
+          ${MCC_PLACEHOLDER_NOTAS_HORARIO_EVENTO}
         </table>
       </td></tr>
       <tr><td style="padding:0 28px 12px;text-align:center;">
@@ -11894,7 +11921,8 @@
             }
             const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
             const personalizacion = await obtenerPersonalizacion();
-            const html = generarCorreoConfirmacionEventoHtml(reg, nombreComunidad, personalizacion);
+            const html = generarCorreoConfirmacionEventoHtml(reg, nombreComunidad, personalizacion)
+                .split(MCC_PLACEHOLDER_NOTAS_HORARIO_EVENTO).join('');
             abrirHTMLEnNuevaVentana(html, 'Correo de Confirmación de Evento');
         }
 
