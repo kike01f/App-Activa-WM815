@@ -9113,8 +9113,8 @@
             if (html.indexOf(MCC_PLACEHOLDER_NOTAS_HORARIO_EVENTO) !== -1) {
                 const tHorario = String(opts.textoNotasHorarioReserva || '').trim();
                 const bloqueHorario = tHorario
-                    ? ('<tr><td colspan="2" style="padding:12px 14px;font-size:13px;color:#333;line-height:1.55;border-top:1px solid #e8eee8;background:#f5faf6;">' +
-                        '<span style="display:block;margin-bottom:6px;font-weight:700;color:#2e7d32;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;">Nota</span>' +
+                    ? ('<tr><td colspan="2" style="padding:8px 12px;font-size:13px;color:#333;line-height:1.45;border-top:1px solid #e8eee8;background:#f5faf6;">' +
+                        '<span style="display:block;margin-bottom:3px;font-weight:700;color:#2e7d32;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;">Nota</span>' +
                         escaparHtmlEmailUsuario(tHorario).split(/\r?\n/).join('<br>') +
                         '</td></tr>')
                     : '';
@@ -11851,60 +11851,60 @@
   </style>
 </head>
 <body style="margin:0;padding:0;background:#ffffff;">
-  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:16px 10px;">
-    <table role="presentation" width="600" style="max-width:600px;width:100%;background:#fff;border-radius:12px;">
+  <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:8px 6px;">
+    <table role="presentation" width="600" style="max-width:600px;width:100%;background:#fff;border-radius:10px;">
       <tr>
-        <td style="padding:18px 28px 14px;border-bottom:3px solid #74BD20;background-color:#ffffff;border-radius:12px 12px 0 0;text-align:center;">
-          <div style="margin-bottom:10px;"><img src="https://img.mailinblue.com/8323725/images/content_library/original/6844749040dd0f16c5341248.png" alt="" style="max-width:120px;height:auto;"></div>
-          <p style="margin:0 0 4px;font-size:11px;font-weight:700;letter-spacing:.06em;color:#74BD20;text-transform:uppercase;">Confirmación de reserva</p>
-          <h1 style="margin:0;font-size:20px;font-weight:700;color:#1a1a1a;">Evento — espacio común</h1>
-          <p style="margin:6px 0 0;font-size:14px;color:#555;">${comunidad}</p>
-          <p style="margin:4px 0 0;font-size:12px;color:#666;"><strong>Folio:</strong> <span style="font-family:monospace;letter-spacing:.04em;color:#1a1a1a;">${linkEsc(folioStr)}</span></p>
+        <td style="padding:12px 20px 10px;border-bottom:3px solid #74BD20;background-color:#ffffff;border-radius:10px 10px 0 0;text-align:center;">
+          <div style="margin-bottom:6px;"><img src="https://img.mailinblue.com/8323725/images/content_library/original/6844749040dd0f16c5341248.png" alt="" style="max-width:112px;height:auto;"></div>
+          <p style="margin:0 0 2px;font-size:11px;font-weight:700;letter-spacing:.06em;color:#74BD20;text-transform:uppercase;">Confirmación de reserva</p>
+          <h1 style="margin:0;font-size:18px;font-weight:700;color:#1a1a1a;line-height:1.25;">Evento — espacio común</h1>
+          <p style="margin:4px 0 0;font-size:13px;color:#555;line-height:1.35;">${comunidad}</p>
+          <p style="margin:2px 0 0;font-size:12px;color:#666;line-height:1.35;"><strong>Folio:</strong> <span style="font-family:monospace;letter-spacing:.04em;color:#1a1a1a;">${linkEsc(folioStr)}</span></p>
         </td>
       </tr>
-      <tr><td style="padding:20px 28px 8px;">
-        <p style="margin:0 0 10px;font-size:15px;color:#1a1a1a;">Estimado/a <strong>${nom}</strong>,</p>
-        <p style="margin:0 0 12px;font-size:14px;color:#333;line-height:1.55;">Confirmamos la reserva de <strong>${espacio}</strong>${diaNombre ? ` para el <strong>${diaNombre}</strong>` : ''} <strong>${fechaStr}</strong>.</p>
-        ${parrafoHorario ? `<p style="margin:0 0 14px;font-size:14px;color:#333;line-height:1.55;">${parrafoHorario}</p>` : ''}
+      <tr><td style="padding:12px 20px 6px;">
+        <p style="margin:0 0 6px;font-size:15px;color:#1a1a1a;line-height:1.4;">Estimado/a <strong>${nom}</strong>,</p>
+        <p style="margin:0 0 8px;font-size:14px;color:#333;line-height:1.45;">Confirmamos la reserva de <strong>${espacio}</strong>${diaNombre ? ` para el <strong>${diaNombre}</strong>` : ''} <strong>${fechaStr}</strong>.</p>
+        ${parrafoHorario ? `<p style="margin:0 0 8px;font-size:14px;color:#333;line-height:1.45;">${parrafoHorario}</p>` : ''}
       </td></tr>
-      <tr><td style="padding:0 28px 14px;">
+      <tr><td style="padding:0 20px 10px;">
         <table role="presentation" width="100%" style="background:#f8faf8;border:1px solid #e8eee8;border-radius:8px;">
-          <tr><td style="padding:10px 14px;font-size:13px;color:#666;border-bottom:1px solid #e8eee8;width:36%;">Residente</td><td style="padding:10px 14px;font-size:14px;font-weight:600;color:#1a1a1a;border-bottom:1px solid #e8eee8;">${nom}</td></tr>
-          <tr><td style="padding:10px 14px;font-size:13px;color:#666;border-bottom:1px solid #e8eee8;">Departamento</td><td style="padding:10px 14px;font-size:14px;color:#1a1a1a;border-bottom:1px solid #e8eee8;">${depto}</td></tr>
-          <tr><td style="padding:10px 14px;font-size:13px;color:#666;border-bottom:1px solid #e8eee8;">Fecha del evento</td><td style="padding:10px 14px;font-size:14px;color:#1a1a1a;border-bottom:1px solid #e8eee8;">${fechaStr}${diaNombre ? ` <span style="color:#666;font-weight:400;">(${diaNombre})</span>` : ''}</td></tr>
-          <tr><td style="padding:10px 14px;font-size:13px;color:#666;border-bottom:1px solid #e8eee8;">Espacio</td><td style="padding:10px 14px;font-size:14px;color:#1a1a1a;border-bottom:1px solid #e8eee8;">${espacio}</td></tr>
-          <tr><td style="padding:10px 14px;font-size:13px;color:#666;">Horario aplicable</td><td style="padding:10px 14px;font-size:15px;font-weight:700;color:#2e7d32;">${linkEsc(h.horario)}${h.detalle ? ' <span style="font-size:12px;font-weight:400;color:#555;">(' + linkEsc(h.detalle) + ')</span>' : ''}</td></tr>
+          <tr><td style="padding:7px 12px;font-size:13px;color:#666;border-bottom:1px solid #e8eee8;width:36%;">Residente</td><td style="padding:7px 12px;font-size:14px;font-weight:600;color:#1a1a1a;border-bottom:1px solid #e8eee8;">${nom}</td></tr>
+          <tr><td style="padding:7px 12px;font-size:13px;color:#666;border-bottom:1px solid #e8eee8;">Departamento</td><td style="padding:7px 12px;font-size:14px;color:#1a1a1a;border-bottom:1px solid #e8eee8;">${depto}</td></tr>
+          <tr><td style="padding:7px 12px;font-size:13px;color:#666;border-bottom:1px solid #e8eee8;">Fecha del evento</td><td style="padding:7px 12px;font-size:14px;color:#1a1a1a;border-bottom:1px solid #e8eee8;">${fechaStr}${diaNombre ? ` <span style="color:#666;font-weight:400;">(${diaNombre})</span>` : ''}</td></tr>
+          <tr><td style="padding:7px 12px;font-size:13px;color:#666;border-bottom:1px solid #e8eee8;">Espacio</td><td style="padding:7px 12px;font-size:14px;color:#1a1a1a;border-bottom:1px solid #e8eee8;">${espacio}</td></tr>
+          <tr><td style="padding:7px 12px;font-size:13px;color:#666;">Horario aplicable</td><td style="padding:7px 12px;font-size:15px;font-weight:700;color:#2e7d32;">${linkEsc(h.horario)}${h.detalle ? ' <span style="font-size:12px;font-weight:400;color:#555;">(' + linkEsc(h.detalle) + ')</span>' : ''}</td></tr>
           ${MCC_PLACEHOLDER_NOTAS_HORARIO_EVENTO}
         </table>
       </td></tr>
-      <tr><td style="padding:0 28px 12px;text-align:center;">
-        <p style="margin:0 0 14px;font-size:14px;color:#333;line-height:1.55;">Descargue y complete la <strong>lista de invitados</strong> y envíela a este mismo correo obligatoriamente con 24 horas de anticipación al evento.</p>
-        <a href="${urlLista}" target="_blank" style="display:inline-block;background:#73d415;color:#fff!important;text-decoration:none;font-weight:700;font-size:15px;padding:12px 28px;border-radius:21px;">Lista de invitados →</a>
-        <p style="margin:14px 0 0;font-size:13px;color:#555;font-style:italic;">Niños mayores de 10 años deben figurar en el listado, sin excepciones.</p>
+      <tr><td style="padding:0 20px 8px;text-align:center;">
+        <p style="margin:0 0 8px;font-size:14px;color:#333;line-height:1.45;">Descargue y complete la <strong>lista de invitados</strong> y envíela a este mismo correo obligatoriamente con 24 horas de anticipación al evento.</p>
+        <a href="${urlLista}" target="_blank" style="display:inline-block;background:#73d415;color:#fff!important;text-decoration:none;font-weight:700;font-size:14px;padding:10px 22px;border-radius:18px;">Lista de invitados →</a>
+        <p style="margin:8px 0 0;font-size:12px;color:#555;font-style:italic;line-height:1.4;">Niños mayores de 10 años deben figurar en el listado, sin excepciones.</p>
       </td></tr>
-      <tr><td style="padding:16px 28px;border-top:1px solid #eee;">
+      <tr><td style="padding:10px 20px;border-top:1px solid #eee;">
         <table role="presentation" width="100%"><tr>
-          <td width="50%" valign="top" style="padding-right:8px;">
-            <p style="margin:0 0 8px;font-size:15px;font-weight:700;color:#333;">Recomendaciones</p>
+          <td width="50%" valign="top" style="padding-right:6px;">
+            <p style="margin:0 0 6px;font-size:14px;font-weight:700;color:#333;">Recomendaciones</p>
             <img src="https://img.mailinblue.com/8323725/images/content_library/original/689e34d0b36039f76506d9b6.jpeg" alt="" style="max-width:100%;height:auto;border-radius:6px;display:block;">
           </td>
-          <td width="50%" valign="top" style="padding-left:8px;text-align:center;">
-            <p style="margin:0 0 12px;font-size:15px;font-weight:700;color:#333;text-align:left;">Reglamento interno</p>
-            <a href="${urlReglamento}" target="_blank" style="display:inline-block;background:#73d415;color:#fff!important;text-decoration:none;font-weight:700;font-size:15px;padding:12px 32px;border-radius:21px;">Ver →</a>
+          <td width="50%" valign="top" style="padding-left:6px;text-align:center;">
+            <p style="margin:0 0 8px;font-size:14px;font-weight:700;color:#333;text-align:left;">Reglamento interno</p>
+            <a href="${urlReglamento}" target="_blank" style="display:inline-block;background:#73d415;color:#fff!important;text-decoration:none;font-weight:700;font-size:14px;padding:10px 24px;border-radius:18px;">Ver →</a>
           </td>
         </tr></table>
       </td></tr>
-      <tr><td style="padding:0 28px 18px;">
+      <tr><td style="padding:0 20px 12px;">
         <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;">
           <tr>
-            <td bgcolor="#fff9c4" style="background-color:#fff9c4;border:1px solid #e6c200;border-radius:8px;padding:12px 14px;">
-              <p style="margin:0;font-size:11px;color:#444;line-height:1.45;text-align:justify;">El aseo de los espacios deberá realizarse dentro del horario del evento o, a más tardar, al día siguiente antes de las 12:00 hrs. Estos deberán ser entregados en las mismas condiciones de limpieza en que fueron recibidos por la Administración. De no cumplirse lo anterior, se aplicará el cobro de la garantía de aseo por $15.000, sin derecho a apelación.</p>
+            <td bgcolor="#fff9c4" style="background-color:#fff9c4;border:1px solid #e6c200;border-radius:8px;padding:10px 12px;">
+              <p style="margin:0;font-size:11px;color:#444;line-height:1.4;text-align:justify;">El aseo de los espacios deberá realizarse dentro del horario del evento o, a más tardar, al día siguiente antes de las 12:00 hrs. Estos deberán ser entregados en las mismas condiciones de limpieza en que fueron recibidos por la Administración. De no cumplirse lo anterior, se aplicará el cobro de la garantía de aseo por $15.000, sin derecho a apelación.</p>
             </td>
           </tr>
         </table>
       </td></tr>
-      <tr><td style="padding:14px 28px 20px;text-align:center;border-top:1px solid #eee;background:#fafafa;border-radius:0 0 12px 12px;">
-        <p style="margin:0;font-size:12px;color:#888;">Correo generado desde el sistema de gestión.</p>
+      <tr><td style="padding:10px 20px 12px;text-align:center;border-top:1px solid #eee;background:#fafafa;border-radius:0 0 10px 10px;">
+        <p style="margin:0;font-size:11px;color:#888;line-height:1.35;">Correo generado desde el sistema de gestión.</p>
       </td></tr>
     </table>
   </td></tr></table>
