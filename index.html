@@ -5582,7 +5582,7 @@
                         <div style="display: flex; flex-wrap: wrap; gap: 0.45rem;">
                             <button type="button" class="btn btn-primary" id="btnExportarExcelPostventa" style="padding: 0.45rem 0.8rem; font-size: 0.8125rem;">📊 Excel</button>
                             <button type="button" class="btn btn-success" id="btnEnviarCorreoPostventa" style="padding: 0.45rem 0.8rem; font-size: 0.8125rem; background: #10b981; border-color: #10b981;">📧 Enviar por correo</button>
-                            <button type="button" class="btn btn-primary" id="btnCorreoPostventaPendientesNuevos" style="padding: 0.45rem 0.8rem; font-size: 0.8125rem;" title="Notificar solo los pendientes o en proceso que elija">📩 Correo pendientes (selección)</button>
+                            <button type="button" class="btn btn-primary" id="btnCorreoPostventaPendientesNuevos" style="padding: 0.45rem 0.8rem; font-size: 0.8125rem;" title="Notificar los requerimientos que elija, en cualquier estado">📩 Correo pendientes (selección)</button>
                             <label class="btn btn-secondary" style="cursor: pointer; margin: 0; padding: 0.45rem 0.8rem; font-size: 0.8125rem;">
                                 <input type="file" id="inputImportPostventa" accept=".xlsx,.xls" style="display: none;">
                                 📥 Importar Excel
@@ -8669,7 +8669,7 @@
             return m[codigo] || m.pendiente;
         }
 
-        /** HTML de notificación solo con los registros seleccionados (pendientes/en proceso). */
+        /** HTML de notificación con los registros seleccionados. */
         async function generarCorreoNotificacionPostventaPendientes(nombreComunidad, nombreMes, registrosSeleccionados, textoIntro = null) {
             const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             const introSaludo = textoIntro && typeof textoIntro.saludo === 'string' && textoIntro.saludo.trim()
@@ -8709,7 +8709,7 @@
             return generarPlantillaCorreoNotificacion('Postventa — Observaciones areas comunes', nombreComunidad, nombreMes, contenido, true, true);
         }
 
-        /** Modal: el usuario elige qué registros abiertos incluir; luego abre el modal de destinatarios. */
+        /** Modal: el usuario elige qué registros incluir; luego abre el modal de destinatarios. */
         function mostrarModalSeleccionPendientesPostventa(candidatos) {
             return new Promise((resolve) => {
                 const modal = document.createElement('div');
@@ -8738,7 +8738,7 @@
                             <button type="button" class="pv-pend-modal-close" style="background:none;border:none;font-size:1.5rem;cursor:pointer;color:var(--text-secondary);padding:0;width:32px;height:32px;line-height:1;border-radius:4px;">×</button>
                         </div>
                         <div style="padding:0.75rem 1.25rem 0;font-size:0.8125rem;color:var(--text-secondary);line-height:1.45;">
-                            Marque solo los registros en <strong>Pendiente</strong> o <strong>En proceso</strong> que desea incluir en el correo y en el Excel adjunto.
+                            Marque los registros que desea incluir en el correo y en el Excel adjunto (cualquier estado).
                         </div>
                         <div style="padding:0.75rem 1.25rem 0.25rem;">
                             <label for="pvIntroSaludo" style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-primary);margin-bottom:0.25rem;">Saludo inicial del correo</label>
@@ -8830,13 +8830,10 @@
                     mostrarAlerta('No hay datos de postventa.', 'Sin datos');
                     return;
                 }
-                const candidatos = registros.filter((r) => {
-                    const k = postventaNormalizarEstadoRegistro(r);
-                    return k === 'pendiente' || k === 'en_proceso';
-                });
+                const candidatos = (registros || []).slice();
                 candidatos.sort((a, b) => (b.fecha || '').localeCompare(a.fecha || '') || String(b.id || '').localeCompare(String(a.id || '')));
                 if (!candidatos.length) {
-                    mostrarAlerta('No hay registros en estado Pendiente ni En proceso. Solo esos aparecen para este correo.', 'Postventa');
+                    mostrarAlerta('No hay registros para incluir en el correo.', 'Postventa');
                     return;
                 }
                 await mostrarModalSeleccionPendientesPostventa(candidatos);
