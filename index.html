@@ -727,6 +727,102 @@
             gap: 2rem;
         }
 
+        /* Multas: selector de tipo de registro (tarjetas) */
+        .multa-tipo-registro-wrap {
+            margin-bottom: 1rem;
+        }
+        .multa-tipo-registro-heading {
+            font-size: 0.875rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            display: block;
+            margin-bottom: 0.5rem;
+        }
+        .multa-tipo-registro-group {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+        .multa-tipo-registro-card {
+            position: relative;
+            flex: 1;
+            min-width: 168px;
+            max-width: 340px;
+            display: flex;
+            flex-direction: column;
+            align-items: flex-start;
+            gap: 0.2rem;
+            margin: 0;
+            padding: 0.9rem 1rem 1rem;
+            border: 2px solid var(--border-color);
+            border-radius: 12px;
+            background: var(--bg-primary);
+            cursor: pointer;
+            transition: border-color 0.2s ease, box-shadow 0.2s ease, background 0.2s ease, transform 0.15s ease;
+        }
+        .multa-tipo-registro-card:hover {
+            border-color: var(--gray-400);
+            background: var(--bg-tertiary);
+        }
+        .multa-tipo-registro-card:active {
+            transform: scale(0.99);
+        }
+        .multa-tipo-registro-card:focus-within {
+            outline: none;
+            box-shadow: 0 0 0 3px rgba(117, 187, 33, 0.35);
+        }
+        .multa-tipo-registro-card:has(.multa-tipo-registro-input:checked) {
+            border-color: var(--primary);
+            background: linear-gradient(165deg, rgba(117, 187, 33, 0.14) 0%, rgba(117, 187, 33, 0.04) 100%);
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.06);
+        }
+        [data-theme="dark"] .multa-tipo-registro-card:has(.multa-tipo-registro-input:checked) {
+            background: linear-gradient(165deg, rgba(117, 187, 33, 0.22) 0%, rgba(117, 187, 33, 0.07) 100%);
+            box-shadow: 0 2px 12px rgba(0, 0, 0, 0.2);
+        }
+        .multa-tipo-registro-input {
+            position: absolute;
+            width: 1px;
+            height: 1px;
+            padding: 0;
+            margin: -1px;
+            overflow: hidden;
+            clip: rect(0, 0, 0, 0);
+            white-space: nowrap;
+            border: 0;
+        }
+        .multa-tipo-registro-kicker {
+            font-size: 0.65rem;
+            font-weight: 700;
+            letter-spacing: 0.06em;
+            text-transform: uppercase;
+            color: var(--text-tertiary);
+        }
+        .multa-tipo-registro-card:has(.multa-tipo-registro-input:checked) .multa-tipo-registro-kicker {
+            color: var(--primary);
+        }
+        .multa-tipo-registro-icon {
+            font-size: 1.4rem;
+            line-height: 1;
+            margin-bottom: 0.15rem;
+        }
+        .multa-tipo-registro-title {
+            font-size: 0.9375rem;
+            font-weight: 700;
+            color: var(--text-primary);
+        }
+        .multa-tipo-registro-desc {
+            font-size: 0.75rem;
+            color: var(--text-tertiary);
+            line-height: 1.45;
+        }
+        @media (max-width: 520px) {
+            .multa-tipo-registro-card {
+                max-width: none;
+                flex: 1 1 100%;
+            }
+        }
+
         .btn {
             padding: 0.625rem 1.25rem;
             border: none;
@@ -4623,14 +4719,24 @@
             <div class="form-section" style="margin-bottom: 1rem;">
                 <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700;">Registrar Multa</h3>
                 <form id="formMulta">
-                    <div class="form-group" style="grid-column: 1 / -1; margin-bottom: 0.65rem;">
-                        <span style="font-size: 0.875rem; font-weight: 600; display: block; margin-bottom: 0.35rem; color: var(--text-primary);">Tipo de registro</span>
-                        <label style="margin-right: 1.25rem; font-size: 0.875rem; cursor: pointer; color: var(--text-primary);">
-                            <input type="radio" name="multaTipoRegistro" id="multaTipoRegistroMulta" value="multa" checked style="margin-right: 0.35rem; accent-color: var(--primary);"> Multa
-                        </label>
-                        <label style="font-size: 0.875rem; cursor: pointer; color: var(--text-primary);">
-                            <input type="radio" name="multaTipoRegistro" id="multaTipoRegistroAnulacion" value="anulacion" style="margin-right: 0.35rem; accent-color: var(--primary);"> Anulación de multa
-                        </label>
+                    <div class="multa-tipo-registro-wrap" role="radiogroup" aria-labelledby="multaTipoRegistroLabel">
+                        <span id="multaTipoRegistroLabel" class="multa-tipo-registro-heading">¿Qué desea registrar?</span>
+                        <div class="multa-tipo-registro-group">
+                            <label class="multa-tipo-registro-card" for="multaTipoRegistroMulta">
+                                <input type="radio" name="multaTipoRegistro" id="multaTipoRegistroMulta" class="multa-tipo-registro-input" value="multa" checked>
+                                <span class="multa-tipo-registro-kicker">Sanción</span>
+                                <span class="multa-tipo-registro-icon" aria-hidden="true">⚠️</span>
+                                <span class="multa-tipo-registro-title">Multa</span>
+                                <span class="multa-tipo-registro-desc">Cargo con monto en UF o UTM y comprobante estándar.</span>
+                            </label>
+                            <label class="multa-tipo-registro-card" for="multaTipoRegistroAnulacion">
+                                <input type="radio" name="multaTipoRegistro" id="multaTipoRegistroAnulacion" class="multa-tipo-registro-input" value="anulacion">
+                                <span class="multa-tipo-registro-kicker">Comunicación</span>
+                                <span class="multa-tipo-registro-icon" aria-hidden="true">✅</span>
+                                <span class="multa-tipo-registro-title">Anulación de multa</span>
+                                <span class="multa-tipo-registro-desc">Dejar sin efecto una multa; correo y registro distintos al comprobante.</span>
+                            </label>
+                        </div>
                     </div>
                     <div class="form-group" id="multaFolioOrigenWrap" style="display: none; margin-bottom: 0.5rem;">
                         <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Folio de la multa que se anula <span style="font-weight: 400; color: var(--text-tertiary);">(opcional)</span></label>
