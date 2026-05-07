@@ -4623,6 +4623,19 @@
             <div class="form-section" style="margin-bottom: 1rem;">
                 <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700;">Registrar Multa</h3>
                 <form id="formMulta">
+                    <div class="form-group" style="grid-column: 1 / -1; margin-bottom: 0.65rem;">
+                        <span style="font-size: 0.875rem; font-weight: 600; display: block; margin-bottom: 0.35rem; color: var(--text-primary);">Tipo de registro</span>
+                        <label style="margin-right: 1.25rem; font-size: 0.875rem; cursor: pointer; color: var(--text-primary);">
+                            <input type="radio" name="multaTipoRegistro" id="multaTipoRegistroMulta" value="multa" checked style="margin-right: 0.35rem; accent-color: var(--primary);"> Multa
+                        </label>
+                        <label style="font-size: 0.875rem; cursor: pointer; color: var(--text-primary);">
+                            <input type="radio" name="multaTipoRegistro" id="multaTipoRegistroAnulacion" value="anulacion" style="margin-right: 0.35rem; accent-color: var(--primary);"> Anulación de multa
+                        </label>
+                    </div>
+                    <div class="form-group" id="multaFolioOrigenWrap" style="display: none; margin-bottom: 0.5rem;">
+                        <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Folio de la multa que se anula <span style="font-weight: 400; color: var(--text-tertiary);">(opcional)</span></label>
+                        <input type="text" id="multaFolioMultaOrigen" placeholder="Ej: MUL-202505-001" style="padding: 0.5rem; font-size: 0.875rem; width: 100%; max-width: 320px;">
+                    </div>
                     <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.5rem;">
                         <div class="form-group form-group-residente" style="margin-bottom: 0.5rem;">
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Número de Unidad / Departamento *</label>
@@ -4642,14 +4655,14 @@
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Motivo de la Multa *</label>
                             <input type="text" id="multaMotivo" required style="padding: 0.5rem; font-size: 0.875rem;">
                         </div>
-                        <div class="form-group" style="margin-bottom: 0.5rem;">
+                        <div class="form-group" id="multaGrupoTipoUnidad" style="margin-bottom: 0.5rem;">
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Tipo de Unidad *</label>
                             <select id="multaTipoUnidad" required style="padding: 0.5rem; font-size: 0.875rem;">
                                 <option value="UF">UF (Unidad de Fomento)</option>
                                 <option value="UTM">UTM (Unidad Tributaria Mensual)</option>
                             </select>
                         </div>
-                        <div class="form-group" style="margin-bottom: 0.5rem;">
+                        <div class="form-group" id="multaGrupoMonto" style="margin-bottom: 0.5rem;">
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Monto *</label>
                             <input type="number" id="multaMonto" step="0.01" min="0" required style="padding: 0.5rem; font-size: 0.875rem;">
                         </div>
@@ -4688,6 +4701,7 @@
                     <thead>
                         <tr>
                             <th>Fecha</th>
+                            <th>Tipo</th>
                             <th>Residente</th>
                             <th>Depto</th>
                             <th>Motivo</th>
@@ -9239,6 +9253,7 @@
             { id: 'comprobanteReservaEspacio', label: 'Comprobante — Confirmación reserva espacio' },
             { id: 'comprobanteTarjetaTag', label: 'Comprobante — Tarjeta / TAG' },
             { id: 'comprobanteMulta', label: 'Comprobante — Multa' },
+            { id: 'comprobanteAnulacionMulta', label: 'Comprobante — Anulación de multa' },
             { id: 'comprobanteMoroso', label: 'Comprobante — Estado de morosidad' }
         ];
 
@@ -12967,6 +12982,28 @@
         // MÓDULO 5: MULTAS
         // ============================================
 
+        function multaEsRegistroAnulacion(m) {
+            return m && m.tipoRegistro === 'anulacion';
+        }
+
+        function aplicarTipoRegistroMultaFormulario() {
+            const radAnul = document.getElementById('multaTipoRegistroAnulacion');
+            const esAnul = radAnul && radAnul.checked;
+            const wrapFolio = document.getElementById('multaFolioOrigenWrap');
+            const gTipo = document.getElementById('multaGrupoTipoUnidad');
+            const gMonto = document.getElementById('multaGrupoMonto');
+            const inpMonto = document.getElementById('multaMonto');
+            const selTipo = document.getElementById('multaTipoUnidad');
+            if (wrapFolio) wrapFolio.style.display = esAnul ? 'block' : 'none';
+            if (gTipo) gTipo.style.display = esAnul ? 'none' : '';
+            if (gMonto) gMonto.style.display = esAnul ? 'none' : '';
+            if (inpMonto) {
+                inpMonto.required = !esAnul;
+                if (esAnul && !window.editandoMulta && (inpMonto.value === '' || inpMonto.value === null)) inpMonto.value = '0';
+            }
+            if (selTipo) selTipo.required = !esAnul;
+        }
+
         // Función para agregar evidencia (disponible globalmente)
         window.agregarEvidencia = function() {
             const contenedor = document.getElementById('multaEvidencias');
@@ -13016,9 +13053,21 @@
             const archivosSeleccionados = inputArchivos ? Array.from(inputArchivos.files) : [];
             
             const fechaSeleccionada = document.getElementById('multaFecha').value;
+            const radTipo = document.querySelector('input[name="multaTipoRegistro"]:checked');
+            const tipoRegistro = radTipo && radTipo.value === 'anulacion' ? 'anulacion' : 'multa';
+            if (tipoRegistro === 'multa') {
+                const montoCheck = parseFloat(document.getElementById('multaMonto').value);
+                if (isNaN(montoCheck) || montoCheck < 0) {
+                    mostrarAlerta('Indique un monto válido para la multa.', 'Error');
+                    return;
+                }
+            }
             
             const multas = await obtenerDatosMes('multas');
             let registroId = window.editandoMulta || generarId();
+            
+            let montoVal = parseFloat(document.getElementById('multaMonto').value);
+            if (tipoRegistro === 'anulacion' && (isNaN(montoVal) || montoVal < 0)) montoVal = 0;
             
             const multa = {
                 id: registroId,
@@ -13026,11 +13075,18 @@
                 fecha: fechaSeleccionada,
                 departamento: document.getElementById('multaDepto').value,
                 motivo: document.getElementById('multaMotivo').value,
-                monto: parseFloat(document.getElementById('multaMonto').value),
+                monto: montoVal,
                 tipoUnidad: document.getElementById('multaTipoUnidad').value || 'UF', // UF por defecto para compatibilidad
                 evidencias: evidencias,
-                mes: obtenerMesActual()
+                mes: obtenerMesActual(),
+                tipoRegistro: tipoRegistro
             };
+            if (tipoRegistro === 'anulacion') {
+                const fo = (document.getElementById('multaFolioMultaOrigen') || {}).value;
+                multa.folioMultaOrigen = fo ? String(fo).trim() : '';
+            } else {
+                delete multa.folioMultaOrigen;
+            }
             if (!window.editandoMulta) {
                 multa.folio = getSiguienteFolioMulta(multas, multa.mes);
             }
@@ -13064,8 +13120,11 @@
             if (window.editandoMulta) {
                 const index = multas.findIndex(m => m.id === window.editandoMulta);
                 if (index !== -1) {
+                    const prevMulta = multas[index];
+                    if (prevMulta.folio) multa.folio = prevMulta.folio;
+                    if (prevMulta.mes) multa.mes = prevMulta.mes;
                     // Combinar archivos existentes con nuevos
-                    const archivosExistentes = multas[index].archivos || [];
+                    const archivosExistentes = prevMulta.archivos || [];
                     if (archivosSubidos && archivosSubidos.length > 0) {
                         multa.archivos = [...archivosExistentes, ...archivosSubidos];
                     } else {
@@ -13074,10 +13133,14 @@
                     multas[index] = multa;
                     await guardarDatosMes('multas', multas);
                     if (typeof window.registrarMovimiento === 'function') {
-                        const montoStr = (multa.monto || 0).toFixed(2) + ' ' + (multa.tipoUnidad || 'UF');
-                        window.registrarMovimiento('actualizar', 'multas', `Multa actualizada: Depto ${multa.departamento} - ${multa.nombre} - ${multa.motivo} - ${montoStr}`);
+                        if (multaEsRegistroAnulacion(multa)) {
+                            window.registrarMovimiento('actualizar', 'multas', `Anulación de multa actualizada: Depto ${multa.departamento} - ${multa.nombre} - ${multa.motivo}`);
+                        } else {
+                            const montoStr = (multa.monto || 0).toFixed(2) + ' ' + (multa.tipoUnidad || 'UF');
+                            window.registrarMovimiento('actualizar', 'multas', `Multa actualizada: Depto ${multa.departamento} - ${multa.nombre} - ${multa.motivo} - ${montoStr}`);
+                        }
                     }
-                    mostrarAlerta('Multa actualizada exitosamente.', 'Actualizado');
+                    mostrarAlerta(multaEsRegistroAnulacion(multa) ? 'Registro de anulación actualizado.' : 'Multa actualizada exitosamente.', 'Actualizado');
                     cancelarEdicionMulta();
                 }
             } else {
@@ -13085,10 +13148,14 @@
                 multas.push(multa);
                 await guardarDatosMes('multas', multas);
                 if (typeof window.registrarMovimiento === 'function') {
-                    const montoStr = (multa.monto || 0).toFixed(2) + ' ' + (multa.tipoUnidad || 'UF');
-                    window.registrarMovimiento('crear', 'multas', `Multa registrada: Depto ${multa.departamento} - ${multa.nombre} - ${multa.motivo} - ${montoStr}`);
+                    if (multaEsRegistroAnulacion(multa)) {
+                        window.registrarMovimiento('crear', 'multas', `Anulación de multa registrada: Depto ${multa.departamento} - ${multa.nombre} - ${multa.motivo}`);
+                    } else {
+                        const montoStr = (multa.monto || 0).toFixed(2) + ' ' + (multa.tipoUnidad || 'UF');
+                        window.registrarMovimiento('crear', 'multas', `Multa registrada: Depto ${multa.departamento} - ${multa.nombre} - ${multa.motivo} - ${montoStr}`);
+                    }
                 }
-                mostrarAlerta('Multa registrada exitosamente.', 'Registrado');
+                mostrarAlerta(multaEsRegistroAnulacion(multa) ? 'Anulación de multa registrada.' : 'Multa registrada exitosamente.', 'Registrado');
             }
 
             document.getElementById('formMulta').reset();
@@ -13105,6 +13172,11 @@
             if (archivosExistentes) archivosExistentes.innerHTML = '';
             const fechaHoy = obtenerFechaHoy();
             document.getElementById('multaFecha').value = fechaHoy;
+            const rM = document.getElementById('multaTipoRegistroMulta');
+            if (rM) rM.checked = true;
+            const folioO = document.getElementById('multaFolioMultaOrigen');
+            if (folioO) folioO.value = '';
+            aplicarTipoRegistroMultaFormulario();
             await cargarMultas();
         }
 
@@ -13137,6 +13209,14 @@
             document.getElementById('multaMotivo').value = multa.motivo || '';
             document.getElementById('multaMonto').value = multa.monto || 0;
             document.getElementById('multaTipoUnidad').value = multa.tipoUnidad || 'UF'; // UF por defecto para compatibilidad
+            const esAnulEd = multaEsRegistroAnulacion(multa);
+            const rMul = document.getElementById('multaTipoRegistroMulta');
+            const rAnul = document.getElementById('multaTipoRegistroAnulacion');
+            if (rMul) rMul.checked = !esAnulEd;
+            if (rAnul) rAnul.checked = esAnulEd;
+            const folioOEd = document.getElementById('multaFolioMultaOrigen');
+            if (folioOEd) folioOEd.value = multa.folioMultaOrigen || '';
+            aplicarTipoRegistroMultaFormulario();
             
             // Cargar evidencias (links)
             const evidencias = multa.evidencias || (multa.link ? [multa.link] : []);
@@ -13167,7 +13247,7 @@
             
             // Ajustar botones
             const btnSubmit = document.querySelector('#formMulta button[type="submit"]');
-            if (btnSubmit) btnSubmit.textContent = 'Actualizar Multa';
+            if (btnSubmit) btnSubmit.textContent = esAnulEd ? 'Actualizar anulación' : 'Actualizar Multa';
             
             let btnCancelar = document.getElementById('btnCancelarMulta');
             if (!btnCancelar) {
@@ -13204,6 +13284,11 @@
             if (archivosExistentes) archivosExistentes.innerHTML = '';
             const fechaHoy = obtenerFechaHoy();
             document.getElementById('multaFecha').value = fechaHoy;
+            const rM = document.getElementById('multaTipoRegistroMulta');
+            if (rM) rM.checked = true;
+            const folioO = document.getElementById('multaFolioMultaOrigen');
+            if (folioO) folioO.value = '';
+            aplicarTipoRegistroMultaFormulario();
             
             const btnSubmit = document.querySelector('#formMulta button[type="submit"]');
             if (btnSubmit) btnSubmit.textContent = 'Registrar Multa';
@@ -13217,7 +13302,7 @@
             const tbody = document.getElementById('tbodyMultas');
             
             if (multas.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><p>No hay registros de multas</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="8" class="empty-state"><p>No hay registros de multas</p></td></tr>';
                 return;
             }
 
@@ -13230,18 +13315,28 @@
                 const archivos = m.archivos || [];
                 const evidenciasHTML = renderizarArchivos(archivos, evidencias);
                 
+                const esAnul = multaEsRegistroAnulacion(m);
+                const tipoLabel = esAnul
+                    ? '<span style="display:inline-block;padding:0.15rem 0.45rem;border-radius:6px;font-size:0.75rem;font-weight:600;background:#d1fae5;color:#065f46;">Anulación</span>'
+                    : '<span style="display:inline-block;padding:0.15rem 0.45rem;border-radius:6px;font-size:0.75rem;font-weight:600;background:var(--bg-tertiary);color:var(--text-secondary);">Multa</span>';
+                const montoCell = esAnul ? '—' : `${(m.monto || 0).toFixed(2)} ${m.tipoUnidad || 'UF'}`;
+                const titComprob = esAnul ? '📄 Vista' : '📄 Comprobante';
+                const titEnviar = esAnul ? '📧 Anulación' : '📧 Enviar';
+                const btnAnulSobre = esAnul ? '' : `<button type="button" class="btn btn-sm" onclick="enviarCorreoAnulacionMultaSobreMulta('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem; background: #059669; color: white; border: none;" title="Notificar por correo la anulación de esta multa">📧 Anulación</button>`;
                 return `
                     <tr>
                         <td>${formatearFecha(m.fecha)}</td>
+                        <td>${tipoLabel}</td>
                         <td>${m.nombre}</td>
                         <td>${m.departamento}</td>
                         <td>${m.motivo}</td>
-                        <td>${(m.monto || 0).toFixed(2)} ${m.tipoUnidad || 'UF'}</td>
+                        <td>${montoCell}</td>
                         <td>${evidenciasHTML}</td>
                         <td>
                             <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
-                                <button type="button" class="btn btn-secondary btn-sm" onclick="abrirComprobanteMulta('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem;">📄 Comprobante</button>
-                                <button type="button" class="btn btn-info btn-sm" onclick="enviarCorreoMulta('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem; background: #06b6d4; color: white; border: none;" title="Enviar comprobante por correo">📧 Enviar</button>
+                                <button type="button" class="btn btn-secondary btn-sm" onclick="abrirComprobanteMulta('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem;">${titComprob}</button>
+                                <button type="button" class="btn btn-info btn-sm" onclick="enviarCorreoMulta('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem; background: #06b6d4; color: white; border: none;" title="${esAnul ? 'Enviar correo de anulación' : 'Enviar comprobante por correo'}">${titEnviar}</button>
+                                ${btnAnulSobre}
                                 ${(window.mesEnConsulta && !window.mesReabierto) ? '<span style="color: var(--gray-500); font-size: 0.75rem;">Archivado</span>' : `
                                     <button class="btn btn-primary btn-sm" onclick="editarMulta('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem;">Editar</button>
                                     <button class="btn btn-danger btn-sm" onclick="eliminarMulta('${m.id}')">Eliminar</button>
@@ -13363,6 +13458,118 @@
 </html>`;
         }
 
+        /** Correo HTML distinto: notificación de anulación (registro tipo anulación o anulación sobre multa existente). */
+        function generarCorreoAnulacionMultaHtml(multa, nombreComunidad, opciones) {
+            opciones = opciones || {};
+            const comunidad = nombreComunidad || 'Comunidad';
+            const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const fechaStr = multa.fecha ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(multa.fecha) : multa.fecha) : '-';
+            const folioComunicado = multa.folio || '—';
+            let folioMultaAnulada;
+            if (opciones.folioMultaAnuladaExplicit != null && String(opciones.folioMultaAnuladaExplicit).trim() !== '') {
+                folioMultaAnulada = String(opciones.folioMultaAnuladaExplicit).trim();
+            } else if (multaEsRegistroAnulacion(multa)) {
+                folioMultaAnulada = (multa.folioMultaOrigen && String(multa.folioMultaOrigen).trim()) ? multa.folioMultaOrigen.trim() : '—';
+            } else {
+                folioMultaAnulada = multa.folio || '—';
+            }
+            const parrafoIntro = multaEsRegistroAnulacion(multa)
+                ? 'Por medio del presente correo, la administración deja constancia de la <strong>anulación</strong> de la sanción o multa relacionada, conforme al detalle que se indica a continuación. Este mensaje tiene carácter informativo.'
+                : 'Por medio del presente correo, la administración comunica la <strong>anulación</strong> de la multa identificada con el folio indicado. Cualquier cargo asociado a dicha multa quedará sin efecto, sin perjuicio de las normas internas del edificio.';
+            const esNotifSobreMultaExistente = opciones.folioMultaAnuladaExplicit != null && String(opciones.folioMultaAnuladaExplicit).trim() !== '' && !multaEsRegistroAnulacion(multa);
+            const filaFolioAnuladaTabla = esNotifSobreMultaExistente
+                ? ''
+                : `<tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #d1fae5; width: 40%;">Folio multa anulada / afectada</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; font-weight: 600; border-bottom: 1px solid #d1fae5; font-family: monospace;">${linkEsc(folioMultaAnulada)}</td></tr>`;
+            const bloqueFolioEncabezado = esNotifSobreMultaExistente
+                ? `<p style="margin: 0; font-size: 12px; color: #666666;"><strong>Multa anulada (folio):</strong> <span style="font-family: monospace; letter-spacing: 0.04em; color: #1a1a1a;">${linkEsc(folioMultaAnulada)}</span></p>`
+                : `<p style="margin: 0; font-size: 12px; color: #666666;"><strong>Folio del comunicado:</strong> <span style="font-family: monospace; letter-spacing: 0.04em; color: #1a1a1a;">${linkEsc(folioComunicado)}</span></p>`;
+            return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>Anulación de multa</title>
+  <!--[if mso]>
+  <style type="text/css">
+    body, table, td, a { font-family: Arial, Helvetica, sans-serif !important; }
+  </style>
+  <![endif]-->
+  <style type="text/css">
+    body, p, h1, h2, a, td, span { font-family: Arial, Helvetica, sans-serif; }
+    body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table { border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    img { border: 0; outline: none; text-decoration: none; -ms-interpolation-mode: bicubic; }
+    a { text-decoration: none; }
+    @media only screen and (max-width: 620px) {
+      .wrapper-td { padding: 16px 8px !important; }
+      .main-table { width: 100% !important; max-width: 100% !important; }
+      .content-padding { padding-left: 20px !important; padding-right: 20px !important; }
+      .data-cell { padding: 12px 16px !important; }
+      h2 { font-size: 17px !important; }
+    }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #ffffff; font-family: Arial, Helvetica, sans-serif; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #ffffff;">
+    <tr>
+      <td class="wrapper-td" align="center" style="padding: 16px 10px;">
+        <table class="main-table" role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 12px;">
+          <tr>
+            <td class="content-padding content-padding-lg" style="padding: 18px 28px 14px 28px; border-bottom: 3px solid #059669; background-color: #ecfdf5; border-radius: 12px 12px 0 0;">
+              <div style="text-align:center;margin-bottom:12px"><img src="https://img.mailinblue.com/8323725/images/content_library/original/6844749040dd0f16c5341248.png" alt="Logo" style="max-width:120px;height:auto;"></div>
+              <p style="margin: 0 0 2px 0; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: #047857; text-transform: uppercase;">Notificación</p>
+              <h2 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 700; color: #1a1a1a;">Anulación de multa</h2>
+              <p style="margin: 0 0 4px 0; font-size: 14px; color: #555555;">${linkEsc(comunidad)}</p>
+              ${bloqueFolioEncabezado}
+            </td>
+          </tr>
+          <tr>
+            <td class="content-padding" style="padding: 14px 28px 10px 28px;">
+              <p style="margin: 0 0 6px 0; font-size: 15px; color: #1a1a1a; line-height: 1.5;">Estimado/a <strong>${linkEsc(multa.nombre)}</strong>,</p>
+              <p style="margin: 0 0 8px 0; font-size: 14px; color: #333333; line-height: 1.55;">${parrafoIntro}</p>
+            </td>
+          </tr>
+          <tr>
+            <td class="content-padding" style="padding: 0 28px 6px 28px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f0fdf4; border-radius: 8px; border: 1px solid #a7f3d0;">
+                ${filaFolioAnuladaTabla}
+                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #d1fae5;">Residente</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #d1fae5;">${linkEsc(multa.nombre)}</td></tr>
+                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #d1fae5;">Departamento</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #d1fae5;">${linkEsc(multa.departamento)}</td></tr>
+                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #d1fae5;">Fecha del comunicado</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #d1fae5;">${linkEsc(fechaStr)}</td></tr>
+                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666;">Detalle / motivo</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a;">${linkEsc(multa.motivo)}</td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td class="content-padding" style="padding: 0 28px 12px 28px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #ecfdf5; border-radius: 8px; border: 1px solid #6ee7b7;">
+                <tr>
+                  <td style="padding: 12px 14px;">
+                    <p style="margin: 0; font-size: 13px; color: #065f46; line-height: 1.5;">Ante cualquier consulta, diríjase a la administración del edificio. Conserve este correo como respaldo.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td class="content-padding" style="padding: 0 28px 10px 28px;">
+              ${htmlBloqueRespaldoEvidenciaMulta(multa)}
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 28px 18px 28px; text-align: center; border-top: 1px solid #eeeeee; background-color: #fafafa; border-radius: 0 0 12px 12px;">
+              <p style="margin: 0; font-size: 12px; color: #888888;">Documento generado por administración. Notificación de anulación.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+        }
+
         /** Envía el comprobante de multa por correo */
         window.enviarCorreoMulta = async function(id) {
             try {
@@ -13381,7 +13588,10 @@
                 }
                 
                 const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
-                const htmlComprobante = generarComprobanteMultaHtml(multa, nombreComunidad);
+                const esAnul = multaEsRegistroAnulacion(multa);
+                const htmlComprobante = esAnul
+                    ? generarCorreoAnulacionMultaHtml(multa, nombreComunidad, null)
+                    : generarComprobanteMultaHtml(multa, nombreComunidad);
                 const residenteInfo = await obtenerCorreoResidente(multa.departamento, multa.nombre);
                 
                 if (!residenteInfo || !residenteInfo.correo) {
@@ -13390,22 +13600,23 @@
                 }
                 
                 const mapPlantMl = await obtenerPlantillasCorreoModulosMap();
-                const bloqueMl = obtenerBloquePlantillaModulo(mapPlantMl, 'comprobanteMulta');
+                const plantillaKey = esAnul ? 'comprobanteAnulacionMulta' : 'comprobanteMulta';
+                const bloqueMl = obtenerBloquePlantillaModulo(mapPlantMl, plantillaKey);
                 const ctxMl = {
                     nombreComunidad,
                     departamento: multa.departamento,
                     nombreResidente: multa.nombre,
                     fechaEmision: fechaEmisionCorreoHoy()
                 };
-                const asuntoMlBase = `Comprobante de Multa - ${nombreComunidad}`;
+                const asuntoMlBase = esAnul ? `Anulación de multa - ${nombreComunidad}` : `Comprobante de Multa - ${nombreComunidad}`;
                 const resultado = await mostrarModalPersonalizarCorreoYEnviar({
-                    titulo: 'Enviar comprobante de multa',
+                    titulo: esAnul ? 'Enviar notificación de anulación de multa' : 'Enviar comprobante de multa',
                     asuntoDefecto: resolverAsuntoPlantillaCorreo(bloqueMl, asuntoMlBase, ctxMl),
                     mensajeInicialPrefill: resolverCuerpoInicioPlantillaCorreo(bloqueMl, ctxMl),
                     htmlBase: htmlComprobante,
                     residente: residenteInfo,
                     evidenciasSelectables: listarEvidenciasMultaParaCorreo(multa),
-                    insertarNotasDebajoMontoMulta: true
+                    insertarNotasDebajoMontoMulta: !esAnul
                 });
                 if (resultado === null) return;
                 
@@ -13422,6 +13633,64 @@
             }
         }
 
+        /** Notifica por correo la anulación de una multa ya registrada (sin crear fila de anulación). */
+        window.enviarCorreoAnulacionMultaSobreMulta = async function(id) {
+            try {
+                const multas = await obtenerDatosMes('multas');
+                const multa = multas.find(m => m.id === id);
+                if (!multa) {
+                    mostrarAlerta('No se encontró el registro.', 'Error');
+                    return;
+                }
+                if (multaEsRegistroAnulacion(multa)) {
+                    mostrarAlerta('Este registro ya es una anulación. Use el botón «Anulación» para enviar el correo.', 'Multas');
+                    return;
+                }
+                const mesClave = window.mesEnConsulta || obtenerMesActual();
+                if (!multa.folio) {
+                    multa.folio = getSiguienteFolioMulta(multas, multa.mes || mesClave);
+                    const idx = multas.findIndex(m => m.id === id);
+                    if (idx !== -1) { multas[idx] = { ...multas[idx], folio: multa.folio }; await guardarDatosMes('multas', multas); }
+                }
+                const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
+                const htmlComprobante = generarCorreoAnulacionMultaHtml(multa, nombreComunidad, { folioMultaAnuladaExplicit: multa.folio });
+                const residenteInfo = await obtenerCorreoResidente(multa.departamento, multa.nombre);
+                if (!residenteInfo || !residenteInfo.correo) {
+                    mostrarAlerta('No se encontró el correo del residente. Por favor, verifique que el residente tenga su correo registrado en el módulo de Ocupación y Residentes.', 'Correo no encontrado');
+                    return;
+                }
+                const mapPlantAn = await obtenerPlantillasCorreoModulosMap();
+                const bloqueAn = obtenerBloquePlantillaModulo(mapPlantAn, 'comprobanteAnulacionMulta');
+                const ctxAn = {
+                    nombreComunidad,
+                    departamento: multa.departamento,
+                    nombreResidente: multa.nombre,
+                    fechaEmision: fechaEmisionCorreoHoy()
+                };
+                const asuntoAnBase = `Anulación de multa - ${nombreComunidad}`;
+                const resultado = await mostrarModalPersonalizarCorreoYEnviar({
+                    titulo: 'Enviar notificación de anulación de multa',
+                    asuntoDefecto: resolverAsuntoPlantillaCorreo(bloqueAn, asuntoAnBase, ctxAn),
+                    mensajeInicialPrefill: resolverCuerpoInicioPlantillaCorreo(bloqueAn, ctxAn),
+                    htmlBase: htmlComprobante,
+                    residente: residenteInfo,
+                    evidenciasSelectables: listarEvidenciasMultaParaCorreo(multa),
+                    insertarNotasDebajoMontoMulta: false
+                });
+                if (resultado === null) return;
+                if (resultado.exito) {
+                    mostrarAlerta(resultado.mensaje || 'Correo enviado correctamente', 'Éxito');
+                    await cargarMultas();
+                } else {
+                    mostrarAlerta('Error al enviar correo: ' + (resultado.error || 'Error desconocido'), 'Error');
+                }
+            } catch (error) {
+                ocultarProgreso();
+                console.error('Error al enviar anulación de multa:', error);
+                mostrarAlerta('Error al enviar correo: ' + (error.message || 'Error desconocido'), 'Error');
+            }
+        };
+
         /** Abre el comprobante de una multa en nueva pestaña. */
         async function abrirComprobanteMulta(id) {
             const multas = await obtenerDatosMes('multas');
@@ -13437,9 +13706,12 @@
                 if (idx !== -1) { multas[idx] = { ...multas[idx], folio: multa.folio }; await guardarDatosMes('multas', multas); }
             }
             const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
-            let html = generarComprobanteMultaHtml(multa, nombreComunidad);
-            html = html.split(MCC_PLACEHOLDER_NOTAS_MULTA).join('');
-            abrirHTMLEnNuevaVentana(html, 'Comprobante de Multa');
+            const esAnulV = multaEsRegistroAnulacion(multa);
+            let html = esAnulV
+                ? generarCorreoAnulacionMultaHtml(multa, nombreComunidad, null)
+                : generarComprobanteMultaHtml(multa, nombreComunidad);
+            if (!esAnulV) html = html.split(MCC_PLACEHOLDER_NOTAS_MULTA).join('');
+            abrirHTMLEnNuevaVentana(html, esAnulV ? 'Anulación de multa' : 'Comprobante de Multa');
         }
 
         async function eliminarMulta(id) {
@@ -13454,8 +13726,12 @@
                 const filtradas = multas.filter(m => m.id !== id);
                 await guardarDatosMes('multas', filtradas);
                 if (eliminada && typeof window.registrarMovimiento === 'function') {
-                    const montoStr = (eliminada.monto || 0).toFixed(2) + ' ' + (eliminada.tipoUnidad || 'UF');
-                    window.registrarMovimiento('eliminar', 'multas', `Multa eliminada: Depto ${eliminada.departamento} - ${eliminada.nombre} - ${eliminada.motivo} - ${montoStr}`);
+                    if (multaEsRegistroAnulacion(eliminada)) {
+                        window.registrarMovimiento('eliminar', 'multas', `Anulación de multa eliminada: Depto ${eliminada.departamento} - ${eliminada.nombre} - ${eliminada.motivo}`);
+                    } else {
+                        const montoStr = (eliminada.monto || 0).toFixed(2) + ' ' + (eliminada.tipoUnidad || 'UF');
+                        window.registrarMovimiento('eliminar', 'multas', `Multa eliminada: Depto ${eliminada.departamento} - ${eliminada.nombre} - ${eliminada.motivo} - ${montoStr}`);
+                    }
                 }
                 await cargarMultas();
             }
@@ -15797,7 +16073,7 @@
                     let totalMultasUTM = 0;
                     if (Array.isArray(multas)) {
                         multas.forEach(m => {
-                            if (!m) return;
+                            if (!m || multaEsRegistroAnulacion(m)) return;
                             const monto = parseFloat(m.monto) || 0;
                             const tipoUnidad = m.tipoUnidad || 'UF';
                             if (tipoUnidad === 'UTM') totalMultasUTM += monto;
@@ -25025,7 +25301,7 @@
                 let totalMultasUTM = 0;
                 if (Array.isArray(multas)) {
                     multas.forEach(m => {
-                        if (!m) return;
+                        if (!m || multaEsRegistroAnulacion(m)) return;
                         const monto = parseFloat(m.monto) || 0;
                         const tipoUnidad = m.tipoUnidad || 'UF'; // Por defecto UF para compatibilidad
                         if (tipoUnidad === 'UTM') {
@@ -33593,11 +33869,11 @@
 
             multas.forEach(m => {
                 actividades.push({
-                    tipo: 'Multa',
+                    tipo: multaEsRegistroAnulacion(m) ? 'Anulación multa' : 'Multa',
                     descripcion: `${m.nombre} - ${m.motivo}`,
                     fecha: m.fecha,
                     icon: 'multas',
-                    iconClass: 'warning'
+                    iconClass: multaEsRegistroAnulacion(m) ? 'success' : 'warning'
                 });
             });
 
@@ -34232,6 +34508,12 @@
                             registrarMulta(e);
                         }
                     });
+                    document.querySelectorAll('input[name="multaTipoRegistro"]').forEach(function (r) {
+                        r.addEventListener('change', function () {
+                            if (typeof aplicarTipoRegistroMultaFormulario === 'function') aplicarTipoRegistroMultaFormulario();
+                        });
+                    });
+                    if (typeof aplicarTipoRegistroMultaFormulario === 'function') aplicarTipoRegistroMultaFormulario();
                 }
                 
                 const formMoroso = document.getElementById('formMoroso');
