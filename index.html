@@ -5503,6 +5503,39 @@
                     </table>
                 </div>
             </div>
+
+            <!-- Plantillas de asunto y cuerpo (correos por módulo) -->
+            <div class="form-section" style="margin-bottom: 2rem;">
+                <h3 style="margin: 0 0 0.5rem 0; font-size: 1rem; font-weight: 700;">Plantillas de correo por módulo</h3>
+                <p style="color: var(--text-tertiary); font-size: 0.8125rem; margin: 0 0 1rem 0; line-height: 1.45;">Configure el <strong>asunto</strong> y el <strong>mensaje al inicio</strong> que se mostrarán por defecto al enviar correo desde cada módulo (siempre podrá cambiarlos en la ventana de envío). En asunto y texto puede usar: <code style="font-size: 0.78rem;">{{comunidad}}</code>, <code style="font-size: 0.78rem;">{{mes}}</code>, <code style="font-size: 0.78rem;">{{fecha}}</code>, <code style="font-size: 0.78rem;">{{espacio}}</code>, <code style="font-size: 0.78rem;">{{departamento}}</code>, <code style="font-size: 0.78rem;">{{residente}}</code>. Deje el asunto vacío para conservar el texto automático del sistema.</p>
+                <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <label style="margin-bottom: 0.25rem; font-size: 0.875rem; display: block;">Módulo</label>
+                    <select id="plantillaCorreoModuloSel" style="width: 100%; max-width: 520px; padding: 0.5rem; font-size: 0.875rem; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary);"></select>
+                </div>
+                <div class="form-group" style="margin-bottom: 0.65rem;">
+                    <label style="margin-bottom: 0.25rem; font-size: 0.875rem; display: block;">Asunto predeterminado <span style="font-weight: 400; color: var(--text-tertiary);">(vacío = asunto del sistema)</span></label>
+                    <input type="text" id="plantillaCorreoAsunto" placeholder="Ej.: Reporte de Caja Chica - {{comunidad}} - {{mes}}" style="width: 100%; padding: 0.5rem; font-size: 0.875rem; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary); box-sizing: border-box;">
+                </div>
+                <div class="form-group" style="margin-bottom: 0.65rem;">
+                    <label style="margin-bottom: 0.25rem; font-size: 0.875rem; display: block;">Mensaje al inicio del correo</label>
+                    <textarea id="plantillaCorreoCuerpo" rows="4" placeholder="Párrafo opcional que aparece antes del contenido generado (reporte o comprobante)." style="width: 100%; padding: 0.5rem; font-size: 0.875rem; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary); font-family: inherit; resize: vertical; box-sizing: border-box;"></textarea>
+                </div>
+                <div id="plantillaCorreoPostventaPendExtra" style="display: none; margin-bottom: 0.65rem; padding: 0.75rem; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color);">
+                    <p style="font-size: 0.8125rem; color: var(--text-secondary); margin: 0 0 0.5rem 0;">Solo para <strong>Postventa — correo con selección de registros</strong>: textos del primer paso (elegir filas antes de destinatarios).</p>
+                    <div class="form-group" style="margin-bottom: 0.5rem;">
+                        <label style="font-size: 0.8125rem; display: block; margin-bottom: 0.25rem;">Saludo inicial</label>
+                        <input type="text" id="plantillaCorreoSaludoLista" placeholder="Estimado/a," style="width: 100%; padding: 0.45rem; font-size: 0.8125rem; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary); box-sizing: border-box;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0;">
+                        <label style="font-size: 0.8125rem; display: block; margin-bottom: 0.25rem;">Párrafo introductorio</label>
+                        <textarea id="plantillaCorreoTextoIntroLista" rows="2" placeholder="Junto con saludar…" style="width: 100%; padding: 0.45rem; font-size: 0.8125rem; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary); font-family: inherit; box-sizing: border-box;"></textarea>
+                    </div>
+                </div>
+                <div style="display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center;">
+                    <button type="button" class="btn btn-primary" id="btnGuardarPlantillaCorreoModulo" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Guardar plantilla</button>
+                    <button type="button" class="btn btn-secondary" id="btnLimpiarPlantillaCorreoModulo" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Quitar plantilla de este módulo</button>
+                </div>
+            </div>
         </div>
 
         <!-- MÓDULO: OCUPACIÓN — datos solo desde Conserjería (prueba-conserjeria): Firestore conserjeriawm2 cgSites/kv o caché local compartida -->
@@ -8240,9 +8273,14 @@
                 // Generar HTML del correo
                 const html = await generarCorreoNotificacionCaja(nombreComunidad, nombreMes, '');
                 const asunto = `Reporte de Caja Chica - ${nombreComunidad} - ${nombreMes}`;
+                const mapPlant = await obtenerPlantillasCorreoModulosMap();
+                const bloqueTpl = obtenerBloquePlantillaModulo(mapPlant, 'reporteCaja');
+                const ctxTpl = { nombreComunidad, nombreMes, fechaEmision: fechaEmisionCorreoHoy() };
+                const asuntoEnv = resolverAsuntoPlantillaCorreo(bloqueTpl, asunto, ctxTpl);
+                const cuerpoIni = resolverCuerpoInicioPlantillaCorreo(bloqueTpl, ctxTpl);
                 
                 // Mostrar modal para seleccionar destinatarios
-                await mostrarModalSeleccionDestinatarios(asunto, html, [adjunto]);
+                await mostrarModalSeleccionDestinatarios(asuntoEnv, html, [adjunto], { mensajeInicialPrefill: cuerpoIni });
                 
             } catch (error) {
                 console.error('Error al enviar correo con reporte de caja chica:', error);
@@ -8289,9 +8327,14 @@
                 // Generar HTML del correo
                 const html = await generarCorreoNotificacionMantenciones(nombreComunidad, nombreMes, '');
                 const asunto = `Reporte de Mantenciones - ${nombreComunidad} - ${nombreMes}`;
+                const mapPlant = await obtenerPlantillasCorreoModulosMap();
+                const bloqueTpl = obtenerBloquePlantillaModulo(mapPlant, 'reporteMantenciones');
+                const ctxTpl = { nombreComunidad, nombreMes, fechaEmision: fechaEmisionCorreoHoy() };
+                const asuntoEnv = resolverAsuntoPlantillaCorreo(bloqueTpl, asunto, ctxTpl);
+                const cuerpoIni = resolverCuerpoInicioPlantillaCorreo(bloqueTpl, ctxTpl);
                 
                 // Mostrar modal para seleccionar destinatarios
-                await mostrarModalSeleccionDestinatarios(asunto, html, [adjunto]);
+                await mostrarModalSeleccionDestinatarios(asuntoEnv, html, [adjunto], { mensajeInicialPrefill: cuerpoIni });
                 
             } catch (error) {
                 console.error('Error al enviar correo con reporte de mantenciones:', error);
@@ -8342,11 +8385,16 @@
                 // Generar HTML del correo
                 const html = await generarCorreoNotificacionInsumos(nombreComunidad, nombreMes, '');
                 const asunto = `Reporte de Pedido de Insumos - ${nombreComunidad} - ${nombreMes}`;
+                const mapPlant = await obtenerPlantillasCorreoModulosMap();
+                const bloqueTpl = obtenerBloquePlantillaModulo(mapPlant, 'reporteInsumos');
+                const ctxTpl = { nombreComunidad, nombreMes, fechaEmision: fechaEmisionCorreoHoy() };
+                const asuntoEnv = resolverAsuntoPlantillaCorreo(bloqueTpl, asunto, ctxTpl);
+                const cuerpoIni = resolverCuerpoInicioPlantillaCorreo(bloqueTpl, ctxTpl);
                 
                 ocultarProgreso();
                 
                 // Mostrar modal para seleccionar destinatarios
-                await mostrarModalSeleccionDestinatarios(asunto, html, [adjunto]);
+                await mostrarModalSeleccionDestinatarios(asuntoEnv, html, [adjunto], { mensajeInicialPrefill: cuerpoIni });
                 
             } catch (error) {
                 console.error('Error al enviar correo con reporte de insumos:', error);
@@ -8636,11 +8684,16 @@
                 // Generar HTML del correo
                 const html = await generarCorreoNotificacionPostventa(nombreComunidad, nombreMesRef, '');
                 const asunto = `Reporte de Postventa - ${nombreComunidad} - ${fechaEmision} (ref. ${nombreMesRef})`;
+                const mapPlant = await obtenerPlantillasCorreoModulosMap();
+                const bloqueTpl = obtenerBloquePlantillaModulo(mapPlant, 'reportePostventa');
+                const ctxTpl = { nombreComunidad, nombreMes: nombreMesRef, fechaEmision };
+                const asuntoEnv = resolverAsuntoPlantillaCorreo(bloqueTpl, asunto, ctxTpl);
+                const cuerpoIni = resolverCuerpoInicioPlantillaCorreo(bloqueTpl, ctxTpl);
                 
                 ocultarProgreso();
                 
                 // Mostrar modal para seleccionar destinatarios
-                await mostrarModalSeleccionDestinatarios(asunto, html, [adjunto]);
+                await mostrarModalSeleccionDestinatarios(asuntoEnv, html, [adjunto], { mensajeInicialPrefill: cuerpoIni });
                 
             } catch (error) {
                 console.error('Error al enviar correo con reporte de postventa:', error);
@@ -8712,6 +8765,27 @@
         /** Modal: el usuario elige qué registros incluir; luego abre el modal de destinatarios. */
         function mostrarModalSeleccionPendientesPostventa(candidatos) {
             return new Promise((resolve) => {
+                (async function () {
+                    let mapPlantPv = {};
+                    try { mapPlantPv = await obtenerPlantillasCorreoModulosMap(); } catch (e) {}
+                    const bPvLista = obtenerBloquePlantillaModulo(mapPlantPv, 'reportePostventaPendientes');
+                    let nombreComunidadLista = 'Comunidad';
+                    try {
+                        if (typeof obtenerPersonalizacion === 'function') {
+                            const pers = await obtenerPersonalizacion();
+                            if (pers && pers.comunidad) nombreComunidadLista = pers.comunidad;
+                        }
+                    } catch (e1) {}
+                    if (!nombreComunidadLista || nombreComunidadLista === 'Comunidad') {
+                        try { nombreComunidadLista = localStorage.getItem(lsKey('nombreComunidad')) || nombreComunidadLista; } catch (e2) {}
+                    }
+                    const mesActualLista = obtenerMesActual();
+                    const nombreMesLista = obtenerNombreMes(mesActualLista);
+                    const fechaEmisionLista = fechaEmisionCorreoHoy();
+                    const ctxLista = { nombreComunidad: nombreComunidadLista, nombreMes: nombreMesLista, fechaEmision: fechaEmisionLista };
+                    const saludoValor = (bPvLista.saludoLista ? aplicarPlaceholdersPlantillaCorreo(bPvLista.saludoLista, ctxLista) : '').trim() || 'Estimado/a,';
+                    const introValor = (bPvLista.textoIntroLista ? aplicarPlaceholdersPlantillaCorreo(bPvLista.textoIntroLista, ctxLista) : '').trim() || 'Junto con saludar, se informa los nuevos requerimientos para su revisión.';
+
                 const modal = document.createElement('div');
                 modal.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:10000;display:flex;align-items:center;justify-content:center;padding:1rem;';
                 const escHtmlModal = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
@@ -8742,11 +8816,11 @@
                         </div>
                         <div style="padding:0.75rem 1.25rem 0.25rem;">
                             <label for="pvIntroSaludo" style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-primary);margin-bottom:0.25rem;">Saludo inicial del correo</label>
-                            <input type="text" id="pvIntroSaludo" value="Estimado/a," style="width:100%;padding:0.45rem 0.55rem;font-size:0.8125rem;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-primary);color:var(--text-primary);box-sizing:border-box;">
+                            <input type="text" id="pvIntroSaludo" value="${escHtmlModal(saludoValor)}" style="width:100%;padding:0.45rem 0.55rem;font-size:0.8125rem;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-primary);color:var(--text-primary);box-sizing:border-box;">
                         </div>
                         <div style="padding:0.35rem 1.25rem 0.25rem;">
                             <label for="pvIntroCuerpo" style="display:block;font-size:0.75rem;font-weight:600;color:var(--text-primary);margin-bottom:0.25rem;">Texto introductorio</label>
-                            <textarea id="pvIntroCuerpo" rows="2" style="width:100%;padding:0.5rem 0.55rem;font-size:0.8125rem;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-primary);color:var(--text-primary);font-family:inherit;resize:vertical;box-sizing:border-box;">Junto con saludar, se informa los nuevos requerimientos para su revisión.</textarea>
+                            <textarea id="pvIntroCuerpo" rows="2" style="width:100%;padding:0.5rem 0.55rem;font-size:0.8125rem;border:1px solid var(--border-color);border-radius:8px;background:var(--bg-primary);color:var(--text-primary);font-family:inherit;resize:vertical;box-sizing:border-box;">${escHtmlModal(introValor)}</textarea>
                         </div>
                         <div style="padding:0.5rem 1.25rem;display:flex;gap:0.5rem;flex-wrap:wrap;">
                             <button type="button" class="btn btn-secondary btn-sm" id="pvPendSelTodos" style="padding:0.35rem 0.65rem;font-size:0.75rem;">Marcar todos</button>
@@ -8808,9 +8882,14 @@
                             return;
                         }
                         const html = await generarCorreoNotificacionPostventaPendientes(nombreComunidad, nombreMes, seleccionados, textoIntro);
-                        const asunto = `Postventa — Observaciones areas comunes. — Activa WM815 — ${fechaEmision}`;
+                        const asuntoDefPv = `Postventa — Observaciones areas comunes. — Activa WM815 — ${fechaEmision}`;
+                        const mapPlantPv2 = await obtenerPlantillasCorreoModulosMap();
+                        const bloquePv2 = obtenerBloquePlantillaModulo(mapPlantPv2, 'reportePostventaPendientes');
+                        const ctxPv2 = { nombreComunidad, nombreMes, fechaEmision };
+                        const asuntoPv = resolverAsuntoPlantillaCorreo(bloquePv2, asuntoDefPv, ctxPv2);
+                        const cuerpoPrefPv = resolverCuerpoInicioPlantillaCorreo(bloquePv2, ctxPv2);
                         ocultarProgreso();
-                        await mostrarModalSeleccionDestinatarios(asunto, html, [adjunto]);
+                        await mostrarModalSeleccionDestinatarios(asuntoPv, html, [adjunto], { mensajeInicialPrefill: cuerpoPrefPv });
                     } catch (err) {
                         console.error('Correo postventa pendientes:', err);
                         ocultarProgreso();
@@ -8818,6 +8897,7 @@
                     }
                     resolve();
                 });
+                })();
             });
         }
 
@@ -9052,11 +9132,16 @@
                 // Generar HTML del correo
                 const html = await generarCorreoNotificacionLecturasAgua(nombreComunidad, nombreMes, '');
                 const asunto = `Reporte de Lecturas de Agua - ${nombreComunidad} - ${nombreMes}`;
+                const mapPlant = await obtenerPlantillasCorreoModulosMap();
+                const bloqueTpl = obtenerBloquePlantillaModulo(mapPlant, 'reporteLecturasAgua');
+                const ctxTpl = { nombreComunidad, nombreMes, fechaEmision: fechaEmisionCorreoHoy() };
+                const asuntoEnv = resolverAsuntoPlantillaCorreo(bloqueTpl, asunto, ctxTpl);
+                const cuerpoIni = resolverCuerpoInicioPlantillaCorreo(bloqueTpl, ctxTpl);
                 
                 ocultarProgreso();
                 
                 // Mostrar modal para seleccionar destinatarios
-                await mostrarModalSeleccionDestinatarios(asunto, html, [adjunto]);
+                await mostrarModalSeleccionDestinatarios(asuntoEnv, html, [adjunto], { mensajeInicialPrefill: cuerpoIni });
                 
             } catch (error) {
                 console.error('Error al enviar correo con reporte de lecturas de agua:', error);
@@ -9138,6 +9223,75 @@
         /** Compatibilidad: solo prefijo (reportes y código existente). */
         function combinarPrefijoCorreo(textoUsuario, htmlBase) {
             return combinarCuerpoCorreoComprobante(textoUsuario, htmlBase, '', null);
+        }
+
+        /** Módulos con envío por correo: plantillas editables en Central de Notificación. */
+        const PLANTILLAS_CORREO_MODULOS_LISTA = [
+            { id: 'reporteCierreMes', label: 'Reporte Comité (cierre de mes)' },
+            { id: 'reporteCaja', label: 'Reporte Caja Chica' },
+            { id: 'reporteMantenciones', label: 'Reporte Mantenciones' },
+            { id: 'reporteInsumos', label: 'Reporte Pedidos de Insumos' },
+            { id: 'reporteLecturasAgua', label: 'Reporte Lecturas de agua' },
+            { id: 'reporteNomina', label: 'Reporte Nómina mensual' },
+            { id: 'reportePostventa', label: 'Reporte Postventa (tabla completa)' },
+            { id: 'reportePostventaPendientes', label: 'Postventa — correo con selección de registros' },
+            { id: 'comprobanteApertura', label: 'Comprobante — Apertura de puerta' },
+            { id: 'comprobanteReservaEspacio', label: 'Comprobante — Confirmación reserva espacio' },
+            { id: 'comprobanteTarjetaTag', label: 'Comprobante — Tarjeta / TAG' },
+            { id: 'comprobanteMulta', label: 'Comprobante — Multa' },
+            { id: 'comprobanteMoroso', label: 'Comprobante — Estado de morosidad' }
+        ];
+
+        function aplicarPlaceholdersPlantillaCorreo(str, ctx) {
+            if (str == null) return '';
+            let s = String(str);
+            const rep = [
+                ['{{comunidad}}', ctx.nombreComunidad != null ? String(ctx.nombreComunidad) : ''],
+                ['{{mes}}', ctx.nombreMes != null ? String(ctx.nombreMes) : ''],
+                ['{{fecha}}', ctx.fechaEmision != null ? String(ctx.fechaEmision) : ''],
+                ['{{espacio}}', ctx.nombreEspacio != null ? String(ctx.nombreEspacio) : ''],
+                ['{{departamento}}', ctx.departamento != null ? String(ctx.departamento) : ''],
+                ['{{residente}}', ctx.nombreResidente != null ? String(ctx.nombreResidente) : '']
+            ];
+            rep.forEach(function (pair) {
+                s = s.split(pair[0]).join(pair[1]);
+            });
+            return s;
+        }
+
+        function fechaEmisionCorreoHoy() {
+            const hoy = new Date();
+            return String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
+        }
+
+        async function obtenerPlantillasCorreoModulosMap() {
+            try {
+                const datos = await obtenerDatos('plantillasCorreoModulos');
+                if (datos && typeof datos === 'object' && !Array.isArray(datos)) return datos;
+            } catch (e) {
+                console.warn('plantillasCorreoModulos', e);
+            }
+            return {};
+        }
+
+        function obtenerBloquePlantillaModulo(map, idModulo) {
+            const row = map && map[idModulo];
+            return {
+                asunto: (row && row.asunto && String(row.asunto).trim()) ? String(row.asunto).trim() : '',
+                cuerpoInicio: (row && row.cuerpoInicio) ? String(row.cuerpoInicio) : '',
+                saludoLista: (row && row.saludoLista) ? String(row.saludoLista) : '',
+                textoIntroLista: (row && row.textoIntroLista) ? String(row.textoIntroLista) : ''
+            };
+        }
+
+        function resolverAsuntoPlantillaCorreo(bloque, asuntoPorDefecto, ctx) {
+            if (bloque && bloque.asunto) return aplicarPlaceholdersPlantillaCorreo(bloque.asunto, ctx);
+            return asuntoPorDefecto;
+        }
+
+        function resolverCuerpoInicioPlantillaCorreo(bloque, ctx) {
+            if (!bloque || !bloque.cuerpoInicio || !String(bloque.cuerpoInicio).trim()) return '';
+            return aplicarPlaceholdersPlantillaCorreo(bloque.cuerpoInicio, ctx);
         }
 
         /** Descarga bytes (Firebase Storage con SDK si aplica; si no XHR/fetch) → adjunto correo. */
@@ -9277,7 +9431,8 @@
         }
         
         // Modal para seleccionar destinatarios y enviar correo con reporte
-        async function mostrarModalSeleccionDestinatarios(asunto, html, adjuntos) {
+        async function mostrarModalSeleccionDestinatarios(asunto, html, adjuntos, opcionesModal) {
+            opcionesModal = opcionesModal || {};
             // Cargar correos administrativos
             await cargarCorreosAdministrativos();
             
@@ -9338,6 +9493,10 @@
             
             modal.innerHTML = htmlModal;
             document.body.appendChild(modal);
+            const taPref = modal.querySelector('#modalCuerpoAdicionalReporte');
+            if (taPref && opcionesModal.mensajeInicialPrefill) {
+                taPref.value = opcionesModal.mensajeInicialPrefill;
+            }
             
             // Event listener para enviar
             document.getElementById('btnEnviarReporteModal').addEventListener('click', async function() {
@@ -9426,7 +9585,8 @@
                 enviarOpciones = null,
                 evidenciasSelectables = null,
                 insertarNotasDebajoMontoMulta = false,
-                etiquetaNotasFinal = null
+                etiquetaNotasFinal = null,
+                mensajeInicialPrefill = ''
             } = opciones || {};
 
             const etiquetaCampoNotas = etiquetaNotasFinal || (insertarNotasDebajoMontoMulta
@@ -9587,6 +9747,8 @@
                 });
 
                 document.body.appendChild(modal);
+                const txMensajeIni = modal.querySelector('[data-mcc-mensaje]');
+                if (txMensajeIni && mensajeInicialPrefill) txMensajeIni.value = mensajeInicialPrefill;
             });
         }
 
@@ -11704,9 +11866,19 @@
                     ? { bcc: emailsBccConsejeria.length === 1 ? emailsBccConsejeria[0] : emailsBccConsejeria }
                     : null;
                 
+                const mapPlantAp = await obtenerPlantillasCorreoModulosMap();
+                const bloqueAp = obtenerBloquePlantillaModulo(mapPlantAp, 'comprobanteApertura');
+                const ctxAp = {
+                    nombreComunidad,
+                    departamento: apertura.departamento,
+                    nombreResidente: apertura.nombre,
+                    fechaEmision: fechaEmisionCorreoHoy()
+                };
+                const asuntoApBase = `Comprobante de Apertura de Puerta - ${nombreComunidad}`;
                 const resultado = await mostrarModalPersonalizarCorreoYEnviar({
                     titulo: 'Enviar comprobante de apertura',
-                    asuntoDefecto: `Comprobante de Apertura de Puerta - ${nombreComunidad}`,
+                    asuntoDefecto: resolverAsuntoPlantillaCorreo(bloqueAp, asuntoApBase, ctxAp),
+                    mensajeInicialPrefill: resolverCuerpoInicioPlantillaCorreo(bloqueAp, ctxAp),
                     htmlBase: htmlComprobante,
                     residente: residenteInfo,
                     enviarOpciones: enviarOpcionesApertura
@@ -11952,9 +12124,20 @@
                     ? { cc: emailsCcConsejeriaEvento.length === 1 ? emailsCcConsejeriaEvento[0] : emailsCcConsejeriaEvento }
                     : null;
 
+                const mapPlantEv = await obtenerPlantillasCorreoModulosMap();
+                const bloqueEv = obtenerBloquePlantillaModulo(mapPlantEv, 'comprobanteReservaEspacio');
+                const ctxEv = {
+                    nombreComunidad,
+                    nombreEspacio: espacio.espacio,
+                    departamento: espacio.departamento,
+                    nombreResidente: espacio.nombre,
+                    fechaEmision: fechaEmisionCorreoHoy()
+                };
+                const asuntoEvBase = `Confirmación de Reserva - ${espacio.espacio} - ${nombreComunidad}`;
                 const resultado = await mostrarModalPersonalizarCorreoYEnviar({
                     titulo: 'Enviar confirmación de reserva',
-                    asuntoDefecto: `Confirmación de Reserva - ${espacio.espacio} - ${nombreComunidad}`,
+                    asuntoDefecto: resolverAsuntoPlantillaCorreo(bloqueEv, asuntoEvBase, ctxEv),
+                    mensajeInicialPrefill: resolverCuerpoInicioPlantillaCorreo(bloqueEv, ctxEv),
                     htmlBase: htmlComprobante,
                     residente: residenteInfo,
                     enviarOpciones: enviarOpcionesEvento
@@ -12205,9 +12388,18 @@
                     return;
                 }
                 
+                const mapPlantTj = await obtenerPlantillasCorreoModulosMap();
+                const bloqueTj = obtenerBloquePlantillaModulo(mapPlantTj, 'comprobanteTarjetaTag');
+                const ctxTj = {
+                    nombreComunidad,
+                    departamento: tarjeta.departamento,
+                    nombreResidente: tarjeta.nombre,
+                    fechaEmision: fechaEmisionCorreoHoy()
+                };
                 const resultado = await mostrarModalPersonalizarCorreoYEnviar({
                     titulo: 'Enviar comprobante de tarjeta / TAG',
-                    asuntoDefecto: asuntoTarjeta,
+                    asuntoDefecto: resolverAsuntoPlantillaCorreo(bloqueTj, asuntoTarjeta, ctxTj),
+                    mensajeInicialPrefill: resolverCuerpoInicioPlantillaCorreo(bloqueTj, ctxTj),
                     htmlBase: htmlComprobante,
                     residente: residenteInfo
                 });
@@ -13197,9 +13389,19 @@
                     return;
                 }
                 
+                const mapPlantMl = await obtenerPlantillasCorreoModulosMap();
+                const bloqueMl = obtenerBloquePlantillaModulo(mapPlantMl, 'comprobanteMulta');
+                const ctxMl = {
+                    nombreComunidad,
+                    departamento: multa.departamento,
+                    nombreResidente: multa.nombre,
+                    fechaEmision: fechaEmisionCorreoHoy()
+                };
+                const asuntoMlBase = `Comprobante de Multa - ${nombreComunidad}`;
                 const resultado = await mostrarModalPersonalizarCorreoYEnviar({
                     titulo: 'Enviar comprobante de multa',
-                    asuntoDefecto: `Comprobante de Multa - ${nombreComunidad}`,
+                    asuntoDefecto: resolverAsuntoPlantillaCorreo(bloqueMl, asuntoMlBase, ctxMl),
+                    mensajeInicialPrefill: resolverCuerpoInicioPlantillaCorreo(bloqueMl, ctxMl),
                     htmlBase: htmlComprobante,
                     residente: residenteInfo,
                     evidenciasSelectables: listarEvidenciasMultaParaCorreo(multa),
@@ -13616,9 +13818,19 @@
                 const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
                 const htmlComprobante = generarComprobanteMorosoHtml(morosoConNombre, nombreComunidad);
                 
+                const mapPlantMo = await obtenerPlantillasCorreoModulosMap();
+                const bloqueMo = obtenerBloquePlantillaModulo(mapPlantMo, 'comprobanteMoroso');
+                const ctxMo = {
+                    nombreComunidad,
+                    departamento: moroso.departamento,
+                    nombreResidente: residenteInfo.nombre,
+                    fechaEmision: fechaEmisionCorreoHoy()
+                };
+                const asuntoMoBase = `Estado de Morosidad - ${nombreComunidad}`;
                 const resultado = await mostrarModalPersonalizarCorreoYEnviar({
                     titulo: 'Enviar estado de morosidad',
-                    asuntoDefecto: `Estado de Morosidad - ${nombreComunidad}`,
+                    asuntoDefecto: resolverAsuntoPlantillaCorreo(bloqueMo, asuntoMoBase, ctxMo),
+                    mensajeInicialPrefill: resolverCuerpoInicioPlantillaCorreo(bloqueMo, ctxMo),
                     htmlBase: htmlComprobante,
                     residente: residenteInfo
                 });
@@ -13831,6 +14043,73 @@
                 renderizarCorreosAdmin();
                 mostrarAlerta('Correo eliminado correctamente', 'Éxito');
             }
+        }
+
+        async function refrescarEditorPlantillasCorreoModulos() {
+            const sel = document.getElementById('plantillaCorreoModuloSel');
+            if (!sel || typeof PLANTILLAS_CORREO_MODULOS_LISTA === 'undefined') return;
+            if (!sel.dataset.poblado) {
+                sel.innerHTML = PLANTILLAS_CORREO_MODULOS_LISTA.map(function (m) {
+                    return '<option value="' + String(m.id).replace(/"/g, '&quot;') + '">' + String(m.label).replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</option>';
+                }).join('');
+                sel.dataset.poblado = '1';
+            }
+            try {
+                window._plantillasCorreoModulosEditable = await obtenerPlantillasCorreoModulosMap();
+            } catch (e) {
+                window._plantillasCorreoModulosEditable = {};
+            }
+            actualizarCamposPlantillaCorreoModuloUI();
+        }
+
+        function actualizarCamposPlantillaCorreoModuloUI() {
+            const sel = document.getElementById('plantillaCorreoModuloSel');
+            const map = window._plantillasCorreoModulosEditable || {};
+            const id = sel && sel.value;
+            const bloque = obtenerBloquePlantillaModulo(map, id);
+            const asuntoEl = document.getElementById('plantillaCorreoAsunto');
+            const cuerpoEl = document.getElementById('plantillaCorreoCuerpo');
+            const saludoEl = document.getElementById('plantillaCorreoSaludoLista');
+            const introEl = document.getElementById('plantillaCorreoTextoIntroLista');
+            const extra = document.getElementById('plantillaCorreoPostventaPendExtra');
+            if (asuntoEl) asuntoEl.value = bloque.asunto || '';
+            if (cuerpoEl) cuerpoEl.value = bloque.cuerpoInicio || '';
+            if (saludoEl) saludoEl.value = bloque.saludoLista || '';
+            if (introEl) introEl.value = bloque.textoIntroLista || '';
+            if (extra) extra.style.display = id === 'reportePostventaPendientes' ? 'block' : 'none';
+        }
+
+        async function guardarPlantillaCorreoModuloDesdeUI() {
+            const sel = document.getElementById('plantillaCorreoModuloSel');
+            const id = sel && sel.value;
+            if (!id) return;
+            const map = Object.assign({}, await obtenerPlantillasCorreoModulosMap());
+            const entry = {
+                asunto: ((document.getElementById('plantillaCorreoAsunto') || {}).value || '').trim(),
+                cuerpoInicio: (document.getElementById('plantillaCorreoCuerpo') || {}).value || ''
+            };
+            if (id === 'reportePostventaPendientes') {
+                entry.saludoLista = ((document.getElementById('plantillaCorreoSaludoLista') || {}).value || '').trim();
+                entry.textoIntroLista = (document.getElementById('plantillaCorreoTextoIntroLista') || {}).value || '';
+            }
+            map[id] = entry;
+            await guardarDatos('plantillasCorreoModulos', map);
+            window._plantillasCorreoModulosEditable = map;
+            mostrarAlerta('Plantilla guardada. Se aplicará al enviar correos desde ese módulo.', 'Éxito');
+        }
+
+        async function limpiarPlantillaCorreoModuloDesdeUI() {
+            const sel = document.getElementById('plantillaCorreoModuloSel');
+            const id = sel && sel.value;
+            if (!id) return;
+            const ok = await confirmarAccion('¿Eliminar la plantilla guardada de este módulo y volver al texto predeterminado del sistema?', 'Plantillas de correo');
+            if (!ok) return;
+            const map = Object.assign({}, await obtenerPlantillasCorreoModulosMap());
+            delete map[id];
+            await guardarDatos('plantillasCorreoModulos', map);
+            window._plantillasCorreoModulosEditable = map;
+            actualizarCamposPlantillaCorreoModuloUI();
+            mostrarAlerta('Plantilla eliminada.', 'Éxito');
         }
         
         // Funciones auxiliares para generar reportes como adjuntos
@@ -15706,9 +15985,20 @@
                         setTimeout(() => {
                             cargarCorreosAdministrativos();
                             cargarCorreosConsejeria();
+                            refrescarEditorPlantillasCorreoModulos();
                         }, 100);
                     });
                 }
+
+                const selPlant = document.getElementById('plantillaCorreoModuloSel');
+                if (selPlant && !selPlant.dataset.listenerPlant) {
+                    selPlant.dataset.listenerPlant = '1';
+                    selPlant.addEventListener('change', actualizarCamposPlantillaCorreoModuloUI);
+                }
+                const btnGuardarPlant = document.getElementById('btnGuardarPlantillaCorreoModulo');
+                if (btnGuardarPlant) btnGuardarPlant.addEventListener('click', function () { guardarPlantillaCorreoModuloDesdeUI(); });
+                const btnLimpPlant = document.getElementById('btnLimpiarPlantillaCorreoModulo');
+                if (btnLimpPlant) btnLimpPlant.addEventListener('click', function () { limpiarPlantillaCorreoModuloDesdeUI(); });
             });
         }
 
@@ -15986,11 +16276,16 @@
                 // Generar HTML del correo
                 const html = await generarCorreoNotificacionNomina(nombreComunidad, nombreMes, '');
                 const asunto = `Reporte de Nómina Mensual - ${nombreComunidad} - ${nombreMes}`;
+                const mapPlant = await obtenerPlantillasCorreoModulosMap();
+                const bloqueTpl = obtenerBloquePlantillaModulo(mapPlant, 'reporteNomina');
+                const ctxTpl = { nombreComunidad, nombreMes, fechaEmision: fechaEmisionCorreoHoy() };
+                const asuntoEnv = resolverAsuntoPlantillaCorreo(bloqueTpl, asunto, ctxTpl);
+                const cuerpoIni = resolverCuerpoInicioPlantillaCorreo(bloqueTpl, ctxTpl);
                 
                 ocultarProgreso();
                 
                 // Mostrar modal para seleccionar destinatarios
-                await mostrarModalSeleccionDestinatarios(asunto, html, [adjunto]);
+                await mostrarModalSeleccionDestinatarios(asuntoEnv, html, [adjunto], { mensajeInicialPrefill: cuerpoIni });
                 
             } catch (error) {
                 console.error('Error al enviar correo con reporte de nómina:', error);
@@ -16069,8 +16364,13 @@
                 }
 
                 const asunto = `Reporte Comité - ${nombreComunidad} - ${nombreMes}`;
+                const mapPlant = await obtenerPlantillasCorreoModulosMap();
+                const bloqueTpl = obtenerBloquePlantillaModulo(mapPlant, 'reporteCierreMes');
+                const ctxTpl = { nombreComunidad, nombreMes, fechaEmision: fechaEmisionCorreoHoy() };
+                const asuntoEnv = resolverAsuntoPlantillaCorreo(bloqueTpl, asunto, ctxTpl);
+                const cuerpoIni = resolverCuerpoInicioPlantillaCorreo(bloqueTpl, ctxTpl);
                 ocultarProgreso();
-                await mostrarModalSeleccionDestinatarios(asunto, html, [adjuntoHtml, adjuntoExcel]);
+                await mostrarModalSeleccionDestinatarios(asuntoEnv, html, [adjuntoHtml, adjuntoExcel], { mensajeInicialPrefill: cuerpoIni });
             } catch (error) {
                 console.error('Error al enviar correo con reporte de cierre de mes:', error);
                 mostrarAlerta('Ocurrió un error al preparar el correo: ' + (error.message || 'Error desconocido'), 'Error');
