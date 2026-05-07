@@ -8523,20 +8523,24 @@
             }
         }
         
-        // Función auxiliar para generar el Excel de postventa exactamente como lo hace el módulo
+        // Función auxiliar: genera Excel .xlsx (ExcelJS) para Postventa con estilo
         async function generarExcelPostventaComoAdjunto(registros) {
             try {
-                // Funciones auxiliares (definidas localmente para asegurar disponibilidad)
-                function postventaEstadoExcelLabel(codigo) {
-                    var m = {
-                        pendiente: '⚠️ pendiente',
-                        en_proceso: '🔄 en proceso',
-                        terminado: '✅ terminado',
-                        no_aplica: '❌ no aplica'
-                    };
-                    return m[codigo] || m.pendiente;
+                var ExcelJSLib = typeof ExcelJS !== 'undefined' ? ExcelJS : (typeof window !== 'undefined' ? window.ExcelJS : null);
+                if (!ExcelJSLib) {
+                    console.error('Postventa .xlsx: ExcelJS no está disponible');
+                    return null;
                 }
-                
+                if (!Array.isArray(registros)) registros = [];
+
+                function estadoNorm(k) {
+                    if (k !== 'pendiente' && k !== 'en_proceso' && k !== 'terminado' && k !== 'no_aplica') return 'pendiente';
+                    return k;
+                }
+                function estadoLabel(k) {
+                    var m = { pendiente: '⚠️ Pendiente', en_proceso: '🔄 En proceso', terminado: '✅ Terminado', no_aplica: '❌ No aplica' };
+                    return m[k] || m.pendiente;
+                }
                 function postventaCorregirOrtografiaObservacion(s) {
                     if (s == null || s === '') return '';
                     var t = String(s).replace(/\u00A0/g, ' ').replace(/\r\n/g, '\n').replace(/[ \t]+/g, ' ').replace(/ *\n */g, '\n').trim();
@@ -8563,13 +8567,33 @@
                     });
                     return t;
                 }
-                
+                function fechaDMY(f) {
+                    if (f == null || f === '') return '';
+                    if (typeof f === 'string' && /^\d{4}-\d{2}-\d{2}/.test(f)) {
+                        var p = f.slice(0, 10).split('-');
+                        return p[2] + '-' + p[1] + '-' + p[0];
+                    }
+                    var d = (f && typeof f.toDate === 'function') ? f.toDate() : new Date(f);
+                    if (!isNaN(d.getTime())) {
+                        return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
+                    }
+                    return String(f);
+                }
+                function limpiarNombreArchivo(str) {
+                    return String(str || '').replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
+                }
+                function borderAll(thinColor) {
+                    var c = thinColor || 'FFE5E7EB';
+                    return {
+                        top: { style: 'thin', color: { argb: c } },
+                        left: { style: 'thin', color: { argb: c } },
+                        bottom: { style: 'thin', color: { argb: c } },
+                        right: { style: 'thin', color: { argb: c } }
+                    };
+                }
+
                 var st = { pendiente: 0, en_proceso: 0, terminado: 0, no_aplica: 0 };
-                registros.forEach(function (r) {
-                    var k = r.estado;
-                    if (k !== 'pendiente' && k !== 'en_proceso' && k !== 'terminado' && k !== 'no_aplica') k = 'pendiente';
-                    st[k]++;
-                });
+                registros.forEach(function (r) { st[estadoNorm(r && r.estado)]++; });
                 var total = registros.length;
                 var aplicables = total - st.no_aplica;
                 var pctTotal = total ? Math.round(100 * st.terminado / total) : 0;
@@ -8582,114 +8606,135 @@
                         var pers = await obtenerPersonalizacion();
                         if (pers && pers.comunidad) comunidad = pers.comunidad;
                     }
-                } catch (e1) { /* ignore */ }
+                } catch (e1) {}
                 if (!comunidad || comunidad === 'Comunidad') {
-                    try { comunidad = localStorage.getItem(lsKey('nombreComunidad')) || comunidad; } catch (e2) { /* ignore */ }
+                    try { comunidad = localStorage.getItem(lsKey('nombreComunidad')) || comunidad; } catch (e2) {}
                 }
 
-                function escXml(s) {
-                    return String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/"/g, '&quot;');
-                }
-                function postventaFechaReporteDMY(f) {
-                    if (f == null || f === '') return '';
-                    var str = String(f).trim();
-                    var iso = str.match(/^(\d{4})-(\d{1,2})-(\d{1,2})/);
-                    if (iso) return String(iso[3]).padStart(2, '0') + '-' + String(iso[2]).padStart(2, '0') + '-' + iso[1];
-                    var dmy = str.match(/^(\d{1,2})[\/.\-](\d{1,2})[\/.\-](\d{4})/);
-                    if (dmy) return String(dmy[1]).padStart(2, '0') + '-' + String(dmy[2]).padStart(2, '0') + '-' + dmy[3];
-                    var d = new Date(str);
-                    if (!isNaN(d.getTime())) {
-                        return String(d.getDate()).padStart(2, '0') + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + d.getFullYear();
-                    }
-                    return str;
-                }
                 var hoy = new Date();
                 var fechaEmision = String(hoy.getDate()).padStart(2, '0') + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + hoy.getFullYear();
                 var fechaArchivo = hoy.getFullYear() + '-' + String(hoy.getMonth() + 1).padStart(2, '0') + '-' + String(hoy.getDate()).padStart(2, '0');
                 var mesVistaAdmin = (typeof obtenerMesPeriodoVista === 'function' && typeof obtenerNombreMes === 'function')
                     ? obtenerNombreMes(obtenerMesPeriodoVista()) : '';
-                var limpiarNombre = function (str) {
-                    return String(str || '').replace(/[^a-zA-Z0-9_-]/g, '_').replace(/_+/g, '_');
-                };
+
+                var wb = new ExcelJSLib.Workbook();
+                wb.creator = 'Gestión de Comunidad';
+                wb.created = new Date();
+
+                // ===== Hoja Resumen =====
+                var shR = wb.addWorksheet('Resumen', { views: [{ showGridLines: false }] });
+                shR.columns = [
+                    { header: 'Campo', key: 'campo', width: 30 },
+                    { header: 'Valor', key: 'valor', width: 42 }
+                ];
+                shR.mergeCells('A1:B1');
+                var t = shR.getCell('A1');
+                t.value = 'Reporte Postventa';
+                t.font = { name: 'Calibri', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
+                t.alignment = { vertical: 'middle', horizontal: 'left' };
+                t.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF5A9219' } };
+                shR.getRow(1).height = 34;
+
+                var r2 = shR.addRow({ campo: 'Comunidad', valor: comunidad });
+                var r3 = shR.addRow({ campo: 'Fecha de emisión', valor: fechaEmision });
+                var r4 = shR.addRow({ campo: 'Referencia vista administrativa (mes)', valor: mesVistaAdmin || '—' });
+                var r5 = shR.addRow({ campo: 'Total registros', valor: total });
+                var r6 = shR.addRow({ campo: 'Ítems abiertos (Pendiente + En proceso)', valor: abiertos });
+                var r7 = shR.addRow({ campo: 'Cumplimiento (Terminado / total)', valor: pctTotal + '% (' + st.terminado + ' de ' + total + ')' });
+                var r8 = shR.addRow({ campo: 'Cumplimiento aplicables (sin No aplica)', valor: pctApl + '% (' + st.terminado + ' de ' + aplicables + ')' });
+
+                [r2, r3, r4, r5, r6, r7, r8].forEach(function (row) {
+                    row.height = 18;
+                    row.eachCell(function (cell, colNumber) {
+                        cell.font = { name: 'Calibri', size: 11, bold: colNumber === 1 };
+                        cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+                        cell.border = borderAll('FFD1D5DB');
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colNumber === 1 ? 'FFF3F4F6' : 'FFFFFFFF' } };
+                    });
+                });
+                shR.addRow({});
+                var rowHdr = shR.addRow({ campo: 'Estado', valor: 'Cantidad' });
+                rowHdr.eachCell(function (cell) {
+                    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF74BD20' } };
+                    cell.border = borderAll('FF4A7A15');
+                    cell.alignment = { vertical: 'middle', horizontal: 'left' };
+                });
+                [
+                    ['⚠️ Pendiente', st.pendiente],
+                    ['🔄 En proceso', st.en_proceso],
+                    ['✅ Terminado', st.terminado],
+                    ['❌ No aplica', st.no_aplica]
+                ].forEach(function (pair) {
+                    var rr = shR.addRow({ campo: pair[0], valor: pair[1] });
+                    rr.eachCell(function (cell, colNumber) {
+                        cell.font = { name: 'Calibri', size: 11 };
+                        cell.border = borderAll('FFD1D5DB');
+                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
+                        cell.alignment = { vertical: 'middle', horizontal: colNumber === 2 ? 'center' : 'left' };
+                    });
+                });
+
+                // ===== Hoja Detalle =====
+                var sh = wb.addWorksheet('Detalle', { views: [{ state: 'frozen', ySplit: 1 }] });
+                sh.columns = [
+                    { header: 'Fecha', key: 'fecha', width: 12 },
+                    { header: 'Observación', key: 'obs', width: 62 },
+                    { header: 'Estado', key: 'estado', width: 18 },
+                    { header: 'URLs evidencia', key: 'urls', width: 48 }
+                ];
+                var headerRow = sh.getRow(1);
+                headerRow.height = 20;
+                headerRow.eachCell(function (cell) {
+                    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF5A9219' } };
+                    cell.alignment = { vertical: 'middle', horizontal: 'left' };
+                    cell.border = borderAll('FF4A7A15');
+                });
 
                 var list = registros.slice().sort(function (a, b) {
-                    return (b.fecha || '').localeCompare(a.fecha || '') || String(b.id || '').localeCompare(String(a.id || ''));
+                    return (String((b && b.fecha) || '')).localeCompare(String((a && a.fecha) || '')) || String((b && b.id) || '').localeCompare(String((a && a.id) || ''));
                 });
-                var filasDetalle = '';
-                list.forEach(function (r) {
-                    var urls = (r.evidencias || []).map(function (e) { return e.url; }).join(' | ');
-                    filasDetalle += '<tr><td>' + escXml(postventaFechaReporteDMY(r.fecha)) + '</td><td>' + escXml(postventaCorregirOrtografiaObservacion(r.observacion)) + '</td><td class="postv-estado-td">' + escXml(postventaEstadoExcelLabel(r.estado)) + '</td><td style="font-size:10px;word-break:break-all;">' + escXml(urls) + '</td></tr>';
-                });
-                if (!filasDetalle) {
-                    filasDetalle = '<tr><td colspan="4" class="text-center" style="padding:24px;color:#6b7280;">No hay registros en el módulo Postventa.</td></tr>';
+                if (!list.length) {
+                    var rr0 = sh.addRow({ fecha: '', obs: 'No hay registros en el módulo Postventa.', estado: '', urls: '' });
+                    rr0.height = 22;
+                    rr0.eachCell(function (cell) {
+                        cell.font = { name: 'Calibri', size: 11, italic: true, color: { argb: 'FF6B7280' } };
+                        cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+                        cell.border = borderAll('FFE5E7EB');
+                    });
+                } else {
+                    list.forEach(function (r) {
+                        var k = estadoNorm(r && r.estado);
+                        var urls = (r && Array.isArray(r.evidencias) ? r.evidencias : []).map(function (e) { return e && e.url ? e.url : ''; }).filter(Boolean).join(' | ');
+                        var row = sh.addRow({
+                            fecha: fechaDMY(r && r.fecha),
+                            obs: postventaCorregirOrtografiaObservacion(r && r.observacion),
+                            estado: estadoLabel(k),
+                            urls: urls
+                        });
+                        row.height = 36;
+                        row.eachCell(function (cell, colNumber) {
+                            cell.font = { name: 'Calibri', size: 11 };
+                            cell.alignment = { vertical: 'top', horizontal: (colNumber === 1 ? 'center' : 'left'), wrapText: true };
+                            cell.border = borderAll('FFE5E7EB');
+                            cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: row.number % 2 === 0 ? 'FFF9FAFB' : 'FFFFFFFF' } };
+                        });
+                        // Estado: color por estado
+                        var cEstado = sh.getCell('C' + row.number);
+                        var fill = { pendiente: 'FFFFF7ED', en_proceso: 'FFE0F2FE', terminado: 'FFECFDF5', no_aplica: 'FFF3F4F6' }[k] || 'FFF9FAFB';
+                        var font = { pendiente: 'FF9A3412', en_proceso: 'FF0369A1', terminado: 'FF047857', no_aplica: 'FF6B7280' }[k] || 'FF374151';
+                        cEstado.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
+                        cEstado.font = { name: 'Calibri', size: 11, bold: true, color: { argb: font } };
+                        cEstado.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
+                    });
                 }
 
-                var htmlExcel = '<!DOCTYPE html><html xmlns:o="urn:schemas-microsoft-com:office:office" xmlns:x="urn:schemas-microsoft-com:office:excel" xmlns="http://www.w3.org/TR/REC-html40" lang="es"><head><meta charset="UTF-8"><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"><title>Postventa - ' + escXml(comunidad) + '</title><style>' +
-                    '@page{margin:1.2cm}body{font-family:Calibri,Arial,sans-serif;margin:0;padding:18px 20px;color:#1f2937;background:#fff;-webkit-print-color-adjust:exact;print-color-adjust:exact}' +
-                    '.band-title{font-size:11px;letter-spacing:2px;text-transform:uppercase;opacity:0.92}' +
-                    '.band-main{font-size:24px;font-weight:700;margin:6px 0 4px}' +
-                    '.band-sub{font-size:14px;font-weight:400;opacity:0.95}' +
-                    '.sec{font-size:14px;font-weight:700;color:#3f6212;margin:26px 0 10px;padding-bottom:6px;border-bottom:2px solid #75BB21}' +
-                    '.tbl{width:100%;border-collapse:collapse;font-size:11px}' +
-                    '.tbl th{background:#5a9219;color:#fff;padding:10px 10px;text-align:left;font-weight:600;border:1px solid #4a7a15}' +
-                    '.tbl th.c,.tbl td.c{text-align:center}' +
-                    '.tbl td{padding:9px 10px;border:1px solid #d1d5db;vertical-align:top}' +
-                    '.tbl tbody tr:nth-child(even) td{background:#f9fafb}' +
-                    '.meta td{background:#f3f4f6;font-size:12px;padding:12px 14px;border:1px solid #d1d5db}' +
-                    '.meta b{display:block;color:#374151;font-size:10px;text-transform:uppercase;letter-spacing:0.5px;margin-bottom:4px}' +
-                    '.cumpl td{background:#ecfccb;border:1px solid #84cc16;padding:14px 16px;font-size:12px;line-height:1.65;color:#365314}' +
-                    '.foot{margin-top:24px;padding-top:12px;border-top:1px solid #e5e7eb;font-size:10px;color:#6b7280;line-height:1.5}' +
-                    '.postv-estado-th,.postv-estado-td{min-width:118px;max-width:200px;text-align:left!important;vertical-align:middle!important;padding:8px 10px!important;font-size:11px;mso-number-format:\\@;font-family:Calibri,Arial,sans-serif}' +
-                    '</style></head><body>' +
-                    '<table width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:20px"><tr><td style="background:#5a9219;color:#fff;padding:20px 24px;border:1px solid #4a7a15">' +
-                    '<div class="band-title">Reporte</div><div class="band-main">Postventa</div><div class="band-sub">' + escXml(comunidad) + '</div></td></tr></table>' +
-                    '<table width="100%" class="meta" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:22px"><tr>' +
-                    '<td width="34%" style="vertical-align:top"><b>Fecha de emisión</b>' + escXml(fechaEmision) + '</td>' +
-                    '<td width="33%" style="vertical-align:top"><b>Total registros</b>' + total + '</td>' +
-                    '<td width="33%" style="vertical-align:top"><b>Ítems abiertos</b>' + abiertos + '</td></tr>' +
-                    (mesVistaAdmin ? '<tr><td colspan="3" style="vertical-align:top;padding-top:10px"><b>Referencia vista administrativa (mes)</b>' + escXml(mesVistaAdmin) + '</td></tr>' : '') +
-                    '</table>' +
-                    '<div class="sec">Estadísticas por estado</div>' +
-                    '<table class="tbl" style="margin-bottom:18px;max-width:560px"><thead><tr><th>Estado</th><th class="c" style="width:90px">Cantidad</th><th class="c" style="width:100px">% del total</th></tr></thead><tbody>' +
-                    '<tr><td>⚠️ pendiente</td><td class="c">' + st.pendiente + '</td><td class="c">' + (total ? ((100 * st.pendiente / total).toFixed(1)) : '0') + '%</td></tr>' +
-                    '<tr><td>🔄 en proceso</td><td class="c">' + st.en_proceso + '</td><td class="c">' + (total ? ((100 * st.en_proceso / total).toFixed(1)) : '0') + '%</td></tr>' +
-                    '<tr><td>✅ terminado</td><td class="c">' + st.terminado + '</td><td class="c">' + (total ? ((100 * st.terminado / total).toFixed(1)) : '0') + '%</td></tr>' +
-                    '<tr><td>❌ no aplica</td><td class="c">' + st.no_aplica + '</td><td class="c">' + (total ? ((100 * st.no_aplica / total).toFixed(1)) : '0') + '%</td></tr>' +
-                    '</tbody></table>' +
-                    '<table width="100%" class="cumpl" cellpadding="0" cellspacing="0" style="border-collapse:collapse;margin-bottom:22px"><tr><td>' +
-                    '<strong style="color:#3f6212">Cumplimiento</strong><br>' +
-                    'Terminado / total: <strong>' + pctTotal + '%</strong> (' + st.terminado + ' de ' + total + ')<br>' +
-                    'Terminado / aplicables (sin «No aplica»): <strong>' + pctApl + '%</strong> (' + st.terminado + ' de ' + aplicables + ')<br>' +
-                    'Pendientes o en proceso: <strong>' + abiertos + '</strong></td></tr></table>' +
-                    '<div class="sec">Detalle de registros</div>' +
-                    '<table class="tbl"><thead><tr><th style="width:96px">Fecha</th><th>Observación</th><th class="postv-estado-th">Estado</th><th style="min-width:220px">URLs evidencia</th></tr></thead><tbody>' +
-                    filasDetalle + '</tbody></table>' +
-                    '<div class="foot"><strong>Gestión de Comunidad</strong> · Generado el ' + escXml(fechaEmision) + '. Importación sugerida: Fecha, Observación, Estado (opcional), URLs evidencia.</div>' +
-                    '</body></html>';
-
-                var nombreArchivo = 'Postventa_' + limpiarNombre(comunidad) + '_' + fechaArchivo + '.xls';
-                
-                // Convertir HTML a blob y luego a base64 para el adjunto
-                var BOM = '\uFEFF';
-                var blob = new Blob([BOM + htmlExcel], { type: 'application/vnd.ms-excel;charset=utf-8' });
-                
-                // Convertir blob a base64
-                return new Promise((resolve, reject) => {
-                    const reader = new FileReader();
-                    reader.onloadend = function() {
-                        const base64 = reader.result.split(',')[1]; // Remover el prefijo data:application/...
-                        resolve({
-                            filename: nombreArchivo,
-                            content: base64,
-                            contentType: 'application/vnd.ms-excel',
-                            encoding: 'base64'
-                        });
-                    };
-                    reader.onerror = reject;
-                    reader.readAsDataURL(blob);
-                });
+                var nombreArchivo = 'Postventa_' + limpiarNombreArchivo(comunidad) + '_' + fechaArchivo + '.xlsx';
+                var buffer = await wb.xlsx.writeBuffer();
+                return adjuntoXlsxBufferComoMail(buffer, nombreArchivo);
             } catch (error) {
-                console.error('Error al generar Excel de postventa:', error);
+                console.error('Error al generar Excel .xlsx de postventa:', error);
                 return null;
             }
         }
