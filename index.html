@@ -8621,6 +8621,13 @@
                 wb.creator = 'Gestión de Comunidad';
                 wb.created = new Date();
 
+                // Tipografía ligeramente mayor (≈ +1%) usando medios puntos
+                var FONT_SCALE = 1.01;
+                function fs(n) {
+                    var v = (parseFloat(n) || 11) * FONT_SCALE;
+                    return Math.round(v * 2) / 2;
+                }
+
                 function estimarAnchoColumna(valores, min, max) {
                     min = min || 10; max = max || 60;
                     var best = min;
@@ -8670,12 +8677,13 @@
                 var headerIdx = 1;
                 headerRow.height = 20;
                 headerRow.eachCell(function (cell) {
-                    cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
+                    cell.font = { name: 'Calibri', size: fs(11), bold: true, color: { argb: 'FFFFFFFF' } };
                     cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF5A9219' } };
                     cell.alignment = { vertical: 'middle', horizontal: 'left' };
                     cell.border = borderAll('FF4A7A15');
                 });
-                sh.views = [{ state: 'frozen', ySplit: 1 }];
+                // Mantener freeze y ocultar lineado (gridlines) para vista limpia
+                sh.views = [{ state: 'frozen', ySplit: 1, showGridLines: false }];
 
                 var list = registros.slice().sort(function (a, b) {
                     return (String((b && b.fecha) || '')).localeCompare(String((a && a.fecha) || '')) || String((b && b.id) || '').localeCompare(String((a && a.id) || ''));
@@ -8684,7 +8692,7 @@
                     var rr0 = sh.addRow(['', 'No hay registros en el módulo Postventa.', '', '']);
                     rr0.height = 22;
                     rr0.eachCell(function (cell) {
-                        cell.font = { name: 'Calibri', size: 11, italic: true, color: { argb: 'FF6B7280' } };
+                        cell.font = { name: 'Calibri', size: fs(11), italic: true, color: { argb: 'FF6B7280' } };
                         cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
                         cell.border = borderAll('FFE5E7EB');
                     });
@@ -8703,7 +8711,7 @@
                         col1.push(v1); col2.push(v2); col3.push(v3); col4.push(v4);
                         var row = sh.addRow([v1, v2, v3, v4]);
                         row.eachCell(function (cell, colNumber) {
-                            cell.font = { name: 'Calibri', size: 11 };
+                            cell.font = { name: 'Calibri', size: fs(11) };
                             cell.alignment = { vertical: 'top', horizontal: (colNumber === 1 ? 'center' : 'left'), wrapText: true };
                             cell.border = borderAll('FFE5E7EB');
                             cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: row.number % 2 === 0 ? 'FFF9FAFB' : 'FFFFFFFF' } };
@@ -8713,7 +8721,7 @@
                         var fill = { pendiente: 'FFFFF7ED', en_proceso: 'FFE0F2FE', terminado: 'FFECFDF5', no_aplica: 'FFF3F4F6' }[k] || 'FFF9FAFB';
                         var font = { pendiente: 'FF9A3412', en_proceso: 'FF0369A1', terminado: 'FF047857', no_aplica: 'FF6B7280' }[k] || 'FF374151';
                         cEstado.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: fill } };
-                        cEstado.font = { name: 'Calibri', size: 11, bold: true, color: { argb: font } };
+                        cEstado.font = { name: 'Calibri', size: fs(11), bold: true, color: { argb: font } };
                         cEstado.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
                     });
 
