@@ -8656,87 +8656,18 @@
                     return h;
                 }
 
-                // ===== Hoja única =====
+                // ===== Hoja única (solo tabla) =====
                 var sh = wb.addWorksheet('Postventa', { views: [{ showGridLines: false }] });
                 sh.columns = [
-                    { key: 'c1', width: 16 },
+                    { key: 'c1', width: 12 },
                     { key: 'c2', width: 70 },
-                    { key: 'c3', width: 20 },
+                    { key: 'c3', width: 18 },
                     { key: 'c4', width: 55 }
                 ];
 
-                // Título
-                sh.mergeCells('A1:D1');
-                var t = sh.getCell('A1');
-                t.value = 'Reporte Postventa';
-                t.font = { name: 'Calibri', size: 18, bold: true, color: { argb: 'FFFFFFFF' } };
-                t.alignment = { vertical: 'middle', horizontal: 'left' };
-                t.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF5A9219' } };
-                sh.getRow(1).height = 34;
-
-                // Meta (2 columnas)
-                function addMetaRow(label, value) {
-                    var rr = sh.addRow([label, value, '', '']);
-                    rr.eachCell(function (cell, colNumber) {
-                        if (colNumber > 2) return;
-                        cell.font = { name: 'Calibri', size: 11, bold: colNumber === 1 };
-                        cell.alignment = { vertical: 'middle', horizontal: 'left', wrapText: true };
-                        cell.border = borderAll('FFD1D5DB');
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: colNumber === 1 ? 'FFF3F4F6' : 'FFFFFFFF' } };
-                    });
-                    rr.getCell(3).value = '';
-                    rr.getCell(4).value = '';
-                    return rr;
-                }
-                addMetaRow('Comunidad', comunidad);
-                addMetaRow('Fecha de emisión', fechaEmision);
-                addMetaRow('Referencia vista administrativa (mes)', mesVistaAdmin || '—');
-                addMetaRow('Total registros', total);
-                addMetaRow('Ítems abiertos (Pendiente + En proceso)', abiertos);
-                addMetaRow('Cumplimiento (Terminado / total)', pctTotal + '% (' + st.terminado + ' de ' + total + ')');
-                addMetaRow('Cumplimiento aplicables (sin No aplica)', pctApl + '% (' + st.terminado + ' de ' + aplicables + ')');
-
-                sh.addRow(['', '', '', '']);
-
-                // Estados (2 columnas)
-                var estHdr = sh.addRow(['Estado', 'Cantidad', '', '']);
-                estHdr.height = 18;
-                estHdr.getCell(1).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
-                estHdr.getCell(2).font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
-                [1, 2].forEach(function (c) {
-                    var cell = estHdr.getCell(c);
-                    cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF74BD20' } };
-                    cell.border = borderAll('FF4A7A15');
-                    cell.alignment = { vertical: 'middle', horizontal: 'left' };
-                });
-                [
-                    ['⚠️ Pendiente', st.pendiente],
-                    ['🔄 En proceso', st.en_proceso],
-                    ['✅ Terminado', st.terminado],
-                    ['❌ No aplica', st.no_aplica]
-                ].forEach(function (pair) {
-                    var rr = sh.addRow([pair[0], pair[1], '', '']);
-                    rr.height = 18;
-                    [1, 2].forEach(function (c) {
-                        var cell = rr.getCell(c);
-                        cell.font = { name: 'Calibri', size: 11 };
-                        cell.border = borderAll('FFD1D5DB');
-                        cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFFFFF' } };
-                        cell.alignment = { vertical: 'middle', horizontal: c === 2 ? 'center' : 'left' };
-                    });
-                });
-
-                sh.addRow(['', '', '', '']);
-                sh.addRow(['Detalle de registros', '', '', '']);
-                sh.getCell('A' + sh.rowCount).font = { name: 'Calibri', size: 13, bold: true, color: { argb: 'FF3F6212' } };
-                sh.getCell('A' + sh.rowCount).alignment = { vertical: 'middle', horizontal: 'left' };
-                sh.mergeCells('A' + sh.rowCount + ':D' + sh.rowCount);
-
-                sh.addRow(['', '', '', '']);
-
-                // Encabezado detalle en la MISMA hoja (A..D)
+                // Encabezado (fila 1) + congelar
                 var headerRow = sh.addRow(['Fecha', 'Observación', 'Estado', 'URLs evidencia']);
-                var headerIdx = headerRow.number;
+                var headerIdx = 1;
                 headerRow.height = 20;
                 headerRow.eachCell(function (cell) {
                     cell.font = { name: 'Calibri', size: 11, bold: true, color: { argb: 'FFFFFFFF' } };
@@ -8744,7 +8675,7 @@
                     cell.alignment = { vertical: 'middle', horizontal: 'left' };
                     cell.border = borderAll('FF4A7A15');
                 });
-                sh.views = [{ state: 'frozen', ySplit: headerIdx }];
+                sh.views = [{ state: 'frozen', ySplit: 1 }];
 
                 var list = registros.slice().sort(function (a, b) {
                     return (String((b && b.fecha) || '')).localeCompare(String((a && a.fecha) || '')) || String((b && b.id) || '').localeCompare(String((a && a.id) || ''));
