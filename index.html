@@ -13479,7 +13479,7 @@
             const esNotifSobreMultaExistente = opciones.folioMultaAnuladaExplicit != null && String(opciones.folioMultaAnuladaExplicit).trim() !== '' && !multaEsRegistroAnulacion(multa);
             const filaFolioAnuladaTabla = esNotifSobreMultaExistente
                 ? ''
-                : `<tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #d1fae5; width: 40%;">Folio multa anulada / afectada</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; font-weight: 600; border-bottom: 1px solid #d1fae5; font-family: monospace;">${linkEsc(folioMultaAnulada)}</td></tr>`;
+                : `<tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8; width: 40%;">Folio multa anulada / afectada</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; font-weight: 600; border-bottom: 1px solid #e8eee8; font-family: monospace;">${linkEsc(folioMultaAnulada)}</td></tr>`;
             const bloqueFolioEncabezado = esNotifSobreMultaExistente
                 ? `<p style="margin: 0; font-size: 12px; color: #666666;"><strong>Multa anulada (folio):</strong> <span style="font-family: monospace; letter-spacing: 0.04em; color: #1a1a1a;">${linkEsc(folioMultaAnulada)}</span></p>`
                 : `<p style="margin: 0; font-size: 12px; color: #666666;"><strong>Folio del comunicado:</strong> <span style="font-family: monospace; letter-spacing: 0.04em; color: #1a1a1a;">${linkEsc(folioComunicado)}</span></p>`;
@@ -13516,9 +13516,9 @@
       <td class="wrapper-td" align="center" style="padding: 16px 10px;">
         <table class="main-table" role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 12px;">
           <tr>
-            <td class="content-padding content-padding-lg" style="padding: 18px 28px 14px 28px; border-bottom: 3px solid #059669; background-color: #ecfdf5; border-radius: 12px 12px 0 0;">
+            <td class="content-padding content-padding-lg" style="padding: 18px 28px 14px 28px; border-bottom: 3px solid #74BD20; background-color: #ffffff; border-radius: 12px 12px 0 0;">
               <div style="text-align:center;margin-bottom:12px"><img src="https://img.mailinblue.com/8323725/images/content_library/original/6844749040dd0f16c5341248.png" alt="Logo" style="max-width:120px;height:auto;"></div>
-              <p style="margin: 0 0 2px 0; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: #047857; text-transform: uppercase;">Notificación</p>
+              <p style="margin: 0 0 2px 0; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: #74BD20; text-transform: uppercase;">Comunicación</p>
               <h2 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 700; color: #1a1a1a;">Anulación de multa</h2>
               <p style="margin: 0 0 4px 0; font-size: 14px; color: #555555;">${linkEsc(comunidad)}</p>
               ${bloqueFolioEncabezado}
@@ -13532,21 +13532,22 @@
           </tr>
           <tr>
             <td class="content-padding" style="padding: 0 28px 6px 28px;">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f0fdf4; border-radius: 8px; border: 1px solid #a7f3d0;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f8faf8; border-radius: 8px; border: 1px solid #e8eee8;">
                 ${filaFolioAnuladaTabla}
-                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #d1fae5;">Residente</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #d1fae5;">${linkEsc(multa.nombre)}</td></tr>
-                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #d1fae5;">Departamento</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #d1fae5;">${linkEsc(multa.departamento)}</td></tr>
-                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #d1fae5;">Fecha del comunicado</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #d1fae5;">${linkEsc(fechaStr)}</td></tr>
+                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Residente</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(multa.nombre)}</td></tr>
+                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Departamento</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(multa.departamento)}</td></tr>
+                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Fecha del comunicado</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(fechaStr)}</td></tr>
                 <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666;">Detalle / motivo</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a;">${linkEsc(multa.motivo)}</td></tr>
               </table>
             </td>
           </tr>
           <tr>
             <td class="content-padding" style="padding: 0 28px 12px 28px;">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #ecfdf5; border-radius: 8px; border: 1px solid #6ee7b7;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #fff8e1; border-radius: 8px; border: 1px solid #ffecb3;">
                 <tr>
                   <td style="padding: 12px 14px;">
-                    <p style="margin: 0; font-size: 13px; color: #065f46; line-height: 1.5;">Ante cualquier consulta, diríjase a la administración del edificio. Conserve este correo como respaldo.</p>
+                    <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: 700; color: #795548; text-transform: uppercase; letter-spacing: 0.04em;">Información importante</p>
+                    <p style="margin: 0; font-size: 14px; color: #333333; line-height: 1.5;">Ante cualquier consulta, diríjase a la administración del edificio. Conserve este correo como respaldo.</p>
                   </td>
                 </tr>
               </table>
@@ -13559,7 +13560,7 @@
           </tr>
           <tr>
             <td style="padding: 14px 28px 18px 28px; text-align: center; border-top: 1px solid #eeeeee; background-color: #fafafa; border-radius: 0 0 12px 12px;">
-              <p style="margin: 0; font-size: 12px; color: #888888;">Documento generado por administración. Notificación de anulación.</p>
+              <p style="margin: 0; font-size: 12px; color: #888888;">Documento generado por administración. Comunicación informativa.</p>
             </td>
           </tr>
         </table>
