@@ -8736,6 +8736,23 @@
                         var vEst = row2.getCell(3).value;
                         row2.height = estimarAltoFila([vObs, vUrls, vEst], w2, 22, 170);
                     }
+
+                    // Ocultar columnas/filas fuera del reporte (para vista más limpia)
+                    // Nota: Excel no "elimina" celdas; las ocultamos y acotamos área de impresión.
+                    for (var cN = 5; cN <= 80; cN++) {
+                        try { sh.getColumn(cN).hidden = true; } catch (eC) {}
+                    }
+                    var lastRow = sh.rowCount;
+                    for (var rHide = lastRow + 1; rHide <= lastRow + 800; rHide++) {
+                        try { sh.getRow(rHide).hidden = true; } catch (eR) {}
+                    }
+                    try {
+                        sh.pageSetup = sh.pageSetup || {};
+                        sh.pageSetup.printArea = 'A1:D' + String(lastRow);
+                        sh.pageSetup.fitToPage = true;
+                        sh.pageSetup.fitToWidth = 1;
+                        sh.pageSetup.fitToHeight = 0;
+                    } catch (eP) {}
                 }
 
                 var nombreArchivo = 'Postventa_' + limpiarNombreArchivo(comunidad) + '_' + fechaArchivo + '.xlsx';
