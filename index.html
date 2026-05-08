@@ -4358,8 +4358,8 @@
                             <input type="text" id="mudanzaCorredor" placeholder="Nombre del corredor (opcional)" style="padding: 0.5rem; font-size: 0.875rem;">
                         </div>
                         <div class="form-group" style="grid-column: 1 / -1; margin-bottom: 0.5rem;">
-                            <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Observaciones</label>
-                            <textarea id="mudanzaObservaciones" rows="2" placeholder="Observaciones adicionales (opcional)" style="padding: 0.5rem; font-size: 0.875rem;"></textarea>
+                            <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Comentarios</label>
+                            <textarea id="mudanzaObservaciones" rows="2" placeholder="Comentarios / notas internas (opcional)" style="padding: 0.5rem; font-size: 0.875rem;"></textarea>
                         </div>
                     </div>
                     
@@ -4422,7 +4422,7 @@
                             <th>Cobro</th>
                             <th>Monto</th>
                             <th>Corredor</th>
-                            <th>Observaciones</th>
+                            <th>Comentarios</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
@@ -11345,7 +11345,7 @@
             document.getElementById('mudanzaCobro').value = mudanza.aplicaCobro || 'no';
             document.getElementById('mudanzaMonto').value = mudanza.aplicaCobro === 'si' ? formatearMoneda(20000) : '$0';
             document.getElementById('mudanzaCorredor').value = mudanza.corredor || '';
-            document.getElementById('mudanzaObservaciones').value = mudanza.observaciones || '';
+            document.getElementById('mudanzaObservaciones').value = (mudanza.comentarios || mudanza.observaciones || '');
             
             // Cargar campos de salida si aplica
             toggleCamposSalida();
@@ -11450,6 +11450,8 @@
                 aplicaCobro: document.getElementById('mudanzaCobro').value,
                 monto: document.getElementById('mudanzaCobro').value === 'si' ? 20000 : 0,
                 corredor: document.getElementById('mudanzaCorredor').value || '',
+                comentarios: document.getElementById('mudanzaObservaciones').value || '',
+                // Compatibilidad: el resto del sistema usa "observaciones"
                 observaciones: document.getElementById('mudanzaObservaciones').value || '',
                 mes: obtenerMesActual()
             };
@@ -27445,7 +27447,7 @@
                     m.aplicaCobro === 'si' ? 'Sí' : 'No',
                     formatearMoneda(parseFloat(m.monto) || 0),
                     m.corredor || '-',
-                    (m.observaciones && String(m.observaciones).trim()) ? String(m.observaciones).trim() : '-'
+                    ((m.comentarios || m.observaciones) && String(m.comentarios || m.observaciones).trim()) ? String(m.comentarios || m.observaciones).trim() : '-'
                 ]);
             });
             
@@ -28319,6 +28321,38 @@
 
                 var ordenModulos = ['mudanzas', 'tarjetas', 'espacios', 'multas', 'morosos', 'aperturas'];
 
+                function _resaltarMudanzasCobro(ws) {
+                    try {
+                        var fillYellow = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF59D' } }; // amarillo suave
+                        var border = _excelBordeFino();
+                        var headerRow = -1;
+                        for (var r = 1; r <= Math.min(ws.rowCount || 1, 80); r++) {
+                            var c1 = ws.getCell(r, 1).value;
+                            var c6 = ws.getCell(r, 6).value;
+                            if (String(c1 || '').trim() === 'Fecha' && String(c6 || '').trim() === 'Cobro') {
+                                headerRow = r;
+                                break;
+                            }
+                        }
+                        if (headerRow < 0) return;
+                        for (var rr = headerRow + 1; rr <= (ws.rowCount || headerRow); rr++) {
+                            var first = ws.getCell(rr, 1).value;
+                            if (String(first || '').trim() === '' && String(ws.getCell(rr, 2).value || '').trim() === '') continue;
+                            var marcaTot = String(ws.getCell(rr, 1).value || '').trim().toUpperCase();
+                            if (marcaTot === 'TOTALES') break;
+                            var cob = String(ws.getCell(rr, 6).value || '').trim().toLowerCase();
+                            if (cob === 'sí' || cob === 'si') {
+                                var celDepto = ws.getCell(rr, 3); // Depto
+                                celDepto.fill = fillYellow;
+                                celDepto.font = Object.assign({}, celDepto.font || {}, { bold: true });
+                                celDepto.border = celDepto.border || border;
+                            }
+                        }
+                    } catch (e) {
+                        console.warn('resaltar mudanzas cobro:', e);
+                    }
+                }
+
                 for (var mi = 0; mi < ordenModulos.length; mi++) {
                     var clave = ordenModulos[mi];
                     if (modulosVisibles.indexOf(clave) === -1) continue;
@@ -28326,7 +28360,10 @@
                     var nombreHoja = _nombreHojaExcelSeguro(meta.nombre);
                     var ws = wb.addWorksheet(nombreHoja, { views: [{ showGridLines: false }] });
 
-                    if (clave === 'mudanzas') _escribirHojaDesdeAOA(ws, generarDatosMudanzas(mudanzas || []), { rellenoCeldaArgb: _rellenoCeldaArgbMudanzaColumnaTipo });
+                    if (clave === 'mudanzas') {
+                        _escribirHojaDesdeAOA(ws, generarDatosMudanzas(mudanzas || []), { rellenoCeldaArgb: _rellenoCeldaArgbMudanzaColumnaTipo });
+                        _resaltarMudanzasCobro(ws);
+                    }
                     else if (clave === 'aperturas') _escribirHojaDesdeAOA(ws, generarDatosAperturas(aperturas || []));
                     else if (clave === 'tarjetas') _escribirHojaDesdeAOA(ws, generarDatosTarjetas(tarjetas || []), { rellenoCeldaArgb: _rellenoCeldaArgbTarjetaColumnaTipo });
                     else if (clave === 'espacios') _escribirHojaDesdeAOA(ws, generarDatosEspacios(espacios || []), { rellenoCeldaArgb: _rellenoCeldaArgbEspacioColumnaNombre });
