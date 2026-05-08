@@ -27420,7 +27420,7 @@
             const datos = [];
             
             // Encabezado
-            datos.push(['REGISTRO DE MUDANZAS\nAplicar cobro únicamente a las filas destacadas en amarillo; los demás registros se dejarán solo como respaldo informativo de los ingresos registrados durante el mes, sin generar cobro asociado.']);
+            datos.push(['REGISTRO DE MUDANZAS']);
             datos.push([]);
             
             // Encabezado de tabla
@@ -28325,6 +28325,7 @@
                     try {
                         var fillYellow = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFFFF59D' } }; // amarillo suave
                         var border = _excelBordeFino();
+                        var notaMudanzas = 'Aplicar cobro únicamente a las filas destacadas en amarillo; los demás registros se dejarán solo como respaldo informativo de los ingresos registrados durante el mes, sin generar cobro asociado.';
                         var headerRow = -1;
                         for (var r = 1; r <= Math.min(ws.rowCount || 1, 80); r++) {
                             var c1 = ws.getCell(r, 1).value;
@@ -28342,6 +28343,23 @@
                             if (hv) lastCol = ccHdr;
                         }
                         if (lastCol <= 0) lastCol = 9;
+
+                        // Nota en fila separada, texto pequeño (debajo del título)
+                        ws.spliceRows(2, 0, []);
+                        ws.mergeCells(2, 1, 2, lastCol);
+                        var cNota = ws.getCell(2, 1);
+                        cNota.value = notaMudanzas;
+                        cNota.font = { size: 9, italic: true, color: { argb: 'FF6B7280' } };
+                        cNota.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
+                        ws.getRow(2).height = 28;
+                        headerRow += 1;
+
+                        // Columnas más compactas para la hoja Mudanzas
+                        var anchos = [12, 18, 9, 12, 11, 8, 11, 14, 24];
+                        for (var w = 1; w <= lastCol && w <= anchos.length; w++) {
+                            ws.getColumn(w).width = anchos[w - 1];
+                        }
+
                         for (var rr = headerRow + 1; rr <= (ws.rowCount || headerRow); rr++) {
                             var first = ws.getCell(rr, 1).value;
                             if (String(first || '').trim() === '' && String(ws.getCell(rr, 2).value || '').trim() === '') continue;
