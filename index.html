@@ -27807,7 +27807,7 @@
         /** Escribe una hoja a partir del formato generarDatos* : título fila 0, fila vacía, encabezados, datos, [vacío], TOTALES… */
         function _escribirHojaDesdeAOA(sheet, aoa, opciones) {
             var thin = _excelBordeFino();
-            var maxColWidth = (opciones && opciones.maxColWidth) || 70;
+            var maxColWidth = (opciones && opciones.maxColWidth) || 90;
             var minColWidth = (opciones && opciones.minColWidth) || 8;
             var linealSinWrap = !!(opciones && opciones.linealSinWrap);
             var alturaFilaFija = (opciones && opciones.alturaFilaFija) || 0;
@@ -27902,11 +27902,14 @@
                         var wrapped = 0;
                         var pz = txt.split(/\r?\n/);
                         for (var zz = 0; zz < pz.length; zz++) {
-                            wrapped += Math.max(1, Math.ceil((pz[zz] || '').length / Math.max(8, colW - 1)));
+                            // factor 0.82: cálculo más conservador para evitar recorte visual en Excel
+                            wrapped += Math.max(1, Math.ceil((pz[zz] || '').length / Math.max(6, (colW - 1) * 0.82)));
                         }
+                        // Si el texto es largo y no hay salto, forzar al menos 2 líneas visuales
+                        if (txt.length > Math.max(18, colW + 6)) wrapped = Math.max(wrapped, 2);
                         maxLines = Math.max(maxLines, wrapped);
                     }
-                    sheet.getRow(rrh).height = Math.min(220, Math.max(18, 14 + (maxLines - 1) * 12));
+                    sheet.getRow(rrh).height = Math.min(320, Math.max(18, 14 + (maxLines - 1) * 14));
                 }
             }
         }
@@ -28447,7 +28450,10 @@
                         minColWidth: 10
                     });
                     else if (clave === 'espacios') _escribirHojaDesdeAOA(ws, generarDatosEspacios(espacios || []), { rellenoCeldaArgb: _rellenoCeldaArgbEspacioColumnaNombre });
-                    else if (clave === 'multas') _escribirHojaDesdeAOA(ws, _generarDatosMultasConTotales(multas || []));
+                    else if (clave === 'multas') _escribirHojaDesdeAOA(ws, _generarDatosMultasConTotales(multas || []), {
+                        maxColWidth: 110,
+                        minColWidth: 10
+                    });
                     else if (clave === 'morosos') _escribirHojaDesdeAOA(ws, generarDatosMorosos(morosos || []));
                     else if (clave === 'lecturas-agua') _escribirHojaDesdeAOA(ws, generarDatosLecturasAgua(lecturasAguaCaliente || []));
                     else if (clave === 'caja') {
