@@ -27876,9 +27876,10 @@
                         var txtParts = txt.split(/\r?\n/);
                         var wrappedCount = 0;
                         for (var pi = 0; pi < txtParts.length; pi++) {
-                            wrappedCount += Math.max(1, Math.ceil((txtParts[pi] || '').length / Math.max(6, (colWForWrap - 1) * 0.82)));
+                            wrappedCount += Math.max(1, Math.ceil((txtParts[pi] || '').length / Math.max(8, (colWForWrap - 1) * 1.05)));
                         }
-                        var requiereWrap = wrappedCount > 1 && txt.length > Math.max(18, colWForWrap + 6);
+                        // Umbral más estricto para evitar saltos exagerados
+                        var requiereWrap = wrappedCount > 1 && txt.length > Math.max(28, colWForWrap + 14);
                         rowMaxLines = Math.max(rowMaxLines, wrappedCount);
                         cell.alignment = linealSinWrap
                             ? { vertical: 'middle', horizontal: 'left', wrapText: !!requiereWrap }
@@ -27887,7 +27888,8 @@
                     if (linealSinWrap) {
                         // En modo lineal: fila base compacta, pero auto-crece si hay texto largo
                         var hBase = alturaFilaFija > 0 ? alturaFilaFija : 18;
-                        var hAuto = Math.min(320, Math.max(hBase, 14 + (rowMaxLines - 1) * 14));
+                        // Autoaltura moderada: crecimiento más suave y tope bajo
+                        var hAuto = Math.min(72, Math.max(hBase, 14 + (rowMaxLines - 1) * 8));
                         sheet.getRow(r).height = hAuto;
                     } else if (alturaFilaFija > 0) {
                         sheet.getRow(r).height = alturaFilaFija;
