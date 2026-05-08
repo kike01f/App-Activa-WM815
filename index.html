@@ -27807,9 +27807,10 @@
         /** Escribe una hoja a partir del formato generarDatos* : título fila 0, fila vacía, encabezados, datos, [vacío], TOTALES… */
         function _escribirHojaDesdeAOA(sheet, aoa, opciones) {
             var thin = _excelBordeFino();
-            // Regla general (todas las hojas excepto portada):
-            // celdas lineales y columnas ajustadas al contenido real.
-            var maxColWidth = (opciones && opciones.maxColWidth) || 80;
+            var maxColWidth = (opciones && opciones.maxColWidth) || 60;
+            var minColWidth = (opciones && opciones.minColWidth) || 8;
+            var linealSinWrap = !!(opciones && opciones.linealSinWrap);
+            var alturaFilaFija = (opciones && opciones.alturaFilaFija) || 0;
             var fnRellenoCelda = opciones && typeof opciones.rellenoCeldaArgb === 'function' ? opciones.rellenoCeldaArgb : null;
             var r = 1;
             var i = 0;
@@ -27866,22 +27867,45 @@
                                 }
                             }
                         }
-                        cell.alignment = { vertical: 'middle', wrapText: false };
+                        cell.alignment = { vertical: 'middle', wrapText: !linealSinWrap };
                     }
-                    sheet.getRow(r).height = 18;
+                    if (alturaFilaFija > 0) sheet.getRow(r).height = alturaFilaFija;
                     r++;
                 } catch (e) {
                     console.warn('⚠️ Fila omitida por dato inválido en Excel:', e);
                 }
             }
             for (c = 1; c <= numCols; c++) {
-                var maxL = 8;
+                var maxL = minColWidth;
                 for (var rr = 1; rr < r; rr++) {
                     var v = sheet.getCell(rr, c).value;
                     var s = v != null ? String(v) : '';
-                    maxL = Math.max(maxL, Math.min(s.length, maxColWidth));
+                    // si hay saltos de línea, usar el tramo más largo para medir columna
+                    var parts = s.split(/\r?\n/);
+                    var localMax = 0;
+                    for (var p = 0; p < parts.length; p++) localMax = Math.max(localMax, parts[p].length);
+                    maxL = Math.max(maxL, Math.min(localMax, maxColWidth));
                 }
-                sheet.getColumn(c).width = Math.min(maxL + 3, maxColWidth);
+                sheet.getColumn(c).width = Math.min(Math.max(minColWidth, maxL + 2), maxColWidth);
+            }
+
+            // Autoaltura para textos extensos (todas excepto hojas lineales)
+            if (!linealSinWrap) {
+                for (var rrh = 1; rrh < r; rrh++) {
+                    var maxLines = 1;
+                    for (c = 1; c <= numCols; c++) {
+                        var val = sheet.getCell(rrh, c).value;
+                        var txt = val != null ? String(val) : '';
+                        var colW = sheet.getColumn(c).width || 12;
+                        var wrapped = 0;
+                        var pz = txt.split(/\r?\n/);
+                        for (var zz = 0; zz < pz.length; zz++) {
+                            wrapped += Math.max(1, Math.ceil((pz[zz] || '').length / Math.max(8, colW - 1)));
+                        }
+                        maxLines = Math.max(maxLines, wrapped);
+                    }
+                    sheet.getRow(rrh).height = Math.min(120, Math.max(18, 14 + (maxLines - 1) * 12));
+                }
             }
         }
         function _generarDatosMultasConTotales(multas) {
@@ -28406,7 +28430,12 @@
                     var ws = wb.addWorksheet(nombreHoja, { views: [{ showGridLines: false }] });
 
                     if (clave === 'mudanzas') {
-                        _escribirHojaDesdeAOA(ws, generarDatosMudanzas(mudanzas || []), { rellenoCeldaArgb: _rellenoCeldaArgbMudanzaColumnaTipo });
+                        _escribirHojaDesdeAOA(ws, generarDatosMudanzas(mudanzas || []), {
+                            rellenoCeldaArgb: _rellenoCeldaArgbMudanzaColumnaTipo,
+                            linealSinWrap: true,
+                            alturaFilaFija: 18,
+                            maxColWidth: 40
+                        });
                         _resaltarMudanzasCobro(ws);
                     }
                     else if (clave === 'aperturas') _escribirHojaDesdeAOA(ws, generarDatosAperturas(aperturas || []));
@@ -38692,3 +38721,5 @@
     <div id="reportePDF" class="reporte-pdf"></div>
 </body>
 </html>
+
+                              
