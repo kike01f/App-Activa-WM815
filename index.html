@@ -27420,7 +27420,7 @@
             const datos = [];
             
             // Encabezado
-            datos.push(['REGISTRO DE MUDANZAS']);
+            datos.push(['REGISTRO DE MUDANZAS\nAplicar cobro únicamente a las filas destacadas en amarillo; los demás registros se dejarán solo como respaldo informativo de los ingresos registrados durante el mes, sin generar cobro asociado.']);
             datos.push([]);
             
             // Encabezado de tabla
@@ -28335,6 +28335,13 @@
                             }
                         }
                         if (headerRow < 0) return;
+                        // Detectar cuántas columnas reales tiene la tabla para no crear columna extra (J)
+                        var lastCol = 0;
+                        for (var ccHdr = 1; ccHdr <= 30; ccHdr++) {
+                            var hv = String(ws.getCell(headerRow, ccHdr).value || '').trim();
+                            if (hv) lastCol = ccHdr;
+                        }
+                        if (lastCol <= 0) lastCol = 9;
                         for (var rr = headerRow + 1; rr <= (ws.rowCount || headerRow); rr++) {
                             var first = ws.getCell(rr, 1).value;
                             if (String(first || '').trim() === '' && String(ws.getCell(rr, 2).value || '').trim() === '') continue;
@@ -28342,8 +28349,8 @@
                             if (marcaTot === 'TOTALES') break;
                             var cob = String(ws.getCell(rr, 6).value || '').trim().toLowerCase();
                             if (cob === 'sí' || cob === 'si') {
-                                // Resaltar la fila completa de la tabla de Mudanzas (A..J)
-                                for (var cc = 1; cc <= 10; cc++) {
+                                // Resaltar la fila completa de la tabla de Mudanzas (sin crear columnas nuevas)
+                                for (var cc = 1; cc <= lastCol; cc++) {
                                     var cel = ws.getCell(rr, cc);
                                     cel.fill = fillYellow;
                                     cel.border = cel.border || border;
