@@ -27807,7 +27807,9 @@
         /** Escribe una hoja a partir del formato generarDatos* : título fila 0, fila vacía, encabezados, datos, [vacío], TOTALES… */
         function _escribirHojaDesdeAOA(sheet, aoa, opciones) {
             var thin = _excelBordeFino();
-            var maxColWidth = (opciones && opciones.maxColWidth) || 48;
+            // Regla general (todas las hojas excepto portada):
+            // celdas lineales y columnas ajustadas al contenido real.
+            var maxColWidth = (opciones && opciones.maxColWidth) || 80;
             var fnRellenoCelda = opciones && typeof opciones.rellenoCeldaArgb === 'function' ? opciones.rellenoCeldaArgb : null;
             var r = 1;
             var i = 0;
@@ -27864,8 +27866,9 @@
                                 }
                             }
                         }
-                        cell.alignment = { vertical: 'top', wrapText: true };
+                        cell.alignment = { vertical: 'middle', wrapText: false };
                     }
+                    sheet.getRow(r).height = 18;
                     r++;
                 } catch (e) {
                     console.warn('⚠️ Fila omitida por dato inválido en Excel:', e);
@@ -27878,7 +27881,7 @@
                     var s = v != null ? String(v) : '';
                     maxL = Math.max(maxL, Math.min(s.length, maxColWidth));
                 }
-                sheet.getColumn(c).width = Math.min(maxL + 2, 52);
+                sheet.getColumn(c).width = Math.min(maxL + 3, maxColWidth);
             }
         }
         function _generarDatosMultasConTotales(multas) {
