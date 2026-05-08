@@ -28354,15 +28354,17 @@
                         ws.getRow(2).height = 28;
                         headerRow += 1;
 
-                        // Ajuste de columnas según contenido (compacto y lineal)
+                        // Ajuste de columnas según contenido real (lineal, sin ocultar texto)
+                        // Se amplía el límite máximo para mostrar toda la información en una línea.
                         var minW = [10, 14, 8, 10, 9, 7, 10, 12, 14];
-                        var maxW = [13, 24, 11, 14, 12, 9, 13, 18, 30];
+                        var maxW = [24, 42, 18, 22, 20, 12, 20, 28, 80];
                         for (var w = 1; w <= lastCol; w++) {
                             var best = (minW[w - 1] || 10);
                             for (var rrw = headerRow; rrw <= (ws.rowCount || headerRow); rrw++) {
                                 var tx = String(ws.getCell(rrw, w).value || '').trim();
                                 if (!tx) continue;
-                                best = Math.max(best, Math.min(tx.length + 2, (maxW[w - 1] || 28)));
+                                // +3 para padding visual en Excel
+                                best = Math.max(best, Math.min(tx.length + 3, (maxW[w - 1] || 80)));
                             }
                             ws.getColumn(w).width = best;
                         }
