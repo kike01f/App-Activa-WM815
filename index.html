@@ -28354,10 +28354,17 @@
                         ws.getRow(2).height = 28;
                         headerRow += 1;
 
-                        // Columnas más compactas para la hoja Mudanzas
-                        var anchos = [12, 18, 9, 12, 11, 8, 11, 14, 24];
-                        for (var w = 1; w <= lastCol && w <= anchos.length; w++) {
-                            ws.getColumn(w).width = anchos[w - 1];
+                        // Ajuste de columnas según contenido (compacto y lineal)
+                        var minW = [10, 14, 8, 10, 9, 7, 10, 12, 14];
+                        var maxW = [13, 24, 11, 14, 12, 9, 13, 18, 30];
+                        for (var w = 1; w <= lastCol; w++) {
+                            var best = (minW[w - 1] || 10);
+                            for (var rrw = headerRow; rrw <= (ws.rowCount || headerRow); rrw++) {
+                                var tx = String(ws.getCell(rrw, w).value || '').trim();
+                                if (!tx) continue;
+                                best = Math.max(best, Math.min(tx.length + 2, (maxW[w - 1] || 28)));
+                            }
+                            ws.getColumn(w).width = best;
                         }
 
                         for (var rr = headerRow + 1; rr <= (ws.rowCount || headerRow); rr++) {
@@ -28365,6 +28372,12 @@
                             if (String(first || '').trim() === '' && String(ws.getCell(rr, 2).value || '').trim() === '') continue;
                             var marcaTot = String(ws.getCell(rr, 1).value || '').trim().toUpperCase();
                             if (marcaTot === 'TOTALES') break;
+                            // Mantener filas lineales y ordenadas
+                            ws.getRow(rr).height = 18;
+                            for (var cca = 1; cca <= lastCol; cca++) {
+                                var celA = ws.getCell(rr, cca);
+                                celA.alignment = { vertical: 'middle', horizontal: (cca === 7 ? 'right' : 'left'), wrapText: false };
+                            }
                             var cob = String(ws.getCell(rr, 6).value || '').trim().toLowerCase();
                             if (cob === 'sí' || cob === 'si') {
                                 // Resaltar la fila completa de la tabla de Mudanzas (sin crear columnas nuevas)
