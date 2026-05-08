@@ -27807,7 +27807,7 @@
         /** Escribe una hoja a partir del formato generarDatos* : título fila 0, fila vacía, encabezados, datos, [vacío], TOTALES… */
         function _escribirHojaDesdeAOA(sheet, aoa, opciones) {
             var thin = _excelBordeFino();
-            var maxColWidth = (opciones && opciones.maxColWidth) || 60;
+            var maxColWidth = (opciones && opciones.maxColWidth) || 70;
             var minColWidth = (opciones && opciones.minColWidth) || 8;
             var linealSinWrap = !!(opciones && opciones.linealSinWrap);
             var alturaFilaFija = (opciones && opciones.alturaFilaFija) || 0;
@@ -27867,7 +27867,9 @@
                                 }
                             }
                         }
-                        cell.alignment = { vertical: 'middle', wrapText: !linealSinWrap };
+                        cell.alignment = linealSinWrap
+                            ? { vertical: 'middle', horizontal: 'left', wrapText: false }
+                            : { vertical: 'top', horizontal: 'left', wrapText: true };
                     }
                     if (alturaFilaFija > 0) sheet.getRow(r).height = alturaFilaFija;
                     r++;
@@ -27904,7 +27906,7 @@
                         }
                         maxLines = Math.max(maxLines, wrapped);
                     }
-                    sheet.getRow(rrh).height = Math.min(120, Math.max(18, 14 + (maxLines - 1) * 12));
+                    sheet.getRow(rrh).height = Math.min(220, Math.max(18, 14 + (maxLines - 1) * 12));
                 }
             }
         }
@@ -28439,7 +28441,11 @@
                         _resaltarMudanzasCobro(ws);
                     }
                     else if (clave === 'aperturas') _escribirHojaDesdeAOA(ws, generarDatosAperturas(aperturas || []));
-                    else if (clave === 'tarjetas') _escribirHojaDesdeAOA(ws, generarDatosTarjetas(tarjetas || []), { rellenoCeldaArgb: _rellenoCeldaArgbTarjetaColumnaTipo });
+                    else if (clave === 'tarjetas') _escribirHojaDesdeAOA(ws, generarDatosTarjetas(tarjetas || []), {
+                        rellenoCeldaArgb: _rellenoCeldaArgbTarjetaColumnaTipo,
+                        maxColWidth: 90,
+                        minColWidth: 10
+                    });
                     else if (clave === 'espacios') _escribirHojaDesdeAOA(ws, generarDatosEspacios(espacios || []), { rellenoCeldaArgb: _rellenoCeldaArgbEspacioColumnaNombre });
                     else if (clave === 'multas') _escribirHojaDesdeAOA(ws, _generarDatosMultasConTotales(multas || []));
                     else if (clave === 'morosos') _escribirHojaDesdeAOA(ws, generarDatosMorosos(morosos || []));
@@ -38721,5 +38727,3 @@
     <div id="reportePDF" class="reporte-pdf"></div>
 </body>
 </html>
-
-                              
