@@ -27854,6 +27854,7 @@
                     if (!row || !row.length) continue;
                     var cel0 = row[0];
                     var isTotal = cel0 === 'TOTALES' || (typeof cel0 === 'string' && cel0.toUpperCase().indexOf('TOTAL') === 0);
+                    var rowMaxLines = 1;
                     for (c = 0; c < numCols; c++) {
                         var cell = sheet.getCell(r, c + 1);
                         cell.value = _excelValorSeguro(c < row.length ? row[c] : '');
@@ -27870,11 +27871,27 @@
                                 }
                             }
                         }
+                        var txt = String(cell.value == null ? '' : cell.value);
+                        var colWForWrap = Math.max(minColWidth, (sheet.getColumn(c + 1).width || minColWidth));
+                        var txtParts = txt.split(/\r?\n/);
+                        var wrappedCount = 0;
+                        for (var pi = 0; pi < txtParts.length; pi++) {
+                            wrappedCount += Math.max(1, Math.ceil((txtParts[pi] || '').length / Math.max(6, (colWForWrap - 1) * 0.82)));
+                        }
+                        var requiereWrap = wrappedCount > 1 && txt.length > Math.max(18, colWForWrap + 6);
+                        rowMaxLines = Math.max(rowMaxLines, wrappedCount);
                         cell.alignment = linealSinWrap
-                            ? { vertical: 'middle', horizontal: 'left', wrapText: false }
+                            ? { vertical: 'middle', horizontal: 'left', wrapText: !!requiereWrap }
                             : { vertical: 'top', horizontal: 'left', wrapText: true };
                     }
-                    if (alturaFilaFija > 0) sheet.getRow(r).height = alturaFilaFija;
+                    if (linealSinWrap) {
+                        // En modo lineal: fila base compacta, pero auto-crece si hay texto largo
+                        var hBase = alturaFilaFija > 0 ? alturaFilaFija : 18;
+                        var hAuto = Math.min(320, Math.max(hBase, 14 + (rowMaxLines - 1) * 14));
+                        sheet.getRow(r).height = hAuto;
+                    } else if (alturaFilaFija > 0) {
+                        sheet.getRow(r).height = alturaFilaFija;
+                    }
                     r++;
                 } catch (e) {
                     console.warn('⚠️ Fila omitida por dato inválido en Excel:', e);
