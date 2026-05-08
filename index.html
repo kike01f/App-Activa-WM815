@@ -27807,10 +27807,13 @@
         /** Escribe una hoja a partir del formato generarDatos* : título fila 0, fila vacía, encabezados, datos, [vacío], TOTALES… */
         function _escribirHojaDesdeAOA(sheet, aoa, opciones) {
             var thin = _excelBordeFino();
-            var maxColWidth = (opciones && opciones.maxColWidth) || 90;
+            var maxColWidth = (opciones && opciones.maxColWidth) || 40;
             var minColWidth = (opciones && opciones.minColWidth) || 8;
-            var linealSinWrap = !!(opciones && opciones.linealSinWrap);
-            var alturaFilaFija = (opciones && opciones.alturaFilaFija) || 0;
+            // Regla base del cierre mensual: presentación lineal como Mudanzas
+            var linealSinWrap = (opciones && Object.prototype.hasOwnProperty.call(opciones, 'linealSinWrap'))
+                ? !!opciones.linealSinWrap
+                : true;
+            var alturaFilaFija = (opciones && opciones.alturaFilaFija) || 18;
             var fnRellenoCelda = opciones && typeof opciones.rellenoCeldaArgb === 'function' ? opciones.rellenoCeldaArgb : null;
             var r = 1;
             var i = 0;
@@ -28445,15 +28448,10 @@
                     }
                     else if (clave === 'aperturas') _escribirHojaDesdeAOA(ws, generarDatosAperturas(aperturas || []));
                     else if (clave === 'tarjetas') _escribirHojaDesdeAOA(ws, generarDatosTarjetas(tarjetas || []), {
-                        rellenoCeldaArgb: _rellenoCeldaArgbTarjetaColumnaTipo,
-                        maxColWidth: 90,
-                        minColWidth: 10
+                        rellenoCeldaArgb: _rellenoCeldaArgbTarjetaColumnaTipo
                     });
                     else if (clave === 'espacios') _escribirHojaDesdeAOA(ws, generarDatosEspacios(espacios || []), { rellenoCeldaArgb: _rellenoCeldaArgbEspacioColumnaNombre });
-                    else if (clave === 'multas') _escribirHojaDesdeAOA(ws, _generarDatosMultasConTotales(multas || []), {
-                        maxColWidth: 110,
-                        minColWidth: 10
-                    });
+                    else if (clave === 'multas') _escribirHojaDesdeAOA(ws, _generarDatosMultasConTotales(multas || []));
                     else if (clave === 'morosos') _escribirHojaDesdeAOA(ws, generarDatosMorosos(morosos || []));
                     else if (clave === 'lecturas-agua') _escribirHojaDesdeAOA(ws, generarDatosLecturasAgua(lecturasAguaCaliente || []));
                     else if (clave === 'caja') {
