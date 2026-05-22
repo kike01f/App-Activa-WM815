@@ -5076,6 +5076,7 @@
                 <table id="tablaCaja">
                     <thead>
                         <tr>
+                            <th>Folio</th>
                             <th>Fecha</th>
                             <th>N° Doc.</th>
                             <th>Descripción</th>
@@ -14970,6 +14971,7 @@
                         <thead>
                             <tr>
                                 <th>N°</th>
+                                <th>Folio</th>
                                 <th>Fecha</th>
                                 <th>N° Documento</th>
                                 <th>Descripción del Gasto</th>
@@ -14983,9 +14985,11 @@
                 caja.sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).forEach((m, idx) => {
                     const archivos = m.archivos || [];
                     const comprobantesHTML = renderizarArchivosReporte(archivos, []);
+                    const folioRep = m.folio || (typeof getFolioCajaProvisional === 'function' ? getFolioCajaProvisional(m, caja, mesAnio) : '—');
                     contenidoHTML += `
                         <tr>
                             <td>${idx + 1}</td>
+                            <td style="font-family: monospace; font-size: 0.8rem;">${folioRep}</td>
                             <td>${formatearFechaParaCorreo(m.fecha)}</td>
                             <td>${m.numeroDocumento || '-'}</td>
                             <td>${m.descripcion}</td>
@@ -17987,6 +17991,198 @@
         // MÓDULO 7: CAJA CHICA
         // ============================================
 
+        /** Obtiene el siguiente folio correlativo para caja chica del mes (formato CAJ-YYYYMM-NNN). */
+        function getSiguienteFolioCaja(movimientos, mesAnio) {
+            const mesStr = (mesAnio || '').replace(/-/g, '');
+            if (!mesStr || mesStr.length !== 6) return 'CAJ-' + (mesAnio || '').replace(/-/g, '') + '-001';
+            const prefijo = 'CAJ-' + mesStr + '-';
+            let maxNum = 0;
+            (movimientos || []).forEach(m => {
+                if (m.folio && m.folio.indexOf(prefijo) === 0) {
+                    const n = parseInt(m.folio.slice(prefijo.length), 10);
+                    if (!isNaN(n) && n > maxNum) maxNum = n;
+                }
+            });
+            return prefijo + String(maxNum + 1).padStart(3, '0');
+        }
+
+        /** Folio para mostrar en recibo si el registro antiguo no tiene folio guardado (no persiste). */
+        function getFolioCajaProvisional(movimiento, movimientos, mesAnio) {
+            const mesStr = (mesAnio || '').replace(/-/g, '');
+            const prefijo = 'CAJ-' + mesStr + '-';
+            const ordenados = [...(movimientos || [])].sort((a, b) => new Date(a.fecha) - new Date(b.fecha));
+            const idx = ordenados.findIndex(m => m.id === movimiento.id);
+            const n = idx >= 0 ? idx + 1 : ordenados.length + 1;
+            return prefijo + String(n).padStart(3, '0');
+        }
+
+        /** Genera el HTML del recibo de caja chica (egreso). */
+        function generarReciboCajaChicaHtml(movimiento, opciones) {
+            const opts = opciones || {};
+            const comunidad = opts.nombreComunidad || 'Comunidad';
+            const jefeEdificio = opts.jefeEdificio || 'Administración';
+            const folioStr = movimiento.folio || opts.folioProvisional || '—';
+            const fechaGastoStr = movimiento.fecha ? (typeof formatearFecha === 'function' ? formatearFecha(movimiento.fecha) : movimiento.fecha) : '-';
+            const fechaEmisionStr = typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(obtenerFechaHoy()) : obtenerFechaHoy();
+            const montoStr = typeof formatearMoneda === 'function' ? formatearMoneda(movimiento.monto) : '$' + Number(movimiento.monto || 0).toLocaleString('es-CL');
+            const numDoc = (movimiento.numeroDocumento || '').trim() || '—';
+            const descripcion = (movimiento.descripcion || '').trim() || '—';
+            const archivos = movimiento.archivos || [];
+            const tieneRespaldo = archivos.length > 0;
+            const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            let bloqueRespaldo = '';
+            if (tieneRespaldo) {
+                const listaArch = archivos.map(a => {
+                    const nom = linkEsc(a.nombre || 'Archivo');
+                    const url = a.url ? String(a.url).replace(/&/g, '&amp;').replace(/"/g, '&quot;') : '';
+                    return url ? `<li style="margin:0 0 4px 0;"><a href="${url}" target="_blank" style="color:#74BD20;text-decoration:none;font-weight:600;">${nom}</a></li>` : `<li style="margin:0 0 4px 0;">${nom}</li>`;
+                }).join('');
+                bloqueRespaldo = `<tr>
+            <td class="content-padding" style="padding: 0 28px 12px 28px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #fafafa; border-radius: 8px; border: 1px solid #e8e8e8;">
+                <tr>
+                  <td style="padding: 12px 14px;">
+                    <p style="margin: 0 0 6px 0; font-size: 12px; font-weight: 700; color: #666666; text-transform: uppercase; letter-spacing: 0.04em;">Comprobantes adjuntos</p>
+                    <ul style="margin: 0; padding-left: 18px; font-size: 14px; color: #333333;">${listaArch}</ul>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>`;
+            }
+            return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Recibo de Caja Chica - ${linkEsc(folioStr)}</title>
+  <link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700&display=swap" rel="stylesheet">
+  <style type="text/css">
+    body, p, h1, h2, a, td, span { font-family: 'Nunito', Arial, Helvetica, sans-serif; }
+    body { margin: 0; padding: 0; }
+    table { border-collapse: collapse; }
+    @media print { body { -webkit-print-color-adjust: exact; print-color-adjust: exact; } }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #ffffff;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #ffffff;">
+    <tr>
+      <td align="center" style="padding: 16px 10px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 12px;">
+          <tr>
+            <td style="padding: 18px 28px 14px 28px; border-bottom: 3px solid #74BD20;">
+              <div style="text-align:center;margin-bottom:12px"><img src="https://img.mailinblue.com/8323725/images/content_library/original/6844749040dd0f16c5341248.png" alt="Logo" style="max-width:120px;height:auto;"></div>
+              <p style="margin: 0 0 2px 0; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: #74BD20; text-transform: uppercase;">Recibo</p>
+              <h2 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 700; color: #1a1a1a;">Caja Chica — Egreso</h2>
+              <p style="margin: 0 0 4px 0; font-size: 14px; color: #555555;">${linkEsc(comunidad)}</p>
+              <p style="margin: 0; font-size: 12px; color: #666666;"><strong>Folio:</strong> <span style="font-family: monospace; letter-spacing: 0.04em; color: #1a1a1a;">${linkEsc(folioStr)}</span></p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 28px 10px 28px;">
+              <p style="margin: 0 0 8px 0; font-size: 14px; color: #333333; line-height: 1.55;">Recibo de egreso de <strong>caja chica</strong> emitido por la administración del edificio. Documento de respaldo del gasto registrado.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 28px 6px 28px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f8faf8; border-radius: 8px; border: 1px solid #e8eee8;">
+                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8; width: 40%;">Fecha del gasto</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; font-weight: 600; border-bottom: 1px solid #e8eee8;">${linkEsc(fechaGastoStr)}</td></tr>
+                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Fecha de emisión</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(fechaEmisionStr)}</td></tr>
+                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">N° documento</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(numDoc)}</td></tr>
+                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; vertical-align: top;">Descripción</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; line-height: 1.45;">${linkEsc(descripcion)}</td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 28px 12px 28px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #e8f5e9; border-radius: 8px; border: 1px solid #c8e6c9;">
+                <tr>
+                  <td style="padding: 14px 16px; text-align: center;">
+                    <p style="margin: 0 0 2px 0; font-size: 12px; color: #666666; text-transform: uppercase; letter-spacing: 0.04em;">Monto</p>
+                    <p style="margin: 0; font-size: 24px; font-weight: 700; color: #2e7d32;">${linkEsc(montoStr)}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          ${bloqueRespaldo}
+          <tr>
+            <td style="padding: 8px 28px 18px 28px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+                <tr>
+                  <td style="width: 50%; text-align: center; padding-top: 24px;">
+                    <div style="border-top: 1px solid #ccc; width: 180px; margin: 0 auto 6px;"></div>
+                    <p style="margin: 0; font-size: 11px; color: #888; text-transform: uppercase;">Firma autorización</p>
+                    <p style="margin: 4px 0 0; font-size: 13px; color: #1a1a1a; font-weight: 600;">${linkEsc(jefeEdificio)}</p>
+                  </td>
+                  <td style="width: 50%; text-align: center; padding-top: 24px;">
+                    <div style="border-top: 1px solid #ccc; width: 180px; margin: 0 auto 6px;"></div>
+                    <p style="margin: 0; font-size: 11px; color: #888; text-transform: uppercase;">Recibí conforme</p>
+                    <p style="margin: 4px 0 0; font-size: 13px; color: #999;">&nbsp;</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 28px 18px 28px; text-align: center; border-top: 1px solid #eeeeee; background-color: #fafafa; border-radius: 0 0 12px 12px;">
+              <p style="margin: 0; font-size: 12px; color: #888888;">Documento generado por el Sistema de Gestión de Comunidad. Recibo de egreso — caja chica.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+        }
+
+        /** Descarga el recibo de un movimiento de caja chica (HTML imprimible como PDF). */
+        window.descargarReciboCajaChica = async function(id) {
+            try {
+                const mesClave = window.mesEnConsulta || obtenerMesActual();
+                const esArchivadoSoloLectura = window.mesEnConsulta && !window.mesReabierto;
+                let movimientos;
+                if (esArchivadoSoloLectura) {
+                    movimientos = await obtenerDatosArchivados('caja', mesClave);
+                } else {
+                    movimientos = await obtenerDatosMes('caja');
+                }
+                if (!Array.isArray(movimientos)) movimientos = [];
+                const movimiento = movimientos.find(m => m.id === id);
+                if (!movimiento) {
+                    mostrarAlerta('No se encontró el movimiento.', 'Error');
+                    return;
+                }
+                const mesMov = movimiento.mes || mesClave;
+                let folioUsar = movimiento.folio;
+                if (!folioUsar && !esArchivadoSoloLectura) {
+                    folioUsar = getSiguienteFolioCaja(movimientos, mesMov);
+                    const idx = movimientos.findIndex(m => m.id === id);
+                    if (idx !== -1) {
+                        movimientos[idx] = { ...movimientos[idx], folio: folioUsar };
+                        await guardarDatosMes('caja', movimientos);
+                        movimiento.folio = folioUsar;
+                    }
+                }
+                const personalizacion = typeof obtenerPersonalizacion === 'function' ? await obtenerPersonalizacion() : {};
+                const nombreComunidad = personalizacion.comunidad || (typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : 'Comunidad');
+                const jefeEdificio = personalizacion.jefeEdificio || 'Administración';
+                const folioProvisional = !folioUsar && esArchivadoSoloLectura ? getFolioCajaProvisional(movimiento, movimientos, mesMov) : null;
+                const html = generarReciboCajaChicaHtml(movimiento, {
+                    nombreComunidad,
+                    jefeEdificio,
+                    folioProvisional
+                });
+                const folioArchivo = (folioUsar || folioProvisional || id).replace(/[^a-zA-Z0-9_-]/g, '_');
+                descargarReporteHTML(html, `Recibo_Caja_Chica_${folioArchivo}`, 'Recibo de Caja Chica');
+                if (!esArchivadoSoloLectura && typeof cargarCaja === 'function') await cargarCaja();
+            } catch (err) {
+                console.error('Error al generar recibo de caja chica:', err);
+                mostrarAlerta('No se pudo generar el recibo. Intente nuevamente.', 'Error');
+            }
+        };
+
         async function editarCaja(id) {
             if (window.mesEnConsulta && !window.mesReabierto) {
                 mostrarAlerta('No se pueden editar registros de meses archivados.', 'Registro Archivado');
@@ -18109,6 +18305,7 @@
                 }
             } else {
                 movimientoData.id = registroId;
+                movimientoData.folio = getSiguienteFolioCaja(movimientos, movimientoData.mes);
                 movimientos.push(movimientoData);
                 await guardarDatosMes('caja', movimientos);
                 if (typeof window.registrarMovimiento === 'function') {
@@ -19233,7 +19430,7 @@
             document.getElementById('totalCaja').textContent = formatearMoneda(total);
             
             if (movimientos.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="6" class="empty-state"><p>No hay movimientos registrados</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><p>No hay movimientos registrados</p></td></tr>';
                 return;
             }
 
@@ -19242,20 +19439,23 @@
             tbody.innerHTML = movimientos.map(m => {
                 const archivos = m.archivos || [];
                 const comprobantesHTML = renderizarArchivos(archivos, []);
+                const folioDisplay = m.folio || '<span style="color:var(--gray-400);font-size:0.75rem;">—</span>';
                 return `
                 <tr>
+                    <td style="font-family: monospace; font-size: 0.8125rem; white-space: nowrap;">${folioDisplay}</td>
                     <td>${formatearFecha(m.fecha)}</td>
                     <td>${m.numeroDocumento || '-'}</td>
                     <td>${m.descripcion}</td>
                     <td>${formatearMoneda(m.monto)}</td>
                     <td style="max-width: 200px;">${comprobantesHTML}</td>
                     <td>
-                        ${(window.mesEnConsulta && !window.mesReabierto) ? '<span style="color: var(--gray-500); font-size: 0.75rem;">Archivado</span>' : `
-                            <div style="display: flex; gap: 0.5rem;">
+                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="descargarReciboCajaChica('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem;" title="Descargar recibo (PDF)">📄 Recibo</button>
+                            ${(window.mesEnConsulta && !window.mesReabierto) ? '<span style="color: var(--gray-500); font-size: 0.75rem;">Archivado</span>' : `
                                 <button class="btn btn-primary btn-sm" onclick="editarCaja('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem;">Editar</button>
                                 <button class="btn btn-danger btn-sm" onclick="eliminarCaja('${m.id}')">Eliminar</button>
-                            </div>
-                        `}
+                            `}
+                        </div>
                     </td>
                 </tr>
             `;
@@ -29954,6 +30154,7 @@
                         <thead>
                             <tr>
                                 <th>N°</th>
+                                <th>Folio</th>
                                 <th>Fecha</th>
                                 <th>N° Documento</th>
                                 <th>Descripción del Gasto</th>
@@ -29967,9 +30168,11 @@
                 caja.sort((a, b) => new Date(a.fecha) - new Date(b.fecha)).forEach((m, idx) => {
                     const archivos = m.archivos || [];
                     const comprobantesHTML = renderizarArchivosReporte(archivos, []);
+                    const folioRep = m.folio || getFolioCajaProvisional(m, caja, mesAnio);
                     html += `
                         <tr>
                             <td>${idx + 1}</td>
+                            <td style="font-family: monospace; font-size: 0.8rem;">${folioRep}</td>
                             <td>${formatearFecha(m.fecha)}</td>
                             <td>${m.numeroDocumento || '-'}</td>
                             <td>${m.descripcion}</td>
