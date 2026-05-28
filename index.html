@@ -7939,6 +7939,44 @@
             return out;
         }
 
+        const TRIGGER_EMAIL_PROYECTO = 'administracion-41391';
+        const TRIGGER_EMAIL_COLECCION = 'mail';
+        const TRIGGER_EMAIL_INSTALAR_URL =
+            'https://console.firebase.google.com/project/administracion-41391/extensions/install?ref=firebase/firestore-send-email';
+
+        function mostrarAyudaTriggerEmailNoInstalado(docId) {
+            const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const html = `
+                <div style="padding:1rem;line-height:1.55;font-size:0.9rem;color:var(--text-primary,#111);">
+                    <p style="margin:0 0 0.75rem 0;">El correo quedó guardado en Firestore (<code>mail/${esc(docId || '?')}</code>), pero <strong>Trigger Email no lo procesó</strong> (no existe el campo <code>delivery</code>).</p>
+                    <p style="margin:0 0 0.5rem 0;font-weight:600;">En Firebase Console → proyecto <strong>${esc(TRIGGER_EMAIL_PROYECTO)}</strong>:</p>
+                    <ol style="margin:0 0 0.75rem 1.1rem;padding:0;">
+                        <li style="margin-bottom:0.35rem;">Extensions → instalar <strong>Trigger Email</strong> (<code>firestore-send-email</code>).</li>
+                        <li style="margin-bottom:0.35rem;">Colección de correos: <strong>${esc(TRIGGER_EMAIL_COLECCION)}</strong> (debe coincidir exactamente).</li>
+                        <li style="margin-bottom:0.35rem;">Configurar SMTP (Gmail: contraseña de aplicación; puerto <strong>587</strong>).</li>
+                        <li style="margin-bottom:0.35rem;">Publicar reglas Firestore que permitan <code>create</code> en <code>mail</code> (usuarios autenticados).</li>
+                        <li>Enviar un correo de prueba y verificar que el documento tenga <code>delivery.state: SUCCESS</code>.</li>
+                    </ol>
+                    <p style="margin:0;font-size:0.8rem;color:var(--text-tertiary,#6b7280);">Si la extensión ya está instalada, revise que la colección no sea <code>email</code> u otro nombre, y que la extensión no esté en error (Extensions → logs).</p>
+                </div>`;
+            const modal = document.createElement('div');
+            modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.55);z-index:10001;display:flex;align-items:center;justify-content:center;padding:1rem;';
+            modal.innerHTML = `
+                <div style="background:var(--bg-primary,#fff);border-radius:12px;max-width:560px;width:100%;max-height:90vh;overflow:auto;box-shadow:0 20px 25px -5px rgba(0,0,0,0.15);">
+                    <div style="padding:1rem 1.25rem;border-bottom:1px solid var(--border-color,#e5e7eb);">
+                        <h3 style="margin:0;font-size:1.1rem;">Trigger Email no configurado</h3>
+                    </div>
+                    ${html}
+                    <div style="padding:0 1.25rem 1.25rem;display:flex;flex-wrap:wrap;gap:0.5rem;justify-content:flex-end;">
+                        <button type="button" class="btn btn-secondary te-ayuda-cerrar">Cerrar</button>
+                        <a class="btn btn-primary" href="${TRIGGER_EMAIL_INSTALAR_URL}" target="_blank" rel="noopener noreferrer" style="text-decoration:none;display:inline-flex;align-items:center;">Abrir Firebase Extensions</a>
+                    </div>
+                </div>`;
+            modal.querySelector('.te-ayuda-cerrar').addEventListener('click', () => modal.remove());
+            modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
+            document.body.appendChild(modal);
+        }
+
         /**
          * Espera a que Trigger Email actualice delivery en el documento mail/.
          * @returns {{ ok: boolean|null, state: string, error?: string, data?: object }}
@@ -8373,16 +8411,27 @@
 
                 if (delivery.ok === null) {
                     const sinExt = delivery.state === 'SIN_EXTENSION';
-                    const aviso = sinExt
-                        ? 'El documento está en la colección mail, pero Trigger Email no lo procesó (no aparece el campo delivery). Instale o reactive la extensión firestore-send-email en el proyecto administracion-41391 y configure SMTP.'
-                        : 'El correo quedó en cola (' + (delivery.state || 'pendiente') + '). Si no llega en unos minutos, revise SMTP en Firebase Extensions.';
+                    if (sinExt) {
+                        const avisoExt = 'Trigger Email no está activo en Firebase (proyecto ' + TRIGGER_EMAIL_PROYECTO + '). El correo NO se envió; solo quedó en la colección mail.';
+                        console.warn('⚠️', avisoExt);
+                        mostrarAyudaTriggerEmailNoInstalado(docRef.id);
+                        return {
+                            exito: false,
+                            error: avisoExt,
+                            docId: docRef.id,
+                            encolado: true,
+                            deliveryState: 'SIN_EXTENSION',
+                            setupUrl: TRIGGER_EMAIL_INSTALAR_URL
+                        };
+                    }
+                    const aviso = 'El correo quedó en cola (' + (delivery.state || 'pendiente') + '). Si no llega en unos minutos, revise SMTP en Firebase Extensions.';
                     console.warn('⚠️', aviso);
                     mostrarAlerta(aviso, 'Correo en cola');
                     return {
-                        exito: true,
-                        mensaje: 'Correo encolado. ' + aviso,
-                        advertencia: aviso,
+                        exito: false,
+                        error: aviso,
                         docId: docRef.id,
+                        encolado: true,
                         destinatario: listaCorreos.length === 1 ? listaCorreos[0] : listaCorreos,
                         tipo: tipoCorreo,
                         formato: html ? 'HTML' : 'texto',
