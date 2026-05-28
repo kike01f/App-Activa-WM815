@@ -4257,6 +4257,8 @@
                                     <p class="htool-desc">Desde Firestore. Si cerraste un mes por error, recupere los datos aquí.</p>
                                     <button class="btn" id="btnRecuperarFirestore" style="background: var(--primary); color: white; margin-bottom: 0.5rem;">⬇️ Recuperar Todo de Firestore</button>
                                     <button class="btn" id="btnBuscarMeses" style="background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.3);">🔍 Buscar Meses Disponibles</button>
+                                    <button type="button" class="btn" id="btnDiagnosticoTriggerEmail" style="background: #0ea5e9; color: white; margin-top: 0.5rem; width: 100%;">📧 Diagnóstico envío de correos</button>
+                                    <button type="button" class="btn" id="btnVerCorreosEnviados" style="background: rgba(255,255,255,0.15); color: #fff; border: 1px solid rgba(255,255,255,0.3); margin-top: 0.35rem; width: 100%;">📬 Ver cola mail (últimos 20)</button>
                                     <div id="mesesDisponibles" style="display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);"><!-- Se llena dinámicamente --></div>
                                 </div>
                                 <!-- Consultar meses y cierre -->
@@ -7937,6 +7939,39 @@
             return out;
         }
 
+        /**
+         * Espera a que Trigger Email actualice delivery en el documento mail/.
+         * @returns {{ ok: boolean|null, state: string, error?: string, data?: object }}
+         */
+        async function esperarDeliveryCorreo(docRef, timeoutMs = 10000) {
+            const inicio = Date.now();
+            while (Date.now() - inicio < timeoutMs) {
+                const snap = await docRef.get();
+                const data = snap.data() || {};
+                if (data.delivery) {
+                    const state = String(data.delivery.state || '').toUpperCase();
+                    if (state === 'SUCCESS') {
+                        return { ok: true, state, data };
+                    }
+                    if (state === 'ERROR') {
+                        return { ok: false, state, error: data.delivery.error || data.error || 'Error de entrega SMTP', data };
+                    }
+                }
+                await new Promise((r) => setTimeout(r, 1200));
+            }
+            const finalSnap = await docRef.get();
+            const finalData = finalSnap.data() || {};
+            if (!finalData.delivery) {
+                return { ok: null, state: 'SIN_EXTENSION', data: finalData };
+            }
+            const st = String(finalData.delivery.state || '').toUpperCase();
+            if (st === 'SUCCESS') return { ok: true, state: st, data: finalData };
+            if (st === 'ERROR') {
+                return { ok: false, state: st, error: finalData.delivery.error || 'Error de entrega', data: finalData };
+            }
+            return { ok: null, state: st || 'TIMEOUT', data: finalData };
+        }
+
         // Requiere que la extensión "Trigger Email" esté instalada en Firebase
         // opciones: { cc?: string|string[], bcc?: string|string[] } — copia / copia oculta
         async function enviarCorreo(residente, asunto, mensaje, html = null, adjuntos = null, opciones = null) {
@@ -7994,14 +8029,13 @@
                     mailData.message.html = html;
                 }
 
-                // Si hay adjuntos, procesarlos y agregarlos al correo
-                // Estrategia dual: adjuntos directos (para Firebase Trigger Email) + enlaces de Storage (respaldo)
+                // Si hay adjuntos, procesarlos dentro de message.attachments (formato Trigger Email / Nodemailer)
+                // Estrategia dual: adjuntos en message + enlaces de Storage en el HTML (respaldo)
                 if (adjuntos && Array.isArray(adjuntos) && adjuntos.length > 0) {
                     console.log('📎 Procesando adjuntos:', adjuntos.length);
                     
-                    // Inicializar array de adjuntos directos (SIEMPRE se agregan)
-                    if (!mailData.attachments) {
-                        mailData.attachments = [];
+                    if (!mailData.message.attachments) {
+                        mailData.message.attachments = [];
                     }
                     
                     const linksAdjuntos = [];
@@ -8041,7 +8075,7 @@
                                 continue;
                             }
                             
-                            mailData.attachments.push(adjuntoParaAgregar);
+                            mailData.message.attachments.push(adjuntoParaAgregar);
                             
                             console.log('✅ Adjunto directo agregado a mailData:', {
                                 filename: adjuntoParaAgregar.filename,
@@ -8151,7 +8185,7 @@
                     }
                     
                     console.log('📎 Resumen de adjuntos procesados:', {
-                        adjuntosDirectos: mailData.attachments.length,
+                        adjuntosEnMessage: mailData.message.attachments.length,
                         subidosStorage: linksAdjuntos.length,
                         totalAdjuntos: adjuntos.length
                     });
@@ -8187,12 +8221,13 @@
                     }
                 }
 
-                // Agregar metadatos para seguimiento
+                // Metadatos de la app (no usar status en raíz: lo gestiona delivery de Trigger Email)
                 mailData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                mailData.createdBy = usuarioActual?.email || 'unknown';
-                mailData.status = 'pending';
-                mailData.tipo = html ? 'HTML' : 'texto';
-                mailData.tamanoHTML = html ? html.length : 0;
+                mailData.meta = {
+                    createdBy: usuarioActual?.email || 'unknown',
+                    tipo: html ? 'HTML' : 'texto',
+                    tamanoHTML: html ? html.length : 0
+                };
 
                 // Logs detallados del correo que se está enviando
                 console.log('📧 ===== DETALLES DEL CORREO A ENVIAR =====');
@@ -8224,11 +8259,10 @@
                 }
                 
                 // Verificar y validar adjuntos antes de enviar
-                if (mailData.attachments && mailData.attachments.length > 0) {
+                if (mailData.message.attachments && mailData.message.attachments.length > 0) {
                     console.log('📎 VERIFICACIÓN DE ADJUNTOS ANTES DE ENVIAR:');
                     
-                    // Validar y asegurar que todos los adjuntos tengan encoding
-                    mailData.attachments = mailData.attachments.map((adj, idx) => {
+                    mailData.message.attachments = mailData.message.attachments.map((adj, idx) => {
                         // Asegurar que tenga encoding
                         if (!adj.encoding) {
                             adj.encoding = 'base64';
@@ -8257,22 +8291,32 @@
                         });
                         
                         return adj;
-                    }).filter(adj => adj !== null); // Filtrar adjuntos inválidos
+                    }).filter(adj => adj !== null);
                     
-                    if (mailData.attachments.length === 0) {
+                    if (mailData.message.attachments.length === 0) {
                         console.error('❌ Todos los adjuntos fueron filtrados por ser inválidos');
-                        delete mailData.attachments; // Eliminar array vacío
+                        delete mailData.message.attachments;
                     } else {
-                        console.log(`✅ Total adjuntos válidos: ${mailData.attachments.length}`);
+                        console.log(`✅ Total adjuntos válidos: ${mailData.message.attachments.length}`);
                     }
-                } else {
-                    console.warn('⚠️ NO HAY ADJUNTOS EN mailData ANTES DE ENVIAR');
+                }
+
+                // Límite Firestore ~1 MiB por documento
+                try {
+                    const tamEstimado = JSON.stringify(mailData).length;
+                    if (tamEstimado > 950000) {
+                        const msgTam = 'El correo supera el tamaño máximo de Firestore (~1 MB). Use reportes más pequeños o envíe solo enlaces desde Storage.';
+                        console.error('❌ Documento mail demasiado grande:', tamEstimado, 'bytes');
+                        mostrarAlerta(msgTam, 'Correo demasiado grande');
+                        return { exito: false, error: msgTam };
+                    }
+                } catch (eTam) {
+                    console.warn('No se pudo estimar tamaño del documento mail:', eTam);
                 }
                 
-                // Log del mailData (sin mostrar todo el contenido de adjuntos por tamaño)
-                const mailDataLog = { ...mailData };
-                if (mailDataLog.attachments) {
-                    mailDataLog.attachments = mailDataLog.attachments.map(adj => ({
+                const mailDataLog = { ...mailData, message: { ...mailData.message } };
+                if (mailDataLog.message.attachments) {
+                    mailDataLog.message.attachments = mailDataLog.message.attachments.map(adj => ({
                         filename: adj.filename,
                         contentType: adj.contentType,
                         encoding: adj.encoding,
@@ -8284,34 +8328,23 @@
 
                 const docRef = await db.collection("mail").add(mailData);
                 
-                // Verificar que los adjuntos se guardaron correctamente
                 const docVerificado = await docRef.get();
-                const datosGuardados = docVerificado.data();
-                if (datosGuardados.attachments && Array.isArray(datosGuardados.attachments) && datosGuardados.attachments.length > 0) {
-                    console.log('✅ Adjuntos guardados en Firestore:', datosGuardados.attachments.length);
-                    datosGuardados.attachments.forEach((adj, idx) => {
-                        console.log(`  ✅ Adjunto ${idx + 1} guardado:`, {
-                            filename: adj.filename,
-                            contentType: adj.contentType,
-                            encoding: adj.encoding || 'no especificado',
-                            tamañoContent: adj.content ? adj.content.length : 0
-                        });
-                    });
-                } else {
-                    console.error('❌ ADJUNTOS NO SE GUARDARON EN FIRESTORE');
-                    console.error('Datos guardados:', {
-                        tieneAttachments: !!datosGuardados.attachments,
-                        tipoAttachments: typeof datosGuardados.attachments,
-                        esArray: Array.isArray(datosGuardados.attachments),
-                        longitud: datosGuardados.attachments ? datosGuardados.attachments.length : 'N/A'
-                    });
+                const datosGuardados = docVerificado.data() || {};
+                const adjGuardados = datosGuardados.message && datosGuardados.message.attachments;
+                const esperabaAdjuntos = adjuntos && Array.isArray(adjuntos) && adjuntos.length > 0;
+                if (esperabaAdjuntos) {
+                    if (adjGuardados && adjGuardados.length > 0) {
+                        console.log('✅ Adjuntos guardados en message.attachments:', adjGuardados.length);
+                    } else {
+                        console.error('❌ Se esperaban adjuntos pero message.attachments no se guardó en Firestore');
+                    }
                 }
-                
-                console.log('✅ Correo agregado a la cola de envío');
-                console.log('🆔 ID del documento en Firestore:', docRef.id);
-                console.log('📍 Ruta completa: mail/' + docRef.id);
-                
-                // Determinar tipo de correo
+
+                console.log('✅ Correo agregado a la cola mail/' + docRef.id);
+                mostrarProgreso('Esperando confirmación de Trigger Email…');
+                const delivery = await esperarDeliveryCorreo(docRef);
+                ocultarProgreso();
+
                 let tipoCorreo = 'Comprobante';
                 if (html) {
                     if (html.includes('Apertura de puerta') || html.includes('apertura de puerta')) {
@@ -8320,23 +8353,56 @@
                         tipoCorreo = 'Venta de Tarjeta/TAG';
                     }
                 }
-                
-                // Mensaje simplificado para el usuario
+
+                if (delivery.ok === false) {
+                    const errEntrega = delivery.error || 'Error desconocido de SMTP';
+                    console.error('❌ Trigger Email — entrega fallida:', errEntrega);
+                    mostrarAlerta(
+                        'El correo se guardó en Firestore pero no se pudo entregar.\n\n' + errEntrega +
+                        '\n\nRevise Firebase → Extensions → Trigger Email (SMTP) y los logs de Cloud Functions.',
+                        'Error de entrega'
+                    );
+                    return {
+                        exito: false,
+                        error: errEntrega,
+                        docId: docRef.id,
+                        encolado: true,
+                        deliveryState: delivery.state
+                    };
+                }
+
+                if (delivery.ok === null) {
+                    const sinExt = delivery.state === 'SIN_EXTENSION';
+                    const aviso = sinExt
+                        ? 'El documento está en la colección mail, pero Trigger Email no lo procesó (no aparece el campo delivery). Instale o reactive la extensión firestore-send-email en el proyecto administracion-41391 y configure SMTP.'
+                        : 'El correo quedó en cola (' + (delivery.state || 'pendiente') + '). Si no llega en unos minutos, revise SMTP en Firebase Extensions.';
+                    console.warn('⚠️', aviso);
+                    mostrarAlerta(aviso, 'Correo en cola');
+                    return {
+                        exito: true,
+                        mensaje: 'Correo encolado. ' + aviso,
+                        advertencia: aviso,
+                        docId: docRef.id,
+                        destinatario: listaCorreos.length === 1 ? listaCorreos[0] : listaCorreos,
+                        tipo: tipoCorreo,
+                        formato: html ? 'HTML' : 'texto',
+                        deliveryState: delivery.state
+                    };
+                }
+
                 const mensajeExito = listaCorreos.length > 1
-                    ? `✅ Correo enviado en un solo envío a ${listaCorreos.length} destinatarios`
+                    ? `✅ Correo enviado a ${listaCorreos.length} destinatarios`
                     : `✅ Correo enviado a ${listaCorreos[0]}`;
-                
-                console.log('ℹ️ Información para el usuario:', mensajeExito);
-                console.log('📋 Tipo:', tipoCorreo);
-                console.log('🆔 ID:', docRef.id);
-                
-                return { 
-                    exito: true, 
+
+                console.log('✅ Trigger Email — entrega SUCCESS:', docRef.id);
+                return {
+                    exito: true,
                     mensaje: mensajeExito,
                     docId: docRef.id,
                     destinatario: listaCorreos.length === 1 ? listaCorreos[0] : listaCorreos,
                     tipo: tipoCorreo,
-                    formato: html ? 'HTML' : 'texto'
+                    formato: html ? 'HTML' : 'texto',
+                    deliveryState: 'SUCCESS'
                 };
             } catch (err) {
                 console.error("❌ Error al enviar correo:", err);
@@ -10096,16 +10162,18 @@
                     const fecha = correo.fechaCreacion ? 
                         correo.fechaCreacion.toLocaleString('es-CL') : 
                         'Fecha no disponible';
-                    const tipo = correo.tipo || (correo.message?.html ? 'HTML' : 'Texto');
-                    // Verificar estado desde delivery.state si existe, sino usar status
+                    const tipo = (correo.meta && correo.meta.tipo) || correo.tipo || (correo.message?.html ? 'HTML' : 'Texto');
                     const estadoDelivery = correo.delivery?.state;
-                    const estado = estadoDelivery || correo.status || 'pending';
-                    const estadoColor = estado === 'SENT' || estado === 'sent' ? '#10b981' : 
-                                       estado === 'ERROR' || estado === 'error' ? '#ef4444' : 
-                                       estado === 'PROCESSING' || estado === 'processing' ? '#3b82f6' : '#f59e0b';
-                    const estadoTexto = estado === 'SENT' || estado === 'sent' ? '✅ Enviado' : 
-                                       estado === 'ERROR' || estado === 'error' ? '❌ Error' : 
-                                       estado === 'PROCESSING' || estado === 'processing' ? '🔄 Procesando' : '⏳ Pendiente';
+                    const estado = estadoDelivery || (correo.delivery ? 'PENDING' : 'SIN_PROCESAR');
+                    const estadoUp = String(estado).toUpperCase();
+                    const estadoColor = estadoUp === 'SUCCESS' || estadoUp === 'SENT' ? '#10b981' :
+                                       estadoUp === 'ERROR' ? '#ef4444' :
+                                       estadoUp === 'PROCESSING' ? '#3b82f6' :
+                                       estadoUp === 'SIN_PROCESAR' ? '#dc2626' : '#f59e0b';
+                    const estadoTexto = estadoUp === 'SUCCESS' || estadoUp === 'SENT' ? '✅ Enviado' :
+                                       estadoUp === 'ERROR' ? '❌ Error' :
+                                       estadoUp === 'PROCESSING' ? '🔄 Procesando' :
+                                       estadoUp === 'SIN_PROCESAR' ? '⚠️ Sin procesar (Trigger Email)' : '⏳ Pendiente';
 
                     html += `<div style="border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; background: var(--bg-primary);">`;
                     html += `<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">`;
@@ -10118,7 +10186,8 @@
                     html += `<div><strong>Fecha:</strong> ${fecha}</div>`;
                     html += `<div><strong>ID:</strong> <code style="background: var(--bg-secondary); padding: 0.125rem 0.25rem; border-radius: 3px; font-size: 0.75rem;">${correo.id}</code></div>`;
                     if (correo.message?.html) {
-                        html += `<div><strong>Tamaño HTML:</strong> ${correo.tamanoHTML || correo.message.html.length} caracteres</div>`;
+                        const tamHtml = (correo.meta && correo.meta.tamanoHTML) || correo.tamanoHTML || correo.message.html.length;
+                        html += `<div><strong>Tamaño HTML:</strong> ${tamHtml} caracteres</div>`;
                     }
                     if (correo.delivery?.attempts) {
                         html += `<div><strong>Intentos:</strong> ${correo.delivery.attempts}</div>`;
@@ -10213,7 +10282,7 @@
                 snap.forEach((d) => docs.push({ id: d.id, ...(d.data() || {}) }));
 
                 const normState = (v) => String(v || '').trim().toUpperCase();
-                const isSent = (s) => s === 'SENT' || s === 'SUCCESS';
+                const isSent = (s) => s === 'SENT' || s === 'SUCCESS' || s === 'DELIVERED';
                 const isError = (s) => s === 'ERROR' || s === 'FAILED' || s === 'FAILURE';
                 const isProcessing = (s) => s === 'PROCESSING';
 
@@ -10225,8 +10294,21 @@
                 const erroresMuestra = [];
                 const now = Date.now();
 
+                let sinProcesar = 0;
                 docs.forEach((m) => {
-                    const state = normState((m.delivery && m.delivery.state) || m.status || 'PENDING');
+                    if (!m.delivery) {
+                        sinProcesar += 1;
+                        pending += 1;
+                        const createdAt = m.createdAt && typeof m.createdAt.toDate === 'function'
+                            ? m.createdAt.toDate().getTime()
+                            : (m.createdAt ? new Date(m.createdAt).getTime() : NaN);
+                        if (!isNaN(createdAt)) {
+                            const mins = Math.floor((now - createdAt) / 60000);
+                            if (mins > oldestPendingMinutes) oldestPendingMinutes = mins;
+                        }
+                        return;
+                    }
+                    const state = normState(m.delivery.state || 'PENDING');
                     if (isSent(state)) {
                         sent += 1;
                         return;
@@ -10254,7 +10336,10 @@
                 let conclusion = 'Estado mixto.';
                 let tip = 'Revisa el historial para más detalle.';
 
-                if (sent > 0 && pending === 0 && errored === 0 && processing === 0) {
+                if (sinProcesar > 0 && sent === 0) {
+                    conclusion = 'Trigger Email no está procesando la colección mail.';
+                    tip = sinProcesar + ' correo(s) sin campo delivery. Instale o reactive la extensión firestore-send-email en Firebase (proyecto administracion-41391) y configure SMTP.';
+                } else if (sent > 0 && pending === 0 && errored === 0 && processing === 0) {
                     conclusion = 'Trigger Email parece funcionar correctamente.';
                     tip = 'Se observan correos procesados como enviados.';
                 } else if (pending > 0 && sent === 0 && errored === 0 && oldestPendingMinutes >= 10) {
@@ -10289,6 +10374,7 @@
                             <div><strong>Pendientes:</strong> ${pending}</div>
                             <div><strong>Procesando:</strong> ${processing}</div>
                             <div><strong>Con error:</strong> ${errored}</div>
+                            <div><strong>Sin procesar (sin delivery):</strong> ${sinProcesar}</div>
                             <div><strong>Pendiente más antiguo:</strong> ${oldestPendingMinutes} min</div>
                         </div>
                         ${detalleErrores}
@@ -35566,6 +35652,23 @@
                                 console.error('Error al recuperar datos:', error);
                                 mostrarAlerta('Ocurrió un error al recuperar los datos. Por favor, intente nuevamente.', 'Error');
                             }
+                        }
+                    });
+                }
+
+                const btnDiagnosticoTriggerEmail = document.getElementById('btnDiagnosticoTriggerEmail');
+                if (btnDiagnosticoTriggerEmail) {
+                    btnDiagnosticoTriggerEmail.addEventListener('click', function() {
+                        if (typeof window.diagnosticarTriggerEmail === 'function') {
+                            window.diagnosticarTriggerEmail();
+                        }
+                    });
+                }
+                const btnVerCorreosEnviados = document.getElementById('btnVerCorreosEnviados');
+                if (btnVerCorreosEnviados) {
+                    btnVerCorreosEnviados.addEventListener('click', function() {
+                        if (typeof window.verCorreosEnviados === 'function') {
+                            window.verCorreosEnviados();
                         }
                     });
                 }
