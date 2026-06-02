@@ -4259,6 +4259,13 @@
                                     <button class="btn" id="btnBuscarMeses" style="background: rgba(255,255,255,0.2); color: #fff; border: 1px solid rgba(255,255,255,0.3);">🔍 Buscar Meses Disponibles</button>
                                     <div id="mesesDisponibles" style="display: none; margin-top: 1rem; padding-top: 1rem; border-top: 1px solid rgba(255,255,255,0.1);"><!-- Se llena dinámicamente --></div>
                                 </div>
+                                <!-- Trasladar cargos entre meses -->
+                                <div class="dashboard2-htool-card">
+                                    <div class="htool-icon htool-icon--amber">↔</div>
+                                    <h4 class="htool-title">Trasladar Cargos entre Meses</h4>
+                                    <p class="htool-desc">Mueva cargos de mudanzas, aperturas, tarjetas/TAG, espacios comunes y multas entre períodos de gestión (incluye meses archivados).</p>
+                                    <button type="button" class="btn" id="btnAbrirTrasladarCargos" style="background: #f59e0b; color: #111827; font-weight: 600; border: none;">↔ Trasladar cargos</button>
+                                </div>
                                 <!-- Consultar meses y cierre -->
                                 <div class="dashboard2-htool-card dashboard2-htool-card--wide">
                                     <div class="htool-icon htool-icon--amber">📅</div>
@@ -11544,13 +11551,15 @@
                             ${m.observaciones ? `<span style="display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${m.observaciones}</span>` : '-'}
                         </td>
                         <td style="width: 110px;">
-                            ${(window.mesEnConsulta && !window.mesReabierto) ? '<span style="color: var(--gray-500); font-size: 0.75rem;">Archivado</span>' : `
-                                <div style="display: flex; flex-direction: column; gap: 0.15rem; align-items: stretch;">
+                            <div style="display: flex; flex-direction: column; gap: 0.15rem; align-items: stretch;">
+                                ${htmlBotonTrasladarCargo('mudanzas', m)}
+                                ${(window.mesEnConsulta && !window.mesReabierto) ? '' : `
                                     <button class="btn btn-primary btn-sm" onclick="editarMudanza('${m.id}')" style="padding: 0.25rem 0.4rem; font-size: 0.75rem; width: 100%;">Editar</button>
                                     ${m.movimiento === 'salida' ? `<button class="btn btn-success btn-sm" onclick="generarComprobanteSalida('${m.id}')" style="padding: 0.25rem 0.4rem; font-size: 0.7rem; width: 100%;">📄 Comprobante</button>` : ''}
                                     <button class="btn btn-danger btn-sm" onclick="eliminarMudanza('${m.id}')" style="padding: 0.25rem 0.4rem; font-size: 0.75rem; width: 100%;">Eliminar</button>
-                                </div>
-                            `}
+                                `}
+                                ${(window.mesEnConsulta && !window.mesReabierto) ? '<span style="color: var(--gray-500); font-size: 0.7rem;">Solo lectura</span>' : ''}
+                            </div>
                         </td>
                     </tr>
                 `;
@@ -11876,7 +11885,8 @@
                         <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
                             <button type="button" class="btn btn-secondary btn-sm" onclick="abrirComprobanteApertura('${a.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem;">📄 Comprobante</button>
                             <button type="button" class="btn btn-info btn-sm" onclick="enviarCorreoApertura('${a.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem; background: #06b6d4; color: white; border: none;" title="Enviar comprobante por correo">📧 Enviar</button>
-                            ${(window.mesEnConsulta && !window.mesReabierto) ? '<span style="color: var(--gray-500); font-size: 0.75rem;">Archivado</span>' : `
+                            ${htmlBotonTrasladarCargo('aperturas', a)}
+                            ${(window.mesEnConsulta && !window.mesReabierto) ? '<span style="color: var(--gray-500); font-size: 0.75rem;">Solo lectura</span>' : `
                                 <button class="btn btn-primary btn-sm" onclick="editarApertura('${a.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem;">Editar</button>
                                 <button class="btn btn-danger btn-sm" onclick="eliminarApertura('${a.id}')">Eliminar</button>
                             `}
@@ -12921,14 +12931,15 @@
                     <td>${totalCantidadRegistro(t)}</td>
                     <td>${formatearMoneda(montoRegistro(t))}</td>
                     <td>
-                        ${(window.mesEnConsulta && !window.mesReabierto) ? '<span style="color: var(--gray-500); font-size: 0.75rem;">Archivado</span>' : `
-                            <div style="display: flex; gap: 0.3rem; flex-wrap: wrap;">
-                                <button class="btn btn-success btn-sm" onclick="abrirComprobanteTarjeta('${t.id}')" style="padding: 0.25rem 0.45rem; font-size: 0.75rem;">📄 Comprobante</button>
-                                <button class="btn btn-info btn-sm" onclick="enviarCorreoTarjeta('${t.id}')" style="padding: 0.25rem 0.45rem; font-size: 0.75rem; background: #06b6d4; color: white; border: none;" title="Enviar comprobante por correo">📧 Enviar</button>
+                        <div style="display: flex; gap: 0.3rem; flex-wrap: wrap;">
+                            <button class="btn btn-success btn-sm" onclick="abrirComprobanteTarjeta('${t.id}')" style="padding: 0.25rem 0.45rem; font-size: 0.75rem;">📄 Comprobante</button>
+                            <button class="btn btn-info btn-sm" onclick="enviarCorreoTarjeta('${t.id}')" style="padding: 0.25rem 0.45rem; font-size: 0.75rem; background: #06b6d4; color: white; border: none;" title="Enviar comprobante por correo">📧 Enviar</button>
+                            ${htmlBotonTrasladarCargo('tarjetas', t)}
+                            ${(window.mesEnConsulta && !window.mesReabierto) ? '<span style="color: var(--gray-500); font-size: 0.7rem;">Solo lectura</span>' : `
                                 <button class="btn btn-primary btn-sm" onclick="editarTarjeta('${t.id}')" style="padding: 0.25rem 0.45rem; font-size: 0.75rem;">Editar</button>
                                 <button class="btn btn-danger btn-sm" onclick="eliminarTarjeta('${t.id}')" style="padding: 0.25rem 0.45rem; font-size: 0.75rem;">Eliminar</button>
-                            </div>
-                        `}
+                            `}
+                        </div>
                     </td>
                 </tr>
             `).join('');
@@ -13136,7 +13147,8 @@
                         <div style="display: flex; flex-wrap: wrap; gap: 0.25rem; align-items: center;">
                             <button type="button" class="btn btn-secondary btn-sm" onclick="abrirCorreoConfirmacionEvento('${e.id}')" title="Ver correo de confirmación" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">📄 Confirmación</button>
                             <button type="button" class="btn btn-info btn-sm" onclick="enviarCorreoEvento('${e.id}')" title="Enviar correo de confirmación" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #06b6d4; color: white; border: none;">📧 Enviar</button>
-                            ${(window.mesEnConsulta && !window.mesReabierto) ? '<span style="color: var(--gray-500); font-size: 0.7rem;">Archivado</span>' : `
+                            ${htmlBotonTrasladarCargo('espacios', e)}
+                            ${(window.mesEnConsulta && !window.mesReabierto) ? '<span style="color: var(--gray-500); font-size: 0.7rem;">Solo lectura</span>' : `
                                 <button class="btn btn-primary btn-sm" onclick="editarEspacio('${e.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Editar</button>
                                 <button class="btn btn-danger btn-sm" onclick="eliminarEspacio('${e.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Eliminar</button>
                             `}
@@ -13524,7 +13536,8 @@
                                 <button type="button" class="btn btn-secondary btn-sm" onclick="abrirComprobanteMulta('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem;">${titComprob}</button>
                                 <button type="button" class="btn btn-info btn-sm" onclick="enviarCorreoMulta('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem; background: #06b6d4; color: white; border: none;" title="${esAnul ? 'Enviar correo de anulación' : 'Enviar comprobante por correo'}">${titEnviar}</button>
                                 ${btnAnulSobre}
-                                ${(window.mesEnConsulta && !window.mesReabierto) ? '<span style="color: var(--gray-500); font-size: 0.75rem;">Archivado</span>' : `
+                                ${htmlBotonTrasladarCargo('multas', m)}
+                                ${(window.mesEnConsulta && !window.mesReabierto) ? '<span style="color: var(--gray-500); font-size: 0.75rem;">Solo lectura</span>' : `
                                     <button class="btn btn-primary btn-sm" onclick="editarMulta('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem;">Editar</button>
                                     <button class="btn btn-danger btn-sm" onclick="eliminarMulta('${m.id}')">Eliminar</button>
                                 `}
@@ -13924,6 +13937,488 @@
                 await cargarMultas();
             }
         }
+
+        // ============================================
+        // TRASLADO DE CARGOS ENTRE MESES DE GESTIÓN
+        // ============================================
+        const MODULOS_TRASLADO_CARGOS = ['mudanzas', 'aperturas', 'tarjetas', 'espacios', 'multas'];
+        const ETIQUETAS_MODULO_TRASLADO = {
+            mudanzas: 'Mudanzas',
+            aperturas: 'Aperturas de Puerta',
+            tarjetas: 'Tarjetas y TAG',
+            espacios: 'Espacios Comunes',
+            multas: 'Multas'
+        };
+
+        function registroTieneCargoTraslado(modulo, registro) {
+            if (!registro) return false;
+            if (modulo === 'mudanzas') {
+                return registro.aplicaCobro === 'si'
+                    || (parseFloat(registro.monto) || 0) > 0
+                    || (parseFloat(registro.gastosComunes) || 0) > 0;
+            }
+            if (modulo === 'aperturas') {
+                return registro.aplicaCobro === 'si' || (parseFloat(registro.monto) || 0) > 0;
+            }
+            if (modulo === 'tarjetas') {
+                const m = (registro.monto != null && registro.monto !== '')
+                    ? (parseFloat(registro.monto) || 0)
+                    : (typeof montoTarjetaRecord === 'function' ? montoTarjetaRecord(registro) : 0);
+                return m > 0;
+            }
+            if (modulo === 'espacios') {
+                const aseo = registro.aplicaAseo === 'si' ? (parseFloat(registro.monto) || 15000) : 0;
+                const uso = registro.aplicaCobroEspacio === 'si' ? (parseFloat(registro.montoCobroEspacio) || 0) : 0;
+                return aseo + uso > 0;
+            }
+            if (modulo === 'multas') {
+                if (typeof multaEsRegistroAnulacion === 'function' && multaEsRegistroAnulacion(registro)) return false;
+                return (parseFloat(registro.monto) || 0) > 0;
+            }
+            return false;
+        }
+
+        function describirRegistroTraslado(modulo, registro) {
+            const depto = registro.departamento || '-';
+            const nombre = registro.nombre || '-';
+            let montoStr = '';
+            if (modulo === 'multas') {
+                montoStr = `${(parseFloat(registro.monto) || 0).toFixed(2)} ${registro.tipoUnidad || 'UF'}`;
+            } else if (modulo === 'espacios') {
+                const aseo = registro.aplicaAseo === 'si' ? (parseFloat(registro.monto) || 15000) : 0;
+                const uso = registro.aplicaCobroEspacio === 'si' ? (parseFloat(registro.montoCobroEspacio) || 0) : 0;
+                montoStr = formatearMoneda(aseo + uso);
+            } else if (modulo === 'tarjetas') {
+                const m = (registro.monto != null && registro.monto !== '')
+                    ? (parseFloat(registro.monto) || 0)
+                    : montoTarjetaRecord(registro);
+                montoStr = formatearMoneda(m);
+            } else {
+                montoStr = formatearMoneda(parseFloat(registro.monto) || 0);
+            }
+            const fecha = registro.fecha ? formatearFecha(registro.fecha) : '';
+            return `${fecha ? fecha + ' — ' : ''}Depto ${depto} — ${nombre} — ${montoStr}`;
+        }
+
+        function htmlBotonTrasladarCargo(modulo, registro) {
+            if (!registroTieneCargoTraslado(modulo, registro)) return '';
+            const idEsc = String(registro.id || '').replace(/'/g, "\\'");
+            return `<button type="button" class="btn btn-warning btn-sm" onclick="abrirModalTrasladarCargo('${modulo}','${idEsc}')" title="Trasladar cargo a otro mes de gestión" style="padding: 0.25rem 0.4rem; font-size: 0.7rem;">↔ Mes</button>`;
+        }
+
+        async function leerDatosModuloMesPersistido(key, mesAnio) {
+            const activos = await obtenerDatosActivosDirectos(key, mesAnio);
+            if (Array.isArray(activos) && activos.length > 0) {
+                return { datos: activos.slice(), almacen: 'activo' };
+            }
+            const archivados = await obtenerDatosArchivados(key, mesAnio);
+            if (Array.isArray(archivados) && archivados.length > 0) {
+                return { datos: archivados.slice(), almacen: 'archivo' };
+            }
+            const mesActual = obtenerMesActual();
+            return { datos: [], almacen: mesAnio === mesActual ? 'activo' : 'archivo' };
+        }
+
+        async function guardarDatosModuloMesPersistido(key, mesAnio, datos, almacen) {
+            const docKey = almacen === 'archivo' ? `${key}_archivo_${mesAnio}` : `${key}_${mesAnio}`;
+            const datosNormalizados = Array.isArray(datos) ? datos : [];
+            let snapshotPrevio = [];
+            if (almacen === 'archivo') {
+                snapshotPrevio = await obtenerDatosArchivados(key, mesAnio);
+            } else {
+                snapshotPrevio = await obtenerDatosActivosDirectos(key, mesAnio);
+            }
+            respaldarSnapshotLocal(docKey, key, mesAnio, snapshotPrevio);
+
+            if (firebaseInitialized && db) {
+                try {
+                    const payload = {
+                        datos: datosNormalizados,
+                        mes: mesAnio,
+                        modulo: key,
+                        actualizado: firebase.firestore.FieldValue.serverTimestamp()
+                    };
+                    if (almacen === 'archivo') {
+                        payload.archivado = true;
+                    } else if (mesAnio !== obtenerMesActual()) {
+                        payload.reabierto = true;
+                    }
+                    await db.collection('comunidad').doc(docKey).set(payload, { merge: true });
+                } catch (error) {
+                    console.error('Error al guardar traslado en Firestore:', error);
+                }
+            }
+            localStorage.setItem(lsKey(docKey), JSON.stringify(datosNormalizados));
+
+            if (typeof window.cargarEstadisticasDashboard === 'function') {
+                window.cargarEstadisticasDashboard().then(function() {
+                    if (typeof window.renderPanelControl2 === 'function') window.renderPanelControl2();
+                }).catch(function() {});
+            }
+        }
+
+        async function listarMesesGestionParaTraslado() {
+            const mesActual = obtenerMesActual();
+            const meses = new Set([mesActual]);
+            const modulos = MODULOS_TRASLADO_CARGOS;
+
+            if (firebaseInitialized && db) {
+                try {
+                    const snapshot = await db.collection('comunidad').get();
+                    snapshot.forEach(function(doc) {
+                        const key = doc.id;
+                        if (!key) return;
+                        if (key.includes('_archivo_')) {
+                            const partes = key.split('_archivo_');
+                            if (partes.length === 2 && modulos.includes(partes[0])) meses.add(partes[1]);
+                        } else {
+                            const partes = key.split('_');
+                            if (partes.length === 2 && modulos.includes(partes[0])) meses.add(partes[1]);
+                        }
+                    });
+                } catch (error) {
+                    console.warn('listarMesesGestionParaTraslado Firestore:', error);
+                }
+            }
+
+            for (let i = 0; i < localStorage.length; i++) {
+                const logical = lsLogicalKey(localStorage.key(i));
+                if (!logical) continue;
+                if (logical.includes('_archivo_')) {
+                    const partes = logical.split('_archivo_');
+                    if (partes.length === 2 && modulos.includes(partes[0])) meses.add(partes[1]);
+                } else {
+                    const partes = logical.split('_');
+                    if (partes.length === 2 && modulos.includes(partes[0])) meses.add(partes[1]);
+                }
+            }
+
+            return Array.from(meses).filter(Boolean).sort().reverse();
+        }
+
+        async function resolverMesOrigenRegistro(modulo, registroId, mesVista) {
+            const candidatos = [];
+            if (registroId && mesVista) {
+                const pack = await leerDatosModuloMesPersistido(modulo, mesVista);
+                if (pack.datos.some(function(r) { return r.id === registroId; })) return mesVista;
+            }
+            const meses = await listarMesesGestionParaTraslado();
+            for (let i = 0; i < meses.length; i++) {
+                const pack = await leerDatosModuloMesPersistido(modulo, meses[i]);
+                if (pack.datos.some(function(r) { return r.id === registroId; })) return meses[i];
+            }
+            return mesVista || obtenerMesPeriodoVista();
+        }
+
+        function prepararRegistroTrasladado(modulo, registro, mesOrigen, mesDestino, datosDestino) {
+            const copia = JSON.parse(JSON.stringify(registro));
+            copia.mes = mesDestino;
+            const nota = `Trasladado desde ${obtenerNombreMes(mesOrigen)} a ${obtenerNombreMes(mesDestino)} (${formatearFecha(obtenerFechaHoy())})`;
+            if (modulo === 'mudanzas') {
+                const base = (copia.observaciones || copia.comentarios || '').trim();
+                copia.observaciones = base ? base + ' — ' + nota : nota;
+                copia.comentarios = copia.observaciones;
+            } else if (modulo === 'multas') {
+                copia.motivo = (copia.motivo || '').trim();
+                copia.motivo = copia.motivo ? copia.motivo + ' — ' + nota : nota;
+            }
+            copia.trasladadoDesdeMes = mesOrigen;
+            copia.trasladadoEn = new Date().toISOString();
+
+            const listaDest = Array.isArray(datosDestino) ? datosDestino : [];
+            if (modulo === 'aperturas') {
+                copia.folio = getSiguienteFolioApertura(listaDest, mesDestino);
+            } else if (modulo === 'tarjetas') {
+                copia.folio = getSiguienteFolioTarjeta(listaDest, mesDestino);
+            } else if (modulo === 'espacios') {
+                copia.folio = getSiguienteFolioEvento(listaDest, mesDestino);
+            } else if (modulo === 'multas' && !(typeof multaEsRegistroAnulacion === 'function' && multaEsRegistroAnulacion(copia))) {
+                copia.folio = getSiguienteFolioMulta(listaDest, mesDestino);
+            }
+            return copia;
+        }
+
+        async function ejecutarTrasladoCargo(modulo, registroId, mesOrigen, mesDestino) {
+            if (!MODULOS_TRASLADO_CARGOS.includes(modulo)) {
+                throw new Error('Módulo no habilitado para traslado.');
+            }
+            if (!mesOrigen || !mesDestino) {
+                throw new Error('Debe indicar mes de origen y destino.');
+            }
+            if (mesOrigen === mesDestino) {
+                throw new Error('El mes de origen y destino deben ser distintos.');
+            }
+
+            const packOrigen = await leerDatosModuloMesPersistido(modulo, mesOrigen);
+            const idx = packOrigen.datos.findIndex(function(r) { return r.id === registroId; });
+            if (idx === -1) {
+                throw new Error('No se encontró el registro en el mes de origen.');
+            }
+            const registro = packOrigen.datos[idx];
+            if (!registroTieneCargoTraslado(modulo, registro)) {
+                throw new Error('El registro seleccionado no tiene cargo asociado.');
+            }
+
+            const packDestino = await leerDatosModuloMesPersistido(modulo, mesDestino);
+            const registroTrasladado = prepararRegistroTrasladado(modulo, registro, mesOrigen, mesDestino, packDestino.datos);
+            if (packDestino.datos.some(function(r) { return r.id === registroTrasladado.id; })) {
+                registroTrasladado.id = generarId();
+            }
+
+            const nuevosOrigen = packOrigen.datos.filter(function(r) { return r.id !== registroId; });
+            const nuevosDestino = packDestino.datos.concat([registroTrasladado]);
+
+            await guardarDatosModuloMesPersistido(modulo, mesOrigen, nuevosOrigen, packOrigen.almacen);
+            await guardarDatosModuloMesPersistido(modulo, mesDestino, nuevosDestino, packDestino.almacen);
+
+            if (typeof window.registrarMovimiento === 'function') {
+                const etiqueta = ETIQUETAS_MODULO_TRASLADO[modulo] || modulo;
+                window.registrarMovimiento(
+                    'actualizar',
+                    modulo,
+                    `${etiqueta}: cargo trasladado ${obtenerNombreMes(mesOrigen)} → ${obtenerNombreMes(mesDestino)} — ${describirRegistroTraslado(modulo, registroTrasladado)}`
+                );
+            }
+            return { registro: registroTrasladado };
+        }
+
+        async function recargarVistaTrasTraslado(modulo) {
+            const recargadores = {
+                mudanzas: cargarMudanzas,
+                aperturas: cargarAperturas,
+                tarjetas: cargarTarjetas,
+                espacios: cargarEspacios,
+                multas: cargarMultas
+            };
+            if (recargadores[modulo]) await recargadores[modulo]();
+            if (typeof cargarEstadisticasDashboard === 'function') {
+                await cargarEstadisticasDashboard();
+                if (typeof renderPanelControl2 === 'function') renderPanelControl2();
+            }
+        }
+
+        function escHtmlTraslado(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function opcionesSelectMesesTraslado(meses, excluir, seleccionado) {
+            return meses.filter(function(m) { return m !== excluir; }).map(function(m) {
+                const sel = m === seleccionado ? ' selected' : '';
+                return `<option value="${m}"${sel}>${escHtmlTraslado(obtenerNombreMes(m))}</option>`;
+            }).join('');
+        }
+
+        window.abrirModalTrasladarCargo = async function(modulo, registroId, mesOrigenPref) {
+            if (!MODULOS_TRASLADO_CARGOS.includes(modulo)) return;
+            const meses = await listarMesesGestionParaTraslado();
+            if (meses.length < 2) {
+                mostrarAlerta('Se necesitan al menos dos meses de gestión para trasladar cargos.', 'Sin períodos');
+                return;
+            }
+            const mesVista = mesOrigenPref || obtenerMesPeriodoVista();
+            const mesOrigen = await resolverMesOrigenRegistro(modulo, registroId, mesVista);
+            const packOrigen = await leerDatosModuloMesPersistido(modulo, mesOrigen);
+            const registro = packOrigen.datos.find(function(r) { return r.id === registroId; });
+            if (!registro) {
+                mostrarAlerta('No se encontró el registro.', 'Error');
+                return;
+            }
+            if (!registroTieneCargoTraslado(modulo, registro)) {
+                mostrarAlerta('Este registro no tiene cargo para trasladar.', 'Sin cargo');
+                return;
+            }
+
+            let mesDestinoDefault = meses.find(function(m) { return m !== mesOrigen; }) || '';
+            const html = `
+                <div style="text-align:left;font-size:0.875rem;">
+                    <p style="margin:0 0 0.75rem 0;color:var(--text-secondary);">
+                        <strong>${escHtmlTraslado(ETIQUETAS_MODULO_TRASLADO[modulo])}</strong><br>
+                        ${escHtmlTraslado(describirRegistroTraslado(modulo, registro))}
+                    </p>
+                    <div class="form-group" style="margin-bottom:0.75rem;">
+                        <label style="font-weight:600;display:block;margin-bottom:0.35rem;">Mes de origen</label>
+                        <select id="trasladoMesOrigen" disabled style="width:100%;padding:0.5rem;border-radius:8px;border:1px solid var(--border-color);">
+                            <option value="${mesOrigen}">${escHtmlTraslado(obtenerNombreMes(mesOrigen))}</option>
+                        </select>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0.5rem;">
+                        <label style="font-weight:600;display:block;margin-bottom:0.35rem;">Mes de destino *</label>
+                        <select id="trasladoMesDestino" style="width:100%;padding:0.5rem;border-radius:8px;border:1px solid var(--border-color);">
+                            <option value="">Seleccione mes destino...</option>
+                            ${opcionesSelectMesesTraslado(meses, mesOrigen, mesDestinoDefault)}
+                        </select>
+                    </div>
+                    <p style="margin:0.5rem 0 0;font-size:0.75rem;color:var(--text-tertiary);">
+                        El registro se eliminará del mes de origen y se agregará al mes destino con nuevo folio si aplica. Funciona con meses archivados sin reabrirlos.
+                    </p>
+                </div>
+            `;
+
+            mostrarModal(html, 'Trasladar cargo a otro mes', 'Trasladar');
+            const btnModal = document.getElementById('modalDinamicoBoton');
+            if (btnModal) {
+                const textoOriginal = btnModal.textContent;
+                btnModal.onclick = async function() {
+                    const mesDestino = document.getElementById('trasladoMesDestino')?.value;
+                    if (!mesDestino) {
+                        mostrarAlerta('Seleccione el mes de destino.', 'Falta destino');
+                        return;
+                    }
+                    btnModal.disabled = true;
+                    btnModal.textContent = 'Trasladando...';
+                    try {
+                        await ejecutarTrasladoCargo(modulo, registroId, mesOrigen, mesDestino);
+                        cerrarModalDinamico();
+                        mostrarAlerta(
+                            `Cargo trasladado a ${obtenerNombreMes(mesDestino)} correctamente.`,
+                            'Traslado completado'
+                        );
+                        await recargarVistaTrasTraslado(modulo);
+                    } catch (err) {
+                        console.error(err);
+                        mostrarAlerta(err.message || 'No se pudo completar el traslado.', 'Error');
+                        btnModal.disabled = false;
+                        btnModal.textContent = textoOriginal;
+                    }
+                };
+            }
+        };
+
+        window.abrirPanelTrasladarCargos = async function() {
+            const meses = await listarMesesGestionParaTraslado();
+            if (meses.length < 2) {
+                mostrarAlerta('Se necesitan al menos dos meses de gestión para trasladar cargos.', 'Sin períodos');
+                return;
+            }
+            const mesOrigenDefault = obtenerMesPeriodoVista();
+            const moduloDefault = MODULOS_TRASLADO_CARGOS[0];
+
+            async function renderListaCargos() {
+                const modulo = document.getElementById('trasladoPanelModulo')?.value || moduloDefault;
+                const mesOrigen = document.getElementById('trasladoPanelMesOrigen')?.value || mesOrigenDefault;
+                const cont = document.getElementById('trasladoPanelLista');
+                if (!cont) return;
+                const pack = await leerDatosModuloMesPersistido(modulo, mesOrigen);
+                const conCargo = pack.datos.filter(function(r) { return registroTieneCargoTraslado(modulo, r); });
+                if (!conCargo.length) {
+                    cont.innerHTML = '<p style="color:var(--text-tertiary);font-size:0.8125rem;margin:0;">No hay cargos en este mes para el módulo seleccionado.</p>';
+                    return;
+                }
+                cont.innerHTML = conCargo.map(function(r) {
+                    return `<label style="display:flex;gap:0.5rem;align-items:flex-start;padding:0.4rem 0;border-bottom:1px solid var(--border-color);cursor:pointer;">
+                        <input type="checkbox" class="traslado-panel-check" value="${escHtmlTraslado(r.id)}" style="margin-top:0.2rem;">
+                        <span style="font-size:0.8125rem;">${escHtmlTraslado(describirRegistroTraslado(modulo, r))}</span>
+                    </label>`;
+                }).join('');
+            }
+
+            const opcionesModulo = MODULOS_TRASLADO_CARGOS.map(function(m) {
+                const sel = m === moduloDefault ? ' selected' : '';
+                return `<option value="${m}"${sel}>${escHtmlTraslado(ETIQUETAS_MODULO_TRASLADO[m])}</option>`;
+            }).join('');
+            const opcionesOrigen = meses.map(function(m) {
+                const sel = m === mesOrigenDefault ? ' selected' : '';
+                return `<option value="${m}"${sel}>${escHtmlTraslado(obtenerNombreMes(m))}</option>`;
+            }).join('');
+
+            const html = `
+                <div style="text-align:left;font-size:0.875rem;">
+                    <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.75rem;margin-bottom:0.75rem;">
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-weight:600;display:block;margin-bottom:0.35rem;">Módulo</label>
+                            <select id="trasladoPanelModulo" style="width:100%;padding:0.5rem;border-radius:8px;border:1px solid var(--border-color);">${opcionesModulo}</select>
+                        </div>
+                        <div class="form-group" style="margin:0;">
+                            <label style="font-weight:600;display:block;margin-bottom:0.35rem;">Mes origen</label>
+                            <select id="trasladoPanelMesOrigen" style="width:100%;padding:0.5rem;border-radius:8px;border:1px solid var(--border-color);">${opcionesOrigen}</select>
+                        </div>
+                    </div>
+                    <div class="form-group" style="margin-bottom:0.75rem;">
+                        <label style="font-weight:600;display:block;margin-bottom:0.35rem;">Mes destino *</label>
+                        <select id="trasladoPanelMesDestino" style="width:100%;padding:0.5rem;border-radius:8px;border:1px solid var(--border-color);">
+                            <option value="">Seleccione...</option>
+                        </select>
+                    </div>
+                    <div style="max-height:220px;overflow-y:auto;border:1px solid var(--border-color);border-radius:8px;padding:0.5rem 0.75rem;margin-bottom:0.5rem;">
+                        <div style="font-weight:600;font-size:0.8125rem;margin-bottom:0.35rem;">Cargos a trasladar</div>
+                        <div id="trasladoPanelLista"><p style="margin:0;color:var(--text-tertiary);">Cargando...</p></div>
+                    </div>
+                    <label style="display:flex;align-items:center;gap:0.4rem;font-size:0.8125rem;cursor:pointer;">
+                        <input type="checkbox" id="trasladoPanelSeleccionarTodos"> Seleccionar todos
+                    </label>
+                </div>
+            `;
+
+            mostrarModal(html, 'Trasladar cargos entre meses', 'Trasladar seleccionados');
+            const selModulo = document.getElementById('trasladoPanelModulo');
+            const selOrigen = document.getElementById('trasladoPanelMesOrigen');
+            const selDestino = document.getElementById('trasladoPanelMesDestino');
+            const chkTodos = document.getElementById('trasladoPanelSeleccionarTodos');
+
+            function actualizarDestino() {
+                const origen = selOrigen?.value;
+                if (!selDestino) return;
+                const destPrev = selDestino.value;
+                selDestino.innerHTML = '<option value="">Seleccione...</option>' + opcionesSelectMesesTraslado(meses, origen, destPrev);
+            }
+            actualizarDestino();
+            await renderListaCargos();
+
+            if (selModulo) selModulo.addEventListener('change', function() { actualizarDestino(); renderListaCargos(); });
+            if (selOrigen) selOrigen.addEventListener('change', function() { actualizarDestino(); renderListaCargos(); });
+            if (chkTodos) {
+                chkTodos.addEventListener('change', function() {
+                    document.querySelectorAll('.traslado-panel-check').forEach(function(c) { c.checked = chkTodos.checked; });
+                });
+            }
+
+            const btnModal = document.getElementById('modalDinamicoBoton');
+            if (btnModal) {
+                btnModal.onclick = async function() {
+                    const modulo = selModulo?.value;
+                    const mesOrigen = selOrigen?.value;
+                    const mesDestino = selDestino?.value;
+                    const ids = Array.from(document.querySelectorAll('.traslado-panel-check:checked')).map(function(c) { return c.value; });
+                    if (!mesDestino) {
+                        mostrarAlerta('Seleccione el mes de destino.', 'Falta destino');
+                        return;
+                    }
+                    if (!ids.length) {
+                        mostrarAlerta('Seleccione al menos un cargo.', 'Sin selección');
+                        return;
+                    }
+                    const ok = await confirmarAccion(
+                        `¿Trasladar ${ids.length} cargo(s) de ${obtenerNombreMes(mesOrigen)} a ${obtenerNombreMes(mesDestino)}?`,
+                        'Confirmar traslado'
+                    );
+                    if (!ok) return;
+                    btnModal.disabled = true;
+                    btnModal.textContent = 'Trasladando...';
+                    let okCount = 0;
+                    const errores = [];
+                    for (let i = 0; i < ids.length; i++) {
+                        try {
+                            await ejecutarTrasladoCargo(modulo, ids[i], mesOrigen, mesDestino);
+                            okCount++;
+                        } catch (e) {
+                            errores.push(e.message || String(e));
+                        }
+                    }
+                    cerrarModalDinamico();
+                    if (okCount > 0) {
+                        await recargarVistaTrasTraslado(modulo);
+                    }
+                    const msg = okCount === ids.length
+                        ? `${okCount} cargo(s) trasladado(s) a ${obtenerNombreMes(mesDestino)}.`
+                        : `${okCount} de ${ids.length} trasladado(s).` + (errores.length ? '\n' + errores.slice(0, 3).join('\n') : '');
+                    mostrarAlerta(msg, okCount ? 'Traslado completado' : 'Traslado parcial');
+                };
+            }
+        };
 
         // ============================================
         // MÓDULO 6: MOROSOS
@@ -35551,6 +36046,15 @@
                     btnBuscarMeses.addEventListener('click', function() {
                         if (typeof window.buscarMesesDisponibles === 'function') {
                             window.buscarMesesDisponibles();
+                        }
+                    });
+                }
+
+                const btnAbrirTrasladarCargos = document.getElementById('btnAbrirTrasladarCargos');
+                if (btnAbrirTrasladarCargos) {
+                    btnAbrirTrasladarCargos.addEventListener('click', function() {
+                        if (typeof window.abrirPanelTrasladarCargos === 'function') {
+                            window.abrirPanelTrasladarCargos();
                         }
                     });
                 }
