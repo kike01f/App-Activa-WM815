@@ -24,6 +24,8 @@
     <script src="https://cdn.jsdelivr.net/npm/exceljs@4.4.0/dist/exceljs.min.js"></script>
     <!-- pdf-lib: unificar comprobantes de caja chica en un solo PDF -->
     <script src="https://cdn.jsdelivr.net/npm/pdf-lib@1.17.1/dist/pdf-lib.min.js"></script>
+    <!-- pdf.js: rasterizar PDFs adjuntos como imágenes en el comprobante unificado -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <!-- Chart.js y plugin para mostrar % en tortas -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chartjs-plugin-datalabels@2.2.0/dist/chartjs-plugin-datalabels.min.js"></script>
@@ -28710,7 +28712,7 @@
         function _construirAOACajaChicaReporte(caja, mesAnio) {
             var datos = [['REPORTE DE CAJA CHICA']];
             datos.push([]);
-            datos.push(['N°', 'Folio', 'Fecha', 'N° Documento', 'Descripción', 'Monto', 'Comprobantes']);
+            datos.push(['N°', 'Folio', 'Fecha', 'N° Documento', 'Descripción', 'Monto', 'Comprobantes', 'Enlaces comprobantes']);
             var orden = [].concat(caja || []).sort(function (a, b) { return new Date(a.fecha) - new Date(b.fecha); });
             var sum = 0;
             orden.forEach(function (m, idx) {
@@ -28719,6 +28721,7 @@
                 sum += mo;
                 var folio = m.folio || (typeof getFolioCajaProvisional === 'function' ? getFolioCajaProvisional(m, orden, mesAnio) : '-');
                 var comps = (m.archivos || []).map(function (a) { return a.nombre || 'Archivo'; }).join(' | ') || '-';
+                var enlaces = (m.archivos || []).map(function (a) { return a.url || ''; }).filter(Boolean).join('\n') || '-';
                 datos.push([
                     idx + 1,
                     folio,
@@ -28726,12 +28729,74 @@
                     m.numeroDocumento || '-',
                     m.descripcion || '-',
                     mo,
-                    comps
+                    comps,
+                    enlaces
                 ]);
             });
             datos.push([]);
-            datos.push(['TOTALES', orden.length, '', '', '', sum, '']);
+            datos.push(['TOTALES', orden.length, '', '', '', sum, '', '']);
             return datos;
+        }
+        function _escribirHojaEnlacesComprobantesCaja(sheet, caja, mesAnio) {
+            var thin = _excelBordeFino();
+            var orden = [].concat(caja || []).sort(function (a, b) { return new Date(a.fecha) - new Date(b.fecha); });
+            var r = 1;
+            sheet.mergeCells(r, 1, r, 5);
+            sheet.getCell(r, 1).value = 'ENLACES DE COMPROBANTES';
+            sheet.getCell(r, 1).font = { bold: true, size: _EXCEL_TAM_TITULO_TABLA, color: { argb: 'FF111827' } };
+            sheet.getCell(r, 1).alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+            r += 2;
+            var hdr = ['Folio', 'Fecha', 'Descripción gasto', 'Archivo', 'Enlace'];
+            hdr.forEach(function (h, j) {
+                var c = sheet.getCell(r, j + 1);
+                c.value = h;
+                _estilizarEncabezadoColumnaTabla(c);
+            });
+            r++;
+            orden.forEach(function (m) {
+                if (!m) return;
+                var folio = m.folio || (typeof getFolioCajaProvisional === 'function' ? getFolioCajaProvisional(m, orden, mesAnio) : '-');
+                var fecha = m.fecha ? formatearFechaParaCorreo(m.fecha) : '-';
+                var desc = m.descripcion || '-';
+                var archivos = m.archivos || [];
+                if (!archivos.length) {
+                    var rowVacia = [folio, fecha, desc, '-', '-'];
+                    rowVacia.forEach(function (val, j) {
+                        var cell = sheet.getCell(r, j + 1);
+                        cell.value = val;
+                        cell.font = { size: _EXCEL_TAM_TEXTO_CELDA };
+                        cell.border = thin;
+                    });
+                    r++;
+                    return;
+                }
+                archivos.forEach(function (arch) {
+                    var nombre = arch.nombre || 'Archivo';
+                    var url = arch.url || '';
+                    sheet.getCell(r, 1).value = folio;
+                    sheet.getCell(r, 2).value = fecha;
+                    sheet.getCell(r, 3).value = desc;
+                    sheet.getCell(r, 4).value = nombre;
+                    var cellLink = sheet.getCell(r, 5);
+                    if (url) {
+                        cellLink.value = { text: url, hyperlink: url };
+                        cellLink.font = { size: _EXCEL_TAM_TEXTO_CELDA, color: { argb: 'FF0563C1' }, underline: true };
+                    } else {
+                        cellLink.value = '-';
+                        cellLink.font = { size: _EXCEL_TAM_TEXTO_CELDA };
+                    }
+                    for (var col = 1; col <= 4; col++) {
+                        sheet.getCell(r, col).font = { size: _EXCEL_TAM_TEXTO_CELDA };
+                        sheet.getCell(r, col).border = thin;
+                    }
+                    cellLink.border = thin;
+                    r++;
+                });
+            });
+            var anchos = [16, 14, 36, 28, 52];
+            anchos.forEach(function (w, i) {
+                sheet.getColumn(i + 1).width = w;
+            });
         }
         function _construirAOAMantencionesUnificadas(mantenciones, visitasExtra) {
             var aoa = [['MANTENCIONES Y VISITAS']];
@@ -30727,6 +30792,8 @@
             });
             var wsDatos = wb.addWorksheet(_nombreHojaExcelSeguro('Caja Chica'));
             _escribirHojaDesdeAOA(wsDatos, _construirAOACajaChicaReporte(caja, mesAnio));
+            var wsEnlaces = wb.addWorksheet(_nombreHojaExcelSeguro('Enlaces comprobantes'));
+            _escribirHojaEnlacesComprobantesCaja(wsEnlaces, caja, mesAnio);
             var buffer = await wb.xlsx.writeBuffer();
             var nombreArchivo = _nombreArchivoCajaChicaSeguro(nombreMes, '.xlsx');
             if (opciones.descargar !== false) {
@@ -30757,91 +30824,238 @@
             return 'otro';
         }
 
-        async function _agregarPaginaTextoComprobante(pdfDoc, font, fontBold, lineas) {
-            var page = pdfDoc.addPage([595.28, 841.89]);
-            var y = page.getHeight() - 50;
-            (lineas || []).forEach(function (linea, idx) {
-                page.drawText(_pdfTextoSeguro(linea), {
-                    x: 50,
-                    y: y,
-                    size: idx === 0 ? 12 : 10,
-                    font: idx === 0 ? fontBold : font,
-                    maxWidth: 495
-                });
-                y -= idx === 0 ? 22 : 16;
+        function _ensurePdfJsListo() {
+            var lib = typeof pdfjsLib !== 'undefined' ? pdfjsLib : (typeof window !== 'undefined' ? window.pdfjsLib : null);
+            if (!lib) throw new Error('pdf.js no esta disponible');
+            if (!lib.GlobalWorkerOptions.workerSrc) {
+                lib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+            }
+            return lib;
+        }
+
+        function _canvasAPngBytes(canvas) {
+            var dataUrl = canvas.toDataURL('image/png');
+            var b64 = dataUrl.split(',')[1] || '';
+            var bin = atob(b64);
+            var bytes = new Uint8Array(bin.length);
+            for (var i = 0; i < bin.length; i++) bytes[i] = bin.charCodeAt(i);
+            return bytes;
+        }
+
+        function _dibujarTextoEnCanvas(ctx, texto, x, y, maxWidth, lineHeight, font) {
+            ctx.font = font || '24px sans-serif';
+            var palabras = String(texto || '').split(/\s+/);
+            var linea = '';
+            var yy = y;
+            palabras.forEach(function (palabra) {
+                var prueba = linea ? linea + ' ' + palabra : palabra;
+                if (ctx.measureText(prueba).width > maxWidth && linea) {
+                    ctx.fillText(linea, x, yy);
+                    linea = palabra;
+                    yy += lineHeight;
+                } else {
+                    linea = prueba;
+                }
+            });
+            if (linea) ctx.fillText(linea, x, yy);
+            return yy + lineHeight;
+        }
+
+        async function _generarPngPlaceholderComprobante(titulo, lineas) {
+            var canvas = document.createElement('canvas');
+            canvas.width = 1240;
+            canvas.height = 1754;
+            var ctx = canvas.getContext('2d');
+            ctx.fillStyle = '#f3f4f6';
+            ctx.fillRect(0, 0, canvas.width, canvas.height);
+            ctx.fillStyle = '#374151';
+            var y = 120;
+            y = _dibujarTextoEnCanvas(ctx, titulo || 'Comprobante no disponible', 80, y, 1080, 40, 'bold 36px sans-serif');
+            y += 20;
+            (lineas || []).forEach(function (ln) {
+                y = _dibujarTextoEnCanvas(ctx, ln, 80, y, 1080, 34, '28px sans-serif');
+            });
+            return _canvasAPngBytes(canvas);
+        }
+
+        async function _bytesImagenAPng(bytes, mimeHint) {
+            return new Promise(function (resolve, reject) {
+                try {
+                    var blob = new Blob([bytes], { type: mimeHint || 'image/jpeg' });
+                    var objUrl = URL.createObjectURL(blob);
+                    var img = new Image();
+                    img.onload = function () {
+                        var canvas = document.createElement('canvas');
+                        canvas.width = img.naturalWidth || img.width;
+                        canvas.height = img.naturalHeight || img.height;
+                        canvas.getContext('2d').drawImage(img, 0, 0);
+                        URL.revokeObjectURL(objUrl);
+                        resolve(_canvasAPngBytes(canvas));
+                    };
+                    img.onerror = function (err) {
+                        URL.revokeObjectURL(objUrl);
+                        reject(err || new Error('imagen invalida'));
+                    };
+                    img.src = objUrl;
+                } catch (err) {
+                    reject(err);
+                }
             });
         }
 
-        async function _incorporarArchivoEnPdfUnificado(pdfDoc, font, fontBold, archivo, meta) {
-            if (!archivo || !archivo.url) return { ok: false, motivo: 'sin-url' };
-            var tipo = _tipoArchivoComprobanteCaja(archivo);
-            if (tipo === 'video' || tipo === 'otro' || tipo === 'imagen-otro') {
-                await _agregarPaginaTextoComprobante(pdfDoc, font, fontBold, [
-                    meta.titulo || 'Comprobante no incorporado',
-                    'Archivo: ' + (archivo.nombre || 'Sin nombre'),
-                    'Tipo: ' + (archivo.tipo || tipo),
-                    'Enlace: ' + archivo.url
-                ]);
-                return { ok: true, tipo: 'referencia' };
+        async function _pdfArrayBufferAPaginasPng(arrayBuffer, escala) {
+            var lib = _ensurePdfJsListo();
+            var esc = escala || 2;
+            var loadingTask = lib.getDocument({ data: arrayBuffer });
+            var pdf = await loadingTask.promise;
+            var paginas = [];
+            for (var n = 1; n <= pdf.numPages; n++) {
+                var page = await pdf.getPage(n);
+                var viewport = page.getViewport({ scale: esc });
+                var canvas = document.createElement('canvas');
+                canvas.width = Math.floor(viewport.width);
+                canvas.height = Math.floor(viewport.height);
+                await page.render({ canvasContext: canvas.getContext('2d'), viewport: viewport }).promise;
+                paginas.push(_canvasAPngBytes(canvas));
             }
-            var bytes;
-            try {
-                bytes = await _fetchUrlComoArrayBuffer(archivo.url);
-            } catch (errFetch) {
-                await _agregarPaginaTextoComprobante(pdfDoc, font, fontBold, [
-                    meta.titulo || 'No se pudo descargar el comprobante',
-                    'Archivo: ' + (archivo.nombre || 'Sin nombre'),
-                    'Error: ' + (errFetch && errFetch.message ? errFetch.message : 'descarga fallida'),
-                    'Enlace: ' + archivo.url
-                ]);
-                return { ok: false, motivo: 'fetch', error: errFetch };
-            }
-            if (tipo === 'pdf') {
-                try {
-                    var srcPdf = await PDFLib.PDFDocument.load(bytes, { ignoreEncryption: true });
-                    var indices = srcPdf.getPageIndices();
-                    var copiadas = await pdfDoc.copyPages(srcPdf, indices);
-                    copiadas.forEach(function (p) { pdfDoc.addPage(p); });
-                    return { ok: true, tipo: 'pdf', paginas: copiadas.length };
-                } catch (errPdf) {
-                    await _agregarPaginaTextoComprobante(pdfDoc, font, fontBold, [
-                        meta.titulo || 'PDF no legible',
-                        'Archivo: ' + (archivo.nombre || 'Sin nombre'),
-                        'Enlace: ' + archivo.url
-                    ]);
-                    return { ok: false, motivo: 'pdf-load', error: errPdf };
-                }
-            }
-            try {
-                var image = tipo === 'png'
-                    ? await pdfDoc.embedPng(bytes)
-                    : await pdfDoc.embedJpg(bytes);
-                var page = pdfDoc.addPage([595.28, 841.89]);
-                var pw = page.getWidth();
-                var ph = page.getHeight();
-                var margin = 36;
-                var maxW = pw - margin * 2;
-                var maxH = ph - margin * 2 - 30;
-                var scale = Math.min(maxW / image.width, maxH / image.height, 1);
-                var w = image.width * scale;
-                var h = image.height * scale;
-                if (meta.titulo) {
-                    page.drawText(_pdfTextoSeguro(meta.titulo), { x: margin, y: ph - margin, size: 9, font: fontBold, maxWidth: maxW });
-                }
-                page.drawImage(image, {
-                    x: (pw - w) / 2,
-                    y: (ph - h) / 2,
-                    width: w,
-                    height: h
+            return paginas;
+        }
+
+        async function _videoUrlAPngFrame(url) {
+            return new Promise(function (resolve, reject) {
+                var video = document.createElement('video');
+                video.crossOrigin = 'anonymous';
+                video.muted = true;
+                video.playsInline = true;
+                var limpiar = function () {
+                    video.pause();
+                    video.removeAttribute('src');
+                    video.load();
+                };
+                var timeout = setTimeout(function () {
+                    limpiar();
+                    reject(new Error('timeout video'));
+                }, 15000);
+                video.onloadeddata = function () {
+                    video.currentTime = Math.min(0.5, (video.duration || 1) * 0.05);
+                };
+                video.onseeked = function () {
+                    clearTimeout(timeout);
+                    try {
+                        var canvas = document.createElement('canvas');
+                        canvas.width = video.videoWidth || 1280;
+                        canvas.height = video.videoHeight || 720;
+                        canvas.getContext('2d').drawImage(video, 0, 0, canvas.width, canvas.height);
+                        limpiar();
+                        resolve(_canvasAPngBytes(canvas));
+                    } catch (err) {
+                        limpiar();
+                        reject(err);
+                    }
+                };
+                video.onerror = function () {
+                    clearTimeout(timeout);
+                    limpiar();
+                    reject(new Error('video no reproducible'));
+                };
+                video.src = url;
+            });
+        }
+
+        async function _agregarPaginaImagenAlPdf(pdfDoc, pngBytes, meta) {
+            var image = await pdfDoc.embedPng(pngBytes);
+            var page = pdfDoc.addPage([595.28, 841.89]);
+            var pw = page.getWidth();
+            var ph = page.getHeight();
+            var margin = 36;
+            var headerH = meta && meta.titulo ? 22 : 0;
+            var maxW = pw - margin * 2;
+            var maxH = ph - margin * 2 - headerH;
+            var scale = Math.min(maxW / image.width, maxH / image.height, 1);
+            var w = image.width * scale;
+            var h = image.height * scale;
+            if (meta && meta.titulo && meta.fontBold) {
+                page.drawText(_pdfTextoSeguro(meta.titulo), {
+                    x: margin,
+                    y: ph - margin,
+                    size: 8,
+                    font: meta.fontBold,
+                    maxWidth: maxW
                 });
-                return { ok: true, tipo: 'imagen' };
-            } catch (errImg) {
-                await _agregarPaginaTextoComprobante(pdfDoc, font, fontBold, [
-                    meta.titulo || 'Imagen no incorporada',
-                    'Archivo: ' + (archivo.nombre || 'Sin nombre'),
-                    'Enlace: ' + archivo.url
+            }
+            page.drawImage(image, {
+                x: (pw - w) / 2,
+                y: margin + (maxH - h) / 2,
+                width: w,
+                height: h
+            });
+        }
+
+        async function _agregarPaginaTextoComprobante(pdfDoc, font, fontBold, lineas) {
+            var pngBytes = await _generarPngPlaceholderComprobante(
+                lineas && lineas.length ? lineas[0] : 'Comprobantes unificados',
+                (lineas || []).slice(1)
+            );
+            await _agregarPaginaImagenAlPdf(pdfDoc, pngBytes, { titulo: null });
+        }
+
+        async function _incorporarArchivoEnPdfUnificado(pdfDoc, font, fontBold, archivo, meta) {
+            if (!archivo || !archivo.url) {
+                var pngSinUrl = await _generarPngPlaceholderComprobante(meta.titulo || 'Sin comprobante', [
+                    'No hay archivo adjunto para este registro.',
+                    'Consulte los enlaces en el reporte Excel.'
                 ]);
-                return { ok: false, motivo: 'imagen', error: errImg };
+                await _agregarPaginaImagenAlPdf(pdfDoc, pngSinUrl, { titulo: meta.titulo, fontBold: fontBold });
+                return { ok: true, tipo: 'placeholder', motivo: 'sin-url' };
+            }
+            var tipo = _tipoArchivoComprobanteCaja(archivo);
+            var metaImg = { titulo: meta.titulo, fontBold: fontBold };
+            try {
+                if (tipo === 'video') {
+                    try {
+                        var framePng = await _videoUrlAPngFrame(archivo.url);
+                        await _agregarPaginaImagenAlPdf(pdfDoc, framePng, metaImg);
+                        return { ok: true, tipo: 'video-frame' };
+                    } catch (errVid) {
+                        var pngVid = await _generarPngPlaceholderComprobante(meta.titulo || (archivo.nombre || 'Video'), [
+                            'Vista previa de video no disponible.',
+                            'Archivo: ' + (archivo.nombre || 'Video'),
+                            'Consulte el enlace en el reporte Excel.'
+                        ]);
+                        await _agregarPaginaImagenAlPdf(pdfDoc, pngVid, metaImg);
+                        return { ok: true, tipo: 'placeholder' };
+                    }
+                }
+                var bytes = await _fetchUrlComoArrayBuffer(archivo.url);
+                if (tipo === 'pdf') {
+                    var paginasPng = await _pdfArrayBufferAPaginasPng(bytes, 2);
+                    if (!paginasPng.length) throw new Error('pdf sin paginas');
+                    for (var pi = 0; pi < paginasPng.length; pi++) {
+                        var tituloPag = paginasPng.length > 1
+                            ? (meta.titulo || '') + ' (pag. ' + (pi + 1) + '/' + paginasPng.length + ')'
+                            : meta.titulo;
+                        await _agregarPaginaImagenAlPdf(pdfDoc, paginasPng[pi], { titulo: tituloPag, fontBold: fontBold });
+                    }
+                    return { ok: true, tipo: 'pdf-imagen', paginas: paginasPng.length };
+                }
+                var pngBytes;
+                if (tipo === 'png') {
+                    pngBytes = new Uint8Array(bytes);
+                } else if (tipo === 'jpg') {
+                    pngBytes = await _bytesImagenAPng(bytes, 'image/jpeg');
+                } else {
+                    pngBytes = await _bytesImagenAPng(bytes, archivo.tipo || 'image/jpeg');
+                }
+                await _agregarPaginaImagenAlPdf(pdfDoc, pngBytes, metaImg);
+                return { ok: true, tipo: 'imagen' };
+            } catch (err) {
+                var pngErr = await _generarPngPlaceholderComprobante(meta.titulo || (archivo.nombre || 'Comprobante'), [
+                    'No se pudo incorporar el archivo como imagen.',
+                    'Archivo: ' + (archivo.nombre || 'Sin nombre'),
+                    'Consulte el enlace en el reporte Excel.'
+                ]);
+                await _agregarPaginaImagenAlPdf(pdfDoc, pngErr, metaImg);
+                return { ok: true, tipo: 'placeholder', motivo: 'error', error: err };
             }
         }
 
@@ -30862,7 +31076,7 @@
             pdfDoc.setCreator('Gestión Comunidad');
             var font = await pdfDoc.embedFont(PDFLib.StandardFonts.Helvetica);
             var fontBold = await pdfDoc.embedFont(PDFLib.StandardFonts.HelveticaBold);
-            var stats = { total: 0, incluidos: 0, referencias: 0, errores: 0 };
+            var stats = { total: 0, incluidos: 0, errores: 0 };
             var ordenados = caja.slice().sort(function (a, b) { return new Date(a.fecha) - new Date(b.fecha); });
             ordenados.forEach(function (mov) {
                 stats.total += (mov.archivos || []).length;
@@ -30889,13 +31103,12 @@
                     for (var j = 0; j < archivos.length; j++) {
                         var arch = archivos[j];
                         if (typeof mostrarProgreso === 'function' && opciones.mostrarProgreso !== false) {
-                            mostrarProgreso('Unificando comprobantes...', (arch.nombre || 'Archivo') + ' (' + (stats.incluidos + stats.referencias + stats.errores + 1) + '/' + stats.total + ')');
+                            mostrarProgreso('Unificando comprobantes...', (arch.nombre || 'Archivo') + ' (' + (stats.incluidos + stats.errores + 1) + '/' + stats.total + ')');
                         }
                         var tituloSep = folio + ' · ' + fechaTxt + ' · ' + (arch.nombre || ('Comprobante ' + (j + 1)));
                         var res = await _incorporarArchivoEnPdfUnificado(pdfDoc, font, fontBold, arch, { titulo: tituloSep });
                         if (res && res.ok) {
-                            if (res.tipo === 'referencia') stats.referencias++;
-                            else stats.incluidos++;
+                            stats.incluidos++;
                         } else {
                             stats.errores++;
                         }
@@ -31488,15 +31701,15 @@
                 mostrarProgreso('Generando reporte Excel (.xlsx)...');
                 const resultado = await generarReporteCajaChicaPDF(mesReporte, nombreMes, true, { descargar: true, mostrarProgreso: true });
                 ocultarProgreso();
-                var msg = 'Reporte Excel (.xlsx) descargado.';
+                var msg = 'Reporte Excel (.xlsx) descargado con enlaces de comprobantes.';
                 var stats = resultado && resultado.pdf && resultado.pdf.stats ? resultado.pdf.stats : null;
                 if (stats) {
                     if (stats.total === 0) {
                         msg += ' No hay comprobantes adjuntos para unificar en PDF.';
                     } else {
-                        msg += ' Comprobantes unificados en PDF: ' + (stats.incluidos + stats.referencias) + ' de ' + stats.total + ' archivo(s).';
+                        msg += ' Comprobantes incorporados como imagenes en PDF: ' + stats.incluidos + ' de ' + stats.total + ' archivo(s).';
                         if (stats.errores > 0) {
-                            msg += ' (' + stats.errores + ' con incidencias; revise el PDF).';
+                            msg += ' (' + stats.errores + ' con incidencias; revise el PDF y los enlaces en Excel).';
                         }
                     }
                 }
