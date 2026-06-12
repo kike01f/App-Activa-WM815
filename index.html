@@ -30803,10 +30803,73 @@
         }
         window.generarReporteCajaChicaXLSX = generarReporteCajaChicaXLSX;
 
+        async function _descargarComprobanteBytes(url, contentTypeHint) {
+            var u = String(url || '').trim();
+            if (!u) throw new Error('URL vacia');
+            var blob = null;
+
+            if (typeof storage !== 'undefined' && storage && firebaseInitialized && typeof storage.refFromURL === 'function') {
+                if (/firebasestorage\.googleapis\.com|googleapis\.com\/v0\/b\//.test(u)) {
+                    try {
+                        var ref = storage.refFromURL(u);
+                        if (ref && typeof ref.getBlob === 'function') {
+                            blob = await ref.getBlob();
+                        } else if (ref && typeof ref.getBytes === 'function') {
+                            var rawBytes = await ref.getBytes(50 * 1024 * 1024);
+                            blob = new Blob([rawBytes], { type: contentTypeHint || 'application/octet-stream' });
+                        }
+                    } catch (eStorage) {
+                        console.warn('_descargarComprobanteBytes Storage:', eStorage);
+                    }
+                }
+            }
+
+            if (!blob) {
+                try {
+                    blob = await new Promise(function (resolve, reject) {
+                        var xhr = new XMLHttpRequest();
+                        xhr.open('GET', u, true);
+                        xhr.responseType = 'blob';
+                        xhr.onload = function () {
+                            if (xhr.status >= 200 && xhr.status < 300) resolve(xhr.response);
+                            else reject(new Error('HTTP ' + xhr.status));
+                        };
+                        xhr.onerror = function () { reject(new Error('Error de red')); };
+                        xhr.send();
+                    });
+                } catch (eXhr) {
+                    var resp = await fetch(u, { mode: 'cors', credentials: 'omit', cache: 'no-cache' });
+                    if (!resp.ok) throw new Error('HTTP ' + resp.status);
+                    blob = await resp.blob();
+                }
+            }
+
+            if (!blob || !blob.size) throw new Error('Archivo vacio');
+            var ab = await blob.arrayBuffer();
+            return {
+                bytes: new Uint8Array(ab),
+                mime: blob.type || contentTypeHint || ''
+            };
+        }
+
+        function _bytesParecenJpeg(bytes) {
+            var u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+            return u8.length >= 3 && u8[0] === 0xFF && u8[1] === 0xD8 && u8[2] === 0xFF;
+        }
+
+        function _bytesParecenPng(bytes) {
+            var u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+            return u8.length >= 8 && u8[0] === 0x89 && u8[1] === 0x50 && u8[2] === 0x4E && u8[3] === 0x47;
+        }
+
+        function _bytesParecenPdf(bytes) {
+            var u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+            return u8.length >= 4 && u8[0] === 0x25 && u8[1] === 0x50 && u8[2] === 0x44 && u8[3] === 0x46;
+        }
+
         async function _fetchUrlComoArrayBuffer(url) {
-            var resp = await fetch(url, { mode: 'cors', cache: 'no-cache' });
-            if (!resp.ok) throw new Error('HTTP ' + resp.status);
-            return resp.arrayBuffer();
+            var desc = await _descargarComprobanteBytes(url);
+            return desc.bytes.buffer.slice(desc.bytes.byteOffset, desc.bytes.byteOffset + desc.bytes.byteLength);
         }
 
         function _tipoArchivoComprobanteCaja(archivo) {
@@ -30903,10 +30966,11 @@
             });
         }
 
-        async function _pdfArrayBufferAPaginasPng(arrayBuffer, escala) {
+        async function _pdfArrayBufferAPaginasPng(data, escala) {
             var lib = _ensurePdfJsListo();
             var esc = escala || 2;
-            var loadingTask = lib.getDocument({ data: arrayBuffer });
+            var input = data instanceof Uint8Array ? data : new Uint8Array(data);
+            var loadingTask = lib.getDocument({ data: input });
             var pdf = await loadingTask.promise;
             var paginas = [];
             for (var n = 1; n <= pdf.numPages; n++) {
@@ -30921,21 +30985,22 @@
             return paginas;
         }
 
-        async function _videoUrlAPngFrame(url) {
+        async function _videoBlobAPngFrame(blob) {
             return new Promise(function (resolve, reject) {
+                var objUrl = URL.createObjectURL(blob);
                 var video = document.createElement('video');
-                video.crossOrigin = 'anonymous';
                 video.muted = true;
                 video.playsInline = true;
                 var limpiar = function () {
                     video.pause();
                     video.removeAttribute('src');
                     video.load();
+                    URL.revokeObjectURL(objUrl);
                 };
                 var timeout = setTimeout(function () {
                     limpiar();
                     reject(new Error('timeout video'));
-                }, 15000);
+                }, 20000);
                 video.onloadeddata = function () {
                     video.currentTime = Math.min(0.5, (video.duration || 1) * 0.05);
                 };
@@ -30958,22 +31023,44 @@
                     limpiar();
                     reject(new Error('video no reproducible'));
                 };
-                video.src = url;
+                video.src = objUrl;
             });
         }
 
-        async function _agregarPaginaImagenAlPdf(pdfDoc, pngBytes, meta) {
-            var image = await pdfDoc.embedPng(pngBytes);
+        async function _embedImagenDesdeBytes(pdfDoc, bytes, mimeHint) {
+            var u8 = bytes instanceof Uint8Array ? bytes : new Uint8Array(bytes);
+            if (_bytesParecenPng(u8)) {
+                try { return await pdfDoc.embedPng(u8); } catch (ePng) { console.warn('embedPng:', ePng); }
+            }
+            if (_bytesParecenJpeg(u8) || String(mimeHint || '').indexOf('jpeg') !== -1 || String(mimeHint || '').indexOf('jpg') !== -1) {
+                try { return await pdfDoc.embedJpg(u8); } catch (eJpg) { console.warn('embedJpg:', eJpg); }
+            }
+            if (!_bytesParecenPng(u8) && !_bytesParecenJpeg(u8)) {
+                try { return await pdfDoc.embedJpg(u8); } catch (eJpg2) { /* intentar png abajo */ }
+            }
+            var pngBytes = await _bytesImagenAPng(u8, mimeHint || 'image/jpeg');
+            return await pdfDoc.embedPng(pngBytes);
+        }
+
+        async function _agregarPaginaImagenAlPdf(pdfDoc, pngBytesOrImage, meta) {
+            var image = (pngBytesOrImage && typeof pngBytesOrImage.width === 'number' && typeof pngBytesOrImage.height === 'number' && typeof pngBytesOrImage.scale === 'function')
+                ? pngBytesOrImage
+                : await pdfDoc.embedPng(pngBytesOrImage instanceof Uint8Array ? pngBytesOrImage : new Uint8Array(pngBytesOrImage));
             var page = pdfDoc.addPage([595.28, 841.89]);
             var pw = page.getWidth();
             var ph = page.getHeight();
             var margin = 36;
-            var headerH = meta && meta.titulo ? 22 : 0;
+            var tituloAltura = (meta && meta.titulo) ? 20 : 0;
+            var areaTop = ph - margin - tituloAltura;
+            var areaBottom = margin;
+            var areaHeight = Math.max(areaTop - areaBottom, 1);
             var maxW = pw - margin * 2;
-            var maxH = ph - margin * 2 - headerH;
-            var scale = Math.min(maxW / image.width, maxH / image.height, 1);
-            var w = image.width * scale;
-            var h = image.height * scale;
+            var imgW = Math.max(image.width || 1, 1);
+            var imgH = Math.max(image.height || 1, 1);
+            var scale = Math.min(maxW / imgW, areaHeight / imgH);
+            if (!isFinite(scale) || scale <= 0) scale = 1;
+            var w = imgW * scale;
+            var h = imgH * scale;
             if (meta && meta.titulo && meta.fontBold) {
                 page.drawText(_pdfTextoSeguro(meta.titulo), {
                     x: margin,
@@ -30985,10 +31072,15 @@
             }
             page.drawImage(image, {
                 x: (pw - w) / 2,
-                y: margin + (maxH - h) / 2,
+                y: areaBottom + (areaHeight - h) / 2,
                 width: w,
                 height: h
             });
+        }
+
+        async function _agregarPaginaDesdeBytesImagen(pdfDoc, bytes, mimeHint, meta) {
+            var image = await _embedImagenDesdeBytes(pdfDoc, bytes, mimeHint);
+            await _agregarPaginaImagenAlPdf(pdfDoc, image, meta);
         }
 
         async function _agregarPaginaTextoComprobante(pdfDoc, font, fontBold, lineas) {
@@ -31011,9 +31103,18 @@
             var tipo = _tipoArchivoComprobanteCaja(archivo);
             var metaImg = { titulo: meta.titulo, fontBold: fontBold };
             try {
-                if (tipo === 'video') {
+                var desc = await _descargarComprobanteBytes(archivo.url, archivo.tipo || '');
+                var bytes = desc.bytes;
+                var mime = desc.mime || archivo.tipo || '';
+                var tipoReal = tipo;
+                if (tipoReal !== 'pdf' && _bytesParecenPdf(bytes)) tipoReal = 'pdf';
+                else if (tipoReal !== 'pdf' && _bytesParecenPng(bytes)) tipoReal = 'png';
+                else if (tipoReal !== 'pdf' && _bytesParecenJpeg(bytes)) tipoReal = 'jpg';
+
+                if (tipoReal === 'video') {
                     try {
-                        var framePng = await _videoUrlAPngFrame(archivo.url);
+                        var blobVideo = new Blob([bytes], { type: mime || 'video/mp4' });
+                        var framePng = await _videoBlobAPngFrame(blobVideo);
                         await _agregarPaginaImagenAlPdf(pdfDoc, framePng, metaImg);
                         return { ok: true, tipo: 'video-frame' };
                     } catch (errVid) {
@@ -31026,8 +31127,7 @@
                         return { ok: true, tipo: 'placeholder' };
                     }
                 }
-                var bytes = await _fetchUrlComoArrayBuffer(archivo.url);
-                if (tipo === 'pdf') {
+                if (tipoReal === 'pdf') {
                     var paginasPng = await _pdfArrayBufferAPaginasPng(bytes, 2);
                     if (!paginasPng.length) throw new Error('pdf sin paginas');
                     for (var pi = 0; pi < paginasPng.length; pi++) {
@@ -31038,17 +31138,10 @@
                     }
                     return { ok: true, tipo: 'pdf-imagen', paginas: paginasPng.length };
                 }
-                var pngBytes;
-                if (tipo === 'png') {
-                    pngBytes = new Uint8Array(bytes);
-                } else if (tipo === 'jpg') {
-                    pngBytes = await _bytesImagenAPng(bytes, 'image/jpeg');
-                } else {
-                    pngBytes = await _bytesImagenAPng(bytes, archivo.tipo || 'image/jpeg');
-                }
-                await _agregarPaginaImagenAlPdf(pdfDoc, pngBytes, metaImg);
+                await _agregarPaginaDesdeBytesImagen(pdfDoc, bytes, mime, metaImg);
                 return { ok: true, tipo: 'imagen' };
             } catch (err) {
+                console.error('_incorporarArchivoEnPdfUnificado:', archivo && archivo.nombre, err);
                 var pngErr = await _generarPngPlaceholderComprobante(meta.titulo || (archivo.nombre || 'Comprobante'), [
                     'No se pudo incorporar el archivo como imagen.',
                     'Archivo: ' + (archivo.nombre || 'Sin nombre'),
