@@ -6161,35 +6161,35 @@
                         </div>
                         <div class="form-group" style="margin-bottom: 0.5rem;">
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Días Trabajados *</label>
-                            <input type="number" id="trabajadorDias" required min="0" max="31" step="1" value="0" onchange="actualizarCalculosTrabajador()" style="padding: 0.5rem; font-size: 0.875rem;">
+                            <input type="number" id="trabajadorDias" required min="0" max="31" step="1" value="0" style="padding: 0.5rem; font-size: 0.875rem;">
                         </div>
                         <div class="form-group" style="margin-bottom: 0.5rem;">
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Licencia Médica (días)</label>
-                            <input type="number" id="trabajadorLicencia" min="0" max="31" step="1" value="0" onchange="actualizarCalculosTrabajador()" style="padding: 0.5rem; font-size: 0.875rem;">
+                            <input type="number" id="trabajadorLicencia" min="0" max="31" step="1" value="0" style="padding: 0.5rem; font-size: 0.875rem;">
                         </div>
                         <div class="form-group" style="margin-bottom: 0.5rem;">
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Turnos Festivos</label>
-                            <input type="number" id="trabajadorTurnosFestivos" min="0" step="1" value="0" onchange="actualizarCalculosTrabajador()" style="padding: 0.5rem; font-size: 0.875rem;">
+                            <input type="number" id="trabajadorTurnosFestivos" min="0" step="1" value="0" style="padding: 0.5rem; font-size: 0.875rem;">
                         </div>
                         <div class="form-group" style="margin-bottom: 0.5rem;">
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Turnos Extras</label>
-                            <input type="number" id="trabajadorTurnosExtras" min="0" step="1" value="0" onchange="actualizarCalculosTrabajador()" style="padding: 0.5rem; font-size: 0.875rem;">
+                            <input type="number" id="trabajadorTurnosExtras" min="0" step="1" value="0" style="padding: 0.5rem; font-size: 0.875rem;">
                         </div>
                         <div class="form-group" style="margin-bottom: 0.5rem;">
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Domingos Trabajados</label>
-                            <input type="number" id="trabajadorDomingos" min="0" step="1" value="0" onchange="actualizarCalculosTrabajador()" style="padding: 0.5rem; font-size: 0.875rem;">
+                            <input type="number" id="trabajadorDomingos" min="0" step="1" value="0" style="padding: 0.5rem; font-size: 0.875rem;">
                         </div>
                         <div class="form-group" style="margin-bottom: 0.5rem;">
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Horas Extras 50%</label>
-                            <input type="number" id="trabajadorHorasExtras50" min="0" step="0.5" value="0" onchange="actualizarCalculosTrabajador()" style="padding: 0.5rem; font-size: 0.875rem;">
+                            <input type="number" id="trabajadorHorasExtras50" min="0" step="0.5" value="0" style="padding: 0.5rem; font-size: 0.875rem;">
                         </div>
                         <div class="form-group" style="margin-bottom: 0.5rem;">
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Horas Extras 100%</label>
-                            <input type="number" id="trabajadorHorasExtras100" min="0" step="0.5" value="0" onchange="actualizarCalculosTrabajador()" style="padding: 0.5rem; font-size: 0.875rem;">
+                            <input type="number" id="trabajadorHorasExtras100" min="0" step="0.5" value="0" style="padding: 0.5rem; font-size: 0.875rem;">
                         </div>
                         <div class="form-group" style="margin-bottom: 0.5rem;">
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Anticipos ($)</label>
-                            <input type="number" id="trabajadorAnticipos" min="0" step="1000" value="0" onchange="actualizarCalculosTrabajador()" style="padding: 0.5rem; font-size: 0.875rem;">
+                            <input type="number" id="trabajadorAnticipos" min="0" step="1000" value="0" style="padding: 0.5rem; font-size: 0.875rem;">
                         </div>
                     </div>
                     <div class="form-group" style="grid-column: 1 / -1; margin-bottom: 0.5rem;">
@@ -7070,24 +7070,6 @@
             }
         };
         
-        // Función para obtener URL de descarga de un archivo
-        window.obtenerURLArchivo = async function(ruta) {
-            if (!storage || !firebaseInitialized) {
-                console.error('Storage no está inicializado');
-                return null;
-            }
-            
-            try {
-                const storageRef = storage.ref();
-                const archivoRef = storageRef.child(ruta);
-                const url = await archivoRef.getDownloadURL();
-                return url;
-            } catch (error) {
-                console.error('Error al obtener URL del archivo:', error);
-                return null;
-            }
-        };
-        
         // Función para eliminar un archivo de Storage
         window.eliminarArchivoStorage = async function(ruta) {
             if (!storage || !firebaseInitialized) {
@@ -7576,7 +7558,6 @@
                 // Cargar datos al cambiar de pestaña (solo si el DOM está listo)
                 if (document.readyState === 'complete' || document.readyState === 'interactive') {
                     if (tabName === 'pagos-aseo') {
-                        if (typeof cargarPersonalAseo === 'function') cargarPersonalAseo();
                         if (typeof cargarSelectPersonalAseo === 'function') cargarSelectPersonalAseo();
                         if (typeof cargarPagosAseo === 'function') cargarPagosAseo();
                         if (typeof cargarRegistrosEspaciosPendientes === 'function') cargarRegistrosEspaciosPendientes();
@@ -7623,11 +7604,6 @@
                 console.error('Error en showTab:', error);
             }
         };
-        
-        // Función wrapper para compatibilidad
-        function showTab(tabName) {
-            window.showTab(tabName);
-        }
         
         // ============================================
         // FUNCIONES GENERALES
@@ -10319,275 +10295,9 @@
         // Hacer disponible globalmente
         window.abrirHTMLParaImprimir = abrirHTMLParaImprimir;
 
-        // Función para ver los correos enviados (últimos 20)
-        async function verCorreosEnviados() {
-            if (!firebaseInitialized || !db) {
-                mostrarAlerta('Firebase no está inicializado', 'Error');
-                return;
-            }
-
-            try {
-                mostrarProgreso('Cargando correos enviados...');
-                
-                const correosSnapshot = await db.collection("mail")
-                    .orderBy("createdAt", "desc")
-                    .limit(20)
-                    .get();
-
-                const correos = [];
-                correosSnapshot.forEach(doc => {
-                    const data = doc.data();
-                    correos.push({
-                        id: doc.id,
-                        ...data,
-                        fechaCreacion: data.createdAt ? (data.createdAt.toDate ? data.createdAt.toDate() : new Date(data.createdAt)) : null
-                    });
-                });
-
-                ocultarProgreso();
-
-                if (correos.length === 0) {
-                    mostrarAlerta('No hay correos en la cola de envío', 'Información');
-                    return;
-                }
-
-                // Crear HTML para mostrar los correos
-                let html = '<div style="max-height: 70vh; overflow-y: auto; padding: 1rem;">';
-                html += '<h3 style="margin: 0 0 1rem 0; color: var(--gray-900);">📧 Correos Enviados (últimos 20)</h3>';
-                
-                correos.forEach((correo, index) => {
-                    const fecha = correo.fechaCreacion ? 
-                        correo.fechaCreacion.toLocaleString('es-CL') : 
-                        'Fecha no disponible';
-                    const tipo = correo.tipo || (correo.message?.html ? 'HTML' : 'Texto');
-                    // Verificar estado desde delivery.state si existe, sino usar status
-                    const estadoDelivery = correo.delivery?.state;
-                    const estado = estadoDelivery || correo.status || 'pending';
-                    const estadoColor = estado === 'SENT' || estado === 'sent' ? '#10b981' : 
-                                       estado === 'ERROR' || estado === 'error' ? '#ef4444' : 
-                                       estado === 'PROCESSING' || estado === 'processing' ? '#3b82f6' : '#f59e0b';
-                    const estadoTexto = estado === 'SENT' || estado === 'sent' ? '✅ Enviado' : 
-                                       estado === 'ERROR' || estado === 'error' ? '❌ Error' : 
-                                       estado === 'PROCESSING' || estado === 'processing' ? '🔄 Procesando' : '⏳ Pendiente';
-
-                    html += `<div style="border: 1px solid var(--border-color); border-radius: 8px; padding: 1rem; margin-bottom: 0.75rem; background: var(--bg-primary);">`;
-                    html += `<div style="display: flex; justify-content: space-between; align-items: start; margin-bottom: 0.5rem;">`;
-                    html += `<div><strong style="color: var(--gray-900);">${index + 1}. ${correo.to || 'Sin destinatario'}</strong></div>`;
-                    html += `<span style="background: ${estadoColor}; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem; font-weight: 600;">${estadoTexto}</span>`;
-                    html += `</div>`;
-                    html += `<div style="font-size: 0.875rem; color: var(--gray-600); margin-bottom: 0.5rem;">`;
-                    html += `<div><strong>Asunto:</strong> ${correo.message?.subject || 'Sin asunto'}</div>`;
-                    html += `<div><strong>Tipo:</strong> ${tipo}</div>`;
-                    html += `<div><strong>Fecha:</strong> ${fecha}</div>`;
-                    html += `<div><strong>ID:</strong> <code style="background: var(--bg-secondary); padding: 0.125rem 0.25rem; border-radius: 3px; font-size: 0.75rem;">${correo.id}</code></div>`;
-                    if (correo.message?.html) {
-                        html += `<div><strong>Tamaño HTML:</strong> ${correo.tamanoHTML || correo.message.html.length} caracteres</div>`;
-                    }
-                    if (correo.delivery?.attempts) {
-                        html += `<div><strong>Intentos:</strong> ${correo.delivery.attempts}</div>`;
-                    }
-                    if (correo.delivery?.startTime) {
-                        const startTime = correo.delivery.startTime.toDate ? correo.delivery.startTime.toDate() : new Date(correo.delivery.startTime);
-                        html += `<div><strong>Inicio:</strong> ${startTime.toLocaleString('es-CL')}</div>`;
-                    }
-                    if (correo.delivery?.endTime) {
-                        const endTime = correo.delivery.endTime.toDate ? correo.delivery.endTime.toDate() : new Date(correo.delivery.endTime);
-                        html += `<div><strong>Fin:</strong> ${endTime.toLocaleString('es-CL')}</div>`;
-                    }
-                    html += `</div>`;
-                    
-                    // Mostrar error si existe (puede estar en delivery.error o error)
-                    const errorMsg = correo.delivery?.error || correo.error;
-                    if (errorMsg) {
-                        let errorHTML = `<div style="background: #fee2e2; border-left: 3px solid #ef4444; padding: 0.75rem; border-radius: 4px; margin-top: 0.5rem; font-size: 0.875rem; color: #991b1b;">`;
-                        errorHTML += `<div style="font-weight: 600; margin-bottom: 0.25rem;">❌ Error de Envío:</div>`;
-                        errorHTML += `<div style="word-break: break-word;">${errorMsg}</div>`;
-                        
-                        // Si es error de Gmail, mostrar ayuda
-                        if (errorMsg.includes('Application-specific password required') || errorMsg.includes('Invalid login')) {
-                            errorHTML += `<div style="margin-top: 0.5rem; padding-top: 0.5rem; border-top: 1px solid #fca5a5;">`;
-                            errorHTML += `<strong>💡 Solución:</strong> Gmail requiere una contraseña de aplicación. `;
-                            errorHTML += `Consulta el archivo <strong>CONFIGURAR_GMAIL_TRIGGER_EMAIL.md</strong> para más detalles.`;
-                            errorHTML += `</div>`;
-                        }
-                        errorHTML += `</div>`;
-                        html += errorHTML;
-                    }
-                    html += `</div>`;
-                });
-
-                html += '</div>';
-
-                // Mostrar en un modal
-                const modal = document.createElement('div');
-                modal.style.cssText = 'position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 2rem;';
-                modal.innerHTML = `
-                    <div style="background: white; border-radius: 12px; max-width: 800px; width: 100%; max-height: 90vh; overflow: hidden; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
-                        <div style="padding: 1.5rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center;">
-                            <h2 style="margin: 0; color: var(--gray-900);">📧 Historial de Correos</h2>
-                            <button onclick="this.closest('div[style*=\\'position: fixed\\']').remove()" style="background: none; border: none; font-size: 1.5rem; cursor: pointer; color: var(--gray-500); padding: 0; width: 32px; height: 32px; display: flex; align-items: center; justify-content: center; border-radius: 4px; transition: background 0.2s;" onmouseover="this.style.background='var(--bg-secondary)'" onmouseout="this.style.background='none'">×</button>
-                        </div>
-                        ${html}
-                        <div style="padding: 1rem; border-top: 1px solid var(--border-color); text-align: center;">
-                            <button onclick="this.closest('div[style*=\\'position: fixed\\']').remove()" class="btn btn-primary" style="padding: 0.5rem 1.5rem;">Cerrar</button>
-                        </div>
-                    </div>
-                `;
-                document.body.appendChild(modal);
-                
-                // Cerrar al hacer clic fuera
-                modal.addEventListener('click', (e) => {
-                    if (e.target === modal) {
-                        modal.remove();
-                    }
-                });
-
-            } catch (error) {
-                ocultarProgreso();
-                console.error('Error al cargar correos:', error);
-                mostrarAlerta('Error al cargar correos: ' + (error.message || 'Error desconocido'), 'Error');
-            }
-        }
-
-        // Hacer disponible globalmente
-        window.verCorreosEnviados = verCorreosEnviados;
-
-        // Diagnóstico rápido del estado de la extensión Trigger Email
-        async function diagnosticarTriggerEmail() {
-            if (!firebaseInitialized || !db) {
-                mostrarAlerta('Firebase no está inicializado. No es posible diagnosticar Trigger Email.', 'Error');
-                return;
-            }
-
-            try {
-                mostrarProgreso('Diagnóstico Trigger Email: leyendo cola mail…');
-                const snap = await db.collection("mail")
-                    .orderBy("createdAt", "desc")
-                    .limit(40)
-                    .get();
-                ocultarProgreso();
-
-                if (snap.empty) {
-                    mostrarAlerta('No hay documentos en la colección mail. El Trigger no tiene correos para procesar.', 'Diagnóstico Trigger Email');
-                    return;
-                }
-
-                const docs = [];
-                snap.forEach((d) => docs.push({ id: d.id, ...(d.data() || {}) }));
-
-                const normState = (v) => String(v || '').trim().toUpperCase();
-                const isSent = (s) => s === 'SENT' || s === 'SUCCESS';
-                const isError = (s) => s === 'ERROR' || s === 'FAILED' || s === 'FAILURE';
-                const isProcessing = (s) => s === 'PROCESSING';
-
-                let sent = 0;
-                let errored = 0;
-                let processing = 0;
-                let pending = 0;
-                let oldestPendingMinutes = 0;
-                const erroresMuestra = [];
-                const now = Date.now();
-
-                docs.forEach((m) => {
-                    const state = normState((m.delivery && m.delivery.state) || m.status || 'PENDING');
-                    if (isSent(state)) {
-                        sent += 1;
-                        return;
-                    }
-                    if (isError(state)) {
-                        errored += 1;
-                        const err = (m.delivery && m.delivery.error) || m.error || '';
-                        if (err && erroresMuestra.length < 3) erroresMuestra.push(err);
-                        return;
-                    }
-                    if (isProcessing(state)) {
-                        processing += 1;
-                        return;
-                    }
-                    pending += 1;
-                    const createdAt = m.createdAt && typeof m.createdAt.toDate === 'function'
-                        ? m.createdAt.toDate().getTime()
-                        : (m.createdAt ? new Date(m.createdAt).getTime() : NaN);
-                    if (!isNaN(createdAt)) {
-                        const mins = Math.floor((now - createdAt) / 60000);
-                        if (mins > oldestPendingMinutes) oldestPendingMinutes = mins;
-                    }
-                });
-
-                let conclusion = 'Estado mixto.';
-                let tip = 'Revisa el historial para más detalle.';
-
-                if (sent > 0 && pending === 0 && errored === 0 && processing === 0) {
-                    conclusion = 'Trigger Email parece funcionar correctamente.';
-                    tip = 'Se observan correos procesados como enviados.';
-                } else if (pending > 0 && sent === 0 && errored === 0 && oldestPendingMinutes >= 10) {
-                    conclusion = 'Trigger Email posiblemente no está ejecutándose.';
-                    tip = 'Hay correos pendientes por más de 10 minutos sin cambios de estado.';
-                } else if (errored > 0) {
-                    conclusion = 'Trigger Email está ejecutándose, pero hay errores de entrega.';
-                    tip = 'Probable problema de SMTP/credenciales del proveedor de correo.';
-                } else if (processing > 0 || pending > 0) {
-                    conclusion = 'Trigger Email está procesando cola.';
-                    tip = 'Si se mantiene por mucho tiempo, revisa logs de Cloud Functions.';
-                }
-
-                let detalleErrores = '';
-                if (erroresMuestra.length) {
-                    detalleErrores = '<div style="margin-top:10px;padding:10px;background:#fee2e2;border-left:3px solid #ef4444;border-radius:6px;color:#7f1d1d;font-size:12px;line-height:1.45;">' +
-                        '<strong>Errores detectados:</strong><br>' +
-                        erroresMuestra.map(e => String(e).replace(/</g, '&lt;').replace(/>/g, '&gt;')).join('<br><br>') +
-                        '</div>';
-                }
-
-                const html = `
-                    <div style="padding: 1rem; line-height: 1.5;">
-                        <h3 style="margin: 0 0 0.75rem 0; color: #111827;">Diagnóstico Trigger Email</h3>
-                        <div style="margin-bottom: 0.75rem; font-size: 0.92rem; color: #374151;">
-                            <strong>Conclusión:</strong> ${conclusion}<br>
-                            <strong>Sugerencia:</strong> ${tip}
-                        </div>
-                        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;font-size:0.85rem;">
-                            <div><strong>Total revisados:</strong> ${docs.length}</div>
-                            <div><strong>Enviados:</strong> ${sent}</div>
-                            <div><strong>Pendientes:</strong> ${pending}</div>
-                            <div><strong>Procesando:</strong> ${processing}</div>
-                            <div><strong>Con error:</strong> ${errored}</div>
-                            <div><strong>Pendiente más antiguo:</strong> ${oldestPendingMinutes} min</div>
-                        </div>
-                        ${detalleErrores}
-                        <div style="margin-top:12px;font-size:12px;color:#6b7280;">
-                            Si ves pendientes antiguos o errores, abre Firebase Console → Extensions (Trigger Email) y revisa logs de la función.
-                        </div>
-                    </div>
-                `;
-
-                const modal = document.createElement('div');
-                modal.style.cssText = 'position: fixed; inset: 0; background: rgba(0,0,0,0.5); z-index: 10000; display: flex; align-items: center; justify-content: center; padding: 1rem;';
-                modal.innerHTML = `
-                    <div style="background: #fff; border-radius: 12px; max-width: 650px; width: 100%; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
-                        ${html}
-                        <div style="padding: 0 1rem 1rem 1rem; text-align: right;">
-                            <button type="button" class="btn btn-primary" style="padding: 0.45rem 1rem;">Cerrar</button>
-                        </div>
-                    </div>
-                `;
-                modal.querySelector('button').addEventListener('click', () => modal.remove());
-                modal.addEventListener('click', (e) => { if (e.target === modal) modal.remove(); });
-                document.body.appendChild(modal);
-            } catch (error) {
-                ocultarProgreso();
-                console.error('Diagnóstico Trigger Email falló:', error);
-                mostrarAlerta('No se pudo ejecutar el diagnóstico: ' + (error.message || 'Error desconocido'), 'Error');
-            }
-        }
-        window.diagnosticarTriggerEmail = diagnosticarTriggerEmail;
-
         // Función auxiliar para obtener correo del residente por departamento
         async function obtenerCorreoResidente(departamento, nombreResidente = null) {
             try {
-                console.log('🔍 Buscando correo para departamento:', departamento, 'nombre:', nombreResidente);
-                
-                // PRIORIDAD 1: Buscar por nombre del residente en los campos del formulario (más específico)
                 if (nombreResidente) {
                     var nombreInputs = document.querySelectorAll('.input-nombre-residente');
                     for (var i = 0; i < nombreInputs.length; i++) {
@@ -10596,7 +10306,6 @@
                         if (nombreValue && nombreValue.toString().trim().toLowerCase() === nombreResidente.toString().trim().toLowerCase()) {
                             var emailGuardado = nombreInput.getAttribute('data-residente-email');
                             if (emailGuardado && emailGuardado.trim() !== '') {
-                                console.log('✅ Correo encontrado en campo de nombre del formulario:', emailGuardado);
                                 return {
                                     nombre: nombreResidente,
                                     correo: emailGuardado.trim()
@@ -10605,130 +10314,92 @@
                         }
                     }
                 }
-                
-                // PRIORIDAD 2: Buscar por departamento en los campos del formulario (solo si no hay nombre específico)
+
                 var deptoInputs = document.querySelectorAll('.input-unidad-residente');
-                for (var i = 0; i < deptoInputs.length; i++) {
-                    var deptoInput = deptoInputs[i];
+                for (var j = 0; j < deptoInputs.length; j++) {
+                    var deptoInput = deptoInputs[j];
                     var deptoValue = (deptoInput.value || '').trim();
                     if (deptoValue && deptoValue.toString().trim().toLowerCase() === departamento.toString().trim().toLowerCase()) {
-                        var emailGuardado = deptoInput.getAttribute('data-residente-email');
-                        if (emailGuardado && emailGuardado.trim() !== '') {
-                            console.log('✅ Correo encontrado en campo del formulario:', emailGuardado);
+                        var emailDepto = deptoInput.getAttribute('data-residente-email');
+                        if (emailDepto && emailDepto.trim() !== '') {
                             return {
                                 nombre: nombreResidente || 'Residente',
-                                correo: emailGuardado.trim()
+                                correo: emailDepto.trim()
                             };
                         }
                     }
                 }
-                
-                // Primero intentar obtener de window.vinculacionUnits (unidades desde Conserjería / prueba-conserjeria)
+
                 if (window.vinculacionUnits && Array.isArray(window.vinculacionUnits)) {
-                    console.log('📋 Total unidades en vinculacionUnits:', window.vinculacionUnits.length);
-                    
-                    const unidad = window.vinculacionUnits.find(u => 
-                        u && u.unitNumber && 
+                    const unidad = window.vinculacionUnits.find(u =>
+                        u && u.unitNumber &&
                         u.unitNumber.toString().trim().toLowerCase() === departamento.toString().trim().toLowerCase()
                     );
-                    
-                    if (unidad) {
-                        console.log('✅ Unidad encontrada:', unidad.unitNumber, 'Residentes:', unidad.residents?.length || 0);
-                        
-                        if (unidad.residents && Array.isArray(unidad.residents)) {
-                            // PRIORIDAD 1: Buscar por nombre específico si se proporciona (más preciso)
-                            if (nombreResidente) {
-                                const residentePorNombre = unidad.residents.find(r => 
-                                    r && r.name && 
-                                    r.name.toString().trim().toLowerCase() === nombreResidente.toString().trim().toLowerCase() &&
-                                    r.email && r.email.trim() !== ''
-                                );
-                                
-                                if (residentePorNombre) {
-                                    console.log('✅ Correo encontrado por nombre específico:', residentePorNombre.email, 'para:', residentePorNombre.name);
-                                    return {
-                                        nombre: residentePorNombre.name,
-                                        correo: residentePorNombre.email.trim()
-                                    };
-                                }
-                            }
-                            
-                            // PRIORIDAD 2: Si no se encontró por nombre, buscar el primer residente con correo (priorizar Propietario, luego Arrendatario)
-                            const residentesConCorreo = unidad.residents.filter(r => r && r.email && r.email.trim() !== '');
-                            
-                            console.log('📧 Residentes con correo:', residentesConCorreo.length);
-                            
-                            if (residentesConCorreo.length > 0) {
-                                // Priorizar Propietario, luego Arrendatario, luego otros
-                                const propietario = residentesConCorreo.find(r => r.type === 'Propietario');
-                                const arrendatario = residentesConCorreo.find(r => r.type === 'Arrendatario');
-                                const residenteSeleccionado = propietario || arrendatario || residentesConCorreo[0];
-                                
-                                console.log('✅ Correo encontrado (fallback por tipo):', residenteSeleccionado.email, 'para:', residenteSeleccionado.name);
-                                
+
+                    if (unidad && unidad.residents && Array.isArray(unidad.residents)) {
+                        if (nombreResidente) {
+                            const residentePorNombre = unidad.residents.find(r =>
+                                r && r.name &&
+                                r.name.toString().trim().toLowerCase() === nombreResidente.toString().trim().toLowerCase() &&
+                                r.email && r.email.trim() !== ''
+                            );
+                            if (residentePorNombre) {
                                 return {
-                                    nombre: residenteSeleccionado.name || nombreResidente || 'Residente',
-                                    correo: residenteSeleccionado.email.trim()
+                                    nombre: residentePorNombre.name,
+                                    correo: residentePorNombre.email.trim()
                                 };
-                            } else {
-                                console.log('⚠️ Unidad encontrada pero ningún residente tiene correo registrado');
                             }
                         }
-                    } else {
-                        console.log('⚠️ No se encontró unidad para departamento:', departamento);
+
+                        const residentesConCorreo = unidad.residents.filter(r => r && r.email && r.email.trim() !== '');
+                        if (residentesConCorreo.length > 0) {
+                            const propietario = residentesConCorreo.find(r => r.type === 'Propietario');
+                            const arrendatario = residentesConCorreo.find(r => r.type === 'Arrendatario');
+                            const residenteSeleccionado = propietario || arrendatario || residentesConCorreo[0];
+                            return {
+                                nombre: residenteSeleccionado.name || nombreResidente || 'Residente',
+                                correo: residenteSeleccionado.email.trim()
+                            };
+                        }
                     }
-                } else {
-                    console.log('⚠️ window.vinculacionUnits no está disponible o no es un array');
                 }
-                
-                // Fallback: Intentar obtener de ocupación-residentes (estructura antigua)
+
                 try {
                     const ocupacion = await obtenerDatosMes('ocupacion-residentes');
                     if (ocupacion && Array.isArray(ocupacion) && ocupacion.length > 0) {
-                        console.log('📋 Buscando en ocupacion-residentes:', ocupacion.length, 'registros');
-                        
-                        // PRIORIDAD 1: Buscar por nombre específico si se proporciona (más preciso)
                         if (nombreResidente) {
-                            const residentePorNombre = ocupacion.find(r => 
-                                r && r.nombre && 
+                            const residentePorNombre = ocupacion.find(r =>
+                                r && r.nombre &&
                                 r.nombre.toString().trim().toLowerCase() === nombreResidente.toString().trim().toLowerCase() &&
                                 r.correo
                             );
-                            
                             if (residentePorNombre) {
-                                console.log('✅ Correo encontrado por nombre en ocupacion-residentes:', residentePorNombre.correo);
                                 return {
                                     nombre: residentePorNombre.nombre,
                                     correo: residentePorNombre.correo
                                 };
                             }
                         }
-                        
-                        // PRIORIDAD 2: Buscar por departamento (fallback)
-                        const residente = ocupacion.find(r => 
-                            r && r.departamento && 
-                            r.departamento.toString().trim().toLowerCase() === departamento.toString().trim().toLowerCase()
+
+                        const residente = ocupacion.find(r =>
+                            r && r.departamento &&
+                            r.departamento.toString().trim().toLowerCase() === departamento.toString().trim().toLowerCase() &&
+                            r.correo
                         );
-                        
-                        if (residente && residente.correo) {
-                            console.log('✅ Correo encontrado en ocupacion-residentes (fallback por depto):', residente.correo);
+                        if (residente) {
                             return {
                                 nombre: residente.nombre || nombreResidente || 'Residente',
                                 correo: residente.correo
                             };
                         }
-                    } else {
-                        console.log('⚠️ ocupacion-residentes está vacío o no es un array');
                     }
                 } catch (errorOcupacion) {
-                    console.warn('⚠️ No se pudo obtener de ocupacion-residentes:', errorOcupacion);
+                    console.warn('No se pudo obtener de ocupacion-residentes:', errorOcupacion);
                 }
-                
-                console.log('❌ No se encontró correo para departamento:', departamento);
-                // Si no se encuentra, retornar null
+
                 return null;
             } catch (error) {
-                console.error('❌ Error al obtener correo del residente:', error);
+                console.error('Error al obtener correo del residente:', error);
                 return null;
             }
         }
@@ -18352,41 +18023,6 @@
             }
         };
 
-        window.editarLecturaAgua = async function(id) {
-            if (window.mesEnConsulta && !window.mesReabierto) {
-                mostrarAlerta('No se pueden editar registros de meses archivados. Vuelva al mes actual o reabra el mes para editarlo.', 'Mes Archivado');
-                return;
-            }
-            
-            const mesActual = obtenerMesActual();
-            const mesDestino = (window.mesReabierto && window.mesEnConsulta) ? window.mesEnConsulta : mesActual;
-            if (await verificarLecturasAguaListas(mesDestino)) {
-                mostrarAlerta('Las lecturas están marcadas como listas. Debe reabrirlas para poder editarlas.', 'Lecturas bloqueadas');
-                return;
-            }
-            
-            const lecturas = await obtenerDatosMes('lecturasAguaCaliente');
-            const lectura = lecturas.find(l => l.id === id);
-            if (!lectura) {
-                mostrarAlerta('No se encontró la lectura a editar.', 'Error');
-                return;
-            }
-            
-            window.editandoLecturaAgua = id;
-            document.getElementById('aguaUnidad').value = lectura.unidad || '';
-            
-            // Mostrar valores: si está en blanco (null), mostrar string vacío; si tiene valor, mostrar el número
-            const lecturaAnteriorVal = lectura.lecturaAnterior === null || lectura.lecturaAnterior === undefined ? '' : (lectura.lecturaAnterior ?? '');
-            const lecturaActualVal = lectura.lecturaActual === null || lectura.lecturaActual === undefined ? '' : (lectura.lecturaActual ?? '');
-            
-            document.getElementById('aguaLecturaAnterior').value = lecturaAnteriorVal;
-            document.getElementById('aguaLecturaActual').value = lecturaActualVal;
-            calcularConsumoAgua(); // Recalcular consumo al cargar datos para editar
-            
-            const btnSubmit = document.querySelector('#formLecturaAgua button[type="submit"]');
-            if (btnSubmit) btnSubmit.textContent = 'Actualizar Lectura';
-        };
-
         async function eliminarLecturaAgua(id) {
             if (window.mesEnConsulta && !window.mesReabierto) {
                 mostrarAlerta('No se pueden eliminar registros de meses archivados. Vuelva al mes actual o reabra el mes para editarlo.', 'Mes Archivado');
@@ -22189,17 +21825,6 @@
         // MÓDULO 9: PAGOS DE ASEO ÁREAS COMUNES
         // ============================================
 
-        async function registrarPersonalAseo(event) {
-            event.preventDefault();
-            // Esta función ya no se usa. El personal se gestiona desde el módulo de nómina.
-            mostrarAlerta('El personal se gestiona desde el módulo de Nómina Mensual. Por favor, agregue el personal allí.', 'Gestión Centralizada');
-        }
-
-        // Función placeholder para compatibilidad (personal ahora se gestiona desde nómina)
-        async function cargarPersonalAseo() {
-            // No hace nada - el personal se gestiona desde el módulo de nómina
-        }
-
         async function cargarSelectPersonalAseo() {
             // Ahora usa el personal del edificio desde nómina
             await actualizarSelectPersonalAseo();
@@ -24040,10 +23665,7 @@
                 document.documentElement.setAttribute('data-theme', 'dark');
             }
         }
-        
-        window.actualizarTemaDesdePersonalizacion = function() {
-            document.documentElement.setAttribute('data-theme', 'dark');
-        };
+
 
         // Función para toggle de herramientas de la app (disponible globalmente)
         window.toggleHerramientasApp = function() {
@@ -24184,7 +23806,7 @@
                 const moduloActivo = Object.entries(MODULOS_DISPONIBLES).find(([key, mod]) => mod.tab === tabKey);
                 if (moduloActivo && !modulosVisibles.includes(moduloActivo[0])) {
                     // El módulo activo está oculto, cambiar al dashboard
-                    showTab('dashboard');
+                    window.showTab('dashboard');
                 }
             }
         }
@@ -30326,7 +29948,7 @@
                     
                     // Cambiar a la pestaña del dashboard para mostrar la información del mes reabierto
                     if (typeof showTab === 'function') {
-                        showTab('dashboard');
+                        window.showTab('dashboard');
                     }
                 } else {
                     // Si es el mes actual, simplemente limpiar y recargar
@@ -32862,208 +32484,6 @@
             }
         }
 
-        // Función para generar alertas automáticas del sistema
-        async function generarAlertasAutomaticas() {
-            const alertas = [];
-            const mesActual = obtenerMesActual();
-            const mesAnterior = obtenerMesAnterior(mesActual);
-            
-            // Obtener datos actuales
-            const mantenciones = await obtenerDatosMes('mantenciones');
-            const proveedores = await obtenerDatos('proveedores');
-            const morosos = await obtenerDatosMes('morosos');
-            const metricasActual = await calcularMetricasMesActual();
-            const metricasAnterior = await calcularMetricasMes(mesAnterior);
-            
-            // Alerta 1: Mantenciones vencidas
-            const hoy = new Date();
-            hoy.setHours(0, 0, 0, 0);
-            let mantencionesVencidas = 0;
-
-            // Usar solo la última mantención por proveedor para evitar contar mantenciones históricas como vencidas
-            const ultimasMantenciones = obtenerUltimasMantencionesPorProveedor(mantenciones);
-            ultimasMantenciones.forEach(m => {
-                // No contar mantenciones con plazo "sin-plazo"
-                if (!m.plazo || m.plazo === 'sin-plazo') {
-                    return;
-                }
-                const fechaProxima = calcularProximaMantencion(m.fechaUltima, m.plazo);
-                const estado = obtenerEstadoMantencion(fechaProxima);
-                if (estado.estado === 'vencida') mantencionesVencidas++;
-            });
-
-            // Evitar duplicar proveedores que ya tienen mantenciones registradas
-            const proveedoresConMantencion = new Set(
-                ultimasMantenciones.map(m => m.proveedor.toLowerCase().trim())
-            );
-
-            proveedores.forEach(p => {
-                // No contar proveedores con período "sin-plazo"
-                if (!p.periodo || p.periodo === 'sin-plazo') {
-                    return;
-                }
-                if (p.ultimaFecha && p.periodo) {
-                    const nombreProveedorNormalizado = p.nombre.toLowerCase().trim();
-                    if (proveedoresConMantencion.has(nombreProveedorNormalizado)) {
-                        return; // Ya considerado vía mantenciones registradas
-                    }
-                    const fechaProxima = calcularProximaMantencionProveedor(p.ultimaFecha, p.periodo);
-                    const estado = obtenerEstadoProveedor(fechaProxima);
-                    if (estado.estado === 'vencida') mantencionesVencidas++;
-                }
-            });
-            
-            if (mantencionesVencidas > 0) {
-                alertas.push({
-                    tipo: 'danger',
-                    icono: '⚠️',
-                    titulo: `${mantencionesVencidas} ${mantencionesVencidas === 1 ? 'mantención vencida' : 'mantenciones vencidas'}`,
-                    mensaje: mantencionesVencidas === 1 
-                        ? 'Hay una mantención que requiere atención inmediata.'
-                        : `Hay ${mantencionesVencidas} mantenciones que requieren atención inmediata.`,
-                    severidad: mantencionesVencidas >= 3 ? 'critica' : 'alta'
-                });
-            }
-            
-            // Alerta 2: Aumento significativo de gastos
-            const tendenciaGastos = calcularTendencia(metricasActual.gastos, metricasAnterior.gastos);
-            if (tendenciaGastos.tipo === 'aumento' && tendenciaGastos.porcentaje > 20) {
-                alertas.push({
-                    tipo: 'warning',
-                    icono: '💸',
-                    titulo: 'Aumento significativo de gastos',
-                    mensaje: `Los gastos han aumentado un ${tendenciaGastos.porcentaje.toFixed(1)}% respecto al mes anterior.`,
-                    severidad: 'media'
-                });
-            }
-            
-            // Alerta 3: Balance negativo
-            if (metricasActual.balance < 0) {
-                alertas.push({
-                    tipo: 'danger',
-                    icono: '📉',
-                    titulo: 'Balance negativo',
-                    mensaje: `El balance del mes es negativo: ${formatearMoneda(metricasActual.balance)}. Revisar gastos e ingresos.`,
-                    severidad: 'alta'
-                });
-            }
-            
-            // Alerta 4: Morosos con deuda significativa
-            const totalDeudaMorosos = morosos.reduce((sum, m) => {
-                const monto = parseFloat(m.monto) || 0;
-                return sum + monto;
-            }, 0);
-            
-            if (totalDeudaMorosos > 500000) {
-                alertas.push({
-                    tipo: 'warning',
-                    icono: '⏰',
-                    titulo: 'Deuda acumulada de morosos',
-                    mensaje: `La deuda total de morosos es ${formatearMoneda(totalDeudaMorosos)}. Considerar acciones de cobranza.`,
-                    severidad: 'media'
-                });
-            }
-            
-            // Alerta 5: Disminución significativa de ingresos
-            const tendenciaIngresos = calcularTendencia(metricasActual.ingresos, metricasAnterior.ingresos);
-            if (tendenciaIngresos.tipo === 'disminucion' && tendenciaIngresos.porcentaje > 15) {
-                alertas.push({
-                    tipo: 'warning',
-                    icono: '📊',
-                    titulo: 'Disminución de ingresos',
-                    mensaje: `Los ingresos han disminuido un ${tendenciaIngresos.porcentaje.toFixed(1)}% respecto al mes anterior.`,
-                    severidad: 'media'
-                });
-            }
-            
-            // Alerta 6: Recordatorio de envío de nómina (9 días antes del fin de mes)
-            // Usar fecha de Santiago para cálculos precisos
-            const fechaHoyString = obtenerFechaSantiago();
-            const [año, mes, dia] = fechaHoyString.split('-').map(Number);
-            const fechaHoyObj = new Date(año, mes - 1, dia);
-            const ultimoDiaMes = new Date(año, mes, 0); // Último día del mes actual
-            ultimoDiaMes.setHours(23, 59, 59, 999); // Fin del día
-            const diasRestantes = Math.ceil((ultimoDiaMes - fechaHoyObj) / (1000 * 60 * 60 * 24));
-            
-            if (diasRestantes <= 9 && diasRestantes >= 0) {
-                const mensajeNomina = diasRestantes === 0 
-                    ? '¡Hoy es el último día del mes! Recuerda enviar la nómina.'
-                    : diasRestantes === 1
-                    ? 'Queda 1 día para finalizar el mes. Recuerda enviar la nómina.'
-                    : `Quedan ${diasRestantes} días para finalizar el mes. Recuerda enviar la nómina.`;
-                
-                alertas.push({
-                    tipo: 'warning',
-                    icono: '📋',
-                    titulo: 'Recordatorio: Envío de Nómina',
-                    mensaje: mensajeNomina,
-                    severidad: diasRestantes <= 3 ? 'alta' : 'media'
-                });
-            }
-            
-            // Mostrar alertas en el dashboard
-            mostrarAlertasEnDashboard(alertas);
-        }
-
-        // Función para mostrar alertas en el dashboard
-        function mostrarAlertasEnDashboard(alertas) {
-            const contenedorAlertas = document.getElementById('alertasDashboard');
-            if (!contenedorAlertas) return;
-            
-            if (alertas.length === 0) {
-                contenedorAlertas.innerHTML = '';
-                return;
-            }
-            
-            // Ordenar alertas por severidad (critica > alta > media)
-            const ordenSeveridad = { critica: 0, alta: 1, media: 2 };
-            alertas.sort((a, b) => ordenSeveridad[a.severidad] - ordenSeveridad[b.severidad]);
-            
-            let html = '<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 1rem;">';
-            
-            alertas.forEach(alerta => {
-                const colorBadge = alerta.tipo === 'danger' ? '#ef4444' : alerta.tipo === 'warning' ? '#f59e0b' : '#3b82f6';
-                const bgColor = alerta.tipo === 'danger' ? 'rgba(239, 68, 68, 0.1)' : alerta.tipo === 'warning' ? 'rgba(245, 158, 11, 0.1)' : 'rgba(59, 130, 246, 0.1)';
-                const borderColor = alerta.tipo === 'danger' ? 'rgba(239, 68, 68, 0.3)' : alerta.tipo === 'warning' ? 'rgba(245, 158, 11, 0.3)' : 'rgba(59, 130, 246, 0.3)';
-                
-                html += `
-                    <div style="
-                        background: ${bgColor};
-                        border: 2px solid ${borderColor};
-                        border-radius: 12px;
-                        padding: 1rem 1.25rem;
-                        animation: slideInRight 0.4s ease-out;
-                        box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-                    ">
-                        <div style="display: flex; align-items: flex-start; gap: 0.75rem;">
-                            <div style="font-size: 1.5rem; flex-shrink: 0;">${alerta.icono}</div>
-                            <div style="flex: 1;">
-                                <div style="font-weight: 700; font-size: 0.9375rem; color: var(--gray-900); margin-bottom: 0.25rem;">
-                                    ${alerta.titulo}
-                                </div>
-                                <div style="font-size: 0.8125rem; color: var(--gray-700); line-height: 1.5;">
-                                    ${alerta.mensaje}
-                                </div>
-                            </div>
-                            <div style="
-                                width: 8px;
-                                height: 8px;
-                                border-radius: 50%;
-                                background: ${colorBadge};
-                                flex-shrink: 0;
-                                margin-top: 0.25rem;
-                                box-shadow: 0 0 6px ${colorBadge};
-                                animation: pulse 2s infinite;
-                            "></div>
-                        </div>
-                    </div>
-                `;
-            });
-            
-            html += '</div>';
-            contenedorAlertas.innerHTML = html;
-        }
-
         async function cargarEstadisticasDashboard() {
             // Una sola carga en curso: evita recargas repetitivas si se llama desde varios sitios a la vez
             if (window._promiseCargarEstadisticasDashboard) {
@@ -33875,92 +33295,7 @@
                 }
             } catch (_pvN) { /* ignore */ }
 
-            const statsDiv = document.getElementById('dashboardStats');
-            if (statsDiv) {
-            // Generar HTML con los valores correctos (opcional: panel único ya no tiene dashboardStats)
-            statsDiv.innerHTML = stats.map((stat, index) => {
-                // Determinar si el valor es monetario
-                const esMoneda = typeof stat.value === 'string' && (stat.value.includes('$') || stat.value.includes('CLP'));
-                const valorMostrar = stat.value || 0;
-                
-                // Extraer el valor numérico para data-value
-                let valorNumerico = valorMostrar;
-                if (esMoneda) {
-                    // Si es moneda, extraer solo el número (eliminar $, espacios, puntos de miles, etc.)
-                    const valorSinFormato = valorMostrar.toString()
-                        .replace(/\$/g, '')           // Eliminar $
-                        .replace(/CLP/g, '')          // Eliminar CLP
-                        .replace(/\./g, '')           // Eliminar puntos (separadores de miles)
-                        .replace(/\s/g, '')           // Eliminar espacios
-                        .replace(/[^0-9.-]/g, '');     // Eliminar cualquier otro carácter no numérico
-                    valorNumerico = valorSinFormato ? parseFloat(valorSinFormato) : 0;
-                } else if (typeof valorMostrar === 'string') {
-                    // Si es string pero no moneda, intentar convertir a número
-                    valorNumerico = parseFloat(valorMostrar) || 0;
-                } else if (typeof valorMostrar === 'number') {
-                    valorNumerico = valorMostrar;
-                }
-                
-                // Asegurar que el valor mostrado sea correcto
-                const valorFinalMostrar = esMoneda && typeof valorNumerico === 'number' 
-                    ? formatearMoneda(valorNumerico) 
-                    : valorMostrar;
-                
-                // Determinar color del semáforo si existe
-                let semaforoHTML = '';
-                if (stat.semaforo) {
-                    const colorSemaforo = stat.semaforo === 'verde' ? '#10b981' : stat.semaforo === 'amarillo' ? '#f59e0b' : stat.semaforo === 'azul' ? '#3b82f6' : '#ef4444';
-                    semaforoHTML = `<div style="position: absolute; top: 0.75rem; right: 0.75rem; width: 10px; height: 10px; border-radius: 50%; background: ${colorSemaforo}; box-shadow: 0 0 6px ${colorSemaforo}; animation: pulse 2s infinite;"></div>`;
-                }
-                
-                // Determinar el tipo de icono basado en el título o el icono emoji
-                let iconoTipo = stat.icon;
-                if (stat.title === 'Mudanzas') iconoTipo = 'mudanzas';
-                else if (stat.title === 'Aperturas') iconoTipo = 'aperturas';
-                else if (stat.title === 'Tarjetas/TAG') iconoTipo = 'tarjetas';
-                else if (stat.title === 'Espacios') iconoTipo = 'espacios';
-                else if (stat.title === 'Multas') iconoTipo = 'multas';
-                else if (stat.title === 'Morosos') iconoTipo = 'morosos';
-                else if (stat.title === 'Caja Chica') iconoTipo = 'caja';
-                else if (stat.title === 'Mantenciones') iconoTipo = 'mantenciones';
-                else if (stat.title === 'Aseos Pendientes') iconoTipo = 'aseo';
-                else if (stat.title === 'Última Nómina') iconoTipo = 'nomina';
-                else if (stat.title === 'Proveedores') iconoTipo = 'proveedores';
-                else if (stat.title === 'Balance Neto') iconoTipo = 'dashboard';
-                else if (stat.title === 'Postventa') iconoTipo = 'postventa';
-                
-                const iconoSVG = obtenerIconoSVG(iconoTipo);
-                const _bg = stat.gradient || 'linear-gradient(135deg, #ffffff 0%, #f8fafc 100%)';
-                const _tab = stat.onClickTab ? String(stat.onClickTab).replace(/\\/g, '').replace(/'/g, '') : '';
-                const _cardStyle = `background: ${_bg}; animation-delay: ${index * 0.1}s; position: relative;${_tab ? ' cursor: pointer;' : ''}`;
-                const _cardClick = _tab
-                    ? ` role="button" tabindex="0" onclick="if(typeof window.showTab==='function')window.showTab('${_tab}')" onkeydown="if(event.key==='Enter'||event.key===' '){event.preventDefault();if(typeof window.showTab==='function')window.showTab('${_tab}');}" title="Ir al módulo"`
-                    : '';
-                
-                return `
-                <div class="dashboard-card" style="${_cardStyle}"${_cardClick}>
-                    ${semaforoHTML}
-                    <div class="dashboard-card-header">
-                        <div class="dashboard-card-icon ${stat.iconClass}" style="width: 2.5rem; height: 2.5rem; font-size: 1.25rem; box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);">${iconoSVG}</div>
-                    </div>
-                    <div class="dashboard-card-title" style="font-size: 0.75rem; font-weight: 600; color: var(--gray-600); margin-top: 0.75rem;">${stat.title}</div>
-                    <div class="dashboard-card-value" data-value="${valorNumerico}" data-es-moneda="${esMoneda}" style="font-size: 1.75rem; font-weight: 700; color: var(--gray-900); margin: 0.375rem 0;">${valorFinalMostrar}</div>
-                    <div class="dashboard-card-subtitle" style="font-size: 0.75rem; color: var(--gray-500); line-height: 1.3;">${stat.subtitle}</div>
-                </div>
-                `;
-            }).join('');
-            
-            // Animar las tarjetas al aparecer
-            setTimeout(() => {
-                const cards = statsDiv.querySelectorAll('.dashboard-card');
-                cards.forEach((card, index) => {
-                    setTimeout(() => {
-                        card.classList.add('visible');
-                    }, index * 50);
-                });
-            }, 100);
-            }
-            
+            // Animar contadores numéricos     
             // Animar contadores numéricos después de un pequeño delay
             setTimeout(() => {
                 animarContadores();
@@ -33969,14 +33304,9 @@
             // Actualizar expresión de Arturito según el estado del dashboard
             actualizarExpresionArturito(mantencionesVencidas, balanceNeto, totalMudanzas, totalAperturas, postventaPend, postventaProc);
             
-            // Cargar tendencias mensuales y alertas automáticas después (no bloquean la carga inicial)
             if (!window.mesEnConsulta) {
-                // Ejecutar en paralelo y sin bloquear
-                Promise.all([
-                    mostrarTendenciasMensuales()
-                    // generarAlertasAutomaticas() // Deshabilitado - Ahora todas las alertas se gestionan desde Arturito
-                ]).catch(error => {
-                    console.error('Error al cargar tendencias y alertas:', error);
+                mostrarTendenciasMensuales().catch(error => {
+                    console.error('Error al cargar tendencias:', error);
                 });
             }
             })();
@@ -35736,301 +35066,6 @@
             return Array.from(meses).sort((a, b) => b.localeCompare(a));
         }
         
-        // Función para cargar métricas comparativas entre meses
-        async function cargarMetricasComparativas() {
-            const contenedor = document.getElementById('contenidoMetricasComparativas');
-            if (!contenedor) return;
-            
-            const selectMeses = document.getElementById('mesesComparar');
-            const numMeses = selectMeses ? parseInt(selectMeses.value) : 3;
-            
-            // Obtener lista de meses disponibles
-            const mesesDisponibles = await obtenerMesesDisponibles();
-            
-            // Obtener los últimos N meses
-            const mesesAComparar = mesesDisponibles.slice(0, numMeses);
-            
-            if (mesesAComparar.length === 0) {
-                contenedor.innerHTML = `
-                    <div style="text-align: center; padding: 2rem; color: var(--gray-500);">
-                        <div style="font-size: 2rem; margin-bottom: 0.5rem;">📊</div>
-                        <p style="margin: 0; font-size: 0.875rem;">No hay datos suficientes para realizar comparativas. Se necesitan al menos 2 meses de datos.</p>
-                    </div>
-                `;
-                return;
-            }
-            
-            // Calcular métricas para cada mes
-            const metricas = [];
-            for (const mes of mesesAComparar) {
-                const metrica = await calcularMetricasMes(mes);
-                metricas.push(metrica);
-            }
-            
-            // Ordenar por mes (más reciente primero)
-            metricas.sort((a, b) => b.mes.localeCompare(a.mes));
-            
-            // Calcular variaciones
-            const metricasConVariacion = metricas.map((metrica, index) => {
-                if (index === 0) {
-                    return { ...metrica, variacionIngresos: 0, variacionGastos: 0, variacionBalance: 0 };
-                }
-                
-                const mesAnterior = metricas[index - 1];
-                const variacionIngresos = mesAnterior.ingresos > 0 
-                    ? ((metrica.ingresos - mesAnterior.ingresos) / mesAnterior.ingresos) * 100 
-                    : 0;
-                const variacionGastos = mesAnterior.gastos > 0 
-                    ? ((metrica.gastos - mesAnterior.gastos) / mesAnterior.gastos) * 100 
-                    : 0;
-                const variacionBalance = mesAnterior.balance !== 0 
-                    ? ((metrica.balance - mesAnterior.balance) / Math.abs(mesAnterior.balance)) * 100 
-                    : 0;
-                
-                return {
-                    ...metrica,
-                    variacionIngresos,
-                    variacionGastos,
-                    variacionBalance
-                };
-            });
-            
-            // Generar HTML
-            let html = `
-                <div style="display: grid; gap: 1rem;">
-                    <div style="overflow-x: auto;">
-                        <table style="width: 100%; border-collapse: collapse; font-size: 0.875rem;">
-                            <thead>
-                                <tr style="background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%); border-bottom: 2px solid rgba(99, 102, 241, 0.2);">
-                                    <th style="padding: 0.75rem; text-align: left; font-weight: 600; color: var(--gray-900);">Mes</th>
-                                    <th style="padding: 0.75rem; text-align: right; font-weight: 600; color: var(--gray-900);">Ingresos</th>
-                                    <th style="padding: 0.75rem; text-align: right; font-weight: 600; color: var(--gray-900);">Gastos</th>
-                                    <th style="padding: 0.75rem; text-align: right; font-weight: 600; color: var(--gray-900);">Balance</th>
-                                    <th style="padding: 0.75rem; text-align: center; font-weight: 600; color: var(--gray-900);">Variación</th>
-                                </tr>
-                            </thead>
-                            <tbody>
-            `;
-            
-            metricasConVariacion.forEach((metrica, index) => {
-                const esPositivo = metrica.balance >= 0;
-                const colorBalance = esPositivo ? '#10b981' : '#ef4444';
-                
-                // Determinar color de variación
-                let colorVariacion = 'var(--gray-600)';
-                let iconoVariacion = '';
-                if (index > 0) {
-                    if (metrica.variacionBalance > 0) {
-                        colorVariacion = '#10b981';
-                        iconoVariacion = '↑';
-                    } else if (metrica.variacionBalance < 0) {
-                        colorVariacion = '#ef4444';
-                        iconoVariacion = '↓';
-                    } else {
-                        iconoVariacion = '→';
-                    }
-                }
-                
-                html += `
-                    <tr style="border-bottom: 1px solid var(--gray-200); transition: background 0.2s ease;" onmouseover="this.style.background='rgba(99, 102, 241, 0.05)'" onmouseout="this.style.background='transparent'">
-                        <td style="padding: 0.75rem; font-weight: 600; color: var(--gray-900);">${metrica.nombreMes}</td>
-                        <td style="padding: 0.75rem; text-align: right; color: var(--gray-700);">${formatearMoneda(metrica.ingresos)}</td>
-                        <td style="padding: 0.75rem; text-align: right; color: var(--gray-700);">${formatearMoneda(metrica.gastos)}</td>
-                        <td style="padding: 0.75rem; text-align: right; font-weight: 700; color: ${colorBalance};">${formatearMoneda(metrica.balance)}</td>
-                        <td style="padding: 0.75rem; text-align: center; color: ${colorVariacion}; font-weight: 600;">
-                            ${index === 0 ? '<span style="color: var(--gray-400);">-</span>' : `${iconoVariacion} ${Math.abs(metrica.variacionBalance).toFixed(1)}%`}
-                        </td>
-                    </tr>
-                `;
-            });
-            
-            html += `
-                            </tbody>
-                        </table>
-                    </div>
-                    
-                    <!-- Resumen de tendencias -->
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-top: 1rem;">
-            `;
-            
-            // Calcular promedios y tendencias
-            if (metricas.length >= 2) {
-                const promedioIngresos = metricas.reduce((sum, m) => sum + m.ingresos, 0) / metricas.length;
-                const promedioGastos = metricas.reduce((sum, m) => sum + m.gastos, 0) / metricas.length;
-                const promedioBalance = metricas.reduce((sum, m) => sum + m.balance, 0) / metricas.length;
-                
-                const mesMasReciente = metricas[0];
-                const mesAnterior = metricas[1];
-                const tendenciaIngresos = mesAnterior.ingresos > 0 
-                    ? ((mesMasReciente.ingresos - mesAnterior.ingresos) / mesAnterior.ingresos) * 100 
-                    : 0;
-                const tendenciaGastos = mesAnterior.gastos > 0 
-                    ? ((mesMasReciente.gastos - mesAnterior.gastos) / mesAnterior.gastos) * 100 
-                    : 0;
-                const tendenciaBalance = mesAnterior.balance !== 0 
-                    ? ((mesMasReciente.balance - mesAnterior.balance) / Math.abs(mesAnterior.balance)) * 100 
-                    : 0;
-                
-                html += `
-                        <div style="padding: 1rem; background: linear-gradient(135deg, rgba(16, 185, 129, 0.1) 0%, rgba(16, 185, 129, 0.05) 100%); border-radius: 10px; border: 1px solid rgba(16, 185, 129, 0.2);">
-                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--gray-600); margin-bottom: 0.5rem;">Promedio de Ingresos</div>
-                            <div style="font-size: 1.25rem; font-weight: 700; color: var(--gray-900); margin-bottom: 0.25rem;">${formatearMoneda(promedioIngresos)}</div>
-                            <div style="font-size: 0.75rem; color: ${tendenciaIngresos >= 0 ? '#10b981' : '#ef4444'};">
-                                ${tendenciaIngresos >= 0 ? '↑' : '↓'} ${Math.abs(tendenciaIngresos).toFixed(1)}% vs mes anterior
-                            </div>
-                        </div>
-                        <div style="padding: 1rem; background: linear-gradient(135deg, rgba(239, 68, 68, 0.1) 0%, rgba(239, 68, 68, 0.05) 100%); border-radius: 10px; border: 1px solid rgba(239, 68, 68, 0.2);">
-                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--gray-600); margin-bottom: 0.5rem;">Promedio de Gastos</div>
-                            <div style="font-size: 1.25rem; font-weight: 700; color: var(--gray-900); margin-bottom: 0.25rem;">${formatearMoneda(promedioGastos)}</div>
-                            <div style="font-size: 0.75rem; color: ${tendenciaGastos <= 0 ? '#10b981' : '#ef4444'};">
-                                ${tendenciaGastos <= 0 ? '↓' : '↑'} ${Math.abs(tendenciaGastos).toFixed(1)}% vs mes anterior
-                            </div>
-                        </div>
-                        <div style="padding: 1rem; background: linear-gradient(135deg, rgba(99, 102, 241, 0.1) 0%, rgba(99, 102, 241, 0.05) 100%); border-radius: 10px; border: 1px solid rgba(99, 102, 241, 0.2);">
-                            <div style="font-size: 0.75rem; font-weight: 600; color: var(--gray-600); margin-bottom: 0.5rem;">Promedio de Balance</div>
-                            <div style="font-size: 1.25rem; font-weight: 700; color: var(--gray-900); margin-bottom: 0.25rem;">${formatearMoneda(promedioBalance)}</div>
-                            <div style="font-size: 0.75rem; color: ${tendenciaBalance >= 0 ? '#10b981' : '#ef4444'};">
-                                ${tendenciaBalance >= 0 ? '↑' : '↓'} ${Math.abs(tendenciaBalance).toFixed(1)}% vs mes anterior
-                            </div>
-                        </div>
-                `;
-            }
-            
-            html += `
-                    </div>
-                </div>
-            `;
-            
-            contenedor.innerHTML = html;
-        }
-        
-        async function cargarActividadReciente() {
-            const mudanzas = await obtenerDatosMes('mudanzas');
-            const aperturas = await obtenerDatosMes('aperturas');
-            const tarjetas = await obtenerDatosMes('tarjetas');
-            const espacios = await obtenerDatosMes('espacios');
-            const multas = await obtenerDatosMes('multas');
-            const morosos = await obtenerDatosMes('morosos');
-            const caja = await obtenerDatosMes('caja');
-            const mantenciones = await obtenerDatosMes('mantenciones');
-            const lecturasAgua = await obtenerDatosMes('lecturasAguaCaliente');
-
-            // Combinar todas las actividades
-            const actividades = [];
-
-            mudanzas.forEach(m => {
-                actividades.push({
-                    tipo: 'Mudanza',
-                    descripcion: `${m.nombre} - Depto ${m.departamento}`,
-                    fecha: m.fecha,
-                    icon: 'mudanzas',
-                    iconClass: 'primary'
-                });
-            });
-
-            aperturas.forEach(a => {
-                actividades.push({
-                    tipo: 'Apertura',
-                    descripcion: `${a.nombre} - Depto ${a.departamento}`,
-                    fecha: a.fecha,
-                    icon: 'aperturas',
-                    iconClass: 'info'
-                });
-            });
-
-            tarjetas.forEach(t => {
-                actividades.push({
-                    tipo: 'Venta',
-                    descripcion: `${t.tipo} - ${t.nombre}`,
-                    fecha: t.fecha,
-                    icon: 'tarjetas',
-                    iconClass: 'success'
-                });
-            });
-
-            espacios.forEach(e => {
-                actividades.push({
-                    tipo: 'Espacio',
-                    descripcion: `${e.espacio} - ${e.nombre}`,
-                    fecha: e.fecha,
-                    icon: 'espacios',
-                    iconClass: 'info'
-                });
-            });
-
-            multas.forEach(m => {
-                actividades.push({
-                    tipo: multaEsRegistroAnulacion(m) ? 'Anulación multa' : 'Multa',
-                    descripcion: `${m.nombre} - ${m.motivo}`,
-                    fecha: m.fecha,
-                    icon: 'multas',
-                    iconClass: multaEsRegistroAnulacion(m) ? 'success' : 'warning'
-                });
-            });
-
-            morosos.forEach(m => {
-                actividades.push({
-                    tipo: 'Moroso',
-                    descripcion: `Depto ${m.departamento} - ${m.estado}`,
-                    fecha: m.fecha,
-                    icon: 'morosos',
-                    iconClass: 'danger'
-                });
-            });
-
-            caja.forEach(c => {
-                actividades.push({
-                    tipo: 'Gasto',
-                    descripcion: c.descripcion,
-                    fecha: c.fecha,
-                    icon: 'caja',
-                    iconClass: 'primary'
-                });
-            });
-
-            mantenciones.forEach(m => {
-                actividades.push({
-                    tipo: 'Mantención',
-                    descripcion: `${m.servicio} - ${m.proveedor}`,
-                    fecha: m.fechaUltima,
-                    icon: 'mantenciones',
-                    iconClass: 'success'
-                });
-            });
-
-            // Ordenar por fecha (más reciente primero)
-            actividades.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
-
-            // Mostrar solo las 10 más recientes
-            const recientes = actividades.slice(0, 10);
-
-            const activityDiv = document.getElementById('recentActivity');
-            if (recientes.length === 0) {
-                activityDiv.innerHTML = '<div class="empty-state"><p>No hay actividad registrada</p></div>';
-                return;
-            }
-
-            const iconColors = {
-                primary: 'rgba(37, 99, 235, 0.1)',
-                success: 'rgba(16, 185, 129, 0.1)',
-                warning: 'rgba(245, 158, 11, 0.1)',
-                danger: 'rgba(239, 68, 68, 0.1)',
-                info: 'rgba(6, 182, 212, 0.1)'
-            };
-
-            activityDiv.innerHTML = recientes.map(act => `
-                <div class="activity-item">
-                    <div class="activity-item-icon ${act.iconClass}" style="background: ${iconColors[act.iconClass] || iconColors.primary};">
-                        ${act.icon}
-                    </div>
-                    <div class="activity-item-content">
-                        <div class="activity-item-title">${act.tipo}: ${act.descripcion}</div>
-                        <div class="activity-item-date">${formatearFecha(act.fecha)}</div>
-                    </div>
-                </div>
-            `).join('');
-        }
-
         // ============================================
         // CARGA INICIAL
         // ============================================
@@ -36052,7 +35087,6 @@
                 if (typeof cargarProveedores === 'function') cargarProveedores();
                 if (typeof cargarSelectProveedores === 'function') cargarSelectProveedores();
                 if (typeof cargarMantenciones === 'function') cargarMantenciones();
-                if (typeof cargarPersonalAseo === 'function') cargarPersonalAseo();
                 if (typeof cargarSelectPersonalAseo === 'function') cargarSelectPersonalAseo();
                 if (typeof cargarPagosAseo === 'function') cargarPagosAseo();
                 if (typeof cargarRegistrosEspaciosPendientes === 'function') cargarRegistrosEspaciosPendientes();
@@ -37071,16 +36105,6 @@
                     window.cargarLinkCarpetaGuiasMantenciones();
                 }
                 
-                // Event listeners para módulo de Pagos de Aseo
-                const formPersonalAseo = document.getElementById('formPersonalAseo');
-                if (formPersonalAseo) {
-                    formPersonalAseo.addEventListener('submit', function(e) {
-                        e.preventDefault();
-                        if (typeof registrarPersonalAseo === 'function') {
-                            registrarPersonalAseo(e);
-                        }
-                    });
-                }
                 
                 const formPagoAseo = document.getElementById('formPagoAseo');
                 if (formPagoAseo) {
@@ -37326,17 +36350,6 @@
                 bonoHorasExtras100,
                 bonoTurnosExtras
             };
-        }
-
-        // Función para actualizar cálculos de un trabajador en el formulario
-        function actualizarCalculosTrabajador() {
-            // Esta función se puede usar para mostrar preview de cálculos antes de agregar
-            // Por ahora solo validamos que los valores sean correctos
-        }
-
-        // Función para actualizar todos los cálculos en la tabla (ya no se usa, pero se mantiene por compatibilidad)
-        function actualizarCalculos() {
-            cargarTablaNomina();
         }
 
         // Función para agregar o actualizar trabajador
