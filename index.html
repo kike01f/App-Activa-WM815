@@ -9976,11 +9976,15 @@
                 insertarNotasDebajoMontoMulta = false,
                 etiquetaNotasFinal = null,
                 mensajeInicialPrefill = '',
-                destinatariosUnidad = null
+                destinatariosUnidad = null,
+                destinatariosDirectorio = null
             } = opciones || {};
 
             const listaDestUnidad = Array.isArray(destinatariosUnidad)
                 ? destinatariosUnidad.filter((d) => d && d.correo && String(d.correo).trim())
+                : [];
+            const listaDestDirectorio = Array.isArray(destinatariosDirectorio)
+                ? destinatariosDirectorio.filter((d) => d && d.correo && String(d.correo).trim())
                 : [];
 
             const etiquetaCampoNotas = etiquetaNotasFinal || (insertarNotasDebajoMontoMulta
@@ -10009,7 +10013,7 @@
 
             return new Promise((resolve) => {
                 const listaTo = residente ? normalizarListaCorreosDestino(residente.correo) : [];
-                if (listaDestUnidad.length === 0 && (!residente || listaTo.length === 0)) {
+                if (listaDestUnidad.length === 0 && listaDestDirectorio.length === 0 && (!residente || listaTo.length === 0)) {
                     mostrarAlerta('No hay correo de destino válido.', 'Error');
                     resolve({ exito: false, error: 'Sin destino' });
                     return;
@@ -10023,23 +10027,29 @@
 
                 const escAttr = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
-                let htmlBloqueDest = '';
-                if (listaDestUnidad.length > 0) {
-                    htmlBloqueDest = `
+                const renderListaDestinatarios = (lista, etiqueta, dataAttr, checkedByDefault) => {
+                    if (!lista.length) return '';
+                    return `
                         <div style="margin-bottom: 0.85rem;">
-                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">${escAttr(etiquetaDestino)} <span style="font-weight: 500; color: var(--text-tertiary); font-size: 0.8125rem;">(marque uno o más)</span></label>
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">${escAttr(etiqueta)} <span style="font-weight: 500; color: var(--text-tertiary); font-size: 0.8125rem;">(marque uno o más)</span></label>
                             <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem 0.65rem; font-size: 0.8125rem;">
-                                ${listaDestUnidad.map((d, idx) => `
+                                ${lista.map((d, idx) => `
                                 <label style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.45rem; cursor: pointer;">
-                                    <input type="checkbox" data-mcc-dest-chk value="${idx}" checked style="margin-top: 0.15rem; flex-shrink: 0;">
+                                    <input type="checkbox" ${dataAttr} value="${idx}" ${checkedByDefault ? 'checked' : ''} style="margin-top: 0.15rem; flex-shrink: 0;">
                                     <span style="color: var(--text-secondary); word-break: break-word;">
-                                        <strong style="color: var(--text-primary);">${escAttr(d.nombre || 'Residente')}</strong>${d.tipo ? ` <span style="color: var(--text-tertiary);">(${escAttr(d.tipo)})</span>` : ''}<br>
+                                        <strong style="color: var(--text-primary);">${escAttr(d.nombre || 'Contacto')}</strong>${d.tipo ? ` <span style="color: var(--text-tertiary);">(${escAttr(d.tipo)})</span>` : ''}<br>
                                         <span style="word-break: break-all;">${escAttr(d.correo)}</span>
                                     </span>
                                 </label>`).join('')}
                             </div>
-                            <p style="margin: 0.45rem 0 0 0; font-size: 0.75rem; color: var(--text-tertiary); line-height: 1.4;">Los destinatarios marcados recibirán <strong>un solo correo</strong> (campo Para).</p>
                         </div>`;
+                };
+
+                let htmlBloqueDest = '';
+                if (listaDestUnidad.length > 0 || listaDestDirectorio.length > 0) {
+                    htmlBloqueDest = renderListaDestinatarios(listaDestUnidad, etiquetaDestino, 'data-mcc-dest-chk', true)
+                        + renderListaDestinatarios(listaDestDirectorio, 'Directorio administrativo', 'data-mcc-dest-dir-chk', false);
+                    htmlBloqueDest += `<p style="margin: 0 0 0.85rem 0; font-size: 0.75rem; color: var(--text-tertiary); line-height: 1.4;">Los destinatarios marcados recibirán <strong>un solo correo</strong> (campo Para).</p>`;
                 } else {
                     htmlBloqueDest = `
                         <div style="margin-bottom: 0.85rem; padding: 0.65rem 0.75rem; background: var(--bg-tertiary); border-radius: 8px; border: 1px solid var(--border-color); font-size: 0.8125rem; color: var(--text-secondary); line-height: 1.45;">
@@ -10138,11 +10148,13 @@
                         }
                     }
                     let residenteFinal = residente;
-                    if (listaDestUnidad.length > 0) {
-                        const checksDest = modal.querySelectorAll('[data-mcc-dest-chk]:checked');
-                        const seleccionados = Array.from(checksDest)
-                            .map((c) => listaDestUnidad[parseInt(c.value, 10)])
-                            .filter(Boolean);
+                    if (listaDestUnidad.length > 0 || listaDestDirectorio.length > 0) {
+                        const checksUnidad = modal.querySelectorAll('[data-mcc-dest-chk]:checked');
+                        const checksDirectorio = modal.querySelectorAll('[data-mcc-dest-dir-chk]:checked');
+                        const seleccionados = [
+                            ...Array.from(checksUnidad).map((c) => listaDestUnidad[parseInt(c.value, 10)]),
+                            ...Array.from(checksDirectorio).map((c) => listaDestDirectorio[parseInt(c.value, 10)])
+                        ].filter(Boolean);
                         const emailsUnicos = [...new Set(seleccionados.map((d) => String(d.correo || '').trim()).filter(Boolean))];
                         if (!emailsUnicos.length) {
                             mostrarAlerta('Seleccione al menos un destinatario con correo válido.', 'Error');
@@ -10170,11 +10182,9 @@
                             return;
                         }
                         modal.remove();
-                        if (listaDestUnidad.length > 1 && resultado.exito) {
-                            const nDest = normalizarListaCorreosDestino(residenteFinal.correo).length;
-                            resultado.mensaje = nDest > 1
-                                ? `Correo enviado a ${nDest} destinatarios de la unidad`
-                                : (resultado.mensaje || 'Correo enviado correctamente');
+                        const nDest = normalizarListaCorreosDestino(residenteFinal.correo).length;
+                        if (nDest > 1 && resultado.exito) {
+                            resultado.mensaje = `Correo enviado a ${nDest} destinatarios`;
                         }
                         resolve(resultado);
                     } catch (err) {
@@ -10468,6 +10478,28 @@
             return out;
         }
         window.obtenerCorreosResidentesUnidad = obtenerCorreosResidentesUnidad;
+
+        /** Correos del directorio administrativo (Central de Notificación). */
+        async function obtenerDestinatariosDirectorioAdministrativo() {
+            try {
+                if (typeof cargarCorreosAdministrativos === 'function') {
+                    await cargarCorreosAdministrativos();
+                }
+                const lista = (typeof correosAdministrativos !== 'undefined' && Array.isArray(correosAdministrativos))
+                    ? correosAdministrativos
+                    : [];
+                return lista
+                    .filter((c) => c && c.correo && String(c.correo).trim())
+                    .map((c) => ({
+                        nombre: c.nombre || String(c.correo).trim(),
+                        correo: String(c.correo).trim(),
+                        tipo: 'Directorio'
+                    }));
+            } catch (e) {
+                console.warn('No se pudo cargar directorio administrativo:', e);
+                return [];
+            }
+        }
 
         // Función para obtener datos del LocalStorage (compatibilidad con sistema antiguo)
         async function obtenerDatos(key) {
@@ -14594,7 +14626,7 @@
                     <td>
                         <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
                             <button type="button" class="btn btn-secondary btn-sm" onclick="abrirComprobanteMoroso('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem;">📄 Comprobante</button>
-                            <button type="button" class="btn btn-info btn-sm" onclick="enviarCorreoMoroso('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem; background: #06b6d4; color: white; border: none;" title="Enviar comprobante por correo">📧 Enviar</button>
+                            <button type="button" class="btn btn-info btn-sm" onclick="enviarCorreoMoroso('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem; background: #06b6d4; color: white; border: none;" title="Enviar aviso de morosidad por correo">📧 Enviar</button>
                             <button type="button" class="btn btn-sm" onclick="enviarCorreoAvisoCorteLuz('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem; background: #f59e0b; color: white; border: none;" title="Enviar aviso de corte de luz por correo">⚡ Corte luz</button>
                             ${(window.mesEnConsulta && !window.mesReabierto) ? '<span style="color: var(--gray-500); font-size: 0.75rem;">Archivado</span>' : `
                                 <button class="btn btn-primary btn-sm" onclick="editarMoroso('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem;">Editar</button>
@@ -14740,20 +14772,73 @@
 </html>`;
         }
 
+        /** Bloque HTML del cuerpo del aviso de morosidad (texto legal + datos de la deuda). */
+        function generarContenidoAvisoMorosidadHtml(moroso) {
+            const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const fechaStr = moroso.fecha ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(moroso.fecha) : moroso.fecha) : '-';
+            const montoStr = typeof formatearMoneda === 'function' ? formatearMoneda(moroso.monto || 0) : '$' + Number(moroso.monto || 0).toLocaleString('es-CL');
+            const filaPeriodos = (moroso.periodosVencidos !== undefined && moroso.periodosVencidos !== '')
+                ? `<tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #fde68a;">Periodos vencidos</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #fde68a;">${linkEsc(moroso.periodosVencidos)}</td></tr>`
+                : '';
+
+            return `
+          <tr>
+            <td style="padding: 14px 28px 8px 28px;">
+              <p style="margin: 0 0 14px 0; font-size: 15px; color: #1a1a1a; line-height: 1.5;">Estimado(a) Residente:</p>
+              <p style="margin: 0 0 14px 0; font-size: 14px; color: #333333; line-height: 1.65;">Junto con saludar, informamos que su unidad mantiene una <strong>deuda pendiente por concepto de gastos comunes</strong>.</p>
+              <p style="margin: 0 0 14px 0; font-size: 14px; color: #333333; line-height: 1.65;">De acuerdo con lo establecido en la <strong>Ley N.º 21.442 sobre Copropiedad Inmobiliaria</strong>, y el <strong>Reglamento de Copropiedad del Condominio</strong>, la administración podrá solicitar la suspensión de determinados servicios comunes ante el incumplimiento en el pago de gastos comunes, previa autorización y cumplimiento de los procedimientos legales correspondientes.</p>
+              <p style="margin: 0 0 14px 0; font-size: 14px; color: #333333; line-height: 1.65;">Por lo anterior, de no regularizar la totalidad de la deuda pendiente, se procederá al <strong>corte del suministro eléctrico de su unidad</strong>.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 28px 14px 28px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 14px 16px; text-align: center;">
+                    <p style="margin: 0; font-size: 14px; color: #78350f; line-height: 1.6; font-weight: 700;">Para evitar la suspensión del servicio, deberá realizar el pago total de la deuda a la brevedad.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 28px 14px 28px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #fffbeb; border-radius: 8px; border: 1px solid #fde68a;">
+                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #fde68a; width: 40%;">Departamento</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; font-weight: 600; border-bottom: 1px solid #fde68a;">${linkEsc(moroso.departamento)}</td></tr>
+                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #fde68a;">Fecha registro</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #fde68a;">${linkEsc(fechaStr)}</td></tr>
+                ${filaPeriodos}
+                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666;">Monto adeudado</td><td style="padding: 10px 14px; font-size: 15px; color: #dc2626; font-weight: 700;">${linkEsc(montoStr)}</td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 28px 14px 28px;">
+              <p style="margin: 0 0 14px 0; font-size: 14px; color: #333333; line-height: 1.65;">Una vez efectuado el pago, agradecemos enviar el comprobante correspondiente a la administración al correo <a href="mailto:activawalkermartinez815@gmail.com" style="color: #b45309; font-weight: 600; text-decoration: underline;">activawalkermartinez815@gmail.com</a> para su registro y actualización.</p>
+              <p style="margin: 0 0 14px 0; font-size: 14px; color: #333333; line-height: 1.65;">En caso de requerir información sobre el monto adeudado o los medios de pago disponibles, puede contactar a la administración.</p>
+              <p style="margin: 18px 0 6px 0; font-size: 14px; color: #333333; line-height: 1.5;">Atentamente,</p>
+              <p style="margin: 0; font-size: 15px; color: #1a1a1a; font-weight: 700; line-height: 1.5;">Administración del Edificio</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 28px 16px 28px;">
+              <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.55; font-style: italic; border-top: 1px solid #e5e7eb; padding-top: 12px;">Fundamento legal: Artículo 20, Ley N.º 21.442 sobre Copropiedad Inmobiliaria.</p>
+            </td>
+          </tr>`;
+        }
+
         /** Genera el HTML del aviso de corte de servicio eléctrico por morosidad. */
         function generarAvisoCorteLuzHtml(moroso, nombreComunidad) {
             const comunidad = nombreComunidad || 'Comunidad';
             const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
-            const fechaStr = moroso.fecha ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(moroso.fecha) : moroso.fecha) : '-';
-            const montoStr = typeof formatearMoneda === 'function' ? formatearMoneda(moroso.monto || 0) : '$' + Number(moroso.monto || 0).toLocaleString('es-CL');
             const folioStr = moroso.folio || '—';
+            const cuerpo = generarContenidoAvisoMorosidadHtml(moroso);
 
             return `<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Aviso de Corte de Luz</title>
+  <title>Aviso de Morosidad - Corte de Luz</title>
   <style type="text/css">
     body, p, h1, h2, a, td, span { font-family: Arial, Helvetica, sans-serif; }
     body { margin: 0; padding: 0; }
@@ -14768,62 +14853,62 @@
           <tr>
             <td style="padding: 18px 28px 14px 28px; border-bottom: 3px solid #f59e0b; background-color: #ffffff; border-radius: 12px 12px 0 0;">
               <div style="text-align:center;margin-bottom:12px"><img src="https://img.mailinblue.com/8323725/images/content_library/original/6844749040dd0f16c5341248.png" alt="Logo" style="max-width:120px;height:auto;"></div>
-              <p style="margin: 0 0 2px 0; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: #d97706; text-transform: uppercase;">Aviso importante</p>
+              <p style="margin: 0 0 2px 0; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: #d97706; text-transform: uppercase;">Aviso de morosidad</p>
               <h2 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 700; color: #1a1a1a;">Corte de Servicio Eléctrico</h2>
-              <p style="margin: 0 0 4px 0; font-size: 14px; color: #555555;">${linkEsc(comunidad)}</p>
+              <p style="margin: 0 0 4px 0; font-size: 14px; color: #555555;">${linkEsc(comunidad)} · Depto ${linkEsc(moroso.departamento)}</p>
               <p style="margin: 0; font-size: 12px; color: #666666;"><strong>Ref.:</strong> <span style="font-family: monospace;">${linkEsc(folioStr)}</span></p>
             </td>
           </tr>
-          <tr>
-            <td style="padding: 14px 28px 10px 28px;">
-              <p style="margin: 0 0 12px 0; font-size: 15px; color: #1a1a1a; line-height: 1.5;">Estimado(a) Residente:</p>
-              <p style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">Junto con saludar, informamos que su unidad <strong style="color: #1a1a1a;">mantiene una deuda pendiente por concepto de gastos comunes</strong>.</p>
-              <p style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">De acuerdo con lo establecido en la <strong style="color: #1a1a1a;">Ley N.º 21.442 sobre Copropiedad Inmobiliaria</strong>, y el <strong style="color: #1a1a1a;">Reglamento de Copropiedad del Condominio</strong>, la administración podrá solicitar la <strong style="color: #b45309;">suspensión de determinados servicios comunes</strong> ante el incumplimiento en el pago de gastos comunes, previa autorización y cumplimiento de los procedimientos legales correspondientes.</p>
-              <p style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">Por lo anterior, de no regularizar la totalidad de la deuda pendiente, se procederá al <strong style="color: #dc2626;">corte del suministro eléctrico de su unidad</strong>.</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 0 28px 12px 28px;">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #fffbeb; border-radius: 8px; border: 1px solid #fde68a;">
-                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #fde68a; width: 38%;">Departamento</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; font-weight: 600; border-bottom: 1px solid #fde68a;">${linkEsc(moroso.departamento)}</td></tr>
-                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #fde68a;">Fecha registro</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #fde68a;">${linkEsc(fechaStr)}</td></tr>
-                ${moroso.periodosVencidos !== undefined && moroso.periodosVencidos !== '' ? `<tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #fde68a;">Periodos vencidos</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #fde68a;">${linkEsc(moroso.periodosVencidos)}</td></tr>` : ''}
-                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666;">Monto adeudado</td><td style="padding: 10px 14px; font-size: 14px; color: #dc2626; font-weight: 700;">${linkEsc(montoStr)}</td></tr>
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 0 28px 12px 28px;">
-              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #fef3c7; border: 2px solid #f59e0b; border-radius: 8px;">
-                <tr>
-                  <td style="padding: 14px 16px; text-align: center;">
-                    <p style="margin: 0; font-size: 14px; color: #78350f; line-height: 1.55; font-weight: 700;">Para evitar la suspensión del servicio, deberá realizar el pago total de la deuda a la brevedad.</p>
-                  </td>
-                </tr>
-              </table>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 0 28px 12px 28px;">
-              <p style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">Una vez efectuado el pago, agradecemos enviar el comprobante correspondiente a la administración al correo <a href="mailto:activawalkermartinez815@gmail.com" style="color: #b45309; font-weight: 700; text-decoration: underline;">activawalkermartinez815@gmail.com</a> para su registro y actualización.</p>
-              <p style="margin: 0 0 12px 0; font-size: 14px; color: #333333; line-height: 1.6;">En caso de requerir información sobre el monto adeudado o los medios de pago disponibles, puede contactar a la administración.</p>
-              <p style="margin: 16px 0 4px 0; font-size: 14px; color: #333333; line-height: 1.5;">Atentamente,</p>
-              <p style="margin: 0; font-size: 15px; color: #1a1a1a; font-weight: 700; line-height: 1.5;">Administración del Edificio</p>
-            </td>
-          </tr>
-          <tr>
-            <td style="padding: 0 28px 14px 28px;">
-              <p style="margin: 0; font-size: 12px; color: #6b7280; line-height: 1.5; font-style: italic; border-top: 1px solid #e5e7eb; padding-top: 12px;"><em>Fundamento legal: Artículo 20, Ley N.º 21.442 sobre Copropiedad Inmobiliaria.</em></p>
-            </td>
-          </tr>
+          ${cuerpo}
           <tr>
             <td style="padding: 14px 28px 18px 28px; text-align: center; border-top: 1px solid #eeeeee; background-color: #fafafa; border-radius: 0 0 12px 12px;">
-              <p style="margin: 0; font-size: 12px; color: #888888;">Documento generado por administración. Comunicación oficial.</p>
+              <p style="margin: 0; font-size: 12px; color: #888888;">Comunicación oficial de administración.</p>
             </td>
           </tr>
         </table>
       </td>
     </tr>
+  </table>
+</body>
+</html>`;
+        }
+
+        /** Genera aviso de morosidad (mismo cuerpo legal; título genérico). */
+        function generarAvisoMorosidadHtml(moroso, nombreComunidad) {
+            const comunidad = nombreComunidad || 'Comunidad';
+            const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const folioStr = moroso.folio || '—';
+            const cuerpo = generarContenidoAvisoMorosidadHtml(moroso);
+
+            return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Aviso de Morosidad</title>
+  <style type="text/css">body, p, td, span, a { font-family: Arial, Helvetica, sans-serif; } body { margin: 0; } table { border-collapse: collapse; }</style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #ffffff;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%">
+    <tr><td align="center" style="padding: 16px 10px;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; width: 100%; border-radius: 12px;">
+        <tr>
+          <td style="padding: 18px 28px 14px 28px; border-bottom: 3px solid #ef4444;">
+            <div style="text-align:center;margin-bottom:12px"><img src="https://img.mailinblue.com/8323725/images/content_library/original/6844749040dd0f16c5341248.png" alt="Logo" style="max-width:120px;height:auto;"></div>
+            <p style="margin: 0 0 2px 0; font-size: 11px; font-weight: 700; color: #ef4444; text-transform: uppercase;">Aviso importante</p>
+            <h2 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 700; color: #1a1a1a;">Estado de Morosidad</h2>
+            <p style="margin: 0 0 4px 0; font-size: 14px; color: #555555;">${linkEsc(comunidad)} · Depto ${linkEsc(moroso.departamento)}</p>
+            <p style="margin: 0; font-size: 12px; color: #666666;"><strong>Folio:</strong> <span style="font-family: monospace;">${linkEsc(folioStr)}</span></p>
+          </td>
+        </tr>
+        ${cuerpo}
+        <tr>
+          <td style="padding: 14px 28px 18px 28px; text-align: center; border-top: 1px solid #eeeeee; background-color: #fafafa;">
+            <p style="margin: 0; font-size: 12px; color: #888888;">Comunicación oficial de administración.</p>
+          </td>
+        </tr>
+      </table>
+    </td></tr>
   </table>
 </body>
 </html>`;
@@ -14846,19 +14931,21 @@
                     if (idx !== -1) { morosos[idx] = { ...morosos[idx], folio: moroso.folio }; await guardarDatosMes('morosos', morosos); }
                 }
                 
-                // Obtener destinatarios de la unidad
+                // Obtener destinatarios de la unidad y del directorio
                 const destinatariosUnidad = await obtenerCorreosResidentesUnidad(moroso.departamento);
-                if (!destinatariosUnidad.length) {
-                    mostrarAlerta('No se encontraron correos para esta unidad. Verifique que los residentes tengan correo registrado en Ocupación o en Conserjería.', 'Correo no encontrado');
+                const destinatariosDirectorio = await obtenerDestinatariosDirectorioAdministrativo();
+                if (!destinatariosUnidad.length && !destinatariosDirectorio.length) {
+                    mostrarAlerta('No se encontraron correos para esta unidad ni en el directorio administrativo. Verifique Ocupación, Conserjería o Central de Notificación.', 'Correo no encontrado');
                     return;
                 }
-                const nombreResidentes = destinatariosUnidad.map(d => d.nombre).join(' / ');
+                const nombreResidentes = destinatariosUnidad.length
+                    ? destinatariosUnidad.map(d => d.nombre).join(' / ')
+                    : 'Residente';
                 
-                // Agregar nombre al objeto moroso para el comprobante
                 const morosoConNombre = { ...moroso, nombre: nombreResidentes };
                 
                 const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
-                const htmlComprobante = generarComprobanteMorosoHtml(morosoConNombre, nombreComunidad);
+                const htmlAviso = generarAvisoMorosidadHtml(morosoConNombre, nombreComunidad);
                 
                 const mapPlantMo = await obtenerPlantillasCorreoModulosMap();
                 const bloqueMo = obtenerBloquePlantillaModulo(mapPlantMo, 'comprobanteMoroso');
@@ -14868,15 +14955,16 @@
                     nombreResidente: nombreResidentes,
                     fechaEmision: fechaEmisionCorreoHoy()
                 };
-                const asuntoMoBase = `Estado de Morosidad - ${nombreComunidad}`;
+                const asuntoMoBase = `Aviso de morosidad - Depto ${moroso.departamento} - ${nombreComunidad}`;
                 const resultado = await mostrarModalPersonalizarCorreoYEnviar({
-                    titulo: 'Enviar estado de morosidad',
+                    titulo: 'Enviar aviso de morosidad',
                     asuntoDefecto: resolverAsuntoPlantillaCorreo(bloqueMo, asuntoMoBase, ctxMo),
                     mensajeInicialPrefill: resolverCuerpoInicioPlantillaCorreo(bloqueMo, ctxMo),
-                    htmlBase: htmlComprobante,
+                    htmlBase: htmlAviso,
                     destinatariosUnidad,
-                    etiquetaDestino: 'Destinatarios de la unidad',
-                    residente: destinatariosUnidad[0]
+                    destinatariosDirectorio,
+                    etiquetaDestino: 'Residentes de la unidad',
+                    residente: destinatariosUnidad[0] || destinatariosDirectorio[0]
                 });
                 if (resultado === null) return;
                 
@@ -14911,12 +14999,15 @@
                 }
 
                 const destinatariosUnidad = await obtenerCorreosResidentesUnidad(moroso.departamento);
-                if (!destinatariosUnidad.length) {
-                    mostrarAlerta('No se encontraron correos para esta unidad. Verifique que los residentes tengan correo registrado en Ocupación o en Conserjería.', 'Correo no encontrado');
+                const destinatariosDirectorio = await obtenerDestinatariosDirectorioAdministrativo();
+                if (!destinatariosUnidad.length && !destinatariosDirectorio.length) {
+                    mostrarAlerta('No se encontraron correos para esta unidad ni en el directorio administrativo. Verifique Ocupación, Conserjería o Central de Notificación.', 'Correo no encontrado');
                     return;
                 }
 
-                const nombreResidentes = destinatariosUnidad.map(d => d.nombre).join(' / ');
+                const nombreResidentes = destinatariosUnidad.length
+                    ? destinatariosUnidad.map(d => d.nombre).join(' / ')
+                    : 'Residente';
                 const morosoConNombre = { ...moroso, nombre: nombreResidentes };
                 const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
                 const htmlAviso = generarAvisoCorteLuzHtml(morosoConNombre, nombreComunidad);
@@ -14936,8 +15027,9 @@
                     mensajeInicialPrefill: resolverCuerpoInicioPlantillaCorreo(bloqueCl, ctxCl),
                     htmlBase: htmlAviso,
                     destinatariosUnidad,
-                    etiquetaDestino: 'Destinatarios de la unidad',
-                    residente: destinatariosUnidad[0]
+                    destinatariosDirectorio,
+                    etiquetaDestino: 'Residentes de la unidad',
+                    residente: destinatariosUnidad[0] || destinatariosDirectorio[0]
                 });
                 if (resultado === null) return;
 
