@@ -28974,6 +28974,120 @@
                 sheet.getColumn(i + 1).width = w;
             });
         }
+        function _escribirHojaControlCajaChica(sheet, caja, opciones) {
+            opciones = opciones || {};
+            var thinBlack = {
+                top: { style: 'thin', color: { argb: 'FF000000' } },
+                left: { style: 'thin', color: { argb: 'FF000000' } },
+                bottom: { style: 'thin', color: { argb: 'FF000000' } },
+                right: { style: 'thin', color: { argb: 'FF000000' } }
+            };
+            var grayFill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFD9D9D9' } };
+            var orden = [].concat(caja || []).sort(function (a, b) { return new Date(a.fecha) - new Date(b.fecha); });
+            var total = 0;
+            var fechaEmision = opciones.fechaEmision || (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(obtenerFechaHoy()) : obtenerFechaHoy());
+            var nombreComunidad = opciones.nombreComunidad || 'Edificio WM 815';
+            var mayordomo = opciones.jefeEdificio || 'Administración';
+
+            sheet.properties.defaultRowHeight = 18;
+            sheet.views = [{ showGridLines: false }];
+            sheet.pageSetup = {
+                paperSize: 9,
+                orientation: 'landscape',
+                fitToPage: true,
+                fitToWidth: 1,
+                fitToHeight: 1,
+                horizontalCentered: true,
+                verticalCentered: false,
+                margins: { left: 0.2, right: 0.2, top: 0.25, bottom: 0.25, header: 0.1, footer: 0.1 },
+                printArea: 'A1:D30'
+            };
+
+            [15, 22, 58, 16].forEach(function (width, idx) {
+                sheet.getColumn(idx + 1).width = width;
+            });
+
+            sheet.mergeCells('A1:D1');
+            sheet.getCell('A1').value = nombreComunidad;
+            sheet.getCell('A1').font = { bold: true, size: 12, color: { argb: 'FF000000' } };
+            sheet.getCell('A1').alignment = { horizontal: 'left', vertical: 'middle' };
+
+            sheet.getCell('A2').value = 'Fecha:';
+            sheet.getCell('B2').value = fechaEmision;
+            sheet.getCell('A3').value = 'Mayordomo:';
+            sheet.getCell('B3').value = mayordomo;
+            ['A2', 'A3', 'B2', 'B3'].forEach(function (addr) {
+                sheet.getCell(addr).font = { bold: addr.charAt(0) === 'B', size: 11, color: { argb: 'FF000000' } };
+                sheet.getCell(addr).alignment = { horizontal: addr.charAt(0) === 'B' ? 'center' : 'left', vertical: 'middle' };
+            });
+
+            sheet.mergeCells('A5:D5');
+            sheet.getCell('A5').value = 'CONTROL DE CAJA CHICA';
+            sheet.getCell('A5').font = { bold: true, size: 12, color: { argb: 'FF000000' } };
+            sheet.getCell('A5').fill = grayFill;
+            sheet.getCell('A5').alignment = { horizontal: 'center', vertical: 'middle' };
+            sheet.getRow(5).height = 22;
+
+            var headerRow = 7;
+            var headers = ['Fecha', 'N° documento', 'Descripción', 'Saldo'];
+            headers.forEach(function (header, idx) {
+                var cell = sheet.getCell(headerRow, idx + 1);
+                cell.value = header;
+                cell.font = { bold: true, size: 11, color: { argb: 'FF000000' } };
+                cell.fill = { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FFEDEDED' } };
+                cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true };
+                cell.border = thinBlack;
+            });
+            sheet.getRow(headerRow).height = 19;
+
+            var firstDataRow = headerRow + 1;
+            var minDataRows = 18;
+            var dataRows = Math.max(minDataRows, orden.length);
+            for (var i = 0; i < dataRows; i++) {
+                var rowNumber = firstDataRow + i;
+                var mov = orden[i];
+                var monto = mov ? (parseFloat(mov.monto) || 0) : '';
+                if (mov) total += monto;
+                var valores = mov ? [
+                    mov.fecha ? formatearFechaParaCorreo(mov.fecha) : '',
+                    mov.numeroDocumento || '',
+                    mov.descripcion || '',
+                    monto
+                ] : ['', '', '', ''];
+
+                valores.forEach(function (valor, idx) {
+                    var cell = sheet.getCell(rowNumber, idx + 1);
+                    cell.value = valor;
+                    cell.font = { size: 10, color: { argb: 'FF000000' } };
+                    cell.alignment = {
+                        horizontal: idx === 2 ? 'center' : (idx === 3 ? 'right' : 'center'),
+                        vertical: 'middle',
+                        wrapText: idx === 2
+                    };
+                    cell.border = thinBlack;
+                    if (idx === 3 && typeof valor === 'number') {
+                        cell.numFmt = '$#,##0';
+                    }
+                });
+                sheet.getRow(rowNumber).height = 18;
+            }
+
+            var totalRow = firstDataRow + dataRows + 1;
+            sheet.mergeCells(totalRow, 1, totalRow, 3);
+            for (var col = 1; col <= 4; col++) {
+                var totalCell = sheet.getCell(totalRow, col);
+                totalCell.fill = grayFill;
+                totalCell.border = thinBlack;
+                totalCell.font = { bold: true, size: 10, color: { argb: 'FF000000' } };
+                totalCell.alignment = { horizontal: col === 4 ? 'right' : 'center', vertical: 'middle' };
+            }
+            sheet.getCell(totalRow, 1).value = 'TOTALES';
+            sheet.getCell(totalRow, 4).value = total;
+            sheet.getCell(totalRow, 4).numFmt = '$#,##0';
+            sheet.getRow(totalRow).height = 20;
+
+            sheet.pageSetup.printArea = 'A1:D' + totalRow;
+        }
         function _construirAOAMantencionesUnificadas(mantenciones, visitasExtra) {
             var aoa = [['MANTENCIONES Y VISITAS']];
             aoa.push([]);
@@ -30929,47 +31043,17 @@
             }
             var caja = await obtenerDatosCajaChicaReporte(mesAnio);
             if (!Array.isArray(caja)) caja = [];
-            var totalCaja = caja.reduce(function (s, m) { return s + (parseFloat(m && m.monto) || 0); }, 0);
-            var totalComps = caja.reduce(function (s, m) { return s + ((m && m.archivos) ? m.archivos.length : 0); }, 0);
             var personalizacion = await obtenerPersonalizacion();
             var nombreComunidad = personalizacion.comunidad || 'Activa WM815';
             var jefeEdificio = personalizacion.jefeEdificio || 'Angel Avendaño';
-            var numeroDeptos = personalizacion.deptos || '259';
-            var linkCarpeta = '';
-            try {
-                var configCaja = await obtenerDatosMesEspecifico('caja-config', mesAnio);
-                if (!configCaja || !Array.isArray(configCaja) || !configCaja.length) {
-                    configCaja = await obtenerDatosArchivados('caja-config', mesAnio);
-                }
-                if (Array.isArray(configCaja) && configCaja.length && configCaja[0].link) {
-                    linkCarpeta = configCaja[0].link;
-                }
-            } catch (eCfg) { /* ignore */ }
-            var lineasResumen = [
-                'Total movimientos: ' + caja.length,
-                'Total gastado: ' + (typeof formatearMoneda === 'function' ? formatearMoneda(totalCaja) : totalCaja),
-                'Comprobantes adjuntos: ' + totalComps
-            ];
-            if (linkCarpeta && linkCarpeta.trim()) {
-                lineasResumen.push('Carpeta de comprobantes: ' + linkCarpeta.trim());
-            }
             var wb = new ExcelJSLib.Workbook();
             wb.creator = 'Gestión Comunidad';
             wb.created = new Date();
-            var wsPortada = wb.addWorksheet(_nombreHojaExcelSeguro('Portada'), { views: [{ showGridLines: false }] });
-            await _rellenarPortadaXLSX(wsPortada, {
-                tituloPrincipal: 'REPORTE DE CAJA CHICA',
+            var wsDatos = wb.addWorksheet(_nombreHojaExcelSeguro('Control Caja Chica'), { views: [{ showGridLines: false }] });
+            _escribirHojaControlCajaChica(wsDatos, caja, {
                 nombreComunidad: nombreComunidad,
-                nombreMes: nombreMes,
-                mesAnio: mesAnio,
-                jefeEdificio: jefeEdificio,
-                numeroDeptos: numeroDeptos,
-                lineasResumen: lineasResumen
+                jefeEdificio: jefeEdificio
             });
-            var wsDatos = wb.addWorksheet(_nombreHojaExcelSeguro('Caja Chica'));
-            _escribirHojaDesdeAOA(wsDatos, _construirAOACajaChicaReporte(caja, mesAnio));
-            var wsEnlaces = wb.addWorksheet(_nombreHojaExcelSeguro('Enlaces comprobantes'));
-            _escribirHojaEnlacesComprobantesCaja(wsEnlaces, caja, mesAnio);
             var buffer = await wb.xlsx.writeBuffer();
             var nombreArchivo = _nombreArchivoCajaChicaSeguro(nombreMes, '.xlsx');
             if (opciones.descargar !== false) {
