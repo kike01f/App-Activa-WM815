@@ -6556,10 +6556,28 @@
         };
 
         /**
-         * ÚNICA fuente de residentes para esta app: panel prueba-conserjeria.html.
-         * Nube: Firestore proyecto conserjeriawm2 → cgSites/{siteId}/kv/{unitsKvKey} (campo json). Se escribe al guardar unidades en Conserjería y con «Enviar unidades a Gestión WM».
-         * Mismo navegador/origen: respaldo localStorage vlcom_wm815_units_v1 / pcsh_demo_v1_wm815_units (caché Conserjería).
-         * Debe coincidir con window.__PCSH_GESTION_WM_BRIDGE__ en prueba-conserjeria (mismo firebase, siteId, unitsKvKey).
+         * Fuente de residentes para esta app: panel prueba-conserjeria.html.
+         * Principal: Firestore de Conserjería (conserjeria2-1 → pcsh_wm815/state).
+         * Respaldos: puente conserjeriawm2 → cgSites/{siteId}/kv/{unitsKvKey} y caché local compartida.
+         */
+        window.CG_GESTION_CONSERJERIA_SOURCE = {
+            enabled: true,
+            firebase: {
+                apiKey: "AIzaSyBUhQQcloZtxcz6jnFXt3MflAkYZMlka6g",
+                authDomain: "conserjeria2-1.firebaseapp.com",
+                projectId: "conserjeria2-1",
+                storageBucket: "conserjeria2-1.firebasestorage.app",
+                messagingSenderId: "832568527054",
+                appId: "1:832568527054:web:b463e8b875ba9a3519289f"
+            },
+            collection: "pcsh_wm815",
+            docId: "state",
+            useAnonymousAuth: true,
+            kpiTotalUnidadesEdificio: 259
+        };
+
+        /**
+         * Puente de respaldo. Debe coincidir con window.__PCSH_GESTION_WM_BRIDGE__ en prueba-conserjeria.
          */
         window.CG_GESTION_FABRICA_INTEGRATION = {
             enabled: true,
@@ -24878,15 +24896,21 @@
             if (!unitData || typeof unitData !== 'object') return null;
             var u = Object.assign({}, unitData);
             u.id = u.id || fallbackId || ('wmimp_' + Math.random().toString(36).slice(2, 10));
+            if (!u.unitNumber && (u.departamento || u.depto || u.unidad || u.deptId)) {
+                u.unitNumber = String(u.departamento || u.depto || u.unidad || u.deptId).trim();
+            }
             if (!Array.isArray(u.residents)) u.residents = [];
             if (u.unitNote === undefined || u.unitNote === null) u.unitNote = '';
             if (u.unitNoteUpdatedAt === undefined || u.unitNoteUpdatedAt === null) u.unitNoteUpdatedAt = '';
             if (u.hasRentalContract === undefined || u.hasRentalContract === null) u.hasRentalContract = false;
             if (u.rentalParkingNumber === undefined || u.rentalParkingNumber === null) u.rentalParkingNumber = '';
+            if (!Array.isArray(u.rentalParkingNumbers)) u.rentalParkingNumbers = u.rentalParkingNumber ? [u.rentalParkingNumber] : [];
+            if (!u.rentalParkingNumber && u.rentalParkingNumbers.length) u.rentalParkingNumber = u.rentalParkingNumbers[0] || '';
             if (!Array.isArray(u.parkingNumbers)) u.parkingNumbers = u.parkingNumber ? [u.parkingNumber] : [];
             if (!Array.isArray(u.storageNumbers)) u.storageNumbers = u.storageNumber ? [u.storageNumber] : [];
-            if (!Array.isArray(u.bikeStorageNumbers)) u.bikeStorageNumbers = [];
-            if (!Array.isArray(u.bikeStorageDetails)) u.bikeStorageDetails = [];
+            if (!Array.isArray(u.bikeStorageNumbers)) u.bikeStorageNumbers = u.bikeStorageNumber ? [u.bikeStorageNumber] : [];
+            if (!Array.isArray(u.bikeStorageDetails)) u.bikeStorageDetails = u.bikeStorageNumbers.map(function () { return ''; });
+            if (u.hasPet === undefined || u.hasPet === null) u.hasPet = false;
             return u;
         }
 
@@ -24999,6 +25023,59 @@
             return __gestionComputeOcupacionMetrics(units, totalProy);
         }
 
+        async function obtenerMetricasDesdePruebaConserjeriaCloud(cfg) {
+            var fm = await ensureFirebaseModularExtended();
+            if (!fm || !fm.initializeApp || !fm.getFirestore || !fm.doc || !fm.getDoc) {
+                throw new Error('Firebase modular incompleto');
+            }
+            var appName = 'gestion-wm-prueba-conserjeria';
+            var apps = fm.getApps();
+            var app = null;
+            var ai;
+            for (ai = 0; ai < apps.length; ai++) {
+                if (apps[ai].name === appName) {
+                    app = apps[ai];
+                    break;
+                }
+            }
+            if (!app) {
+                app = fm.initializeApp(cfg.firebase, appName);
+            }
+            var dbPcsh = fm.getFirestore(app);
+            if (cfg.useAnonymousAuth && fm.getAuth && fm.signInAnonymously) {
+                try {
+                    var authPcsh = fm.getAuth(app);
+                    if (authPcsh && !authPcsh.currentUser) {
+                        await fm.signInAnonymously(authPcsh);
+                    }
+                } catch (eAuth) {
+                    console.warn('[Gestión] signInAnonymously (prueba-conserjeria):', eAuth);
+                }
+            }
+            var col = String(cfg.collection || 'pcsh_wm815').trim();
+            var docId = String(cfg.docId || 'state').trim();
+            var ref = fm.doc(dbPcsh, col, docId);
+            var snap = await fm.getDoc(ref);
+            var exists = snap && (typeof snap.exists === 'boolean' ? snap.exists : (typeof snap.exists === 'function' ? snap.exists() : false));
+            if (!exists) {
+                throw new Error('Documento Firestore ' + col + '/' + docId + ' no existe');
+            }
+            var d = snap.data();
+            var list = d && Array.isArray(d.units) ? d.units : [];
+            if (!list.length) {
+                throw new Error('Documento ' + col + '/' + docId + ' sin unidades');
+            }
+            var units = [];
+            list.forEach(function (row, idx) {
+                var nu = __gestionNormalizaUnidadVincStyle(row, row && row.id ? String(row.id) : 'pcshcloud_' + idx);
+                if (nu) units.push(nu);
+            });
+            window.vinculacionUnits = units;
+            var kpi = Number(cfg.kpiTotalUnidadesEdificio);
+            var totalProy = kpi > 0 && kpi === kpi ? Math.floor(kpi) : 259;
+            return __gestionComputeOcupacionMetrics(units, totalProy);
+        }
+
         /** Mismas claves que prueba-conserjeria.html (VLCOM + caché WM815). Mismo origen → mismo localStorage si ambas páginas se sirven desde el mismo host. */
         function __gestionLeerArrayUnidadesDesdeLsPrueba() {
             var keys = ['vlcom_wm815_units_v1', 'pcsh_demo_v1_wm815_units'];
@@ -25046,23 +25123,44 @@
             var el = document.getElementById('ocupacionFuenteDatos');
             if (!el) return;
             var src = window.__gestionResidentesFuente;
-            if (src === 'index-fabrica') {
+            if (src === 'prueba-conserjeria-cloud') {
+                el.textContent = 'Datos de residentes y ocupación leídos directamente desde Conserjería (Firestore pcsh_wm815/state). Para editar unidades o residentes, abra prueba-conserjeria.html.';
+            } else if (src === 'index-fabrica') {
                 el.textContent = 'Datos de residentes y ocupación desde la nube (Firestore cgSites/…/kv), alimentada por el panel Conserjería (prueba-conserjeria). Para editar unidades o residentes, abra prueba-conserjeria.html.';
             } else if (src === 'prueba-conserjeria-local') {
                 el.textContent = 'Datos desde la caché local del panel Conserjería (vlcom_wm815_units_v1). Al guardar en Conserjería se sincroniza la nube con Gestión; el botón «Enviar unidades a Gestión WM» fuerza otro envío.';
+            } else if (src === 'prueba-conserjeria-cloud-vacio') {
+                el.textContent = 'El documento principal de Conserjería no tiene unidades aún. Registre residentes en prueba-conserjeria.html o revise la conexión al proyecto conserjeria2-1.';
             } else if (src === 'index-fabrica-vacio') {
                 el.textContent = 'El documento en la nube no tiene unidades aún. Registre residentes en prueba-conserjeria.html (al guardar se sincroniza con Gestión) o abra Conserjería en este mismo navegador para usar la caché local.';
             } else if (src === 'sin-conserjeria') {
-                el.textContent = 'No hay residentes cargados desde Conserjería. Use prueba-conserjeria.html en el mismo origen (misma URL/puerto) o compruebe red y reglas de lectura en Firestore (proyecto conserjeriawm2, cgSites/…/kv).';
+                el.textContent = 'No hay residentes cargados desde Conserjería. Use prueba-conserjeria.html en el mismo origen (misma URL/puerto) o compruebe red y reglas de lectura en Firestore.';
             } else {
                 el.textContent = 'Cargando fuente de residentes…';
             }
         }
 
         async function obtenerMetricasVinculacion() {
+            var conserjeria = window.CG_GESTION_CONSERJERIA_SOURCE;
             var integ = window.CG_GESTION_FABRICA_INTEGRATION;
+            var conserjeriaConfigured = conserjeria && conserjeria.enabled !== false && conserjeria.firebase && conserjeria.firebase.apiKey && conserjeria.firebase.projectId;
             var fabConfigured = integ && integ.enabled !== false && integ.firebase && integ.firebase.apiKey && integ.firebase.projectId && String(integ.siteId || '').trim();
+            var conserjeriaRespondedOk = false;
             var fabRespondedOk = false;
+
+            if (conserjeriaConfigured) {
+                try {
+                    var rPcsh = await obtenerMetricasDesdePruebaConserjeriaCloud(conserjeria);
+                    conserjeriaRespondedOk = true;
+                    if (window.vinculacionUnits && window.vinculacionUnits.length > 0) {
+                        window.__gestionResidentesFuente = 'prueba-conserjeria-cloud';
+                        try { actualizarTextoFuenteResidentesOcupacion(); } catch (eTPcsh) {}
+                        return rPcsh;
+                    }
+                } catch (ePcsh) {
+                    console.warn('[Gestión] Firestore prueba-conserjeria pcsh_wm815/state:', ePcsh);
+                }
+            }
 
             if (fabConfigured) {
                 try {
@@ -25087,6 +25185,15 @@
                 }
             } catch (eLoc) {
                 console.warn('[Gestión] Caché local prueba-conserjeria:', eLoc);
+            }
+
+            if (conserjeriaRespondedOk) {
+                window.__gestionResidentesFuente = 'prueba-conserjeria-cloud-vacio';
+                window.vinculacionUnits = [];
+                try { actualizarTextoFuenteResidentesOcupacion(); } catch (eTpcEmpty) {}
+                var kpiPc = conserjeria ? Number(conserjeria.kpiTotalUnidadesEdificio) : 0;
+                var totalProyPc = kpiPc > 0 && kpiPc === kpiPc ? Math.floor(kpiPc) : 259;
+                return __gestionComputeOcupacionMetrics([], totalProyPc);
             }
 
             if (fabRespondedOk) {
@@ -26104,6 +26211,8 @@
                 if (unit.unitUse && unit.unitUse.toLowerCase().includes(filterValue)) return true;
                 if (unit.parkingNumbers && unit.parkingNumbers.some(function(p) { return p && p.toLowerCase().includes(filterValue); })) return true;
                 if (unit.parkingNumber && unit.parkingNumber.toLowerCase().includes(filterValue)) return true;
+                if (unit.rentalParkingNumbers && unit.rentalParkingNumbers.some(function(p) { return p && p.toLowerCase().includes(filterValue); })) return true;
+                if (unit.rentalParkingNumber && unit.rentalParkingNumber.toLowerCase().includes(filterValue)) return true;
                 if (unit.storageNumbers && unit.storageNumbers.some(function(s) { return s && s.toLowerCase().includes(filterValue); })) return true;
                 if (unit.storageNumber && unit.storageNumber.toLowerCase().includes(filterValue)) return true;
                 if (unit.bikeStorageNumbers && unit.bikeStorageNumbers.some(function(n) { return n && n.toLowerCase().includes(filterValue); })) return true;
@@ -26172,15 +26281,17 @@
                         if (unit.hasRentalContract) cell.classList.add('rental-contract');
                         var tieneNota = unit.unitNote && unit.unitNote.trim() !== '';
                         var tieneContrato = unit.hasRentalContract;
-                        if (tieneNota || tieneContrato) {
+                        var tieneMascota = !!unit.hasPet;
+                        if (tieneNota || tieneContrato || tieneMascota) {
                             var indicadores = '';
                             if (tieneNota) indicadores += '<span class="unit-cell-nota" style="position:absolute;top:1px;right:1px;color:#f59e0b;font-size:0.7rem;line-height:1;pointer-events:none;">&#8226;</span>';
                             if (tieneContrato) indicadores += '<span class="unit-cell-contrato" style="position:absolute;top:1px;left:1px;font-size:0.6rem;line-height:1;pointer-events:none;" title="Contrato de arriendo">&#128196;</span>';
+                            if (tieneMascota) indicadores += '<span class="unit-cell-mascota" style="position:absolute;bottom:1px;right:1px;font-size:0.6rem;line-height:1;pointer-events:none;" title="Unidad con mascota">&#128062;</span>';
                             cell.innerHTML = '<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;"><span>' + String(unitNumber).replace(/</g, '&lt;') + '</span>' + indicadores + '</div>';
                         } else {
                             cell.textContent = unitNumber;
                         }
-                        cell.title = 'Unidad ' + unitNumber + ' - ' + (unit.unitUse || '') + ' - ' + (unit.residents ? unit.residents.length : 0) + ' residentes (clic para ver detalle)';
+                        cell.title = 'Unidad ' + unitNumber + ' - ' + (unit.unitUse || '') + ' - ' + (unit.residents ? unit.residents.length : 0) + ' residentes' + (unit.hasPet ? ' - Mascota' : '') + ' (clic para ver detalle)';
                         cell.style.cursor = 'pointer';
                         (function(u) {
                             cell.addEventListener('click', function(e) { e.stopPropagation(); showUnitDetailModalOcupacion(u); });
@@ -26222,7 +26333,8 @@
             var parkingList = (unit.parkingNumbers && unit.parkingNumbers.length) ? unit.parkingNumbers : (unit.parkingNumber ? [unit.parkingNumber] : []);
             var storageList = (unit.storageNumbers && unit.storageNumbers.length) ? unit.storageNumbers : (unit.storageNumber ? [unit.storageNumber] : []);
             var parkingHtml = parkingList.length ? '<div style="margin:6px 0;padding:6px 8px;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border-color);"><div style="font-size:0.72rem;color:var(--gray-600);margin-bottom:3px;font-weight:600;">🚗 Estacionamientos:</div><div style="display:flex;flex-wrap:wrap;gap:3px;">' + parkingList.map(function(p) { return '<span style="background:var(--primary);color:#fff;padding:3px 6px;border-radius:3px;font-size:0.75rem;font-weight:600;">' + esc(p) + '</span>'; }).join('') + '</div></div>' : '<div style="margin:6px 0;padding:6px 8px;background:var(--bg-secondary);border-radius:6px;"><div style="font-size:0.7rem;color:var(--gray-600);">Estacionamiento</div><div style="font-size:0.8rem;">N/A</div></div>';
-            var rentalParkingHtml = (unit.rentalParkingNumber && unit.rentalParkingNumber.trim() !== '') ? '<div style="margin:6px 0;padding:6px 8px;background:rgba(230,126,34,0.12);border-radius:6px;border:1px solid #e67e22;"><div style="font-size:0.72rem;color:var(--gray-700);margin-bottom:3px;font-weight:600;">🚗 Est. Arriendo (ref.):</div><div><span style="background:#e67e22;color:#fff;padding:3px 8px;border-radius:3px;font-size:0.8rem;font-weight:700;">' + esc(unit.rentalParkingNumber) + '</span> <span style="font-size:0.7rem;color:var(--gray-600);font-style:italic;">(informativo)</span></div></div>' : '';
+            var rentalParkingList = (unit.rentalParkingNumbers && unit.rentalParkingNumbers.length) ? unit.rentalParkingNumbers : (unit.rentalParkingNumber ? [unit.rentalParkingNumber] : []);
+            var rentalParkingHtml = rentalParkingList.length ? '<div style="margin:6px 0;padding:6px 8px;background:rgba(230,126,34,0.12);border-radius:6px;border:1px solid #e67e22;"><div style="font-size:0.72rem;color:var(--gray-700);margin-bottom:3px;font-weight:600;">🚗 Est. Arriendo (ref.):</div><div style="display:flex;flex-wrap:wrap;gap:3px;">' + rentalParkingList.map(function(p) { return '<span style="background:#e67e22;color:#fff;padding:3px 8px;border-radius:3px;font-size:0.8rem;font-weight:700;">' + esc(p) + '</span>'; }).join('') + ' <span style="font-size:0.7rem;color:var(--gray-600);font-style:italic;">(informativo)</span></div></div>' : '';
             var storageHtml = storageList.length ? '<div style="margin:6px 0;padding:6px 8px;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border-color);"><div style="font-size:0.72rem;color:var(--gray-600);margin-bottom:3px;font-weight:600;">📦 Bodegas:</div><div style="display:flex;flex-wrap:wrap;gap:3px;">' + storageList.map(function(s) { return '<span style="background:#3742fa;color:#fff;padding:3px 6px;border-radius:3px;font-size:0.75rem;">' + esc(s) + '</span>'; }).join('') + '</div></div>' : '<div style="margin:6px 0;padding:6px 8px;background:var(--bg-secondary);border-radius:6px;"><div style="font-size:0.7rem;color:var(--gray-600);">Bodega</div><div style="font-size:0.8rem;">N/A</div></div>';
             var bikeList = unit.bikeStorageNumbers && unit.bikeStorageNumbers.length ? unit.bikeStorageNumbers : [];
             var bikeDetails = unit.bikeStorageDetails || [];
@@ -26230,6 +26342,7 @@
             var noteUpdatedStr = (unit.unitNoteUpdatedAt && unit.unitNote && unit.unitNote.trim() !== '') ? regStr(unit.unitNoteUpdatedAt) : '';
             var noteHtml = (unit.unitNote && unit.unitNote.trim() !== '') ? '<div style="margin:6px 0;padding:6px 8px;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border-color);"><div style="font-size:0.78rem;margin-bottom:2px;"><b>Nota:</b></div><div style="font-size:0.8rem;line-height:1.3;">' + esc(unit.unitNote) + '</div>' + (noteUpdatedStr ? '<div style="font-size:0.7rem;color:var(--gray-500);margin-top:4px;">Modificado: ' + esc(noteUpdatedStr) + '</div>' : '') + '</div>' : '';
             var contratoHtml = unit.hasRentalContract ? '<div style="margin:6px 0;padding:6px 8px;background:rgba(255,165,2,0.12);border-radius:6px;border:1px solid #ffa502;"><span style="font-size:0.8rem;font-weight:600;">📄 Contrato de arriendo</span></div>' : '';
+            var mascotaHtml = unit.hasPet ? '<div style="margin:6px 0;padding:6px 8px;background:rgba(117,187,33,0.12);border-radius:6px;border:1px solid var(--primary);"><span style="font-size:0.8rem;font-weight:600;">🐾 Unidad con mascota</span></div>' : '';
             var modal = document.createElement('div');
             modal.className = 'modal';
             modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:1rem;overflow:auto;';
@@ -26238,7 +26351,7 @@
                 '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px;">' +
                 '<div style="padding:6px 8px;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border-color);"><div style="color:var(--gray-600);font-size:0.7rem;">Uso</div><div style="font-weight:600;font-size:0.82rem;">' + esc(unit.unitUse) + '</div></div>' +
                 '<div style="padding:6px 8px;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border-color);"><div style="color:var(--gray-600);font-size:0.7rem;">Residentes</div><div style="font-weight:600;font-size:0.82rem;">' + (unit.residents ? unit.residents.length : 0) + '</div></div></div>' +
-                parkingHtml + rentalParkingHtml + storageHtml + bikeHtml + contratoHtml + noteHtml +
+                parkingHtml + rentalParkingHtml + storageHtml + bikeHtml + contratoHtml + mascotaHtml + noteHtml +
                 '<div style="margin-top:8px;"><div style="color:var(--gray-600);font-size:0.75rem;margin-bottom:3px;font-weight:600;">👥 Residentes:</div><div style="max-height:280px;overflow-y:auto;padding:6px 8px;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border-color);">' + residentsHtml + '</div></div>' +
                 '<p style="margin:12px 0 0 0;font-size:0.75rem;color:var(--gray-500);">Para editar residentes, notas o imprimir la ficha, use el panel Conserjería.</p>' +
                 '<a href="prueba-conserjeria.html#building" target="_blank" rel="noopener" class="btn btn-primary" style="margin-top:10px;width:100%;padding:8px;font-size:0.8rem;text-align:center;display:block;text-decoration:none;">Abrir Conserjería (residentes)</a>' +
@@ -26614,7 +26727,7 @@
                             ${(metricasVinculacion.error || (metricasVinculacion.ocupacionActual === 0 && metricasVinculacion.unidadesEntregadas === 0 && metricasVinculacion.unidadesObtenidas === 0)) ? 
                                 `<div style="padding: 0.5rem; background: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; margin-bottom: 0.5rem;">
                                     <p style="margin: 0; color: #92400e; font-size: 0.875rem;">
-                                        ⚠️ ${metricasVinculacion.mensajeError || 'No hay datos de ocupación desde Conserjería (Firestore conserjeriawm2 o caché local). Registre unidades en prueba-conserjeria.html y recargue Gestión.'}
+                                        ⚠️ ${metricasVinculacion.mensajeError || 'No hay datos de ocupación desde Conserjería. Registre unidades en prueba-conserjeria.html y recargue Gestión.'}
                                     </p>
                                     ${metricasVinculacion.unidadesObtenidas !== undefined ? 
                                         `<p style="margin: 0.5rem 0 0 0; color: #92400e; font-size: 0.8rem;">Unidades obtenidas: ${metricasVinculacion.unidadesObtenidas}</p>` 
