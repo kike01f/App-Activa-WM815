@@ -679,6 +679,18 @@
             box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
         }
 
+        [contenteditable="true"]:focus {
+            outline: none;
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+        }
+
+        [contenteditable="true"]:empty::before {
+            content: attr(data-placeholder);
+            color: var(--text-tertiary);
+            pointer-events: none;
+        }
+
         .form-group input::placeholder,
         .form-group textarea::placeholder {
             color: var(--text-tertiary);
@@ -4778,7 +4790,10 @@
                         </div>
                         <div class="form-group" style="grid-column: 1 / -1; margin-bottom: 0.5rem;">
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Contenido de la multa</label>
-                            <textarea id="multaContenido" rows="4" placeholder="Detalle, antecedentes, norma infringida u observaciones que deben quedar guardadas en el registro." style="width: 100%; padding: 0.5rem; font-size: 0.875rem; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary); font-family: inherit; resize: vertical; box-sizing: border-box;"></textarea>
+                            <div id="multaContenido" contenteditable="true" role="textbox" aria-multiline="true" data-placeholder="Detalle, antecedentes, norma infringida u observaciones que deben quedar guardadas en el registro." style="width: 100%; min-height: 120px; padding: 0.6rem; font-size: 0.875rem; line-height: 1.5; border-radius: 8px; border: 1px solid var(--border-color); background: var(--bg-primary); color: var(--text-primary); font-family: inherit; overflow-y: auto; box-sizing: border-box;"></div>
+                            <small style="color: var(--gray-500); font-size: 0.7rem; margin-top: 0.15rem; display: block;">
+                                Puede pegar texto con formato básico. Se conservarán negritas, cursivas, subrayado, listas y saltos de párrafo para el correo.
+                            </small>
                         </div>
                         <div class="form-group" id="multaGrupoTipoUnidad" style="margin-bottom: 0.5rem;">
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Tipo de Unidad *</label>
@@ -13272,6 +13287,85 @@
             return m && m.tipoRegistro === 'anulacion';
         }
 
+        function escaparHtmlContenidoMulta(valor) {
+            return String(valor == null ? '' : valor)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function sanitizarContenidoMultaHtml(html) {
+            const raiz = document.createElement('div');
+            raiz.innerHTML = html || '';
+            const serializar = (node) => {
+                if (!node) return '';
+                if (node.nodeType === Node.TEXT_NODE) return escaparHtmlContenidoMulta(node.textContent || '');
+                if (node.nodeType !== Node.ELEMENT_NODE) return '';
+
+                const tag = node.tagName.toLowerCase();
+                const contenido = Array.from(node.childNodes).map(serializar).join('');
+                if (!contenido.trim() && tag !== 'br') return '';
+
+                if (tag === 'br') return '<br>';
+                if (tag === 'strong' || tag === 'b') return `<strong>${contenido}</strong>`;
+                if (tag === 'em' || tag === 'i') return `<em>${contenido}</em>`;
+                if (tag === 'u') return `<u>${contenido}</u>`;
+                if (tag === 'ul') return `<ul style="margin: 6px 0 6px 20px; padding: 0;">${contenido}</ul>`;
+                if (tag === 'ol') return `<ol style="margin: 6px 0 6px 20px; padding: 0;">${contenido}</ol>`;
+                if (tag === 'li') return `<li style="margin: 3px 0;">${contenido}</li>`;
+                if (tag === 'h1' || tag === 'h2' || tag === 'h3' || tag === 'h4' || tag === 'h5' || tag === 'h6') {
+                    return `<p style="margin: 8px 0 5px 0; font-weight: 700;">${contenido}</p>`;
+                }
+                if (tag === 'p' || tag === 'div') {
+                    return `<p style="margin: 0 0 8px 0;">${contenido}</p>`;
+                }
+                return contenido;
+            };
+
+            return Array.from(raiz.childNodes).map(serializar).join('').trim();
+        }
+
+        function textoPlanoContenidoMultaDesdeHtml(html) {
+            const tmp = document.createElement('div');
+            tmp.innerHTML = sanitizarContenidoMultaHtml(html || '');
+            return (tmp.textContent || tmp.innerText || '').replace(/\s+\n/g, '\n').trim();
+        }
+
+        function htmlContenidoMultaDesdeTexto(texto) {
+            const limpio = String(texto || '').trim();
+            if (!limpio) return '';
+            return limpio.split(/\n{2,}/).map((parrafo) =>
+                `<p style="margin: 0 0 8px 0;">${escaparHtmlContenidoMulta(parrafo).split(/\r?\n/).join('<br>')}</p>`
+            ).join('');
+        }
+
+        function obtenerContenidoMultaHtml(multa) {
+            if (multa && multa.contenidoHtml) return sanitizarContenidoMultaHtml(multa.contenidoHtml);
+            return htmlContenidoMultaDesdeTexto(multa && multa.contenido ? multa.contenido : '');
+        }
+
+        function inicializarEditorContenidoMulta() {
+            const editor = document.getElementById('multaContenido');
+            if (!editor || editor.dataset.richInit === '1') return;
+            editor.dataset.richInit = '1';
+
+            editor.addEventListener('paste', function(e) {
+                const data = e.clipboardData || window.clipboardData;
+                if (!data) return;
+                const html = data.getData('text/html');
+                const texto = data.getData('text/plain');
+                if (!html && !texto) return;
+                e.preventDefault();
+                const limpio = html ? sanitizarContenidoMultaHtml(html) : htmlContenidoMultaDesdeTexto(texto);
+                document.execCommand('insertHTML', false, limpio);
+            });
+
+            editor.addEventListener('blur', function() {
+                editor.innerHTML = sanitizarContenidoMultaHtml(editor.innerHTML);
+            });
+        }
+
         function aplicarTipoRegistroMultaFormulario() {
             const radAnul = document.getElementById('multaTipoRegistroAnulacion');
             const esAnul = radAnul && radAnul.checked;
@@ -13354,6 +13448,9 @@
             
             let montoVal = parseFloat(document.getElementById('multaMonto').value);
             if (tipoRegistro === 'anulacion' && (isNaN(montoVal) || montoVal < 0)) montoVal = 0;
+            const contenidoEditor = document.getElementById('multaContenido');
+            const contenidoHtml = sanitizarContenidoMultaHtml(contenidoEditor ? contenidoEditor.innerHTML : '');
+            const contenidoTexto = textoPlanoContenidoMultaDesdeHtml(contenidoHtml);
             
             const multa = {
                 id: registroId,
@@ -13361,9 +13458,8 @@
                 fecha: fechaSeleccionada,
                 departamento: document.getElementById('multaDepto').value,
                 motivo: document.getElementById('multaMotivo').value,
-                contenido: (document.getElementById('multaContenido') && document.getElementById('multaContenido').value
-                    ? document.getElementById('multaContenido').value.trim()
-                    : ''),
+                contenido: contenidoTexto,
+                contenidoHtml: contenidoHtml,
                 monto: montoVal,
                 tipoUnidad: document.getElementById('multaTipoUnidad').value || 'UF', // UF por defecto para compatibilidad
                 evidencias: evidencias,
@@ -13448,6 +13544,8 @@
             }
 
             document.getElementById('formMulta').reset();
+            const contenidoPostReset = document.getElementById('multaContenido');
+            if (contenidoPostReset) contenidoPostReset.innerHTML = '';
             // Limpiar evidencias
             document.getElementById('multaEvidencias').innerHTML = `
                 <div class="link-input" style="margin-bottom: 0.5rem;">
@@ -13497,7 +13595,7 @@
             document.getElementById('multaDepto').value = multa.departamento || '';
             document.getElementById('multaMotivo').value = multa.motivo || '';
             const contenidoEl = document.getElementById('multaContenido');
-            if (contenidoEl) contenidoEl.value = multa.contenido || '';
+            if (contenidoEl) contenidoEl.innerHTML = obtenerContenidoMultaHtml(multa);
             document.getElementById('multaMonto').value = multa.monto || 0;
             document.getElementById('multaTipoUnidad').value = multa.tipoUnidad || 'UF'; // UF por defecto para compatibilidad
             const esAnulEd = multaEsRegistroAnulacion(multa);
@@ -13563,6 +13661,8 @@
         function cancelarEdicionMulta() {
             window.editandoMulta = null;
             document.getElementById('formMulta').reset();
+            const contenidoEl = document.getElementById('multaContenido');
+            if (contenidoEl) contenidoEl.innerHTML = '';
             // Restaurar evidencias iniciales
             document.getElementById('multaEvidencias').innerHTML = `
                 <div class="link-input" style="margin-bottom: 0.5rem;">
@@ -13620,16 +13720,13 @@
                 const titComprob = esAnul ? '📄 Vista' : '📄 Comprobante';
                 const titEnviar = esAnul ? '📧 Anulación' : '📧 Enviar';
                 const btnAnulSobre = esAnul ? '' : `<button type="button" class="btn btn-sm" onclick="enviarCorreoAnulacionMultaSobreMulta('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem; background: #059669; color: white; border: none;" title="Notificar por correo la anulación de esta multa">📧 Anulación</button>`;
-                const contenidoCell = m.contenido
-                    ? `<div style="margin-top: 0.25rem; color: var(--text-tertiary); font-size: 0.75rem; line-height: 1.35; white-space: pre-wrap;"><strong>Contenido:</strong> ${escMultaTabla(m.contenido)}</div>`
-                    : '';
                 return `
                     <tr>
                         <td>${formatearFecha(m.fecha)}</td>
                         <td>${tipoLabel}</td>
                         <td>${escMultaTabla(m.nombre)}</td>
                         <td>${escMultaTabla(m.departamento)}</td>
-                        <td>${escMultaTabla(m.motivo)}${contenidoCell}</td>
+                        <td>${escMultaTabla(m.motivo)}</td>
                         <td>${montoCell}</td>
                         <td>${evidenciasHTML}</td>
                         <td>
@@ -13671,9 +13768,9 @@
             const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             const fechaStr = multa.fecha ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(multa.fecha) : multa.fecha) : '-';
             const montoStr = (multa.monto != null ? Number(multa.monto).toFixed(2) : '0') + ' ' + (multa.tipoUnidad || 'UF');
-            const contenidoMulta = String(multa.contenido || '').trim();
+            const contenidoMulta = obtenerContenidoMultaHtml(multa);
             const filaContenidoMulta = contenidoMulta
-                ? `<tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Contenido</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8; line-height: 1.45;">${linkEsc(contenidoMulta).split(/\r?\n/).join('<br>')}</td></tr>`
+                ? `<tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Contenido</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8; line-height: 1.45;">${contenidoMulta}</td></tr>`
                 : '';
             return `<!DOCTYPE html>
 <html lang="es">
@@ -13789,9 +13886,9 @@
             const bloqueFolioEncabezado = esNotifSobreMultaExistente
                 ? `<p style="margin: 0; font-size: 12px; color: #666666;"><strong>Multa anulada (folio):</strong> <span style="font-family: monospace; letter-spacing: 0.04em; color: #1a1a1a;">${linkEsc(folioMultaAnulada)}</span></p>`
                 : `<p style="margin: 0; font-size: 12px; color: #666666;"><strong>Folio del comunicado:</strong> <span style="font-family: monospace; letter-spacing: 0.04em; color: #1a1a1a;">${linkEsc(folioComunicado)}</span></p>`;
-            const contenidoMulta = String(multa.contenido || '').trim();
+            const contenidoMulta = obtenerContenidoMultaHtml(multa);
             const filaContenidoMulta = contenidoMulta
-                ? `<tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666;">Contenido</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; line-height: 1.45;">${linkEsc(contenidoMulta).split(/\r?\n/).join('<br>')}</td></tr>`
+                ? `<tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666;">Contenido</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; line-height: 1.45;">${contenidoMulta}</td></tr>`
                 : '';
             return `<!DOCTYPE html>
 <html lang="es">
@@ -36018,6 +36115,7 @@
                             if (typeof aplicarTipoRegistroMultaFormulario === 'function') aplicarTipoRegistroMultaFormulario();
                         });
                     });
+                    if (typeof inicializarEditorContenidoMulta === 'function') inicializarEditorContenidoMulta();
                     if (typeof aplicarTipoRegistroMultaFormulario === 'function') aplicarTipoRegistroMultaFormulario();
                 }
                 
