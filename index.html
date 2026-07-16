@@ -29521,14 +29521,20 @@
             r++;
             (nomina || []).forEach(function (t, idx) {
                 if (!t) return;
-                var row = [idx + 1, t.nombre, t.cargo, t.diasTrabajados, t.licenciaMedica, t.turnosFestivos, t.turnosExtras, t.domingos, t.anticipos, t.observaciones || '-'];
+                var obsNom = String(t.observaciones || '-').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                var row = [idx + 1, t.nombre, t.cargo, t.diasTrabajados, t.licenciaMedica, t.turnosFestivos, t.turnosExtras, t.domingos, t.anticipos, obsNom || '-'];
                 var j;
+                var maxLineasObs = Math.max(1, (obsNom.match(/\n/g) || []).length + 1);
                 for (j = 0; j < numColsNom; j++) {
                     var cell = sheet.getCell(r, j + 1);
                     cell.value = j < row.length ? row[j] : '';
                     cell.font = { size: _EXCEL_TAM_TEXTO_CELDA };
                     cell.border = thin;
+                    if (j === numColsNom - 1) {
+                        cell.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
+                    }
                 }
+                sheet.getRow(r).height = Math.min(15 + (maxLineasObs - 1) * 12, 90);
                 r++;
             });
             r++;
@@ -29549,14 +29555,20 @@
                 if (!rep) return;
                 var vt = parseFloat(rep.valorTurno) || 0;
                 sumRep += vt;
-                var row = [idx + 1, rep.nombre, rep.reemplazaA, rep.turnos, typeof formatearMonedaNomina === 'function' ? formatearMonedaNomina(vt) : vt, rep.observaciones || '-'];
+                var obsRep = String(rep.observaciones || '-').replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+                var row = [idx + 1, rep.nombre, rep.reemplazaA, rep.turnos, typeof formatearMonedaNomina === 'function' ? formatearMonedaNomina(vt) : vt, obsRep || '-'];
                 var j;
+                var maxLineasObsRep = Math.max(1, (obsRep.match(/\n/g) || []).length + 1);
                 for (j = 0; j < numColsRep; j++) {
                     var cel = sheet.getCell(r, j + 1);
                     cel.value = j < row.length ? row[j] : '';
                     cel.font = { size: _EXCEL_TAM_TEXTO_CELDA };
                     cel.border = thin;
+                    if (j === numColsRep - 1) {
+                        cel.alignment = { horizontal: 'left', vertical: 'top', wrapText: true };
+                    }
                 }
+                sheet.getRow(r).height = Math.min(15 + (maxLineasObsRep - 1) * 12, 90);
                 r++;
             });
             r++;
@@ -29577,7 +29589,12 @@
                     var str = val != null ? String(val) : '';
                     maxL = Math.max(maxL, Math.min(str.length, 48));
                 }
-                sheet.getColumn(c).width = Math.min(maxL + 2, 45);
+                // Columna Observaciones más ancha para texto multilínea legible
+                if (c === 10 || c === 6) {
+                    sheet.getColumn(c).width = Math.max(Math.min(maxL + 2, 45), 28);
+                } else {
+                    sheet.getColumn(c).width = Math.min(maxL + 2, 45);
+                }
             }
         }
         function _construirAOAOcupacion(residentes) {
@@ -37028,6 +37045,18 @@
         }
 
         // Función para cargar tabla de trabajadores
+        /** Escapa HTML y conserva saltos de línea de observaciones (textarea → tabla / impresión / Excel). */
+        function formatearObservacionNominaHtml(texto) {
+            const raw = String(texto ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+            if (!raw) return '-';
+            return raw
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/\n/g, '<br>');
+        }
+
         function cargarTablaNomina() {
             const tbody = document.getElementById('tbodyNomina');
             const tfoot = document.getElementById('tfootNomina');
@@ -37094,7 +37123,7 @@
                         <td style="padding: 0.5rem 0.625rem; text-align: center; color: #111827; font-size: 0.8125rem; border: 1px solid #e5e7eb;">${horasExtras50}</td>
                         <td style="padding: 0.5rem 0.625rem; text-align: center; color: #111827; font-size: 0.8125rem; border: 1px solid #e5e7eb;">${horasExtras100}</td>
                         <td style="padding: 0.5rem 0.625rem; text-align: right; color: #111827; font-size: 0.8125rem; border: 1px solid #e5e7eb;">${formatearMonedaNomina(trabajador.anticipos)}</td>
-                        <td style="padding: 0.5rem 0.625rem; color: #111827; font-size: 0.75rem; max-width: 200px; word-wrap: break-word; border: 1px solid #e5e7eb;">${trabajador.observaciones || '-'}</td>
+                        <td style="padding: 0.5rem 0.625rem; color: #111827; font-size: 0.75rem; max-width: 280px; min-width: 140px; word-wrap: break-word; white-space: pre-wrap; line-height: 1.4; vertical-align: top; border: 1px solid #e5e7eb;">${formatearObservacionNominaHtml(trabajador.observaciones)}</td>
                         <td style="padding: 0.5rem 0.625rem; text-align: center; border: 1px solid #e5e7eb;">
                             <div style="display: flex; flex-direction: column; gap: 0.25rem; align-items: center;">
                                 <div style="display: flex; gap: 0.25rem; width: 100%;">
@@ -37401,7 +37430,7 @@
                         <td class="text-center">${horasExtras50}</td>
                         <td class="text-center">${horasExtras100}</td>
                         <td class="text-right">${formatearMonedaNomina(anticipos)}</td>
-                        <td>${trabajador.observaciones || '-'}</td>
+                        <td class="celda-observaciones" style="white-space: pre-wrap; line-height: 1.35; vertical-align: top; word-wrap: break-word;">${formatearObservacionNominaHtml(trabajador.observaciones)}</td>
                     </tr>
                 `;
             });
@@ -37497,7 +37526,7 @@
                             <td class="text-center" style="font-size: 10px;">${fechasTexto}</td>
                             <td class="text-center">${metodoPagoTexto}</td>
                             <td style="font-size: 10px;">${datosBancariosTexto}</td>
-                            <td style="font-size: 10px;">${reemplazo.observaciones || '-'}</td>
+                            <td class="celda-observaciones" style="font-size: 10px; white-space: pre-wrap; line-height: 1.35; vertical-align: top; word-wrap: break-word;">${formatearObservacionNominaHtml(reemplazo.observaciones)}</td>
                         </tr>
                     `;
                 });
@@ -37942,6 +37971,12 @@
                 .replace(/>/g, '&gt;')
                 .replace(/"/g, '&quot;');
             const escCelda = (v) => escHtml(String(v ?? '').replace(/\r/g, '').replace(/\n/g, ' '));
+            /** Conserva saltos de línea en observaciones para Excel (HTML → .xls). */
+            const escObservacion = (v) => {
+                const raw = String(v ?? '').replace(/\r\n/g, '\n').replace(/\r/g, '\n').trim();
+                if (!raw) return '-';
+                return escHtml(raw).replace(/\n/g, '<br/>');
+            };
             const formatearFecha = (fechaStr) => {
                 if (fechaStr === 'N/A') return 'N/A';
                 const fecha = new Date(fechaStr + 'T12:00:00');
@@ -38101,7 +38136,15 @@
                         .col-cargo { width: 120px; }
                         .col-numero { width: 70px; }
                         .col-moneda { width: 120px; }
-                        .col-observaciones { width: 250px; }
+                        .col-observaciones { width: 280px; }
+                        .celda-observaciones {
+                            white-space: pre-wrap !important;
+                            vertical-align: top !important;
+                            text-align: left !important;
+                            line-height: 1.35 !important;
+                            word-wrap: break-word !important;
+                            mso-data-placement: same-cell;
+                        }
                         tfoot {
                             background: linear-gradient(135deg, #374151 0%, #4b5563 100%);
                         }
@@ -38203,7 +38246,7 @@
                 totalHorasExtras50 += horasExtras50;
                 totalHorasExtras100 += horasExtras100;
                 totalAnticipos += parseFloat(trabajador.anticipos) || 0;
-                const observaciones = escCelda(String(trabajador.observaciones || '').replace(/\r?\n/g, ' ').trim() || '-');
+                const observaciones = escObservacion(trabajador.observaciones);
                 excelContent += `
                     <tr>
                         <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${index + 1}</td>
@@ -38217,7 +38260,7 @@
                         <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${escCelda(horasExtras50)}</td>
                         <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${escCelda(horasExtras100)}</td>
                         <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">${escHtml(formatearMonedaNomina(trabajador.anticipos || 0))}</td>
-                        <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${observaciones}</td>
+                        <td class="text-left celda-observaciones" style="text-align: left !important; vertical-align: top !important;">${observaciones}</td>
                     </tr>
                 `;
             });
@@ -38303,7 +38346,7 @@
                         datosBancariosTexto = 'Pago por cheque';
                     }
                     const metodoPagoTexto = reemplazo.metodoPago === 'transferencia' ? 'Transferencia' : 'Cheque';
-                    const observacionesReemplazo = escCelda(String(reemplazo.observaciones || '').replace(/\r?\n/g, ' ').trim() || '-');
+                    const observacionesReemplazo = escObservacion(reemplazo.observaciones);
 
                     excelContent += `
                         <tr>
@@ -38315,7 +38358,7 @@
                             <td class="text-left" style="text-align: left !important; vertical-align: middle !important; font-size: 11px;">${escCelda(fechasTexto)}</td>
                             <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${escCelda(metodoPagoTexto)}</td>
                             <td class="text-left" style="text-align: left !important; vertical-align: middle !important; font-size: 11px;">${escCelda(datosBancariosTexto)}</td>
-                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important; font-size: 11px;">${observacionesReemplazo}</td>
+                            <td class="text-left celda-observaciones" style="text-align: left !important; vertical-align: top !important; font-size: 11px;">${observacionesReemplazo}</td>
                         </tr>
                     `;
                 });
@@ -38898,7 +38941,7 @@
                         </td>
                         <td style="padding: 0.5rem 0.625rem; text-align: center; color: #111827; font-size: 0.8125rem; border: 1px solid #e5e7eb;">${metodoPagoTexto}</td>
                         <td style="padding: 0.5rem 0.625rem; color: #111827; font-size: 0.75rem; max-width: 300px; word-wrap: break-word; border: 1px solid #e5e7eb;">${datosBancariosTexto}</td>
-                        <td style="padding: 0.5rem 0.625rem; color: #111827; font-size: 0.8125rem; max-width: 250px; word-wrap: break-word; border: 1px solid #e5e7eb;">${reemplazo.observaciones || '-'}</td>
+                        <td style="padding: 0.5rem 0.625rem; color: #111827; font-size: 0.8125rem; max-width: 280px; min-width: 140px; word-wrap: break-word; white-space: pre-wrap; line-height: 1.4; vertical-align: top; border: 1px solid #e5e7eb;">${formatearObservacionNominaHtml(reemplazo.observaciones)}</td>
                         <td style="padding: 0.5rem 0.625rem; text-align: center; border: 1px solid #e5e7eb;">
                             ${puedeEditar ? `
                                 <div style="display: flex; flex-direction: column; gap: 0.25rem; align-items: center;">
