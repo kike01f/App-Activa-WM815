@@ -4595,6 +4595,7 @@
                                     <option value="tag">TAG Vehicular ($5.000)</option>
                                     <option value="tag-provisional">TAG Provisional (Sin Costo)</option>
                                     <option value="tarjeta">Tarjeta de Acceso ($10.000)</option>
+                                    <option value="tarjeta-supermercado">Tarjeta de Supermercado (Sin Costo)</option>
                                 </select>
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
@@ -12508,6 +12509,14 @@
             return items.some(it => String((it && it.tipo) || '').toUpperCase().indexOf('TAG PROVISIONAL') !== -1);
         }
 
+        function tarjetaVentaTieneTarjetaSupermercado(tarjeta) {
+            const items = normalizarTarjetaItems(tarjeta);
+            return items.some(it => {
+                const tipo = String((it && it.tipo) || '').toUpperCase();
+                return tipo.indexOf('SUPERMERCADO') !== -1;
+            });
+        }
+
         function esItemTagProvisionalTarjeta(item) {
             const tipo = String((item && item.tipo) || '').trim().toUpperCase();
             return tipo.indexOf('TAG PROVISIONAL') !== -1;
@@ -12534,18 +12543,31 @@
             const fechaStr = tarjeta.fecha ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(tarjeta.fecha) : tarjeta.fecha) : '-';
             const items = normalizarTarjetaItems(tarjeta);
             const esTagProvisional = tarjetaVentaTieneTagProvisional(tarjeta);
-            const incluirProcedimientoTag = !esTagProvisional && tarjetaVentaIncluyeProcedimientoTag(tarjeta);
+            const esTarjetaSupermercado = tarjetaVentaTieneTarjetaSupermercado(tarjeta);
+            const soloSupermercado = esTarjetaSupermercado && !esTagProvisional && items.every(it => {
+                const tipo = String((it && it.tipo) || '').toUpperCase();
+                return tipo.indexOf('SUPERMERCADO') !== -1;
+            });
+            const incluirProcedimientoTag = !esTagProvisional && !soloSupermercado && tarjetaVentaIncluyeProcedimientoTag(tarjeta);
+            const montoNum = items.reduce((s, i) => s + (parseFloat(i.monto) || 0), 0);
+            const tieneCobro = montoNum > 0;
             const tituloComprobante = esTagProvisional
                 ? 'Asignación de TAG Provisional'
-                : (incluirProcedimientoTag ? 'Venta de TAG' : 'Venta de Tarjeta de Acceso');
+                : (soloSupermercado
+                    ? 'Entrega de Tarjeta de Supermercado'
+                    : (incluirProcedimientoTag ? 'Venta de TAG' : 'Venta de Tarjeta de Acceso'));
             const tituloDoc = esTagProvisional
                 ? 'Comprobante - TAG Provisional'
-                : (incluirProcedimientoTag ? 'Comprobante - Venta TAG' : 'Comprobante - Venta Tarjeta de Acceso');
+                : (soloSupermercado
+                    ? 'Comprobante - Tarjeta de Supermercado'
+                    : (incluirProcedimientoTag ? 'Comprobante - Venta TAG' : 'Comprobante - Venta Tarjeta de Acceso'));
             const parrafoIntro = esTagProvisional
                 ? 'Le hacemos llegar el comprobante de la <strong>asignación de TAG provisional</strong> registrada a su nombre. Este documento deja constancia de entrega y condiciones de uso.'
-                : (incluirProcedimientoTag
-                ? 'Le hacemos llegar el comprobante de la <strong>venta de TAG</strong> registrada a su nombre. Este documento queda como respaldo para la administración y para su propio registro.'
-                : 'Le hacemos llegar el comprobante de la <strong>venta de tarjeta(s) de acceso</strong> registrada a su nombre. Este documento queda como respaldo para la administración y para su propio registro.');
+                : (soloSupermercado
+                    ? 'Le hacemos llegar el comprobante de la <strong>entrega de tarjeta de supermercado</strong> registrada a su nombre. Este documento deja constancia de entrega y condiciones de uso.'
+                    : (incluirProcedimientoTag
+                        ? 'Le hacemos llegar el comprobante de la <strong>venta de TAG</strong> registrada a su nombre. Este documento queda como respaldo para la administración y para su propio registro.'
+                        : 'Le hacemos llegar el comprobante de la <strong>venta de tarjeta(s) de acceso</strong> registrada a su nombre. Este documento queda como respaldo para la administración y para su propio registro.'));
             const bloqueProcedimientoTag = incluirProcedimientoTag ? `
           <tr>
             <td class="content-padding" style="padding: 0 28px 10px 28px;">
@@ -12562,9 +12584,30 @@
               </table>
             </td>
           </tr>` : '';
-            const montoNum = items.reduce((s, i) => s + (parseFloat(i.monto) || 0), 0);
+            const bloqueInfoSupermercado = esTarjetaSupermercado && !esTagProvisional ? `
+          <tr>
+            <td class="content-padding" style="padding: 0 28px 10px 28px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f1f8e9; border: 1px solid #c5e1a5; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 12px 14px;">
+                    <p style="margin: 0 0 8px 0; font-size: 12px; font-weight: 700; color: #558b2f; text-transform: uppercase; letter-spacing: 0.04em;">Tarjeta de supermercado — sin costo</p>
+                    <p style="margin: 0 0 6px 0; font-size: 13px; color: #333333; line-height: 1.6;">Esta tarjeta <strong>no tiene costo alguno</strong>.</p>
+                    <p style="margin: 0 0 6px 0; font-size: 13px; color: #333333; line-height: 1.6;">Corresponde a <strong>una unidad por departamento</strong>.</p>
+                    <p style="margin: 0 0 6px 0; font-size: 13px; color: #333333; line-height: 1.6;">Ante <strong>pérdida o daño</strong>, deberá solicitar en <strong>conserjería</strong> una copia adicional y <strong>solicitar el QR</strong> para nuevas copias.</p>
+                    <p style="margin: 0; font-size: 13px; color: #333333; line-height: 1.6;">La administración <strong>no se hace responsable</strong> por pérdidas o daños.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>` : '';
             const montoStr = typeof formatearMoneda === 'function' ? formatearMoneda(montoNum) : '$' + Number(montoNum).toLocaleString('es-CL');
-            const tieneCobro = montoNum > 0;
+            const textoInfoImportante = esTagProvisional
+                ? 'Este <strong>TAG es de carácter provisional</strong> y <strong>pertenece a la administración</strong>. En caso de daño, pérdida o extravío, se aplicará un <strong>cargo de $8.000</strong> en el gasto común correspondiente. El dispositivo debe ser devuelto en las mismas condiciones en que fue entregado.'
+                : (tieneCobro
+                    ? 'Los cargos de esta venta serán cargados en los <strong>gastos comunes</strong> del departamento.'
+                    : (esTarjetaSupermercado
+                        ? 'Esta entrega <strong>no genera cargo</strong>. Revise las condiciones de la tarjeta de supermercado a continuación.'
+                        : 'Esta venta no genera cargo (registro sin cobro).'));
             const filasItems = items.map(it => `
                 <tr><td class="data-cell" style="padding: 8px 14px; font-size: 13px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(it.tipo)}</td><td class="data-cell" style="padding: 8px 14px; font-size: 13px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${it.cantidad != null ? it.cantidad : 1}</td><td class="data-cell" style="padding: 8px 14px; font-size: 13px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(typeof formatearMoneda === 'function' ? formatearMoneda(parseFloat(it.monto) || 0) : '$' + (parseFloat(it.monto) || 0).toLocaleString('es-CL'))}</td></tr>`).join('');
             return `<!DOCTYPE html>
@@ -12648,14 +12691,13 @@
                 <tr>
                   <td style="padding: 12px 14px;">
                     <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: 700; color: #795548; text-transform: uppercase; letter-spacing: 0.04em;">Información importante</p>
-                    <p style="margin: 0; font-size: 14px; color: #333333; line-height: 1.5;">${esTagProvisional
-                        ? 'Este <strong>TAG es de carácter provisional</strong> y <strong>pertenece a la administración</strong>. En caso de daño, pérdida o extravío, se aplicará un <strong>cargo de $8.000</strong> en el gasto común correspondiente. El dispositivo debe ser devuelto en las mismas condiciones en que fue entregado.'
-                        : (tieneCobro ? 'Los cargos de esta venta serán cargados en los <strong>gastos comunes</strong> del departamento.' : 'Esta venta no genera cargo (registro sin cobro).')}</p>
+                    <p style="margin: 0; font-size: 14px; color: #333333; line-height: 1.5;">${textoInfoImportante}</p>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>
+          ${bloqueInfoSupermercado}
           ${bloqueProcedimientoTag}
           <tr>
             <td style="padding: 14px 28px 18px 28px; text-align: center; border-top: 1px solid #eeeeee; background-color: #fafafa; border-radius: 0 0 12px 12px;">
@@ -12683,11 +12725,18 @@
                 const nombreComunidad = typeof obtenerNombreComunidad === 'function' ? await obtenerNombreComunidad() : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
                 const htmlComprobante = generarComprobanteTarjetaHtml(tarjeta, nombreComunidad);
                 const esTagProvisional = tarjetaVentaTieneTagProvisional(tarjeta);
+                const esTarjetaSupermercado = tarjetaVentaTieneTarjetaSupermercado(tarjeta);
+                const soloSupermercado = esTarjetaSupermercado && !esTagProvisional && normalizarTarjetaItems(tarjeta).every(it => {
+                    const tipo = String((it && it.tipo) || '').toUpperCase();
+                    return tipo.indexOf('SUPERMERCADO') !== -1;
+                });
                 const asuntoTarjeta = esTagProvisional
                     ? `Comprobante de Asignación de TAG Provisional - ${nombreComunidad}`
-                    : (tarjetaVentaIncluyeProcedimientoTag(tarjeta)
-                        ? `Comprobante de Venta de Tarjeta/TAG - ${nombreComunidad}`
-                        : `Comprobante de Venta de Tarjeta de Acceso - ${nombreComunidad}`);
+                    : (soloSupermercado
+                        ? `Comprobante de Entrega de Tarjeta de Supermercado - ${nombreComunidad}`
+                        : (tarjetaVentaIncluyeProcedimientoTag(tarjeta)
+                            ? `Comprobante de Venta de Tarjeta/TAG - ${nombreComunidad}`
+                            : `Comprobante de Venta de Tarjeta de Acceso - ${nombreComunidad}`));
                 const {
                     destinatariosUnidad,
                     destinatariosDirectorio,
@@ -12744,7 +12793,9 @@
             const html = generarComprobanteTarjetaHtml(tarjeta, nombreComunidad);
             const tituloVentana = tarjetaVentaTieneTagProvisional(tarjeta)
                 ? 'Comprobante de TAG Provisional'
-                : (tarjetaVentaIncluyeProcedimientoTag(tarjeta) ? 'Comprobante de Tarjeta/TAG' : 'Comprobante de Tarjeta de Acceso');
+                : (tarjetaVentaTieneTarjetaSupermercado(tarjeta) && normalizarTarjetaItems(tarjeta).every(it => String((it && it.tipo) || '').toUpperCase().indexOf('SUPERMERCADO') !== -1)
+                    ? 'Comprobante de Tarjeta de Supermercado'
+                    : (tarjetaVentaIncluyeProcedimientoTag(tarjeta) ? 'Comprobante de Tarjeta/TAG' : 'Comprobante de Tarjeta de Acceso'));
             abrirHTMLEnNuevaVentana(html, tituloVentana);
         }
 
@@ -12785,6 +12836,7 @@
             const abrev = (tipo) => {
                 if (!tipo) return 'Sin cobro';
                 const s = String(tipo).trim();
+                if (s.toUpperCase().indexOf('SUPERMERCADO') !== -1 || s === 'tarjeta-supermercado') return 'Supermercado';
                 if (s.indexOf('Tarjeta') !== -1 || s === 'tarjeta') return 'Tarjeta';
                 if (s.indexOf('TAG') !== -1 || s === 'tag') return 'TAG';
                 return s || 'Sin cobro';
@@ -12814,6 +12866,7 @@
             if (tipo === 'tag') return 5000;
             if (tipo === 'tag-provisional') return 0;
             if (tipo === 'tarjeta') return 10000;
+            if (tipo === 'tarjeta-supermercado') return 0;
             if (tipo === 'cambio-falla') return 0; // Cambio por falla sin cobro
             return 0;
         }
@@ -12822,6 +12875,7 @@
             if (tipo === 'tag') return 'TAG Vehicular';
             if (tipo === 'tag-provisional') return 'TAG Provisional';
             if (tipo === 'tarjeta') return 'Tarjeta de Acceso';
+            if (tipo === 'tarjeta-supermercado') return 'Tarjeta de Supermercado';
             if (tipo === 'cambio-falla') return 'Cambio por Falla';
             return 'Sin Cobro';
         }
