@@ -11589,7 +11589,7 @@
                     id: generarId(),
                     ...mudanzaData
                 };
-                mudanzas.push(mudanza);
+                mudanzas.unshift(mudanza);
                 await guardarDatosMes('mudanzas', mudanzas);
                 if (typeof window.registrarMovimiento === 'function') {
                     const mov = mudanza.movimiento === 'ingreso' ? 'Ingreso' : mudanza.movimiento === 'salida' ? 'Salida' : 'Mudanza';
@@ -11621,7 +11621,7 @@
             }
 
             // Ordenar por fecha (más reciente primero)
-            mudanzas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            mudanzas.sort((a, b) => compararRegistrosMasRecientePrimero(a, b));
 
             tbody.innerHTML = mudanzas.map(m => {
                 const tipoTexto = m.tipo === 'propietario' ? 'Propietario' : m.tipo === 'arrendatario' ? 'Arrendatario' : '-';
@@ -11816,7 +11816,7 @@
                 }
             } else {
                 aperturaData.id = registroId;
-                aperturas.push(aperturaData);
+                aperturas.unshift(aperturaData);
                 await guardarDatosMes('aperturas', aperturas);
                 if (typeof window.registrarMovimiento === 'function') {
                     const montoStr = aperturaData.aplicaCobro === 'si' && aperturaData.monto ? formatearMoneda(aperturaData.monto) : '';
@@ -11953,7 +11953,7 @@
                 return;
             }
 
-            aperturas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            aperturas.sort((a, b) => compararRegistrosMasRecientePrimero(a, b));
 
             tbody.innerHTML = aperturas.map(a => {
                 const hora = a.hora || '-';
@@ -12511,10 +12511,7 @@
 
         function tarjetaVentaTieneTarjetaSupermercado(tarjeta) {
             const items = normalizarTarjetaItems(tarjeta);
-            return items.some(it => {
-                const tipo = String((it && it.tipo) || '').toUpperCase();
-                return tipo.indexOf('SUPERMERCADO') !== -1;
-            });
+            return items.some(it => esItemTarjetaSupermercado(it));
         }
 
         function esItemTagProvisionalTarjeta(item) {
@@ -12522,17 +12519,36 @@
             return tipo.indexOf('TAG PROVISIONAL') !== -1;
         }
 
+        function esItemTarjetaSupermercado(item) {
+            const tipo = String((item && item.tipo) || '').trim().toUpperCase();
+            return tipo.indexOf('SUPERMERCADO') !== -1 || tipo.indexOf('CARRITO') !== -1 || tipo === 'TARJETA-SUPERMERCADO';
+        }
+
+        /** Excluye TAG provisional y tarjetas de carrito supermercado del reporte de cierre / Excel. */
         function filtrarTarjetasParaReporteSinProvisionales(tarjetas) {
             if (!Array.isArray(tarjetas)) return [];
             const salida = [];
             tarjetas.forEach(t => {
                 if (!t) return;
-                const items = normalizarTarjetaItems(t).filter(it => !esItemTagProvisionalTarjeta(it));
-                if (!items.length) return; // Si solo tenía TAG provisional, no aparece en reporte
+                const items = normalizarTarjetaItems(t).filter(it =>
+                    !esItemTagProvisionalTarjeta(it) && !esItemTarjetaSupermercado(it)
+                );
+                if (!items.length) return; // Solo provisional y/o supermercado → no va al reporte
                 const monto = items.reduce((s, i) => s + (parseFloat(i && i.monto) || 0), 0);
                 salida.push({ ...t, items, monto });
             });
             return salida;
+        }
+
+        /** Orden de listado: más reciente primero; si misma fecha, id más nuevo primero. */
+        function compararRegistrosMasRecientePrimero(a, b, campoFecha) {
+            const campo = campoFecha || 'fecha';
+            const fa = a && a[campo] ? new Date(a[campo]).getTime() : 0;
+            const fb = b && b[campo] ? new Date(b[campo]).getTime() : 0;
+            const ta = isNaN(fa) ? 0 : fa;
+            const tb = isNaN(fb) ? 0 : fb;
+            if (tb !== ta) return tb - ta;
+            return String((b && b.id) || '').localeCompare(String((a && a.id) || ''));
         }
 
         /** Genera el HTML del comprobante de venta de Tarjeta de Acceso / TAG (estilo similar a apertura). Incluye aviso de cargo en gastos comunes. Soporta múltiples ítems. El bloque de procedimiento de TAG solo se incluye si aplica (TAG y/o varios productos). */
@@ -12544,10 +12560,7 @@
             const items = normalizarTarjetaItems(tarjeta);
             const esTagProvisional = tarjetaVentaTieneTagProvisional(tarjeta);
             const esTarjetaSupermercado = tarjetaVentaTieneTarjetaSupermercado(tarjeta);
-            const soloSupermercado = esTarjetaSupermercado && !esTagProvisional && items.every(it => {
-                const tipo = String((it && it.tipo) || '').toUpperCase();
-                return tipo.indexOf('SUPERMERCADO') !== -1;
-            });
+            const soloSupermercado = esTarjetaSupermercado && !esTagProvisional && items.every(it => esItemTarjetaSupermercado(it));
             const incluirProcedimientoTag = !esTagProvisional && !soloSupermercado && tarjetaVentaIncluyeProcedimientoTag(tarjeta);
             const montoNum = items.reduce((s, i) => s + (parseFloat(i.monto) || 0), 0);
             const tieneCobro = montoNum > 0;
@@ -13042,7 +13055,7 @@
                 if (!tarjeta.folio) {
                     tarjeta.folio = getSiguienteFolioTarjeta(tarjetas, tarjeta.mes);
                 }
-                tarjetas.push(tarjeta);
+                tarjetas.unshift(tarjeta);
                 await guardarDatosMes('tarjetas', tarjetas);
                 if (typeof window.registrarMovimiento === 'function') {
                     window.registrarMovimiento('crear', 'tarjetas', `Venta: Depto ${departamento} - ${nombre} - ${lineas.length} línea(s) - ${formatearMoneda(montoTotal)}`);
@@ -13070,7 +13083,7 @@
                 return;
             }
 
-            tarjetas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            tarjetas.sort((a, b) => compararRegistrosMasRecientePrimero(a, b));
 
             const itemsPorRegistro = (t) => normalizarTarjetaItems(t);
             const totalCantidadRegistro = (t) => itemsPorRegistro(t).reduce((s, i) => s + (parseInt(i.cantidad, 10) || 0), 0);
@@ -13246,7 +13259,7 @@
                 if (!espacio.folio) {
                     espacio.folio = getSiguienteFolioEvento(espacios, espacio.mes);
                 }
-                espacios.push(espacio);
+                espacios.unshift(espacio);
                 await guardarDatosMes('espacios', espacios);
                 if (typeof window.registrarMovimiento === 'function') {
                     const total = (espacio.monto || 0) + (parseFloat(espacio.montoCobroEspacio) || 0);
@@ -13285,7 +13298,7 @@
                 return;
             }
 
-            espacios.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            espacios.sort((a, b) => compararRegistrosMasRecientePrimero(a, b));
 
             tbody.innerHTML = espacios.map(e => {
                 const montoAseo = parseFloat(e.monto) || 0;
@@ -13588,7 +13601,7 @@
                 }
             } else {
                 // Nuevo registro: agregar archivos al objeto antes de guardar
-                multas.push(multa);
+                multas.unshift(multa);
                 await guardarDatosMes('multas', multas);
                 if (typeof window.registrarMovimiento === 'function') {
                     if (multaEsRegistroAnulacion(multa)) {
@@ -13756,7 +13769,7 @@
             }
 
             // Ordenar por fecha (más reciente primero)
-            multas.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            multas.sort((a, b) => compararRegistrosMasRecientePrimero(a, b));
 
             const escMultaTabla = (v) => String(v == null ? '' : v)
                 .replace(/&/g, '&amp;')
@@ -14809,7 +14822,7 @@
                 if (!moroso.folio) {
                     moroso.folio = getSiguienteFolioMoroso(morosos, moroso.mes);
                 }
-                morosos.push(moroso);
+                morosos.unshift(moroso);
                 await guardarDatosMes('morosos', morosos);
                 if (typeof window.registrarMovimiento === 'function') {
                     window.registrarMovimiento('crear', 'morosos', `Moroso registrado: Depto ${moroso.departamento} - ${moroso.estado} - ${formatearMoneda(moroso.monto || 0)}`);
@@ -14851,7 +14864,7 @@
                 return;
             }
 
-            morosos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            morosos.sort((a, b) => compararRegistrosMasRecientePrimero(a, b));
 
             const estadoBadges = {
                 'pendiente': 'badge-warning',
@@ -18145,7 +18158,7 @@
                         ...nuevaLectura
                     };
                 } else {
-                    lecturas.push(nuevaLectura);
+                    lecturas.unshift(nuevaLectura);
                 }
                 await guardarDatosMes('lecturasAguaCaliente', lecturas);
                 if (typeof window.registrarMovimiento === 'function') {
@@ -19290,7 +19303,7 @@
             } else {
                 movimientoData.id = registroId;
                 movimientoData.folio = getSiguienteFolioCaja(movimientos, movimientoData.mes);
-                movimientos.push(movimientoData);
+                movimientos.unshift(movimientoData);
                 await guardarDatosMes('caja', movimientos);
                 if (typeof window.registrarMovimiento === 'function') {
                     window.registrarMovimiento('crear', 'caja', `Gasto: ${movimientoData.descripcion || 'Sin descripción'} - ${formatearMoneda(movimientoData.monto)}`);
@@ -20418,7 +20431,7 @@
                 return;
             }
 
-            movimientos.sort((a, b) => new Date(b.fecha) - new Date(a.fecha));
+            movimientos.sort((a, b) => compararRegistrosMasRecientePrimero(a, b));
 
             tbody.innerHTML = movimientos.map(m => {
                 const archivos = m.archivos || [];
@@ -21274,7 +21287,7 @@
                     }
                 } else {
                     // Nuevo
-                    mantenciones.push(registro);
+                    mantenciones.unshift(registro);
                 }
                 
                 await guardarDatosMes('mantenciones', mantenciones);
@@ -21309,7 +21322,7 @@
                     }
                 } else {
                     // Nuevo
-                    visitasExtraordinarias.push(registro);
+                    visitasExtraordinarias.unshift(registro);
                 }
                 
                 await guardarDatosMes('visitas-extraordinarias', visitasExtraordinarias);
@@ -21659,7 +21672,7 @@
             });
 
             // Ordenar por fecha (más reciente primero)
-            visitasFiltradas.sort((a, b) => new Date(b.fechaUltima) - new Date(a.fechaUltima));
+            visitasFiltradas.sort((a, b) => compararRegistrosMasRecientePrimero(a, b, 'fechaUltima'));
 
             if (visitasFiltradas.length === 0) {
                 tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><p>No se encontraron registros con los filtros aplicados</p></td></tr>';
@@ -22335,7 +22348,7 @@
                     fechaRegistro: obtenerFechaHoy(),
                     estado: 'pendiente' // pendiente, pagado, cancelado
                 };
-                pagos.push(pago);
+                pagos.unshift(pago);
                 await guardarDatosMes('pagosAseo', pagos);
                 if (typeof window.registrarMovimiento === 'function') {
                     window.registrarMovimiento('crear', 'pagosAseo', `Pago aseo: ${pago.personalNombre} - ${pago.areaComun} - ${formatearMoneda(pago.monto)}`);
@@ -22945,7 +22958,7 @@
                 }
             });
 
-            pagos.sort((a, b) => new Date(b.fechaAseo) - new Date(a.fechaAseo));
+            pagos.sort((a, b) => compararRegistrosMasRecientePrimero(a, b, 'fechaAseo'));
 
             const estadoBadges = {
                 'pendiente': 'badge-warning',
@@ -25934,7 +25947,7 @@
 
                 var rec = { id: id, fecha: fecha, observacion: postventaCorregirOrtografiaObservacion(String(obs).trim()), estado: estado, evidencias: evidencias };
                 var idx = registrosPostventa.findIndex(function (x) { return x.id === id; });
-                if (idx >= 0) registrosPostventa[idx] = rec; else registrosPostventa.push(rec);
+                if (idx >= 0) registrosPostventa[idx] = rec; else registrosPostventa.unshift(rec);
                 await guardarPostventaFirestore();
                 postventaResetFiltros();
                 renderTablaPostventa();
@@ -28014,7 +28027,10 @@
                 
                 const mudanzas = resultados[0] || [];
                 const aperturas = resultados[1] || [];
-                const tarjetas = resultados[2] || [];
+                let tarjetas = resultados[2] || [];
+                tarjetas = typeof filtrarTarjetasParaReporteSinProvisionales === 'function'
+                    ? filtrarTarjetasParaReporteSinProvisionales(tarjetas)
+                    : tarjetas;
                 const espacios = resultados[3] || [];
                 const multas = resultados[4] || [];
                 const morosos = resultados[5] || [];
