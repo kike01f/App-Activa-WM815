@@ -5620,7 +5620,7 @@
 
                 <!-- Formulario para agregar insumo al pedido -->
                 <div id="formAgregarInsumo" style="display: block; margin-bottom: 1.5rem; padding: 0.75rem; background: var(--bg-secondary); border-radius: 8px; border: 1px solid var(--border-color); transition: background-color 0.3s ease, border-color 0.3s ease;">
-                    <h4 style="margin: 0 0 0.75rem 0; font-size: 0.9375rem; font-weight: 600;">Agregar Producto al Pedido</h4>
+                    <h4 id="tituloFormInsumo" style="margin: 0 0 0.75rem 0; font-size: 0.9375rem; font-weight: 600;">Agregar Producto al Pedido</h4>
                     <form id="formInsumo">
                         <div class="form-row" style="gap: 0.75rem;">
                             <div class="form-group" style="margin-bottom: 0.5rem;">
@@ -5651,8 +5651,9 @@
                                 <textarea id="insumoObservaciones" rows="1" placeholder="Observaciones adicionales (opcional)" style="padding: 0.5rem; font-size: 0.875rem;"></textarea>
                             </div>
                             <div class="form-group" style="grid-column: 1 / -1; margin-bottom: 0; display: flex; gap: 0.5rem;">
-                                <button type="submit" class="btn btn-primary" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Agregar al Pedido</button>
-                                <button type="button" class="btn btn-secondary" onclick="document.getElementById('formInsumo').reset();" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Limpiar</button>
+                                <button type="submit" class="btn btn-primary" id="btnGuardarInsumo" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Agregar al Pedido</button>
+                                <button type="button" class="btn btn-secondary" onclick="cancelarEdicionInsumo()" style="padding: 0.5rem 1rem; font-size: 0.875rem;">Limpiar</button>
+                                <button type="button" class="btn btn-secondary" id="btnCancelarEdicionInsumo" onclick="cancelarEdicionInsumo()" style="display: none; padding: 0.5rem 1rem; font-size: 0.875rem;">Cancelar</button>
                             </div>
                         </div>
                     </form>
@@ -5692,7 +5693,7 @@
                                     <th style="padding: 0.75rem; text-align: center; font-weight: 600;">Cantidad</th>
                                     <th style="padding: 0.75rem; text-align: center; font-weight: 600;">Prioridad</th>
                                     <th style="padding: 0.75rem; text-align: left; font-weight: 600;">Observaciones</th>
-                                    <th style="padding: 0.75rem; text-align: center; font-weight: 600; width: 120px;">Acciones</th>
+                                    <th style="padding: 0.75rem; text-align: center; font-weight: 600; width: 170px;">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="tbodyInsumos">
@@ -19680,8 +19681,11 @@
                         </td>
                         <td style="padding: 0.75rem;">${i.observaciones || '-'}</td>
                         <td style="padding: 0.75rem; text-align: center;">
-                            ${(window.mesEnConsulta && !window.mesReabierto) ? '<span style="color: var(--gray-500); font-size: 0.75rem;">Archivado</span>' : `
-                                <button class="btn btn-danger btn-sm" onclick="window.eliminarInsumo('${i.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Eliminar</button>
+                            ${(window.mesEnConsulta && !window.mesReabierto) ? '<span style="color: var(--gray-500); font-size: 0.75rem;">Archivado</span>' : pedidoCerrado ? '<span style="color: var(--gray-500); font-size: 0.75rem;">Pedido cerrado</span>' : `
+                                <div style="display: flex; flex-direction: column; gap: 0.25rem; align-items: stretch;">
+                                    <button class="btn btn-primary btn-sm" onclick="window.editarInsumo('${i.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Editar</button>
+                                    <button class="btn btn-danger btn-sm" onclick="window.eliminarInsumo('${i.id}')" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;">Eliminar</button>
+                                </div>
                             `}
                         </td>
                     </tr>
@@ -19906,13 +19910,96 @@
             }
         }
 
+        let insumoEditando = null;
+        let guardandoInsumo = false;
+
+        function actualizarUIFormularioInsumo() {
+            const btnGuardar = document.getElementById('btnGuardarInsumo');
+            const btnCancelar = document.getElementById('btnCancelarEdicionInsumo');
+            const titulo = document.getElementById('tituloFormInsumo');
+            if (insumoEditando) {
+                if (btnGuardar) btnGuardar.textContent = 'Actualizar Pedido';
+                if (btnCancelar) btnCancelar.style.display = 'inline-block';
+                if (titulo) titulo.textContent = 'Editar Producto del Pedido';
+            } else {
+                if (btnGuardar) btnGuardar.textContent = 'Agregar al Pedido';
+                if (btnCancelar) btnCancelar.style.display = 'none';
+                if (titulo) titulo.textContent = 'Agregar Producto al Pedido';
+            }
+        }
+
+        window.cancelarEdicionInsumo = function() {
+            insumoEditando = null;
+            const form = document.getElementById('formInsumo');
+            if (form) form.reset();
+            const prioridad = document.getElementById('insumoPrioridad');
+            if (prioridad) prioridad.value = 'Media';
+            const cantidad = document.getElementById('insumoCantidad');
+            if (cantidad) cantidad.value = '1';
+            actualizarUIFormularioInsumo();
+        };
+
+        window.editarInsumo = async function(id) {
+            if (window.mesEnConsulta && !window.mesReabierto) {
+                mostrarAlerta('No se pueden editar pedidos archivados. Vuelva al mes actual o reabra el mes para editarlo.', 'Pedido Archivado');
+                return;
+            }
+            const mesActual = obtenerMesActual();
+            if (await verificarPedidoCerrado('insumos', mesActual)) {
+                mostrarAlerta('El pedido está cerrado. Reábralo para editar la lista.', 'Pedido Cerrado');
+                return;
+            }
+
+            const insumos = await obtenerDatosMes('insumos');
+            const insumo = (Array.isArray(insumos) ? insumos : []).find(i => String(i.id) === String(id));
+            if (!insumo) {
+                mostrarAlerta('No se encontró el producto en el pedido.', 'Error');
+                return;
+            }
+
+            insumoEditando = String(insumo.id);
+            const select = document.getElementById('insumoNombre');
+            const manual = document.getElementById('insumoNombreManual');
+            const nombre = insumo.nombre || '';
+            let enSelect = false;
+            if (select) {
+                const nombreNorm = formatearNombre(nombre).toLowerCase();
+                const opciones = Array.from(select.options || []);
+                const optMatch = opciones.find(opt => formatearNombre(opt.value || '').toLowerCase() === nombreNorm);
+                enSelect = !!optMatch;
+                select.value = optMatch ? optMatch.value : '';
+            }
+            if (manual) {
+                manual.value = enSelect ? '' : nombre;
+            }
+            if (typeof window.limpiarCampoManual === 'function' && enSelect) window.limpiarCampoManual();
+            if (typeof window.limpiarSelectProducto === 'function' && !enSelect) window.limpiarSelectProducto();
+
+            document.getElementById('insumoCantidad').value = insumo.cantidad || 1;
+            document.getElementById('insumoPrioridad').value = insumo.prioridad || 'Media';
+            document.getElementById('insumoObservaciones').value = insumo.observaciones || '';
+            actualizarUIFormularioInsumo();
+
+            const form = document.getElementById('formAgregarInsumo') || document.getElementById('formInsumo');
+            if (form && form.scrollIntoView) {
+                form.scrollIntoView({ behavior: 'smooth', block: 'start' });
+            }
+        };
+
         // Registrar insumo al pedido
         window.registrarInsumo = async function(event) {
             event.preventDefault();
+            if (guardandoInsumo) return;
             
             // Validar que no se esté consultando un mes archivado (solo lectura)
             if (window.mesEnConsulta && !window.mesReabierto) {
                 mostrarAlerta('No se pueden registrar datos en meses archivados. Vuelva al mes actual o reabra el mes para editarlo.', 'Mes Archivado');
+                return;
+            }
+
+            const mesActual = obtenerMesActual();
+            if (await verificarPedidoCerrado('insumos', mesActual)) {
+                mostrarAlerta('El pedido está cerrado. Reábralo para modificar la lista.', 'Pedido Cerrado');
                 return;
             }
             
@@ -19939,27 +20026,46 @@
                 return;
             }
 
-            const insumos = await obtenerDatosMes('insumos');
-            const insumo = {
-                id: generarId(),
-                nombre: formatearNombre(nombre),
-                cantidad: cantidad,
-                prioridad: prioridad,
-                observaciones: observaciones,
-                mes: obtenerMesActual()
-            };
-            
-            insumos.push(insumo);
-            await guardarDatosMes('insumos', insumos);
-            if (typeof window.registrarMovimiento === 'function') {
-                window.registrarMovimiento('crear', 'insumos', `Insumo agregado: ${insumo.nombre} - ${insumo.cantidad} (${insumo.prioridad})`);
+            const idEditando = insumoEditando != null && String(insumoEditando) !== '' ? String(insumoEditando) : null;
+            guardandoInsumo = true;
+            try {
+                const insumos = await obtenerDatosMes('insumos');
+                const lista = Array.isArray(insumos) ? insumos : [];
+                const insumo = {
+                    id: idEditando || generarId(),
+                    nombre: formatearNombre(nombre),
+                    cantidad: cantidad,
+                    prioridad: prioridad,
+                    observaciones: observaciones,
+                    mes: mesActual
+                };
+
+                if (idEditando) {
+                    const index = lista.findIndex(i => String(i.id) === idEditando);
+                    if (index !== -1) {
+                        lista[index] = Object.assign({}, lista[index], insumo);
+                    } else {
+                        lista.push(insumo);
+                    }
+                    await guardarDatosMes('insumos', lista);
+                    if (typeof window.registrarMovimiento === 'function') {
+                        window.registrarMovimiento('actualizar', 'insumos', `Insumo actualizado: ${insumo.nombre} - ${insumo.cantidad} (${insumo.prioridad})`);
+                    }
+                    mostrarAlerta('Producto del pedido actualizado exitosamente.', 'Actualizado');
+                } else {
+                    lista.push(insumo);
+                    await guardarDatosMes('insumos', lista);
+                    if (typeof window.registrarMovimiento === 'function') {
+                        window.registrarMovimiento('crear', 'insumos', `Insumo agregado: ${insumo.nombre} - ${insumo.cantidad} (${insumo.prioridad})`);
+                    }
+                    mostrarAlerta('Producto agregado al pedido exitosamente.', 'Registrado');
+                }
+
+                cancelarEdicionInsumo();
+                await cargarInsumos();
+            } finally {
+                guardandoInsumo = false;
             }
-            mostrarAlerta('Producto agregado al pedido exitosamente.', 'Registrado');
-            
-            document.getElementById('formInsumo').reset();
-            // Restaurar valor por defecto de prioridad
-            document.getElementById('insumoPrioridad').value = 'Media';
-            await cargarInsumos();
         }
 
         window.eliminarInsumo = async function(id) {
