@@ -929,6 +929,174 @@
             font-size: 1.25rem;
         }
 
+        .filtro-inteligente {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            margin: 0 0 0.75rem 0;
+            padding: 0.45rem 0.7rem;
+            background: var(--bg-secondary);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            transition: background-color 0.3s ease, border-color 0.3s ease, box-shadow 0.2s ease;
+        }
+        .filtro-inteligente:focus-within {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(117, 187, 33, 0.18);
+        }
+        .filtro-inteligente-icon {
+            flex-shrink: 0;
+            color: var(--text-tertiary);
+            display: inline-flex;
+        }
+        .filtro-inteligente-icon svg {
+            width: 1.05rem;
+            height: 1.05rem;
+        }
+        .filtro-inteligente input {
+            flex: 1;
+            min-width: 0;
+            border: none;
+            outline: none;
+            background: transparent;
+            color: var(--text-primary);
+            font-size: 0.8125rem;
+            font-family: inherit;
+        }
+        .filtro-inteligente-count {
+            flex-shrink: 0;
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--text-tertiary);
+            white-space: nowrap;
+        }
+        .filtro-inteligente.has-query .filtro-inteligente-count {
+            color: var(--primary-dark);
+        }
+        .filtro-inteligente-clear {
+            flex-shrink: 0;
+            border: none;
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            width: 1.5rem;
+            height: 1.5rem;
+            border-radius: 50%;
+            cursor: pointer;
+            font-size: 0.9rem;
+            line-height: 1;
+            display: none;
+        }
+        .filtro-inteligente.has-query .filtro-inteligente-clear {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .filtro-inteligente-clear:hover {
+            background: var(--danger);
+            color: #fff;
+        }
+        tr.filtro-inteligente-oculto {
+            display: none !important;
+        }
+        tr.filtro-inteligente-hit td {
+            background: rgba(117, 187, 33, 0.08);
+        }
+
+        .consulta-rapida {
+            position: relative;
+        }
+        .consulta-rapida input {
+            width: min(240px, 38vw);
+            height: 2.5rem;
+            padding: 0 0.85rem 0 2.15rem;
+            border-radius: 999px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            font-size: 0.8125rem;
+            font-family: inherit;
+            box-shadow: var(--shadow-md);
+            outline: none;
+        }
+        .consulta-rapida input:focus {
+            border-color: var(--primary);
+            box-shadow: 0 0 0 3px rgba(117, 187, 33, 0.18);
+        }
+        .consulta-rapida-icon {
+            position: absolute;
+            left: 0.7rem;
+            top: 50%;
+            transform: translateY(-50%);
+            color: var(--text-tertiary);
+            pointer-events: none;
+            display: flex;
+        }
+        .consulta-rapida-icon svg {
+            width: 1rem;
+            height: 1rem;
+        }
+        .consulta-rapida-resultados {
+            position: absolute;
+            right: 0;
+            top: calc(100% + 0.4rem);
+            width: min(420px, 92vw);
+            max-height: 360px;
+            overflow-y: auto;
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: 12px;
+            box-shadow: var(--shadow-lg);
+            z-index: 1000;
+            padding: 0.35rem;
+        }
+        .consulta-rapida-item {
+            display: block;
+            width: 100%;
+            text-align: left;
+            border: none;
+            background: transparent;
+            color: var(--text-primary);
+            padding: 0.55rem 0.7rem;
+            border-radius: 8px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        .consulta-rapida-item:hover,
+        .consulta-rapida-item.is-active {
+            background: var(--bg-secondary);
+        }
+        .consulta-rapida-mod {
+            display: block;
+            font-size: 0.6875rem;
+            font-weight: 700;
+            color: var(--primary-dark);
+            text-transform: uppercase;
+            letter-spacing: 0.03em;
+            margin-bottom: 0.15rem;
+        }
+        .consulta-rapida-txt {
+            font-size: 0.8125rem;
+            line-height: 1.35;
+            color: var(--text-secondary);
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+        .consulta-rapida-vacio {
+            padding: 0.75rem;
+            font-size: 0.8125rem;
+            color: var(--text-tertiary);
+            text-align: center;
+        }
+        @media (max-width: 768px) {
+            .consulta-rapida input {
+                width: 148px;
+                padding-left: 1.9rem;
+                font-size: 0.75rem;
+            }
+        }
+
         table {
             width: 100%;
             border-collapse: collapse;
@@ -3127,6 +3295,10 @@
             right: 1.5rem;
             z-index: 999;
             transition: right 0.3s ease;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            flex-direction: row-reverse;
         }
         .notif-bell {
             position: relative;
@@ -3945,6 +4117,13 @@
     </div>
     <div class="container" id="appContainer" style="display: none;">
         <div class="notif-bell-wrap" id="notifBellWrap" title="Actividad reciente">
+            <div class="consulta-rapida" id="consultaRapida">
+                <span class="consulta-rapida-icon" aria-hidden="true">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg>
+                </span>
+                <input type="search" id="consultaRapidaGlobal" placeholder="Buscar en todos los módulos…" autocomplete="off" aria-label="Consulta rápida en todos los módulos">
+                <div class="consulta-rapida-resultados" id="consultaRapidaResultados" hidden></div>
+            </div>
             <button type="button" class="notif-bell" id="notifBell" aria-label="Ver notificaciones">
                 <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
                     <path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/>
@@ -5289,7 +5468,7 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.75rem;">
                     <h3 style="margin: 0;">Registros de Mantenciones</h3>
                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                        <input type="text" id="buscarMantencion" placeholder="🔍 Buscar por proveedor o servicio..." 
+                        <input type="text" id="buscarMantencion" placeholder="🔍 Filtrar por proveedor, servicio, fecha u observación…" 
                                style="padding: 0.4rem 0.75rem; border: 1px solid var(--gray-300); border-radius: var(--radius); font-size: 0.8125rem; min-width: 250px;">
                         <select id="filtroEstadoMantencion" style="padding: 0.4rem 0.75rem; border: 1px solid var(--gray-300); border-radius: var(--radius); font-size: 0.8125rem; cursor: pointer;">
                             <option value="todos">Todos los estados</option>
@@ -5324,7 +5503,7 @@
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.75rem; flex-wrap: wrap; gap: 0.75rem;">
                     <h3 style="margin: 0;">Visitas Extraordinarias, Emergencias y Reparaciones</h3>
                     <div style="display: flex; gap: 0.5rem; flex-wrap: wrap;">
-                        <input type="text" id="buscarVisitaExtraordinaria" placeholder="🔍 Buscar por proveedor o servicio..." 
+                        <input type="text" id="buscarVisitaExtraordinaria" placeholder="🔍 Filtrar por proveedor, servicio, fecha u observación…" 
                                style="padding: 0.4rem 0.75rem; border: 1px solid var(--gray-300); border-radius: var(--radius); font-size: 0.8125rem; min-width: 250px;">
                         <select id="filtroTipoVisita" style="padding: 0.4rem 0.75rem; border: 1px solid var(--gray-300); border-radius: var(--radius); font-size: 0.8125rem; cursor: pointer;">
                             <option value="todos">Todos los tipos</option>
@@ -5831,7 +6010,7 @@
                 <div class="form-section" style="margin-bottom: 0.65rem; padding: 0.65rem 0.85rem; border-radius: 10px; border: 1px solid var(--border-color); background: var(--bg-secondary); transition: background-color 0.3s ease, border-color 0.3s ease;">
                     <p style="margin: 0 0 0.4rem 0; font-size: 0.6875rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-tertiary);">Buscar y filtrar</p>
                     <div style="display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.45rem 0.55rem;">
-                        <input type="search" id="postventaFiltroBuscar" class="form-input" title="Buscar en observación o fecha" placeholder="🔍 Buscar en texto o fecha…" autocomplete="off" style="padding: 0.4rem 0.55rem; font-size: 0.8125rem; flex: 1; min-width: 140px; max-width: 260px;">
+                        <input type="search" id="postventaFiltroBuscar" class="form-input" title="Buscar en cualquier dato del registro" placeholder="🔍 Filtrar por texto, fecha, unidad o estado…" autocomplete="off" style="padding: 0.4rem 0.55rem; font-size: 0.8125rem; flex: 1; min-width: 140px; max-width: 260px;">
                         <select id="postventaFiltroEstado" class="form-input" title="Filtrar por estado" style="padding: 0.4rem 0.5rem; font-size: 0.8125rem; min-width: 128px;">
                             <option value="todos">Todos los estados</option>
                             <option value="pendiente">⚠️ Pendiente</option>
@@ -7616,8 +7795,6 @@
                                 restaurarEstadoProveedores();
                             }
                         }, 200);
-                    } else if (tabName === 'nomina') {
-                        if (typeof inicializarNomina === 'function') inicializarNomina();
                     } else if (tabName === 'insumos') {
                         if (typeof cargarInsumos === 'function') {
                             cargarInsumos();
@@ -7637,6 +7814,9 @@
                         window.cargarDatos();
                     }
                     // dashboard: no volver a cargar aquí; ya se maneja arriba (runPanel2 / cargarEstadisticasDashboard) para evitar recargas repetitivas
+                }
+                if (typeof window.inicializarFiltrosInteligentes === 'function') {
+                    window.inicializarFiltrosInteligentes();
                 }
             } catch (error) {
                 console.error('Error en showTab:', error);
@@ -21664,9 +21844,10 @@
             const filtroTipo = document.getElementById('filtroTipoVisita')?.value || 'todos';
             
             let visitasFiltradas = visitas.filter(v => {
-                const coincideBusqueda = !busqueda || 
-                    v.proveedor.toLowerCase().includes(busqueda) ||
-                    v.servicio.toLowerCase().includes(busqueda);
+                const coincideBusqueda = !busqueda || coincidirFiltroInteligente(
+                    textoBuscableRegistro(v) + ' ' + (v.proveedor || '') + ' ' + (v.servicio || ''),
+                    busqueda
+                );
                 const coincideTipo = filtroTipo === 'todos' || v.tipoVisita === filtroTipo;
                 return coincideBusqueda && coincideTipo;
             });
@@ -21845,10 +22026,10 @@
             const filtroEstado = document.getElementById('filtroEstadoMantencion')?.value || 'todos';
 
             return mantenciones.filter(m => {
-                // Filtro de búsqueda
-                const coincideBusqueda = !busqueda || 
-                    m.proveedor.toLowerCase().includes(busqueda) ||
-                    m.servicio.toLowerCase().includes(busqueda);
+                const coincideBusqueda = !busqueda || coincidirFiltroInteligente(
+                    textoBuscableRegistro(m) + ' ' + (m.proveedor || '') + ' ' + (m.servicio || ''),
+                    busqueda
+                );
 
                 // Filtro de estado
                 const coincideEstado = filtroEstado === 'todos' || m.estado.estado === filtroEstado;
@@ -21862,10 +22043,10 @@
             const filtroEstado = document.getElementById('filtroEstadoMantencion')?.value || 'todos';
 
             return mantencionesAgrupadas.filter(grupo => {
-                // Filtro de búsqueda
-                const coincideBusqueda = !busqueda || 
-                    grupo.proveedor.toLowerCase().includes(busqueda) ||
-                    grupo.servicio.toLowerCase().includes(busqueda);
+                const coincideBusqueda = !busqueda || coincidirFiltroInteligente(
+                    textoBuscableRegistro(grupo) + ' ' + (grupo.proveedor || '') + ' ' + (grupo.servicio || ''),
+                    busqueda
+                );
 
                 // Filtro de estado
                 // Las mantenciones sin plazo se muestran cuando el filtro es "todos" o "ok"
@@ -25699,12 +25880,13 @@
                     if (k !== 'pendiente' && k !== 'en_proceso' && k !== 'terminado' && k !== 'no_aplica') k = 'pendiente';
                     if (est !== 'todos' && k !== est) return false;
                     if (q) {
-                        var obs = String(postventaCorregirOrtografiaObservacion(r.observacion || '')).toLowerCase();
-                        var fe = String(r.fecha || '').toLowerCase();
+                        var obs = String(postventaCorregirOrtografiaObservacion(r.observacion || ''));
+                        var fe = String(r.fecha || '');
                         var feDMY = fe;
                         var m = fe.match(/^(\d{4})-(\d{2})-(\d{2})/);
                         if (m) feDMY = m[3] + '-' + m[2] + '-' + m[1];
-                        if (obs.indexOf(q) === -1 && fe.indexOf(q) === -1 && feDMY.indexOf(q) === -1) return false;
+                        var blob = [obs, fe, feDMY, r.unidad, r.depto, r.departamento, r.nombre, r.estado, textoBuscableRegistro(r)].join(' ');
+                        if (!coincidirFiltroInteligente(blob, q)) return false;
                     }
                     var fStr = String(r.fecha || '');
                     if (desde && fStr && fStr < desde) return false;
@@ -26459,6 +26641,29 @@
                 }
                 if (unitNumber.toLowerCase() === filterValue.toLowerCase()) return true;
                 if (!unit) return false;
+                var blobOcup = [
+                    unitNumber,
+                    unit.unitUse,
+                    unit.parkingNumber,
+                    unit.rentalParkingNumber,
+                    unit.storageNumber,
+                    unit.bikeStorageNumber,
+                    unit.bikeStorageDetail,
+                    unit.unitNote,
+                    (unit.parkingNumbers || []).join(' '),
+                    (unit.rentalParkingNumbers || []).join(' '),
+                    (unit.storageNumbers || []).join(' '),
+                    (unit.bikeStorageNumbers || []).join(' '),
+                    (unit.bikeStorageDetails || []).join(' ')
+                ].join(' ');
+                if (unit.residents) {
+                    unit.residents.forEach(function (r) {
+                        blobOcup += ' ' + [r.name, r.type, r.email, r.phone].join(' ');
+                    });
+                }
+                if (typeof coincidirFiltroInteligente === 'function') {
+                    return coincidirFiltroInteligente(blobOcup, filterValue);
+                }
                 if (unit.unitUse && unit.unitUse.toLowerCase().includes(filterValue)) return true;
                 if (unit.parkingNumbers && unit.parkingNumbers.some(function(p) { return p && p.toLowerCase().includes(filterValue); })) return true;
                 if (unit.parkingNumber && unit.parkingNumber.toLowerCase().includes(filterValue)) return true;
@@ -35735,6 +35940,284 @@
             });
         }
 
+        // ============================================
+        // FILTRO INTELIGENTE (todos los módulos)
+        // ============================================
+        function normalizarTextoFiltro(valor) {
+            return String(valor || '')
+                .toLowerCase()
+                .normalize('NFD')
+                .replace(/[\u0300-\u036f]/g, '')
+                .replace(/[^a-z0-9\s]/g, ' ')
+                .replace(/\s+/g, ' ')
+                .trim();
+        }
+
+        function coincidirFiltroInteligente(haystack, query) {
+            const q = normalizarTextoFiltro(query);
+            if (!q) return true;
+            const h = normalizarTextoFiltro(haystack);
+            const hCompact = h.replace(/\s+/g, '');
+            return q.split(' ').every(function (token) {
+                if (!token) return true;
+                return h.indexOf(token) !== -1 || hCompact.indexOf(token) !== -1;
+            });
+        }
+
+        function textoBuscableRegistro(obj, profundidad) {
+            if (obj == null) return '';
+            if (typeof obj !== 'object') return String(obj);
+            if (profundidad > 3) return '';
+            const omitir = { id: 1, comprobante: 1, archivo: 1, datosBancarios: 1, url: 1 };
+            return Object.keys(obj).map(function (k) {
+                if (omitir[k]) return '';
+                return textoBuscableRegistro(obj[k], (profundidad || 0) + 1);
+            }).join(' ');
+        }
+
+        function textoFilaFiltro(tr) {
+            const celdas = Array.from(tr.cells || []);
+            return celdas.map(function (td) {
+                const clone = td.cloneNode(true);
+                clone.querySelectorAll('button, input, select, svg, .btn').forEach(function (el) { el.remove(); });
+                return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+            }).filter(Boolean).join(' ');
+        }
+
+        function esFilaVaciaFiltro(tr) {
+            const celdas = tr.cells || [];
+            if (celdas.length === 0) return true;
+            if (celdas.length === 1 && Number(celdas[0].colSpan || 1) > 1) {
+                const t = (celdas[0].textContent || '').toLowerCase();
+                return t.indexOf('no hay') !== -1 || t.indexOf('no se encontraron') !== -1 || t.indexOf('sin datos') !== -1 || t.indexOf('agregue') !== -1;
+            }
+            return false;
+        }
+
+        function aplicarFiltroTablaInteligente(table) {
+            if (!table) return;
+            const tbody = table.tBodies && table.tBodies[0];
+            const input = table._filtroInteligenteInput;
+            if (!tbody || !input) return;
+            const query = input.value || '';
+            const bar = input.closest('.filtro-inteligente');
+            const countEl = bar && bar.querySelector('.filtro-inteligente-count');
+            const filas = Array.from(tbody.rows || []);
+            let total = 0;
+            let visibles = 0;
+            filas.forEach(function (tr) {
+                if (esFilaVaciaFiltro(tr)) {
+                    tr.classList.remove('filtro-inteligente-oculto', 'filtro-inteligente-hit');
+                    return;
+                }
+                total += 1;
+                const coincide = coincidirFiltroInteligente(textoFilaFiltro(tr), query);
+                tr.classList.toggle('filtro-inteligente-oculto', !coincide);
+                tr.classList.toggle('filtro-inteligente-hit', !!(query.trim() && coincide));
+                if (coincide) visibles += 1;
+            });
+            if (bar) bar.classList.toggle('has-query', !!query.trim());
+            if (countEl) {
+                if (!total) countEl.textContent = '';
+                else if (!query.trim()) countEl.textContent = total + ' registro' + (total === 1 ? '' : 's');
+                else countEl.textContent = visibles + ' de ' + total;
+            }
+        }
+
+        function seccionYaTieneBusqueda(table) {
+            const section = table.closest('.table-section, .form-section, section') || table.parentElement;
+            if (!section) return null;
+            const ids = ['buscarMantencion', 'buscarVisitaExtraordinaria', 'postventaFiltroBuscar', 'buildingMapFilterOcupacion'];
+            for (let i = 0; i < ids.length; i++) {
+                const el = section.querySelector('#' + ids[i]);
+                if (el) return el;
+            }
+            return null;
+        }
+
+        function insertarBarraFiltroInteligente(table) {
+            if (!table || table.dataset.filtroInteligente === '1') return;
+            if (table.closest('#loginScreen, #dashboard, #personalizacion')) return;
+            const tbody = table.tBodies && table.tBodies[0];
+            if (!tbody) return;
+            const existente = seccionYaTieneBusqueda(table);
+            if (existente) {
+                table.dataset.filtroInteligente = '1';
+                table._filtroInteligenteInput = existente;
+                return;
+            }
+
+            const bar = document.createElement('div');
+            bar.className = 'filtro-inteligente';
+            bar.innerHTML = '<span class="filtro-inteligente-icon" aria-hidden="true"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3-3"/></svg></span>' +
+                '<input type="search" placeholder="Filtrar por nombre, unidad, fecha, monto u observación…" autocomplete="off" aria-label="Filtrar registros">' +
+                '<span class="filtro-inteligente-count"></span>' +
+                '<button type="button" class="filtro-inteligente-clear" title="Limpiar filtro">×</button>';
+            const input = bar.querySelector('input');
+            const clearBtn = bar.querySelector('.filtro-inteligente-clear');
+            const overflow = table.parentElement && /overflow/i.test(table.parentElement.getAttribute('style') || '') ? table.parentElement : null;
+            const anchor = overflow || table;
+            if (anchor.previousElementSibling && anchor.previousElementSibling.classList.contains('filtro-inteligente')) {
+                table.dataset.filtroInteligente = '1';
+                return;
+            }
+            anchor.parentNode.insertBefore(bar, anchor);
+            table.dataset.filtroInteligente = '1';
+            table._filtroInteligenteInput = input;
+            input.addEventListener('input', function () { aplicarFiltroTablaInteligente(table); });
+            clearBtn.addEventListener('click', function () {
+                input.value = '';
+                aplicarFiltroTablaInteligente(table);
+                input.focus();
+            });
+            const observer = new MutationObserver(function () { aplicarFiltroTablaInteligente(table); });
+            observer.observe(tbody, { childList: true });
+            aplicarFiltroTablaInteligente(table);
+        }
+
+        function inicializarFiltrosInteligentes() {
+            const tabs = document.querySelectorAll('.tab-content');
+            tabs.forEach(function (tab) {
+                if (tab.id === 'dashboard' || tab.id === 'personalizacion') return;
+                tab.querySelectorAll('table').forEach(function (table) {
+                    insertarBarraFiltroInteligente(table);
+                });
+            });
+            if (!window._consultaRapidaInicializada) {
+                inicializarConsultaRapidaGlobal();
+            }
+        }
+        window.inicializarFiltrosInteligentes = inicializarFiltrosInteligentes;
+
+        function nombreModuloFiltro(tabId) {
+            const btn = document.querySelector('.tab-button[data-tab="' + tabId + '"]');
+            if (!btn) return tabId;
+            const spans = btn.querySelectorAll('span');
+            return (spans[spans.length - 1] && spans[spans.length - 1].textContent || tabId).trim();
+        }
+
+        function buscarEnTodosLosModulos(query, limite) {
+            const max = limite || 20;
+            const resultados = [];
+            if (!String(query || '').trim()) return resultados;
+            document.querySelectorAll('.tab-content').forEach(function (tab) {
+                if (tab.id === 'dashboard' || tab.id === 'personalizacion') return;
+                const nombreMod = nombreModuloFiltro(tab.id);
+                tab.querySelectorAll('table tbody tr').forEach(function (tr) {
+                    if (resultados.length >= max) return;
+                    if (esFilaVaciaFiltro(tr)) return;
+                    const texto = textoFilaFiltro(tr);
+                    if (!coincidirFiltroInteligente(texto, query)) return;
+                    resultados.push({ tab: tab.id, modulo: nombreMod, texto: texto, tr: tr });
+                });
+            });
+            return resultados;
+        }
+
+        function inicializarConsultaRapidaGlobal() {
+            const input = document.getElementById('consultaRapidaGlobal');
+            const panel = document.getElementById('consultaRapidaResultados');
+            if (!input || !panel) return;
+            window._consultaRapidaInicializada = true;
+            let indiceActivo = -1;
+
+            function pintar(resultados) {
+                indiceActivo = resultados.length ? 0 : -1;
+                if (!String(input.value || '').trim()) {
+                    panel.hidden = true;
+                    panel.innerHTML = '';
+                    return;
+                }
+                if (!resultados.length) {
+                    panel.hidden = false;
+                    panel.innerHTML = '<div class="consulta-rapida-vacio">Sin coincidencias en los módulos cargados</div>';
+                    return;
+                }
+                panel.hidden = false;
+                panel.innerHTML = resultados.map(function (r, i) {
+                    const txt = r.texto.replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                    return '<button type="button" class="consulta-rapida-item' + (i === 0 ? ' is-active' : '') + '" data-idx="' + i + '">' +
+                        '<span class="consulta-rapida-mod">' + r.modulo + '</span>' +
+                        '<span class="consulta-rapida-txt">' + txt + '</span></button>';
+                }).join('');
+            }
+
+            function irA(resultado) {
+                if (!resultado) return;
+                if (typeof window.showTab === 'function') window.showTab(resultado.tab);
+                setTimeout(function () {
+                    if (resultado.tr && resultado.tr.scrollIntoView) {
+                        resultado.tr.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                        resultado.tr.classList.add('filtro-inteligente-hit');
+                    }
+                    const table = resultado.tr && resultado.tr.closest('table');
+                    if (table && table._filtroInteligenteInput) {
+                        table._filtroInteligenteInput.value = input.value;
+                        table._filtroInteligenteInput.dispatchEvent(new Event('input', { bubbles: true }));
+                        aplicarFiltroTablaInteligente(table);
+                    }
+                }, 180);
+                panel.hidden = true;
+            }
+
+            let timer = null;
+            input.addEventListener('input', function () {
+                clearTimeout(timer);
+                timer = setTimeout(function () {
+                    pintar(buscarEnTodosLosModulos(input.value, 20));
+                }, 120);
+            });
+            input.addEventListener('keydown', function (e) {
+                const items = panel.querySelectorAll('.consulta-rapida-item');
+                if (e.key === 'ArrowDown' && items.length) {
+                    e.preventDefault();
+                    indiceActivo = Math.min(items.length - 1, indiceActivo + 1);
+                    items.forEach(function (el, i) { el.classList.toggle('is-active', i === indiceActivo); });
+                    items[indiceActivo].scrollIntoView({ block: 'nearest' });
+                } else if (e.key === 'ArrowUp' && items.length) {
+                    e.preventDefault();
+                    indiceActivo = Math.max(0, indiceActivo - 1);
+                    items.forEach(function (el, i) { el.classList.toggle('is-active', i === indiceActivo); });
+                    items[indiceActivo].scrollIntoView({ block: 'nearest' });
+                } else if (e.key === 'Enter') {
+                    const resultados = buscarEnTodosLosModulos(input.value, 20);
+                    if (resultados[indiceActivo] || resultados[0]) {
+                        e.preventDefault();
+                        irA(resultados[indiceActivo] || resultados[0]);
+                    }
+                } else if (e.key === 'Escape') {
+                    panel.hidden = true;
+                    input.blur();
+                }
+            });
+            panel.addEventListener('mousedown', function (e) {
+                const btn = e.target.closest('.consulta-rapida-item');
+                if (!btn) return;
+                const resultados = buscarEnTodosLosModulos(input.value, 20);
+                irA(resultados[Number(btn.dataset.idx)]);
+            });
+            document.addEventListener('click', function (e) {
+                if (!e.target.closest('#consultaRapida')) panel.hidden = true;
+            });
+            document.addEventListener('keydown', function (e) {
+                const tag = (e.target && e.target.tagName || '').toLowerCase();
+                const escribiendo = tag === 'input' || tag === 'textarea' || tag === 'select' || (e.target && e.target.isContentEditable);
+                if ((e.key === 'k' || e.key === 'K') && (e.metaKey || e.ctrlKey)) {
+                    e.preventDefault();
+                    input.focus();
+                    input.select();
+                    return;
+                }
+                if (e.key === '/' && !escribiendo) {
+                    e.preventDefault();
+                    const tab = document.querySelector('.tab-content.active');
+                    const local = tab && tab.querySelector('.filtro-inteligente input, #buscarMantencion, #buscarVisitaExtraordinaria, #postventaFiltroBuscar, #buildingMapFilterOcupacion');
+                    if (local) local.focus();
+                    else input.focus();
+                }
+            });
+        }
+
         async function inicializarApp() {
             // Misma secuencia que index: menú e iconos en el siguiente frame; visibilidad en paralelo
             requestAnimationFrame(function() {
@@ -36762,6 +37245,9 @@
                     }
                 }
                 
+                if (typeof window.inicializarFiltrosInteligentes === 'function') {
+                    window.inicializarFiltrosInteligentes();
+                }
                 // Cargar todos los datos al iniciar (sin retraso para que el panel muestre info cuanto antes)
                 if (typeof cargarDatos === 'function') {
                     try {
@@ -36790,6 +37276,36 @@
         // Almacenamiento de trabajadores (se carga desde Firestore)
         let trabajadoresNomina = [];
         let trabajadorEditando = null; // ID del trabajador que se está editando
+        let guardandoTrabajadorNomina = false;
+        let guardandoPersonalEdificio = false;
+        let _cargarPersonalEdificioGen = 0;
+        let _inicializandoNomina = false;
+
+        function idsIgualesNomina(a, b) {
+            return String(a ?? '') === String(b ?? '');
+        }
+
+        function nombreNominaNormalizado(valor) {
+            return String(valor || '').trim().toLowerCase();
+        }
+
+        function deduplicarEmpleadosNomina(lista) {
+            if (!Array.isArray(lista)) return [];
+            const vistosId = new Set();
+            const vistosNombre = new Set();
+            const resultado = [];
+            lista.forEach(function (item) {
+                if (!item || typeof item !== 'object') return;
+                const id = item.id != null && String(item.id) !== '' ? String(item.id) : '';
+                const nombre = nombreNominaNormalizado(item.nombre);
+                if (id && vistosId.has(id)) return;
+                if (nombre && vistosNombre.has(nombre)) return;
+                if (id) vistosId.add(id);
+                if (nombre) vistosNombre.add(nombre);
+                resultado.push(item);
+            });
+            return resultado;
+        }
         
         // Almacenamiento de personal de reemplazo
         let reemplazosNomina = [];
@@ -36924,6 +37440,7 @@
         // Función para agregar o actualizar trabajador
         async function agregarTrabajador(event) {
             event.preventDefault();
+            if (guardandoTrabajadorNomina) return;
 
             // Verificar que estamos en el mes actual
             if (window.mesNominaConsulta && window.mesNominaConsulta !== 'actual') {
@@ -36939,60 +37456,74 @@
                 return;
             }
 
-            const trabajador = {
-                id: trabajadorEditando || Date.now().toString(),
-                nombre: nombre,
-                cargo: cargo,
-                diasTrabajados: parseFloat(document.getElementById('trabajadorDias').value) || 0,
-                licenciaMedica: parseFloat(document.getElementById('trabajadorLicencia').value) || 0,
-                turnosFestivos: parseFloat(document.getElementById('trabajadorTurnosFestivos').value) || 0,
-                turnosExtras: parseFloat(document.getElementById('trabajadorTurnosExtras').value) || 0,
-                domingos: parseFloat(document.getElementById('trabajadorDomingos').value) || 0,
-                horasExtras50: parseFloat(document.getElementById('trabajadorHorasExtras50').value) || 0,
-                horasExtras100: parseFloat(document.getElementById('trabajadorHorasExtras100').value) || 0,
-                anticipos: parseFloat(document.getElementById('trabajadorAnticipos').value) || 0,
-                observaciones: document.getElementById('trabajadorObservaciones').value.trim()
-            };
-
-            // Actualizar cargo en personal del edificio si existe
-            const personal = await obtenerDatos('personalEdificio');
-            const personalEncontrado = personal.find(p => p.nombre === nombre);
-            if (personalEncontrado && cargo) {
-                personalEncontrado.cargo = cargo;
-                await guardarDatos('personalEdificio', personal);
-            }
-
-            if (trabajadorEditando) {
-                // Actualizar trabajador existente
-                const index = trabajadoresNomina.findIndex(t => t.id === trabajadorEditando);
-                if (index !== -1) {
-                    trabajadoresNomina[index] = trabajador;
-                    mostrarAlerta('Trabajador actualizado correctamente.', 'Éxito');
+            const idEditando = trabajadorEditando != null && String(trabajadorEditando) !== '' ? String(trabajadorEditando) : null;
+            const nombreNorm = nombreNominaNormalizado(nombre);
+            if (!idEditando) {
+                const duplicado = trabajadoresNomina.find(t => nombreNominaNormalizado(t.nombre) === nombreNorm);
+                if (duplicado) {
+                    mostrarAlerta('Este trabajador ya está en la nómina. Edítelo desde la tabla para actualizarlo.', 'Trabajador duplicado');
+                    return;
                 }
-                trabajadorEditando = null;
-                document.getElementById('btnGuardarTrabajador').textContent = 'Agregar Trabajador';
-                document.getElementById('btnCancelarEdicionNomina').style.display = 'none';
-            } else {
-                // Agregar nuevo trabajador
-                trabajadoresNomina.push(trabajador);
-                mostrarAlerta('Trabajador agregado correctamente.', 'Éxito');
             }
 
-            // Guardar en Firestore
-            const eraEdicionNomina = !!trabajadorEditando;
-            await guardarDatosMes('nomina', trabajadoresNomina);
-            if (typeof window.registrarMovimiento === 'function') {
-                window.registrarMovimiento(eraEdicionNomina ? 'actualizar' : 'crear', 'nomina', `Trabajador ${eraEdicionNomina ? 'actualizado' : 'agregado'}: ${trabajador.nombre} - ${trabajador.cargo}`);
+            guardandoTrabajadorNomina = true;
+            try {
+                const trabajador = {
+                    id: idEditando || Date.now().toString(),
+                    nombre: nombre,
+                    cargo: cargo,
+                    diasTrabajados: parseFloat(document.getElementById('trabajadorDias').value) || 0,
+                    licenciaMedica: parseFloat(document.getElementById('trabajadorLicencia').value) || 0,
+                    turnosFestivos: parseFloat(document.getElementById('trabajadorTurnosFestivos').value) || 0,
+                    turnosExtras: parseFloat(document.getElementById('trabajadorTurnosExtras').value) || 0,
+                    domingos: parseFloat(document.getElementById('trabajadorDomingos').value) || 0,
+                    horasExtras50: parseFloat(document.getElementById('trabajadorHorasExtras50').value) || 0,
+                    horasExtras100: parseFloat(document.getElementById('trabajadorHorasExtras100').value) || 0,
+                    anticipos: parseFloat(document.getElementById('trabajadorAnticipos').value) || 0,
+                    observaciones: document.getElementById('trabajadorObservaciones').value.trim()
+                };
+
+                const personal = await obtenerDatos('personalEdificio');
+                const personalEncontrado = Array.isArray(personal) ? personal.find(p => p.nombre === nombre) : null;
+                if (personalEncontrado && cargo) {
+                    personalEncontrado.cargo = cargo;
+                    await guardarDatos('personalEdificio', personal);
+                }
+
+                if (idEditando) {
+                    let index = trabajadoresNomina.findIndex(t => idsIgualesNomina(t.id, idEditando));
+                    if (index === -1) {
+                        index = trabajadoresNomina.findIndex(t => nombreNominaNormalizado(t.nombre) === nombreNorm);
+                    }
+                    if (index !== -1) {
+                        trabajadoresNomina[index] = trabajador;
+                    }
+                    trabajadorEditando = null;
+                    document.getElementById('btnGuardarTrabajador').textContent = 'Agregar Trabajador';
+                    document.getElementById('btnCancelarEdicionNomina').style.display = 'none';
+                    mostrarAlerta('Trabajador actualizado correctamente.', 'Éxito');
+                } else {
+                    trabajadoresNomina.push(trabajador);
+                    mostrarAlerta('Trabajador agregado correctamente.', 'Éxito');
+                }
+
+                trabajadoresNomina = deduplicarEmpleadosNomina(trabajadoresNomina);
+                await guardarDatosMes('nomina', trabajadoresNomina);
+                if (typeof window.registrarMovimiento === 'function') {
+                    window.registrarMovimiento(idEditando ? 'actualizar' : 'crear', 'nomina', `Trabajador ${idEditando ? 'actualizado' : 'agregado'}: ${trabajador.nombre} - ${trabajador.cargo}`);
+                }
+
+                cargarTablaNomina();
+                limpiarFormularioNomina();
+            } finally {
+                guardandoTrabajadorNomina = false;
             }
-            
-            cargarTablaNomina();
-            limpiarFormularioNomina();
         }
         window.agregarTrabajador = agregarTrabajador;
 
         // Función para editar trabajador
         function editarTrabajador(id) {
-            const trabajador = trabajadoresNomina.find(t => t.id === id);
+            const trabajador = trabajadoresNomina.find(t => idsIgualesNomina(t.id, id));
             if (!trabajador) {
                 mostrarAlerta('No se encontró el trabajador.', 'Error');
                 return;
@@ -37013,7 +37544,7 @@
             document.getElementById('trabajadorObservaciones').value = trabajador.observaciones || '';
 
             // Establecer modo edición
-            trabajadorEditando = id;
+            trabajadorEditando = String(id);
             document.getElementById('btnGuardarTrabajador').textContent = 'Actualizar Trabajador';
             document.getElementById('btnCancelarEdicionNomina').style.display = 'inline-block';
 
@@ -37039,7 +37570,7 @@
                 return;
             }
             
-            const index = trabajadoresNomina.findIndex(t => t.id === id);
+            const index = trabajadoresNomina.findIndex(t => idsIgualesNomina(t.id, id));
             if (index <= 0) return; // Ya está en la primera posición
             
             // Intercambiar con el elemento anterior
@@ -37062,7 +37593,7 @@
                 return;
             }
             
-            const index = trabajadoresNomina.findIndex(t => t.id === id);
+            const index = trabajadoresNomina.findIndex(t => idsIgualesNomina(t.id, id));
             if (index < 0 || index >= trabajadoresNomina.length - 1) return; // Ya está en la última posición
             
             // Intercambiar con el elemento siguiente
@@ -37090,8 +37621,8 @@
             );
             if (!confirmado) return;
             
-            const eliminado = trabajadoresNomina.find(t => t.id === id);
-            trabajadoresNomina = trabajadoresNomina.filter(t => t.id !== id);
+            const eliminado = trabajadoresNomina.find(t => idsIgualesNomina(t.id, id));
+            trabajadoresNomina = trabajadoresNomina.filter(t => !idsIgualesNomina(t.id, id));
             // Guardar en Firestore
             await guardarDatosMes('nomina', trabajadoresNomina);
             if (eliminado && typeof window.registrarMovimiento === 'function') {
@@ -38550,7 +39081,12 @@
         // Función para cargar trabajadores desde Firestore
         async function cargarTrabajadoresNomina() {
             try {
-                trabajadoresNomina = await obtenerDatosMes('nomina');
+                const cargados = await obtenerDatosMes('nomina');
+                const limpios = deduplicarEmpleadosNomina(cargados);
+                trabajadoresNomina = limpios;
+                if (Array.isArray(cargados) && limpios.length < cargados.length) {
+                    await guardarDatosMes('nomina', trabajadoresNomina);
+                }
                 cargarTablaNomina();
                 cargarSelectReemplazaA(); // Cargar trabajadores en select de reemplazo
                 
@@ -38765,8 +39301,9 @@
                 };
             }
 
+            const idEditandoReemplazo = reemplazoEditando != null && String(reemplazoEditando) !== '' ? String(reemplazoEditando) : null;
             const reemplazo = {
-                id: reemplazoEditando || Date.now().toString(),
+                id: idEditandoReemplazo || Date.now().toString(),
                 nombre: nombre,
                 reemplazaA: reemplazaA,
                 turnos: turnos,
@@ -38778,9 +39315,9 @@
                 observaciones: observaciones || ''
             };
 
-            if (reemplazoEditando) {
+            if (idEditandoReemplazo) {
                 // Actualizar reemplazo existente
-                const index = reemplazosNomina.findIndex(r => r.id === reemplazoEditando);
+                const index = reemplazosNomina.findIndex(r => idsIgualesNomina(r.id, idEditandoReemplazo));
                 if (index !== -1) {
                     reemplazosNomina[index] = reemplazo;
                     mostrarAlerta('Reemplazo actualizado correctamente.', 'Éxito');
@@ -38795,10 +39332,9 @@
             }
 
             // Guardar en Firestore
-            const eraEdicionReemplazo = !!reemplazoEditando;
             await guardarDatosMes('nomina-reemplazos', reemplazosNomina);
             if (typeof window.registrarMovimiento === 'function') {
-                window.registrarMovimiento(eraEdicionReemplazo ? 'actualizar' : 'crear', 'nomina-reemplazos', `Reemplazo ${eraEdicionReemplazo ? 'actualizado' : 'agregado'}: ${reemplazo.nombre} - reemplaza a ${reemplazo.reemplazaA || '-'}`);
+                window.registrarMovimiento(idEditandoReemplazo ? 'actualizar' : 'crear', 'nomina-reemplazos', `Reemplazo ${idEditandoReemplazo ? 'actualizado' : 'agregado'}: ${reemplazo.nombre} - reemplaza a ${reemplazo.reemplazaA || '-'}`);
             }
             
             cargarTablaReemplazo();
@@ -39412,18 +39948,25 @@
 
         // Función para cargar personal del edificio
         async function cargarPersonalEdificio() {
+            const gen = ++_cargarPersonalEdificioGen;
             let personal = await obtenerDatos('personalEdificio');
+            if (gen !== _cargarPersonalEdificioGen) return;
             const tbody = document.getElementById('tbodyPersonalEdificio');
             const selectTrabajador = document.getElementById('trabajadorNombre');
             const countElement = document.getElementById('personalEdificioCount');
             
             if (!tbody) return;
+
+            const personalOriginalLen = Array.isArray(personal) ? personal.length : 0;
+            personal = deduplicarEmpleadosNomina(personal);
+            const habiaDuplicados = personal.length < personalOriginalLen;
             
             // Sincronizar cargo desde nómina si es necesario
             if (personal && personal.length > 0) {
-                let actualizado = false;
+                let actualizado = habiaDuplicados;
                 const mesActual = obtenerMesActual();
-                const nominaActual = await obtenerDatosMes('nomina');
+                const nominaActualRaw = await obtenerDatosMes('nomina');
+                const nominaActual = Array.isArray(nominaActualRaw) ? nominaActualRaw : [];
                 
                 // Buscar cargos en nómina actual y actualizar personal
                 for (const p of personal) {
@@ -39438,9 +39981,15 @@
                 
                 // Si se actualizó, guardar cambios
                 if (actualizado) {
+                    if (gen !== _cargarPersonalEdificioGen) return;
                     await guardarDatos('personalEdificio', personal);
                 }
+            } else if (habiaDuplicados) {
+                if (gen !== _cargarPersonalEdificioGen) return;
+                await guardarDatos('personalEdificio', personal);
             }
+
+            if (gen !== _cargarPersonalEdificioGen) return;
             
             // Actualizar contador
             if (countElement) {
@@ -39474,7 +40023,9 @@
             }
 
             // Actualizar select de trabajador en el formulario de nómina
+            if (gen !== _cargarPersonalEdificioGen) return;
             if (selectTrabajador) {
+                const valorPrevio = selectTrabajador.value;
                 selectTrabajador.innerHTML = '<option value="">Seleccione personal...</option>';
                 if (personal && personal.length > 0) {
                     personal.forEach(p => {
@@ -39484,6 +40035,7 @@
                         selectTrabajador.appendChild(option);
                     });
                 }
+                if (valorPrevio) selectTrabajador.value = valorPrevio;
             }
 
             // Actualizar select de personal en módulo de pago de aseo
@@ -39493,6 +40045,7 @@
         // Función para agregar personal del edificio
         async function agregarPersonalEdificio(event) {
             event.preventDefault();
+            if (guardandoPersonalEdificio) return;
             
             const nombre = document.getElementById('personalEdificioNombre').value.trim();
             const cargo = document.getElementById('personalEdificioCargo').value.trim();
@@ -39502,52 +40055,56 @@
                 return;
             }
 
-            const personal = await obtenerDatos('personalEdificio');
-            
-            if (personalEdificioEditando) {
-                // Editar personal existente
-                const index = personal.findIndex(p => p.id === personalEdificioEditando);
-                if (index !== -1) {
-                    personal[index].nombre = nombre;
-                    personal[index].cargo = cargo || '';
+            const idEditando = personalEdificioEditando != null && String(personalEdificioEditando) !== '' ? String(personalEdificioEditando) : null;
+            guardandoPersonalEdificio = true;
+            try {
+                const personalRaw = await obtenerDatos('personalEdificio');
+                const personal = deduplicarEmpleadosNomina(Array.isArray(personalRaw) ? personalRaw : []);
+                const nombreNorm = nombreNominaNormalizado(nombre);
+
+                if (idEditando) {
+                    let index = personal.findIndex(p => idsIgualesNomina(p.id, idEditando));
+                    if (index === -1) {
+                        index = personal.findIndex(p => nombreNominaNormalizado(p.nombre) === nombreNorm);
+                    }
+                    if (index !== -1) {
+                        personal[index].nombre = nombre;
+                        personal[index].cargo = cargo || '';
+                    }
+                    personalEdificioEditando = null;
+                    document.getElementById('btnGuardarPersonalEdificio').textContent = 'Agregar';
                     await guardarDatos('personalEdificio', personal);
                     mostrarAlerta('Personal actualizado exitosamente.', 'Actualización Exitosa');
-                }
-                personalEdificioEditando = null;
-                document.getElementById('btnGuardarPersonalEdificio').textContent = 'Agregar';
-            } else {
-                // Verificar si ya existe
-                if (personal.some(p => p.nombre.toLowerCase() === nombre.toLowerCase())) {
-                    mostrarAlerta('Este personal ya está registrado.', 'Personal Duplicado');
-                    return;
-                }
-                
-                // Agregar nuevo personal
-                const nuevoPersonal = {
-                    id: generarId(),
-                    nombre: nombre,
-                    cargo: cargo || ''
-                };
-                personal.push(nuevoPersonal);
-                await guardarDatos('personalEdificio', personal);
-                mostrarAlerta('Personal agregado exitosamente.', 'Registro Exitoso');
-            }
+                } else {
+                    if (personal.some(p => nombreNominaNormalizado(p.nombre) === nombreNorm)) {
+                        mostrarAlerta('Este personal ya está registrado.', 'Personal Duplicado');
+                        return;
+                    }
 
-            document.getElementById('formGestionPersonal').reset();
-            await cargarPersonalEdificio();
-            
-            // Sincronizar cargo desde nómina si existe
-            await sincronizarCargoDesdeNomina();
+                    personal.push({
+                        id: generarId(),
+                        nombre: nombre,
+                        cargo: cargo || ''
+                    });
+                    await guardarDatos('personalEdificio', personal);
+                    mostrarAlerta('Personal agregado exitosamente.', 'Registro Exitoso');
+                }
+
+                document.getElementById('formGestionPersonal').reset();
+                await cargarPersonalEdificio();
+            } finally {
+                guardandoPersonalEdificio = false;
+            }
         }
 
         // Función para editar personal del edificio
         function editarPersonalEdificio(id) {
             obtenerDatos('personalEdificio').then(personal => {
-                const personalEncontrado = personal.find(p => p.id === id);
+                const personalEncontrado = (Array.isArray(personal) ? personal : []).find(p => idsIgualesNomina(p.id, id));
                 if (personalEncontrado) {
                     document.getElementById('personalEdificioNombre').value = personalEncontrado.nombre || '';
                     document.getElementById('personalEdificioCargo').value = personalEncontrado.cargo || '';
-                    personalEdificioEditando = id;
+                    personalEdificioEditando = String(id);
                     
                     // Cambiar texto del botón
                     const btnSubmit = document.getElementById('btnGuardarPersonalEdificio');
@@ -39570,7 +40127,7 @@
             
             if (confirmado) {
                 const personal = await obtenerDatos('personalEdificio');
-                const filtrados = personal.filter(p => p.id !== id);
+                const filtrados = (Array.isArray(personal) ? personal : []).filter(p => !idsIgualesNomina(p.id, id));
                 await guardarDatos('personalEdificio', filtrados);
                 await cargarPersonalEdificio();
                 mostrarAlerta('Personal eliminado exitosamente.', 'Eliminación Exitosa');
@@ -39744,6 +40301,9 @@
 
         // Inicializar módulo de nómina cuando se carga la pestaña
         async function inicializarNomina() {
+            if (_inicializandoNomina) return;
+            _inicializandoNomina = true;
+            try {
             // Verificar si el pedido de nómina está cerrado
             const mesActual = obtenerMesActual();
             const nominaCerrada = await verificarPedidoCerrado('nomina', mesActual);
@@ -39787,6 +40347,9 @@
             setTimeout(() => {
                 restaurarEstadoPersonalEdificio();
             }, 100);
+            } finally {
+                _inicializandoNomina = false;
+            }
         }
 
         // Función para cargar meses disponibles en el selector
@@ -40071,7 +40634,7 @@
                     nominaArchivada = await obtenerDatosArchivados('nomina', mes);
                 }
                 
-                trabajadoresNomina = nominaArchivada || [];
+                trabajadoresNomina = deduplicarEmpleadosNomina(nominaArchivada || []);
                 cargarTablaNomina();
                 cargarSelectReemplazaA();
                 
