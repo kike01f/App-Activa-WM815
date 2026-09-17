@@ -2929,6 +2929,12 @@
             display: flex;
         }
 
+        /* Confirmación y avisos deben quedar sobre otros modales (p. ej. Registrar abono). */
+        #modalConfirm.modal-overlay,
+        #modalAlert.modal-overlay {
+            z-index: 12000;
+        }
+
         .modal-confirm {
             background: var(--bg-primary);
             border-radius: var(--radius-lg);
@@ -7876,6 +7882,7 @@
                 document.getElementById('modalTitle').textContent = titulo;
                 document.getElementById('modalMessage').textContent = mensaje;
                 const modal = document.getElementById('modalConfirm');
+                if (modal) document.body.appendChild(modal);
                 modal.classList.add('active');
                 
                 // Asegurar que el modal esté visible en el viewport
@@ -7916,6 +7923,7 @@
             document.getElementById('modalAlertButton').style.display = 'block';
             
             const modal = document.getElementById('modalAlert');
+            if (modal) document.body.appendChild(modal);
             modal.classList.add('active');
             
             // Asegurar que el modal esté visible en el viewport
@@ -7942,6 +7950,7 @@
             document.getElementById('modalAlertButtons').style.display = 'none';
             
             const modal = document.getElementById('modalAlert');
+            if (modal) document.body.appendChild(modal);
             modal.classList.add('active');
             
             // Asegurar que el modal esté visible en el viewport
@@ -20001,18 +20010,20 @@
 
         async function registrarCaja(event) {
             event.preventDefault();
+            if (window._guardandoCaja) return;
             
             // Validar que no se esté consultando un mes archivado (solo lectura)
             if (window.mesEnConsulta && !window.mesReabierto) {
                 mostrarAlerta('No se pueden registrar datos en meses archivados. Vuelva al mes actual o reabra el mes para editarlo.', 'Mes Archivado');
                 return;
             }
-            
+            window._guardandoCaja = true;
+            try {
             const fechaSeleccionada = document.getElementById('cajaFecha').value;
             
-            // Obtener archivos si hay
+            // Obtener archivos si hay (copiar FileList antes de cualquier await)
             const inputArchivos = document.getElementById('cajaArchivos');
-            const archivosSeleccionados = inputArchivos ? Array.from(inputArchivos.files) : [];
+            const archivosSeleccionados = inputArchivos ? Array.from(inputArchivos.files || []) : [];
             
             const movimientoData = {
                 fecha: fechaSeleccionada,
@@ -20025,48 +20036,72 @@
             const movimientos = await obtenerDatosMes('caja');
             let registroId = window.editandoCaja || generarId();
             
-            // Subir archivos si hay
             let archivosSubidos = [];
-            if (archivosSeleccionados.length > 0 && storage && firebaseInitialized) {
-                mostrarAlerta('Subiendo archivos...', 'Procesando');
-                archivosSubidos = await subirArchivosModulo(archivosSeleccionados, 'caja', registroId);
-            }
-            
-            if (window.editandoCaja) {
-                const index = movimientos.findIndex(m => m.id === window.editandoCaja);
-                if (index !== -1) {
-                    // Combinar archivos existentes con nuevos
-                    const archivosExistentes = movimientos[index].archivos || [];
-                    if (archivosSubidos && archivosSubidos.length > 0) {
-                        movimientoData.archivos = [...archivosExistentes, ...archivosSubidos];
+                if (archivosSeleccionados.length > 0) {
+                    if (storage && firebaseInitialized) {
+                        mostrarAlerta('Subiendo archivos...', 'Procesando');
+                        archivosSubidos = await subirArchivosModulo(archivosSeleccionados, 'caja', registroId);
+                        if (archivosSubidos.length < archivosSeleccionados.length) {
+                            const fallidos = archivosSeleccionados.length - archivosSubidos.length;
+                            mostrarAlerta(`Se subieron ${archivosSubidos.length} de ${archivosSeleccionados.length} archivo(s). ${fallidos} no se pudieron subir.`, 'Advertencia');
+                        }
                     } else {
-                        movimientoData.archivos = archivosExistentes;
+                        mostrarAlerta('No se pudo conectar al almacenamiento. El movimiento se guardará sin el documento adjunto. Intente nuevamente cuando haya conexión.', 'Archivo no adjuntado');
                     }
-                    movimientos[index] = { ...movimientos[index], ...movimientoData };
+                }
+            
+                if (window.editandoCaja) {
+                    const index = movimientos.findIndex(m => m.id === window.editandoCaja);
+                    if (index !== -1) {
+                        const archivosExistentes = movimientos[index].archivos || [];
+                        movimientoData.archivos = archivosSubidos && archivosSubidos.length > 0
+                            ? [...archivosExistentes, ...archivosSubidos]
+                            : archivosExistentes;
+                        movimientos[index] = { ...movimientos[index], ...movimientoData };
+                        await guardarDatosMes('caja', movimientos);
+                        if (typeof window.registrarMovimiento === 'function') {
+                            window.registrarMovimiento('actualizar', 'caja', `Gasto actualizado: ${movimientoData.descripcion || 'Sin descripción'} - ${formatearMoneda(movimientoData.monto)}`);
+                        }
+                        mostrarAlerta(
+                            archivosSeleccionados.length > 0 && archivosSubidos.length === 0
+                                ? 'Movimiento actualizado, pero el documento adjunto no se pudo guardar.'
+                                : 'Movimiento actualizado exitosamente.',
+                            'Actualizado'
+                        );
+                        cancelarEdicionCaja();
+                    }
+                } else {
+                    movimientoData.id = registroId;
+                    movimientoData.folio = getSiguienteFolioCaja(movimientos, movimientoData.mes);
+                    movimientoData.archivos = archivosSubidos && archivosSubidos.length > 0 ? archivosSubidos : [];
+                    movimientos.unshift(movimientoData);
                     await guardarDatosMes('caja', movimientos);
                     if (typeof window.registrarMovimiento === 'function') {
-                        window.registrarMovimiento('actualizar', 'caja', `Gasto actualizado: ${movimientoData.descripcion || 'Sin descripción'} - ${formatearMoneda(movimientoData.monto)}`);
+                        window.registrarMovimiento('crear', 'caja', `Gasto: ${movimientoData.descripcion || 'Sin descripción'} - ${formatearMoneda(movimientoData.monto)}`);
                     }
-                    mostrarAlerta('Movimiento actualizado exitosamente.', 'Actualizado');
-                    cancelarEdicionCaja();
+                    mostrarAlerta(
+                        archivosSeleccionados.length > 0 && movimientoData.archivos.length === 0
+                            ? 'Movimiento registrado, pero el documento adjunto no se pudo guardar. Edite el registro y vuelva a adjuntarlo.'
+                            : 'Movimiento registrado exitosamente.',
+                        archivosSeleccionados.length > 0 && movimientoData.archivos.length === 0 ? 'Registrado sin adjunto' : 'Registrado'
+                    );
+                    
+                    document.getElementById('formCaja').reset();
+                    const fechaHoy = obtenerFechaHoy();
+                    document.getElementById('cajaFecha').value = fechaHoy;
+                    const listaArchivos = document.getElementById('cajaArchivosLista');
+                    if (listaArchivos) listaArchivos.style.display = 'none';
+                    const nombresArchivos = document.getElementById('cajaArchivosNombres');
+                    if (nombresArchivos) nombresArchivos.innerHTML = '';
                 }
-            } else {
-                movimientoData.id = registroId;
-                movimientoData.folio = getSiguienteFolioCaja(movimientos, movimientoData.mes);
-                movimientos.unshift(movimientoData);
-                await guardarDatosMes('caja', movimientos);
-                if (typeof window.registrarMovimiento === 'function') {
-                    window.registrarMovimiento('crear', 'caja', `Gasto: ${movimientoData.descripcion || 'Sin descripción'} - ${formatearMoneda(movimientoData.monto)}`);
-                }
-                mostrarAlerta('Movimiento registrado exitosamente.', 'Registrado');
                 
-                document.getElementById('formCaja').reset();
-                const fechaHoy = obtenerFechaHoy();
-                document.getElementById('cajaFecha').value = fechaHoy;
-                document.getElementById('cajaArchivosLista').style.display = 'none';
+                await cargarCaja();
+            } catch (error) {
+                console.error('Error al registrar caja:', error);
+                mostrarAlerta('No se pudo registrar el movimiento: ' + (error.message || 'Error desconocido'), 'Error');
+            } finally {
+                window._guardandoCaja = false;
             }
-            
-            await cargarCaja();
         }
         window.registrarCaja = registrarCaja;
         window.eliminarCaja = eliminarCaja;
@@ -37403,7 +37438,11 @@
                 const modalAbonarMoroso = document.getElementById('modalAbonarMoroso');
                 if (modalAbonarMoroso) {
                     modalAbonarMoroso.addEventListener('click', function(e) {
-                        if (e.target === modalAbonarMoroso && typeof cerrarModalAbonarMoroso === 'function') {
+                        if (e.target !== modalAbonarMoroso) return;
+                        const confirmActivo = document.getElementById('modalConfirm') && document.getElementById('modalConfirm').classList.contains('active');
+                        const alertaActiva = document.getElementById('modalAlert') && document.getElementById('modalAlert').classList.contains('active');
+                        if (confirmActivo || alertaActiva) return;
+                        if (typeof cerrarModalAbonarMoroso === 'function') {
                             cerrarModalAbonarMoroso();
                         }
                     });
