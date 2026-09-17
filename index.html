@@ -8254,15 +8254,41 @@
             return out;
         }
 
+        let _appBienvenidaMail = null;
+        async function obtenerDbBienvenidaNube() {
+            if (typeof firebase === 'undefined') return db;
+            try {
+                if (auth && auth.currentUser && db) return db;
+            } catch (e0) {}
+            try {
+                if (!_appBienvenidaMail) {
+                    try {
+                        _appBienvenidaMail = firebase.app('wm-bienvenida-mail');
+                    } catch (eApp) {
+                        _appBienvenidaMail = firebase.initializeApp(firebaseConfig, 'wm-bienvenida-mail');
+                    }
+                }
+                const authSec = firebase.auth(_appBienvenidaMail);
+                if (authSec && !authSec.currentUser) {
+                    await authSec.signInAnonymously();
+                }
+                return firebase.firestore(_appBienvenidaMail);
+            } catch (e) {
+                console.warn('[bienvenida] Canal nube sin login de operador:', e);
+                return db;
+            }
+        }
+
         // Requiere que la extensión "Trigger Email" esté instalada en Firebase
-        // opciones: { cc?: string|string[], bcc?: string|string[], silencioso?: boolean } — copia / copia oculta
+        // opciones: { cc?, bcc?, silencioso?, permitirSinLogin? } — bienvenida puede operar sin sesión de operador
         async function enviarCorreo(residente, asunto, mensaje, html = null, adjuntos = null, opciones = null) {
             const silencioso = !!(opciones && (opciones.silencioso || opciones.silent));
+            const permitirSinLogin = !!(opciones && (opciones.permitirSinLogin || opciones.sinLogin));
             const avisarEnvio = function (msg, titulo) {
                 if (!silencioso) mostrarAlerta(msg, titulo);
             };
             if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
-                const msgFile = 'No se puede enviar correos ejecutando la app con file://. Abra la app en http://localhost (por ejemplo: python3 -m http.server 5500) y luego inicie sesión.';
+                const msgFile = 'No se puede enviar correos ejecutando la app con file://. Abra la app en http://localhost (por ejemplo: python3 -m http.server 5500).';
                 console.error(msgFile);
                 avisarEnvio(msgFile, 'Origen no soportado');
                 return { exito: false, error: 'Ejecución en file:// no soportada para envío de correos' };
@@ -8273,15 +8299,29 @@
                 return { exito: false, error: 'Firebase no inicializado' };
             }
 
-            // Verificar que el usuario esté autenticado
             let usuarioActual = null;
+            let dbEnvio = db;
             try {
                 usuarioActual = typeof auth !== 'undefined' && auth ? auth.currentUser : null;
             } catch (e) {
                 console.warn('No se pudo verificar autenticación:', e);
             }
-            
-            if (!usuarioActual) {
+
+            if (!usuarioActual && permitirSinLogin) {
+                try {
+                    dbEnvio = await obtenerDbBienvenidaNube();
+                    try {
+                        if (_appBienvenidaMail) {
+                            const uSec = firebase.auth(_appBienvenidaMail).currentUser;
+                            if (uSec) usuarioActual = uSec;
+                        }
+                    } catch (eU) {}
+                } catch (eCanal) {
+                    console.warn('[correo] Canal sin login de operador:', eCanal);
+                }
+            }
+
+            if (!usuarioActual && !permitirSinLogin) {
                 console.error('Usuario no autenticado');
                 avisarEnvio('Error: Debes estar autenticado para enviar correos. Por favor, inicia sesión.', 'Error de Autenticación');
                 return { exito: false, error: 'Usuario no autenticado' };
@@ -8510,7 +8550,9 @@
 
                 // Agregar metadatos para seguimiento
                 mailData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-                mailData.createdBy = usuarioActual?.email || 'unknown';
+                mailData.createdBy = (usuarioActual && usuarioActual.email)
+                    ? usuarioActual.email
+                    : (permitirSinLogin ? 'sistema-bienvenida' : 'unknown');
                 mailData.status = 'pending';
                 mailData.tipo = html ? 'HTML' : 'texto';
                 mailData.tamanoHTML = html ? html.length : 0;
@@ -8603,7 +8645,7 @@
                 console.log('📦 Datos completos a enviar:', JSON.stringify(mailDataLog, null, 2));
                 console.log('==========================================');
 
-                const docRef = await db.collection("mail").add(mailData);
+                const docRef = await dbEnvio.collection("mail").add(mailData);
                 
                 // Verificar que los adjuntos se guardaron correctamente
                 const docVerificado = await docRef.get();
@@ -8669,10 +8711,11 @@
                     mensajeError = "Error de permisos: Las reglas de Firestore no permiten escribir en la colección 'mail'. " +
                         "Por favor, configura las reglas de seguridad en Firebase Console. " +
                         "Consulta el archivo FIRESTORE_RULES_INSTRUCCIONES.md para más detalles.";
-                } else if (err.code === 'unauthenticated') {
+                } else if (err.code === 'unauthenticated' && !permitirSinLogin) {
                     mensajeError = "Error: Debes estar autenticado para enviar correos. Por favor, inicia sesión nuevamente.";
-                }
-                
+                } else if (err.code === 'unauthenticated') {
+                    mensajeError = "No se pudo encolar el correo de bienvenida en la nube. Revise que la app esté en línea y que Firebase permita el envío automático.";
+                } 
                 // Nota: Los errores de envío reales (como problemas de SMTP) aparecerán en el documento de Firestore
                 // en el campo delivery.error, no aquí. Este error es solo para problemas al agregar el documento.
                 
@@ -11857,7 +11900,6 @@
         }
 
         const LS_WELCOME_EMAILS_SENT = (typeof LS_WM_PREFIX === 'string' ? LS_WM_PREFIX : 'wm_gestion_v1:') + 'welcome_emails_sent';
-        const LS_WELCOME_EMAILS_BOOT = (typeof LS_WM_PREFIX === 'string' ? LS_WM_PREFIX : 'wm_gestion_v1:') + 'welcome_emails_bootstrapped';
         let _bienvenidaResidentesEnCurso = false;
 
         function huellaBienvenidaResidente(unidad, correo) {
@@ -11883,12 +11925,26 @@
         async function cargarHuellasBienvenidaCloud() {
             const out = new Set();
             try {
-                const datos = await obtenerDatos('welcomeEmailsEnviados');
-                const mapa = datos && datos.huellas && typeof datos.huellas === 'object' ? datos.huellas : datos;
+                const dbNube = await obtenerDbBienvenidaNube();
+                if (!dbNube) return out;
+                const snap = await dbNube.collection('comunidad').doc('welcomeEmailsEnviados').get();
+                if (!snap || !snap.exists) return out;
+                const data = snap.data() || {};
+                const inner = (data.datos && typeof data.datos === 'object') ? data.datos : data;
+                const mapa = (inner.huellas && typeof inner.huellas === 'object' && !Array.isArray(inner.huellas))
+                    ? inner.huellas
+                    : inner;
                 if (mapa && typeof mapa === 'object' && !Array.isArray(mapa)) {
-                    Object.keys(mapa).forEach(function (k) { if (k) out.add(String(k)); });
+                    Object.keys(mapa).forEach(function (k) {
+                        if (!k || k === 'updatedAt' || k === 'huellas' || k === 'datos') return;
+                        const v = mapa[k];
+                        if (v === false || v === 0 || v === '0') return;
+                        out.add(String(k));
+                    });
                 }
-            } catch (e) {}
+            } catch (e) {
+                console.warn('[bienvenida] No se pudieron leer huellas en nube:', e);
+            }
             return out;
         }
 
@@ -11896,7 +11952,15 @@
             try {
                 const huellas = {};
                 Array.from(setHuellas).forEach(function (k) { huellas[k] = true; });
-                await guardarDatos('welcomeEmailsEnviados', { huellas: huellas, updatedAt: new Date().toISOString() });
+                const payload = { huellas: huellas, updatedAt: new Date().toISOString() };
+                const dbNube = await obtenerDbBienvenidaNube();
+                if (dbNube) {
+                    await dbNube.collection('comunidad').doc('welcomeEmailsEnviados').set({
+                        datos: payload,
+                        modulo: 'welcomeEmailsEnviados',
+                        actualizado: firebase.firestore.FieldValue.serverTimestamp()
+                    }, { merge: true });
+                }
             } catch (e) {
                 console.warn('[bienvenida] No se pudo persistir huellas en nube:', e);
             }
@@ -11931,7 +11995,7 @@
                 texto,
                 html,
                 null,
-                { silencioso: true }
+                { silencioso: true, permitirSinLogin: true }
             );
         }
 
@@ -11982,12 +12046,7 @@
         }
 
         function correoVisibleBienvenidaMasiva() {
-            try {
-                if (typeof auth !== 'undefined' && auth && auth.currentUser && auth.currentUser.email) {
-                    return String(auth.currentUser.email).trim();
-                }
-            } catch (e) {}
-            return 'conserjeria.wm815@gmail.com';
+            return 'edificio.wm815@gmail.com';
         }
 
         async function enviarCorreoBienvenidaMasivaOcupacion() {
@@ -12027,7 +12086,7 @@
                         texto,
                         html,
                         null,
-                        { bcc: lotes[i], silencioso: true }
+                        { bcc: lotes[i], silencioso: true, permitirSinLogin: true }
                     );
                     if (resultado && resultado.exito) okLotes += 1;
                     else errLotes += 1;
@@ -12158,22 +12217,11 @@
             const units = window.vinculacionUnits;
             if (!Array.isArray(units) || units.length === 0) return;
             _bienvenidaResidentesEnCurso = true;
+            let progreso = null;
             try {
                 const local = cargarHuellasBienvenidaLocal();
                 const cloud = await cargarHuellasBienvenidaCloud();
                 cloud.forEach(function (h) { local.add(h); });
-                const boot = localStorage.getItem(LS_WELCOME_EMAILS_BOOT) === '1';
-                if (!boot) {
-                    units.forEach(function (u) {
-                        correosUnidadResidentes(u).forEach(function (c) {
-                            local.add(huellaBienvenidaResidente(u.unitNumber, c));
-                        });
-                    });
-                    guardarHuellasBienvenidaLocal(local);
-                    await guardarHuellasBienvenidaCloud(local);
-                    localStorage.setItem(LS_WELCOME_EMAILS_BOOT, '1');
-                    return;
-                }
                 const pendientes = [];
                 units.forEach(function (u) {
                     if (!u) return;
@@ -12188,35 +12236,77 @@
                     });
                     if (nuevos.length) pendientes.push({ unit: u, nuevos: nuevos });
                 });
-                if (pendientes.length > 8) {
-                    pendientes.forEach(function (item) {
-                        item.nuevos.forEach(function (n) { local.add(n.huella); });
-                    });
-                    guardarHuellasBienvenidaLocal(local);
-                    await guardarHuellasBienvenidaCloud(local);
-                    console.warn('[bienvenida] Se omitió el envío masivo (' + pendientes.length + ' unidades).');
-                    return;
+                if (!pendientes.length) return;
+
+                const totalUnidades = pendientes.length;
+                const totalCorreos = pendientes.reduce(function (n, item) { return n + item.nuevos.length; }, 0);
+                if (typeof mostrarProgreso === 'function') {
+                    progreso = mostrarProgreso(
+                        'Bienvenida automática',
+                        'Se detectó correo nuevo en ' + totalUnidades + ' unidad(es) (' + totalCorreos + ' dirección(es)). Enviando ahora…',
+                        totalUnidades
+                    );
+                } else if (typeof mostrarToast === 'function') {
+                    mostrarToast('Enviando bienvenida a ' + totalUnidades + ' unidad(es) con correo nuevo.', 'info', 'Bienvenida automática', 5000);
                 }
+
+                const enviados = [];
+                const fallidos = [];
                 for (let i = 0; i < pendientes.length; i++) {
                     const item = pendientes[i];
+                    const unidad = String((item.unit && (item.unit.unitNumber || item.unit.departamento)) || '').trim();
                     const correosUnidad = correosUnidadResidentes(item.unit);
                     const correosNuevosOEditados = item.nuevos.map(function (n) { return n.correo; });
                     const destinatarios = correosUnidad.length ? correosUnidad : correosNuevosOEditados;
+                    if (progreso && typeof progreso.actualizar === 'function') {
+                        progreso.actualizar(i, totalUnidades, 'Unidad ' + (unidad || '?') + ' — ' + destinatarios.join(', '));
+                    }
                     if (!destinatarios.length) continue;
                     const resultado = await enviarCorreoBienvenidaAUnidad(item.unit, destinatarios);
                     if (resultado && resultado.exito) {
                         item.nuevos.forEach(function (n) { local.add(n.huella); });
                         guardarHuellasBienvenidaLocal(local);
-                        console.log('[bienvenida] Correo enviado desde Gestión WM a unidad', item.unit.unitNumber, destinatarios);
+                        enviados.push(unidad + ' (' + destinatarios.join(', ') + ')');
+                        console.log('[bienvenida] Correo enviado desde Gestión WM a unidad', unidad, destinatarios);
                     } else {
-                        console.warn('[bienvenida] Falló envío unidad', item.unit && item.unit.unitNumber, resultado && resultado.error);
+                        const err = (resultado && resultado.error) || 'error desconocido';
+                        fallidos.push(unidad + ': ' + err);
+                        console.warn('[bienvenida] Falló envío unidad', unidad, err);
+                    }
+                    if (progreso && typeof progreso.actualizar === 'function') {
+                        progreso.actualizar(i + 1, totalUnidades, 'Unidad ' + (unidad || '?') + ' lista.');
                     }
                 }
-                if (pendientes.length) {
-                    await guardarHuellasBienvenidaCloud(local);
+                await guardarHuellasBienvenidaCloud(local);
+
+                const resumenOk = enviados.length
+                    ? ('Enviado a ' + enviados.length + ' unidad(es):\n' + enviados.slice(0, 12).join('\n') + (enviados.length > 12 ? '\n… y ' + (enviados.length - 12) + ' más.' : ''))
+                    : 'No se pudo enviar ningún correo de bienvenida.';
+                const resumenFail = fallidos.length
+                    ? ('\n\nNo se envió a ' + fallidos.length + ' unidad(es):\n' + fallidos.slice(0, 8).join('\n') + (fallidos.length > 8 ? '\n… y ' + (fallidos.length - 8) + ' más.' : ''))
+                    : '';
+                const titulo = fallidos.length && enviados.length
+                    ? 'Bienvenida automática con errores'
+                    : (enviados.length ? 'Bienvenida automática enviada' : 'Bienvenida automática no enviada');
+                if (progreso && typeof progreso.finalizar === 'function') {
+                    progreso.finalizar(resumenOk + resumenFail, titulo, true);
+                } else {
+                    mostrarAlerta(resumenOk + resumenFail, titulo);
+                }
+                if (typeof mostrarToast === 'function') {
+                    mostrarToast(
+                        enviados.length
+                            ? ('Bienvenida enviada a ' + enviados.length + ' unidad(es).')
+                            : 'No se pudo enviar la bienvenida automática.',
+                        fallidos.length ? 'warning' : 'success',
+                        'Bienvenida automática',
+                        6000
+                    );
                 }
             } catch (e) {
                 console.warn('[bienvenida] Error procesando residentes nuevos:', e);
+                if (typeof ocultarProgreso === 'function') ocultarProgreso();
+                mostrarAlerta('No se pudo completar la bienvenida automática: ' + (e && e.message ? e.message : 'error desconocido'), 'Bienvenida automática');
             } finally {
                 _bienvenidaResidentesEnCurso = false;
             }
@@ -28470,6 +28560,23 @@
 
             scheduleProcesarCorreosBienvenidaResidentesNuevos();
             return obtenerMetricasSinFuenteConserjeria(integ);
+        }
+
+        function iniciarMotorBienvenidaEnNube() {
+            try {
+                if (typeof obtenerMetricasVinculacion === 'function') {
+                    obtenerMetricasVinculacion().catch(function (e) {
+                        console.warn('[bienvenida] No se pudo iniciar el motor en nube:', e);
+                    });
+                }
+            } catch (eIni) {
+                console.warn('[bienvenida] Motor en nube:', eIni);
+            }
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', iniciarMotorBienvenidaEnNube);
+        } else {
+            iniciarMotorBienvenidaEnNube();
         }
 
         // Estructura del edificio (Entre Cerros) para módulo Ocupación
