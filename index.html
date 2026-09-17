@@ -5942,9 +5942,16 @@
 
         <!-- MÓDULO: OCUPACIÓN — datos solo desde Conserjería (prueba-conserjeria): Firestore conserjeriawm2 cgSites/kv o caché local compartida -->
         <div id="ocupacion" class="tab-content">
-            <div style="margin-bottom: 1.5rem;">
-                <h2 style="margin: 0; color: var(--gray-900); font-size: 1.5rem; font-weight: 700;">🏢 Ocupación del Edificio</h2>
-                <p id="ocupacionFuenteDatos" style="color: var(--gray-600); font-size: 0.875rem; margin: 0.5rem 0 0 0;">Cargando fuente de residentes…</p>
+            <div style="margin-bottom: 1.5rem; display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1rem;">
+                <div>
+                    <h2 style="margin: 0; color: var(--gray-900); font-size: 1.5rem; font-weight: 700;">🏢 Ocupación del Edificio</h2>
+                    <p id="ocupacionFuenteDatos" style="color: var(--gray-600); font-size: 0.875rem; margin: 0.5rem 0 0 0;">Cargando fuente de residentes…</p>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem;">
+                    <label for="ocupacionUnidadBienvenida" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0);">Número de unidad</label>
+                    <input type="text" id="ocupacionUnidadBienvenida" class="form-input" placeholder="Nº unidad" autocomplete="off" style="width: 7.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem;">
+                    <button type="button" id="btnEnviarBienvenidaOcupacion" class="btn btn-primary" style="padding: 0.5rem 0.9rem; font-size: 0.875rem; white-space: nowrap;" title="Reenvía el correo de bienvenida a todos los correos de la unidad">📧 Enviar correo de bienvenida</button>
+                </div>
             </div>
             <!-- Resumen ocupación (igual que activa-entre-cerros) -->
             <div id="resumenOcupacion" class="resumen-ocupacion-map" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 1rem; margin-bottom: 1.5rem;">
@@ -11926,6 +11933,104 @@
                 { silencioso: true }
             );
         }
+
+        function buscarUnidadOcupacionPorNumero(num) {
+            const n = String(num || '').trim().toLowerCase();
+            if (!n) return null;
+            const units = window.vinculacionUnits;
+            if (!Array.isArray(units)) return null;
+            return units.find(function (u) {
+                if (!u) return false;
+                const a = String(u.unitNumber || '').trim().toLowerCase();
+                const b = String(u.departamento || '').trim().toLowerCase();
+                return a === n || b === n;
+            }) || null;
+        }
+
+        let _bienvenidaManualEnCurso = false;
+        async function enviarCorreoBienvenidaManualUnidad(unitOrNumber) {
+            if (_bienvenidaManualEnCurso) return { exito: false, error: 'Envío en curso' };
+            let unit = unitOrNumber && typeof unitOrNumber === 'object' ? unitOrNumber : buscarUnidadOcupacionPorNumero(unitOrNumber);
+            if (!unit) {
+                mostrarAlerta('No se encontró esa unidad en Ocupación. Escriba el número o ábrala en el mapa.', 'Unidad no encontrada');
+                return { exito: false, error: 'Unidad no encontrada' };
+            }
+            const destinatarios = correosUnidadResidentes(unit);
+            const unidad = String(unit.unitNumber || unit.departamento || '').trim();
+            if (!destinatarios.length) {
+                mostrarAlerta('La unidad ' + unidad + ' no tiene correos registrados. No se puede enviar la bienvenida.', 'Sin correos');
+                return { exito: false, error: 'Sin correos' };
+            }
+            const ok = await confirmarAccion(
+                'Se enviará el correo de bienvenida de la unidad ' + unidad + ' a: ' + destinatarios.join(', ') + '. ¿Enviar ahora?',
+                'Enviar correo de bienvenida'
+            );
+            if (!ok) return { exito: false, cancelado: true };
+            _bienvenidaManualEnCurso = true;
+            const btnModulo = document.getElementById('btnEnviarBienvenidaOcupacion');
+            if (btnModulo) btnModulo.disabled = true;
+            try {
+                if (typeof mostrarProgreso === 'function') mostrarProgreso('Enviando bienvenida', 'Unidad ' + unidad + '…', 0);
+                const resultado = await enviarCorreoBienvenidaAUnidad(unit, destinatarios);
+                if (typeof ocultarProgreso === 'function') ocultarProgreso();
+                if (resultado && resultado.exito) {
+                    const local = cargarHuellasBienvenidaLocal();
+                    destinatarios.forEach(function (c) {
+                        local.add(huellaBienvenidaResidente(unidad, c));
+                    });
+                    guardarHuellasBienvenidaLocal(local);
+                    await guardarHuellasBienvenidaCloud(local);
+                    mostrarAlerta(
+                        'Correo de bienvenida enviado a la unidad ' + unidad + ' (' + destinatarios.join(', ') + ').',
+                        'Bienvenida enviada'
+                    );
+                } else {
+                    mostrarAlerta(
+                        'No se pudo enviar el correo de bienvenida: ' + ((resultado && resultado.error) || 'error desconocido'),
+                        'Error de envío'
+                    );
+                }
+                return resultado;
+            } catch (e) {
+                if (typeof ocultarProgreso === 'function') ocultarProgreso();
+                mostrarAlerta('No se pudo enviar el correo de bienvenida: ' + (e && e.message ? e.message : 'error desconocido'), 'Error de envío');
+                return { exito: false, error: e && e.message ? e.message : 'error' };
+            } finally {
+                _bienvenidaManualEnCurso = false;
+                if (btnModulo) btnModulo.disabled = false;
+            }
+        }
+
+        function initBotonBienvenidaOcupacion() {
+            const btn = document.getElementById('btnEnviarBienvenidaOcupacion');
+            const inp = document.getElementById('ocupacionUnidadBienvenida');
+            if (!btn || btn._bienvenidaBound) return;
+            btn._bienvenidaBound = true;
+            const lanzar = function () {
+                const num = inp ? String(inp.value || '').trim() : '';
+                if (!num) {
+                    mostrarAlerta('Indique el número de unidad o ábrala en el mapa y use Enviar correo de bienvenida.', 'Unidad requerida');
+                    if (inp) inp.focus();
+                    return;
+                }
+                enviarCorreoBienvenidaManualUnidad(num);
+            };
+            btn.addEventListener('click', lanzar);
+            if (inp) {
+                inp.addEventListener('keydown', function (e) {
+                    if (e.key === 'Enter') {
+                        e.preventDefault();
+                        lanzar();
+                    }
+                });
+            }
+        }
+        if (document.readyState === 'loading') {
+            document.addEventListener('DOMContentLoaded', initBotonBienvenidaOcupacion);
+        } else {
+            initBotonBienvenidaOcupacion();
+        }
+        window.enviarCorreoBienvenidaManualUnidad = enviarCorreoBienvenidaManualUnidad;
 
         async function procesarCorreosBienvenidaResidentesNuevos() {
             if (_bienvenidaResidentesEnCurso) return;
@@ -29417,9 +29522,18 @@
                 parkingHtml + rentalParkingHtml + storageHtml + bikeHtml + contratoHtml + mascotaHtml + noteHtml +
                 '<div style="margin-top:8px;"><div style="color:var(--gray-600);font-size:0.75rem;margin-bottom:3px;font-weight:600;">👥 Residentes:</div><div style="max-height:280px;overflow-y:auto;padding:6px 8px;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border-color);">' + residentsHtml + '</div></div>' +
                 '<p style="margin:12px 0 0 0;font-size:0.75rem;color:var(--gray-500);">Para editar residentes, notas o imprimir la ficha, use el panel Conserjería.</p>' +
-                '<a href="prueba-conserjeria.html#building" target="_blank" rel="noopener" class="btn btn-primary" style="margin-top:10px;width:100%;padding:8px;font-size:0.8rem;text-align:center;display:block;text-decoration:none;">Abrir Conserjería (residentes)</a>' +
+                '<button type="button" class="btn btn-primary btn-enviar-bienvenida-unidad" style="margin-top:10px;width:100%;padding:8px;font-size:0.8rem;">📧 Enviar correo de bienvenida</button>' +
+                '<a href="prueba-conserjeria.html#building" target="_blank" rel="noopener" class="btn btn-secondary" style="margin-top:8px;width:100%;padding:8px;font-size:0.8rem;text-align:center;display:block;text-decoration:none;">Abrir Conserjería (residentes)</a>' +
                 '<button type="button" class="btn btn-secondary" style="margin-top:8px;width:100%;padding:8px;font-size:0.8rem;" onclick="this.closest(\'.modal\').remove()">Cerrar</button></div>';
             document.body.appendChild(modal);
+            var btnBienvenida = modal.querySelector('.btn-enviar-bienvenida-unidad');
+            if (btnBienvenida) {
+                btnBienvenida.addEventListener('click', function () {
+                    if (typeof enviarCorreoBienvenidaManualUnidad === 'function') {
+                        enviarCorreoBienvenidaManualUnidad(unit);
+                    }
+                });
+            }
             modal.onclick = function(e) { if (e.target === modal) modal.remove(); };
         }
 
