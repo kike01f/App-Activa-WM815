@@ -7065,6 +7065,19 @@
             auth.onAuthStateChanged(function(user) {
                 if (user) {
                     showApp();
+                    try {
+                        if (typeof sincronizarEstadoBienvenidaHaciaConserjeria === 'function') {
+                            sincronizarEstadoBienvenidaHaciaConserjeria();
+                        }
+                        if (typeof iniciarEscuchaColaBienvenidaConserjeria === 'function') {
+                            iniciarEscuchaColaBienvenidaConserjeria();
+                        }
+                        if (typeof procesarColaBienvenidaConserjeria === 'function') {
+                            procesarColaBienvenidaConserjeria();
+                        }
+                    } catch (eBien) {
+                        console.warn('[bienvenida] Tras login:', eBien);
+                    }
                 } else {
                     showLogin();
                     if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
@@ -8438,10 +8451,13 @@
                 }
             }
 
-            if (!usuarioActual && !permitirSinLogin) {
+            if (!usuarioActual) {
                 console.error('Usuario no autenticado');
                 avisarEnvio('Error: Debes estar autenticado para enviar correos. Por favor, inicia sesión.', 'Error de Autenticación');
-                return { exito: false, error: 'Usuario no autenticado' };
+                return { exito: false, error: 'Usuario no autenticado', reintentar: true };
+            }
+            if (!dbEnvio) {
+                return { exito: false, error: 'Sin canal de correo', reintentar: true };
             }
 
             const listaCorreos = residente ? normalizarListaCorreosDestino(residente.correo) : [];
@@ -12039,12 +12055,12 @@
             } catch (e) {}
         }
 
-        function obtenerAppPuenteBienvenidaConserjeria() {
-            var cfg = window.CG_GESTION_FABRICA_INTEGRATION;
+        function obtenerAppWelcomeConserjeria() {
+            var cfg = window.CG_GESTION_CONSERJERIA_SOURCE;
             if (!cfg || !cfg.firebase || !cfg.firebase.apiKey) {
-                throw new Error('Puente conserjeriawm2 no configurado.');
+                throw new Error('Fuente Conserjería (conserjeria2-1) no configurada.');
             }
-            var name = 'gestion-welcome-bridge';
+            var name = 'gestion-welcome-pcsh';
             try {
                 return firebase.app(name);
             } catch (e0) {
@@ -12052,27 +12068,28 @@
             }
         }
 
-        async function obtenerDbPuenteBienvenidaConserjeria() {
-            var cfg = window.CG_GESTION_FABRICA_INTEGRATION || {};
-            var app = obtenerAppPuenteBienvenidaConserjeria();
+        async function obtenerRefWelcomeCompartido() {
+            var cfg = window.CG_GESTION_CONSERJERIA_SOURCE || {};
+            var app = obtenerAppWelcomeConserjeria();
             try {
                 if (cfg.useAnonymousAuth && app.auth) {
                     var authP = app.auth();
                     if (authP && !authP.currentUser) await authP.signInAnonymously();
                 }
             } catch (eA) {
-                console.warn('[bienvenida] Auth puente conserjeriawm2:', eA);
+                console.warn('[bienvenida] Auth conserjeria2-1:', eA);
             }
             var sdb = app.firestore();
             try { sdb.settings({ experimentalAutoDetectLongPolling: true, merge: true }); } catch (eS) {}
-            return { db: sdb, cfg: cfg };
+            var col = String(cfg.collection || 'pcsh_wm815').trim();
+            return sdb.collection(col).doc('welcome');
         }
 
         function parseHuellasBienvenidaMapa(mapa) {
             var out = new Set();
             if (!mapa || typeof mapa !== 'object' || Array.isArray(mapa)) return out;
             Object.keys(mapa).forEach(function (k) {
-                if (!k || k === 'updatedAt' || k === 'huellas' || k === 'datos') return;
+                if (!k || k === 'updatedAt' || k === 'huellas' || k === 'datos' || k === 'queue') return;
                 var v = mapa[k];
                 if (v === false || v === 0 || v === '0') return;
                 out.add(String(k));
@@ -12080,56 +12097,75 @@
             return out;
         }
 
+        function parseHuellasDesdeWelcomeDoc(data) {
+            var d = data || {};
+            if (d.huellas && typeof d.huellas === 'object' && !Array.isArray(d.huellas)) {
+                return parseHuellasBienvenidaMapa(d.huellas);
+            }
+            if (d.json) {
+                try {
+                    var parsed = JSON.parse(String(d.json));
+                    if (parsed && parsed.huellas) return parseHuellasBienvenidaMapa(parsed.huellas);
+                    return parseHuellasBienvenidaMapa(parsed);
+                } catch (eJ) {}
+            }
+            return new Set();
+        }
+
         async function obtenerHuellasBienvenidaDesdePuenteConserjeria() {
             var out = new Set();
             try {
-                var puente = await obtenerDbPuenteBienvenidaConserjeria();
-                var siteId = String(puente.cfg.siteId || 'conserjeriawm2').trim();
-                var kvKey = String(puente.cfg.welcomeEmailsKvKey || 'wm815_welcome_emails').trim();
-                var snap = await puente.db.collection('cgSites').doc(siteId).collection('kv').doc(kvKey).get();
-                if (!snap || !snap.exists) return out;
-                var d = snap.data() || {};
-                var parsed = null;
-                try { parsed = d.json ? JSON.parse(String(d.json)) : null; } catch (eJ) { parsed = null; }
-                if (parsed && parsed.huellas) out = parseHuellasBienvenidaMapa(parsed.huellas);
-                else if (parsed && typeof parsed === 'object') out = parseHuellasBienvenidaMapa(parsed);
-                else if (d.huellas) out = parseHuellasBienvenidaMapa(d.huellas);
+                var snap = await (await obtenerRefWelcomeCompartido()).get();
+                if (snap && snap.exists) out = parseHuellasDesdeWelcomeDoc(snap.data() || {});
             } catch (e) {
-                console.warn('[bienvenida] Lectura huellas conserjeriawm2:', e);
+                console.warn('[bienvenida] Lectura estado compartido Conserjería:', e);
             }
             return out;
         }
 
         async function guardarHuellasBienvenidaEnPuenteConserjeria(setHuellas) {
-            var puente = await obtenerDbPuenteBienvenidaConserjeria();
-            var siteId = String(puente.cfg.siteId || 'conserjeriawm2').trim();
-            var kvKey = String(puente.cfg.welcomeEmailsKvKey || 'wm815_welcome_emails').trim();
+            var ref = await obtenerRefWelcomeCompartido();
             var huellas = {};
             Array.from(setHuellas).forEach(function (k) { huellas[k] = true; });
-            await puente.db.collection('cgSites').doc(siteId).collection('kv').doc(kvKey).set({
-                json: JSON.stringify({ huellas: huellas, updatedAt: new Date().toISOString() }),
+            await ref.set({
+                huellas: huellas,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                 origen: 'gestion-wm'
             }, { merge: true });
+        }
+
+        async function sincronizarEstadoBienvenidaHaciaConserjeria() {
+            try {
+                var setH = cargarHuellasBienvenidaLocal();
+                try {
+                    var cloud = await cargarHuellasBienvenidaCloud();
+                    cloud.forEach(function (h) { setH.add(h); });
+                } catch (eC) {}
+                window._huellasBienvenidaCache = setH;
+                guardarHuellasBienvenidaLocal(setH);
+                await guardarHuellasBienvenidaEnPuenteConserjeria(setH);
+                if (typeof scheduleRefrescarEstadoBienvenidaUnidades === 'function') {
+                    scheduleRefrescarEstadoBienvenidaUnidades();
+                }
+            } catch (e) {
+                console.warn('[bienvenida] No se pudo sincronizar estado hacia Conserjería:', e);
+            }
         }
 
         var _colaBienvenidaConserjeriaEnCurso = false;
         async function procesarColaBienvenidaConserjeria() {
             if (_colaBienvenidaConserjeriaEnCurso) return;
             if (typeof enviarCorreo !== 'function') return;
+            var operador = null;
+            try { operador = auth && auth.currentUser; } catch (eA) {}
+            if (!operador) return;
             _colaBienvenidaConserjeriaEnCurso = true;
             try {
-                var puente = await obtenerDbPuenteBienvenidaConserjeria();
-                var siteId = String(puente.cfg.siteId || 'conserjeriawm2').trim();
-                var kvKey = String(puente.cfg.welcomeMailQueueKvKey || 'wm815_welcome_mail_queue').trim();
-                var ref = puente.db.collection('cgSites').doc(siteId).collection('kv').doc(kvKey);
+                var ref = await obtenerRefWelcomeCompartido();
                 var snap = await ref.get();
                 if (!snap || !snap.exists) return;
-                var jobs = [];
-                try {
-                    var parsed = JSON.parse(String((snap.data() || {}).json || '[]'));
-                    if (Array.isArray(parsed)) jobs = parsed;
-                } catch (eJ) { return; }
+                var data = snap.data() || {};
+                var jobs = Array.isArray(data.queue) ? data.queue.slice() : [];
                 var pendientes = jobs.filter(function (j) { return j && j.status === 'pending'; });
                 if (!pendientes.length) return;
                 var html = typeof htmlCorreoBienvenidaNuevoResidente === 'function' ? htmlCorreoBienvenidaNuevoResidente() : '';
@@ -12139,7 +12175,9 @@
                     var cloudH = await cargarHuellasBienvenidaCloud();
                     cloudH.forEach(function (h) { huellas.add(h); });
                 } catch (eC) {}
+                parseHuellasDesdeWelcomeDoc(data).forEach(function (h) { huellas.add(h); });
                 var cambio = false;
+                var enviadosOk = 0;
                 for (var i = 0; i < jobs.length; i++) {
                     var job = jobs[i];
                     if (!job || job.status !== 'pending') continue;
@@ -12147,7 +12185,7 @@
                     var texto = job.texto || textoDefault;
                     var para = job.to;
                     var bcc = job.bcc;
-                    var opciones = { silencioso: true, permitirSinLogin: true };
+                    var opciones = { silencioso: true, permitirSinLogin: false };
                     if (bcc && ((Array.isArray(bcc) && bcc.length) || (typeof bcc === 'string' && bcc))) {
                         opciones.bcc = bcc;
                     }
@@ -12164,23 +12202,32 @@
                         job.sentAt = new Date().toISOString();
                         (job.huellas || []).forEach(function (h) { if (h) huellas.add(String(h)); });
                         cambio = true;
+                        enviadosOk += 1;
+                    } else if (resultado && resultado.reintentar) {
+                        job.status = 'pending';
                     } else {
-                        job.status = 'error';
-                        job.error = (resultado && resultado.error) || 'error desconocido';
-                        job.failedAt = new Date().toISOString();
-                        cambio = true;
+                        job.intentos = (job.intentos || 0) + 1;
+                        if (job.intentos >= 5) {
+                            job.status = 'error';
+                            job.error = (resultado && resultado.error) || 'error desconocido';
+                            job.failedAt = new Date().toISOString();
+                            cambio = true;
+                        }
                     }
                 }
                 if (cambio) {
+                    var mapaH = {};
+                    huellas.forEach(function (k) { mapaH[k] = true; });
                     await ref.set({
-                        json: JSON.stringify(jobs),
+                        queue: jobs,
+                        huellas: mapaH,
                         updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
                         origen: 'gestion-wm'
                     }, { merge: true });
                     guardarHuellasBienvenidaLocal(huellas);
                     await guardarHuellasBienvenidaCloud(huellas);
-                    if (typeof mostrarToast === 'function') {
-                        mostrarToast('Se procesó la cola de bienvenida de Conserjería.', 'success');
+                    if (enviadosOk && typeof mostrarToast === 'function') {
+                        mostrarToast('Se enviaron ' + enviadosOk + ' correo(s) de bienvenida pedidos desde Conserjería.', 'success');
                     }
                 }
             } catch (e) {
@@ -12194,36 +12241,22 @@
         async function iniciarEscuchaColaBienvenidaConserjeria() {
             if (_unsubColaBienvenidaConserjeria) return;
             try {
-                var puente = await obtenerDbPuenteBienvenidaConserjeria();
-                var siteId = String(puente.cfg.siteId || 'conserjeriawm2').trim();
-                var kvKey = String(puente.cfg.welcomeMailQueueKvKey || 'wm815_welcome_mail_queue').trim();
-                _unsubColaBienvenidaConserjeria = puente.db.collection('cgSites').doc(siteId).collection('kv').doc(kvKey).onSnapshot(function () {
-                    procesarColaBienvenidaConserjeria();
-                }, function (err) {
-                    console.warn('[bienvenida] listener cola Conserjería:', err);
-                });
-            } catch (e) {
-                console.warn('[bienvenida] No se pudo escuchar la cola de Conserjería:', e);
-            }
-        }
-
-        var _unsubHuellasPuenteBienvenida = null;
-        async function iniciarEscuchaHuellasBienvenidaPuente() {
-            if (_unsubHuellasPuenteBienvenida) return;
-            try {
-                var puente = await obtenerDbPuenteBienvenidaConserjeria();
-                var siteId = String(puente.cfg.siteId || 'conserjeriawm2').trim();
-                var kvKey = String(puente.cfg.welcomeEmailsKvKey || 'wm815_welcome_emails').trim();
-                _unsubHuellasPuenteBienvenida = puente.db.collection('cgSites').doc(siteId).collection('kv').doc(kvKey).onSnapshot(function () {
+                var ref = await obtenerRefWelcomeCompartido();
+                _unsubColaBienvenidaConserjeria = ref.onSnapshot(function (snap) {
                     if (typeof scheduleRefrescarEstadoBienvenidaUnidades === 'function') {
                         scheduleRefrescarEstadoBienvenidaUnidades();
                     }
+                    procesarColaBienvenidaConserjeria();
                 }, function (err) {
-                    console.warn('[bienvenida] listener huellas conserjeriawm2:', err);
+                    console.warn('[bienvenida] listener estado compartido Conserjería:', err);
                 });
             } catch (e) {
-                console.warn('[bienvenida] No se pudo escuchar huellas en conserjeriawm2:', e);
+                console.warn('[bienvenida] No se pudo escuchar el estado compartido de Conserjería:', e);
             }
+        }
+
+        async function iniciarEscuchaHuellasBienvenidaPuente() {
+            return iniciarEscuchaColaBienvenidaConserjeria();
         }
 
         async function cargarHuellasBienvenidaCloud() {
@@ -12431,6 +12464,9 @@
                 if (!dbNube) return;
                 _unsubHuellasBienvenida = dbNube.collection('comunidad').doc('welcomeEmailsEnviados').onSnapshot(function () {
                     scheduleRefrescarEstadoBienvenidaUnidades();
+                    if (typeof sincronizarEstadoBienvenidaHaciaConserjeria === 'function') {
+                        sincronizarEstadoBienvenidaHaciaConserjeria();
+                    }
                 }, function (err) {
                     console.warn('[bienvenida] listener huellas Gestión:', err);
                     if (_unsubHuellasBienvenida) {
@@ -29058,10 +29094,18 @@
         function iniciarMotorBienvenidaEnNube() {
             try {
                 if (typeof iniciarEscuchaHuellasBienvenida === 'function') iniciarEscuchaHuellasBienvenida();
+                if (typeof iniciarEscuchaColaBienvenidaConserjeria === 'function') iniciarEscuchaColaBienvenidaConserjeria();
                 if (typeof obtenerMetricasVinculacion === 'function') {
                     obtenerMetricasVinculacion().then(function () {
+                        if (typeof sincronizarEstadoBienvenidaHaciaConserjeria === 'function') {
+                            return sincronizarEstadoBienvenidaHaciaConserjeria();
+                        }
+                    }).then(function () {
                         if (typeof scheduleRefrescarEstadoBienvenidaUnidades === 'function') {
                             scheduleRefrescarEstadoBienvenidaUnidades();
+                        }
+                        if (typeof procesarColaBienvenidaConserjeria === 'function') {
+                            procesarColaBienvenidaConserjeria();
                         }
                     }).catch(function (e) {
                         console.warn('[bienvenida] No se pudo iniciar el motor en nube:', e);
