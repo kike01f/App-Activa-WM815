@@ -978,6 +978,18 @@
             min-width: 7.4rem;
             max-width: 8rem;
         }
+        #nomina .nomina-estado-select {
+            width: 100%;
+            max-width: 11.5rem;
+            min-height: 1.55rem;
+            padding: 0.12rem 0.28rem;
+            font-size: 0.68rem;
+            font-weight: 700;
+            border-radius: 5px;
+            border: 1px solid transparent;
+            cursor: pointer;
+            box-sizing: border-box;
+        }
 
         .table-section {
             margin-top: 1.5rem;
@@ -6606,7 +6618,7 @@
                         Gestiona el personal del edificio. Estos nombres estarán disponibles para usar en nómina y pagos de aseo.
                     </p>
                     <form id="formGestionPersonal" onsubmit="agregarPersonalEdificio(event)" style="margin-bottom: 1rem;">
-                        <div style="display: grid; grid-template-columns: 1fr 1fr auto; gap: 0.75rem; align-items: end;">
+                        <div style="display: grid; grid-template-columns: 1fr 1fr minmax(160px, 1fr) auto; gap: 0.75rem; align-items: end;">
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label style="font-size: 0.8125rem; margin-bottom: 0.25rem;">Nombre del Personal *</label>
                                 <input type="text" id="personalEdificioNombre" required placeholder="Ej: Juan Pérez" style="padding: 0.5rem; font-size: 0.875rem;">
@@ -6615,8 +6627,18 @@
                                 <label style="font-size: 0.8125rem; margin-bottom: 0.25rem;">Cargo</label>
                                 <input type="text" id="personalEdificioCargo" placeholder="Ej: Portero" style="padding: 0.5rem; font-size: 0.875rem;">
                             </div>
+                            <div class="form-group" style="margin-bottom: 0;">
+                                <label style="font-size: 0.8125rem; margin-bottom: 0.25rem;">Estado</label>
+                                <select id="personalEdificioEstado" style="padding: 0.5rem; font-size: 0.875rem; width: 100%;">
+                                    <option value="activo">Activo</option>
+                                    <option value="licencia-medica">Licencia médica</option>
+                                    <option value="vacaciones">Vacaciones</option>
+                                    <option value="permiso-no-remunerado">Permiso no remunerado</option>
+                                </select>
+                            </div>
                             <button type="submit" class="btn btn-primary" style="height: fit-content; padding: 0.5rem 1rem; font-size: 0.875rem;" id="btnGuardarPersonalEdificio">Agregar</button>
                         </div>
+                        <p style="margin: 0.4rem 0 0 0; font-size: 0.72rem; color: var(--gray-500);">El estado se mantiene en el personal hasta que lo cambie.</p>
                     </form>
                     <div style="overflow-x: auto; max-height: 300px;">
                         <table style="width: 100%; border-collapse: collapse; font-size: 0.8125rem;">
@@ -6624,12 +6646,13 @@
                                 <tr style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; position: sticky; top: 0;">
                                     <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem;">Nombre</th>
                                     <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem;">Cargo</th>
+                                    <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem;">Estado</th>
                                     <th style="padding: 0.5rem; text-align: center; font-weight: 600; font-size: 0.75rem; width: 120px;">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="tbodyPersonalEdificio">
                                 <tr>
-                                    <td colspan="3" style="padding: 1rem; text-align: center; color: var(--gray-500); font-style: italic; font-size: 0.8125rem;">
+                                    <td colspan="4" style="padding: 1rem; text-align: center; color: var(--gray-500); font-style: italic; font-size: 0.8125rem;">
                                         No hay personal registrado. Agregue el primer personal usando el formulario.
                                     </td>
                                 </tr>
@@ -6728,6 +6751,7 @@
                                 <th style="padding: 0.5rem 0.625rem; text-align: left; font-weight: 600; font-size: 0.6875rem; white-space: nowrap; letter-spacing: 0.02em; color: white !important; border: 1px solid #4a7a15;">Nº</th>
                                 <th style="padding: 0.5rem 0.625rem; text-align: left; font-weight: 600; font-size: 0.6875rem; white-space: nowrap; letter-spacing: 0.02em; color: white !important; border: 1px solid #4a7a15;">Nombre</th>
                                 <th style="padding: 0.5rem 0.625rem; text-align: left; font-weight: 600; font-size: 0.6875rem; white-space: nowrap; letter-spacing: 0.02em; color: white !important; border: 1px solid #4a7a15;">Cargo</th>
+                                <th style="padding: 0.5rem 0.625rem; text-align: left; font-weight: 600; font-size: 0.6875rem; white-space: nowrap; letter-spacing: 0.02em; color: white !important; border: 1px solid #4a7a15;">Estado</th>
                                 <th style="padding: 0.5rem 0.625rem; text-align: center; font-weight: 600; font-size: 0.6875rem; white-space: nowrap; letter-spacing: 0.02em; color: white !important; border: 1px solid #4a7a15;">Días Trab.</th>
                                 <th style="padding: 0.5rem 0.625rem; text-align: center; font-weight: 600; font-size: 0.6875rem; white-space: nowrap; letter-spacing: 0.02em; color: white !important; border: 1px solid #4a7a15;">Lic. Méd.</th>
                                 <th style="padding: 0.5rem 0.625rem; text-align: center; font-weight: 600; font-size: 0.6875rem; white-space: nowrap; letter-spacing: 0.02em; color: white !important; border: 1px solid #4a7a15;">Turnos Fest.</th>
@@ -41532,6 +41556,79 @@
             return String(valor || '').trim().toLowerCase();
         }
 
+        const ESTADOS_PERSONAL_NOMINA = {
+            activo: { label: 'Activo', estilo: 'background:#d1fae5;color:#065f46;border-color:#6ee7b7;' },
+            'licencia-medica': { label: 'Licencia médica', estilo: 'background:#fef3c7;color:#92400e;border-color:#fcd34d;' },
+            vacaciones: { label: 'Vacaciones', estilo: 'background:#dbeafe;color:#1e40af;border-color:#93c5fd;' },
+            'permiso-no-remunerado': { label: 'Permiso no remunerado', estilo: 'background:#ede9fe;color:#5b21b6;border-color:#c4b5fd;' }
+        };
+
+        function normalizarEstadoPersonalNomina(valor) {
+            const k = String(valor || '').trim();
+            if (ESTADOS_PERSONAL_NOMINA[k]) return k;
+            return 'activo';
+        }
+
+        function etiquetaEstadoPersonalNomina(valor) {
+            return ESTADOS_PERSONAL_NOMINA[normalizarEstadoPersonalNomina(valor)].label;
+        }
+
+        function actualizarMapaEstadoPersonalNomina(personal) {
+            const mapa = {};
+            (Array.isArray(personal) ? personal : []).forEach(p => {
+                if (!p) return;
+                const info = {
+                    id: p.id,
+                    estado: normalizarEstadoPersonalNomina(p.estado),
+                    nombre: p.nombre || ''
+                };
+                if (p.id != null && String(p.id) !== '') mapa['id:' + String(p.id)] = info;
+                const nom = nombreNominaNormalizado(p.nombre);
+                if (nom) mapa[nom] = info;
+            });
+            window.mapaEstadoPersonalNomina = mapa;
+        }
+
+        function infoEstadoPersonalPorNombre(nombre) {
+            const mapa = window.mapaEstadoPersonalNomina || {};
+            return mapa[nombreNominaNormalizado(nombre)] || null;
+        }
+
+        function actualizarEstiloSelectEstadoPersonal(sel) {
+            if (!sel) return;
+            const est = normalizarEstadoPersonalNomina(sel.value);
+            sel.setAttribute('data-estado', est);
+            sel.style.cssText = ESTADOS_PERSONAL_NOMINA[est].estilo;
+        }
+
+        function htmlSelectEstadoPersonalNomina(id, estado) {
+            const actual = normalizarEstadoPersonalNomina(estado);
+            const idEsc = String(id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+            const opciones = Object.keys(ESTADOS_PERSONAL_NOMINA).map(v => {
+                return `<option value="${v}"${v === actual ? ' selected' : ''}>${ESTADOS_PERSONAL_NOMINA[v].label}</option>`;
+            }).join('');
+            return `<select class="nomina-estado-select" data-estado="${actual}" style="${ESTADOS_PERSONAL_NOMINA[actual].estilo}" onchange="cambiarEstadoPersonalEdificio('${idEsc}', this.value); actualizarEstiloSelectEstadoPersonal(this);" title="El estado se mantiene hasta que lo cambie">${opciones}</select>`;
+        }
+
+        async function cambiarEstadoPersonalEdificio(id, estado) {
+            const nuevo = normalizarEstadoPersonalNomina(estado);
+            const personalRaw = await obtenerDatos('personalEdificio');
+            const personal = deduplicarEmpleadosNomina(Array.isArray(personalRaw) ? personalRaw : []);
+            const idx = personal.findIndex(p => idsIgualesNomina(p.id, id));
+            if (idx === -1) return;
+            if (normalizarEstadoPersonalNomina(personal[idx].estado) === nuevo) return;
+            personal[idx].estado = nuevo;
+            await guardarDatos('personalEdificio', personal);
+            actualizarMapaEstadoPersonalNomina(personal);
+            if (typeof window.registrarMovimiento === 'function') {
+                window.registrarMovimiento('actualizar', 'nomina', `Estado de ${personal[idx].nombre}: ${etiquetaEstadoPersonalNomina(nuevo)}`);
+            }
+            await cargarPersonalEdificio();
+            if (typeof cargarTablaNomina === 'function') cargarTablaNomina();
+        }
+        window.cambiarEstadoPersonalEdificio = cambiarEstadoPersonalEdificio;
+        window.actualizarEstiloSelectEstadoPersonal = actualizarEstiloSelectEstadoPersonal;
+
         function deduplicarEmpleadosNomina(lista) {
             if (!Array.isArray(lista)) return [];
             const vistosId = new Set();
@@ -41914,7 +42011,7 @@
             if (trabajadoresNomina.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="15" style="padding: 2rem; text-align: center; color: var(--gray-500); font-style: italic;">
+                        <td colspan="14" style="padding: 2rem; text-align: center; color: var(--gray-500); font-style: italic;">
                             No hay trabajadores registrados. Agregue el primer trabajador usando el formulario.
                         </td>
                     </tr>
@@ -41958,11 +42055,16 @@
 
                 const esPar = index % 2 === 0;
                 const bgColor = esPar ? 'white' : '#f9fafb';
+                const infoEstado = infoEstadoPersonalPorNombre(trabajador.nombre);
+                const htmlEstado = infoEstado && infoEstado.id
+                    ? htmlSelectEstadoPersonalNomina(infoEstado.id, infoEstado.estado)
+                    : `<span style="font-size: 0.72rem; color: #6b7280;">${etiquetaEstadoPersonalNomina('activo')}</span>`;
                 return `
                     <tr style="background-color: ${bgColor}; border: 1px solid #e5e7eb; transition: background-color 0.2s ease;" onmouseover="this.style.backgroundColor='#f3f4f6'" onmouseout="this.style.backgroundColor='${bgColor}'">
                         <td style="padding: 0.5rem 0.625rem; text-align: center; font-weight: 600; color: #111827; font-size: 0.8125rem; border: 1px solid #e5e7eb;">${index + 1}</td>
                         <td style="padding: 0.5rem 0.625rem; font-weight: 600; color: #111827; font-size: 0.8125rem; border: 1px solid #e5e7eb;">${trabajador.nombre}</td>
                         <td style="padding: 0.5rem 0.625rem; color: #111827; font-size: 0.8125rem; border: 1px solid #e5e7eb;">${trabajador.cargo}</td>
+                        <td style="padding: 0.5rem 0.625rem; text-align: left; border: 1px solid #e5e7eb; min-width: 8.5rem;">${htmlEstado}</td>
                         <td style="padding: 0.5rem 0.625rem; text-align: center; color: #111827; font-size: 0.8125rem; border: 1px solid #e5e7eb;">${trabajador.diasTrabajados}</td>
                         <td style="padding: 0.5rem 0.625rem; text-align: center; color: #111827; font-size: 0.8125rem; border: 1px solid #e5e7eb;">${trabajador.licenciaMedica}</td>
                         <td style="padding: 0.5rem 0.625rem; text-align: center; color: #111827; font-size: 0.8125rem; border: 1px solid #e5e7eb;">${trabajador.turnosFestivos}</td>
@@ -41987,7 +42089,7 @@
             // Agregar fila de totales
             tfoot.innerHTML = `
                 <tr style="background: linear-gradient(135deg, #374151 0%, #4b5563 100%); font-weight: 700;">
-                    <td colspan="3" style="padding: 0.75rem 0.625rem; text-align: right; color: white !important; font-size: 0.875rem; border: 1px solid #6b7280;">TOTALES:</td>
+                    <td colspan="4" style="padding: 0.75rem 0.625rem; text-align: right; color: white !important; font-size: 0.875rem; border: 1px solid #6b7280;">TOTALES:</td>
                     <td style="padding: 0.75rem 0.625rem; text-align: center; color: white !important; font-size: 0.8125rem; border: 1px solid #6b7280;">${totalDiasTrabajados}</td>
                     <td style="padding: 0.75rem 0.625rem; text-align: center; color: white !important; font-size: 0.8125rem; border: 1px solid #6b7280;">${totalLicenciaMedica}</td>
                     <td style="padding: 0.75rem 0.625rem; text-align: center; color: white !important; font-size: 0.8125rem; border: 1px solid #6b7280;">${totalTurnosFestivos}</td>
@@ -42024,6 +42126,9 @@
             const hasta = encabezado.hasta;
             const fechaEmision = encabezado.fechaEmision;
             const responsable = encabezado.responsable;
+            try {
+                actualizarMapaEstadoPersonalNomina(await obtenerDatos('personalEdificio'));
+            } catch (e) {}
 
             // Formatear fechas
             const formatearFecha = (fechaStr) => {
@@ -42209,6 +42314,7 @@
                                 <th>Nº</th>
                                 <th>Nombre</th>
                                 <th>Cargo</th>
+                                <th>Estado</th>
                                 <th class="text-center">Días Trab.</th>
                                 <th class="text-center">Lic. Méd.</th>
                                 <th class="text-center">Turnos Fest.</th>
@@ -42260,6 +42366,7 @@
                         <td class="text-center">${index + 1}</td>
                         <td>${trabajador.nombre || '-'}</td>
                         <td>${trabajador.cargo || '-'}</td>
+                        <td>${etiquetaEstadoPersonalNomina(infoEstadoPersonalPorNombre(trabajador.nombre) && infoEstadoPersonalPorNombre(trabajador.nombre).estado)}</td>
                         <td class="text-center">${diasTrabajados}</td>
                         <td class="text-center">${licenciaMedica}</td>
                         <td class="text-center">${turnosFestivos}</td>
@@ -42277,7 +42384,7 @@
                         </tbody>
                         <tfoot>
                             <tr class="total-row">
-                                <td colspan="3" class="text-right" style="font-size: 12px;">TOTALES:</td>
+                                <td colspan="4" class="text-right" style="font-size: 12px;">TOTALES:</td>
                                 <td class="text-center">${totalDiasTrabajados}</td>
                                 <td class="text-center">${totalLicenciaMedica}</td>
                                 <td class="text-center">${totalTurnosFestivos}</td>
@@ -43050,6 +43157,7 @@
                                 <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Nº</th>
                                 <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Nombre</th>
                                 <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Cargo</th>
+                                <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Estado</th>
                                 <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Días Trab.</th>
                                 <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Lic. Méd.</th>
                                 <th style="color: white !important; background-color: #75BB21 !important; text-align: center !important; vertical-align: middle !important;">Turnos Fest.</th>
@@ -43090,6 +43198,7 @@
                         <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${index + 1}</td>
                         <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${escCelda(trabajador.nombre || '-')}</td>
                         <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${escCelda(trabajador.cargo || '-')}</td>
+                        <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${escCelda(etiquetaEstadoPersonalNomina(infoEstadoPersonalPorNombre(trabajador.nombre) && infoEstadoPersonalPorNombre(trabajador.nombre).estado))}</td>
                         <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${escCelda(trabajador.diasTrabajados || 0)}</td>
                         <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${escCelda(trabajador.licenciaMedica || 0)}</td>
                         <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${escCelda(trabajador.turnosFestivos || 0)}</td>
@@ -43107,7 +43216,7 @@
                         </tbody>
                         <tfoot>
                             <tr class="total-row">
-                                <td colspan="3" class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 700 !important;">TOTALES:</td>
+                                <td colspan="4" class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 700 !important;">TOTALES:</td>
                                 <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalDiasTrabajados}</td>
                                 <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalLicenciaMedica}</td>
                                 <td class="text-center" style="text-align: center !important; vertical-align: middle !important; font-weight: 700 !important;">${totalTurnosFestivos}</td>
@@ -43239,6 +43348,9 @@
             }
 
             const encabezado = await obtenerEncabezadoNomina();
+            try {
+                actualizarMapaEstadoPersonalNomina(await obtenerDatos('personalEdificio'));
+            } catch (e) {}
             const { blob, nombreArchivo } = generarBlobNominaExcelHtmlIgualEntreCerros(trabajadoresNomina, reemplazosReporte, encabezado);
 
             try {
@@ -43288,6 +43400,9 @@
 
                 // Obtener valores del encabezado automáticamente
                 const encabezado = await obtenerEncabezadoNomina();
+                try {
+                    actualizarMapaEstadoPersonalNomina(await obtenerDatos('personalEdificio'));
+                } catch (e) {}
 
                 const { blob, nombreArchivo } = generarBlobNominaExcelHtmlIgualEntreCerros(trabajadoresNomina, reemplazosReporte, encabezado);
 
@@ -44215,6 +44330,7 @@
             }
 
             if (gen !== _cargarPersonalEdificioGen) return;
+            actualizarMapaEstadoPersonalNomina(personal);
             
             // Actualizar contador
             if (countElement) {
@@ -44225,7 +44341,7 @@
             if (!personal || personal.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="3" style="padding: 1rem; text-align: center; color: var(--gray-500); font-style: italic; font-size: 0.8125rem;">
+                        <td colspan="4" style="padding: 1rem; text-align: center; color: var(--gray-500); font-style: italic; font-size: 0.8125rem;">
                             No hay personal registrado. Agregue el primer personal usando el formulario.
                         </td>
                     </tr>
@@ -44235,6 +44351,7 @@
                     <tr style="border-bottom: 1px solid var(--gray-200);">
                         <td style="padding: 0.5rem; color: var(--gray-900); font-weight: 500; font-size: 0.8125rem;">${p.nombre}</td>
                         <td style="padding: 0.5rem; color: var(--gray-700); font-size: 0.8125rem;">${p.cargo || '-'}</td>
+                        <td style="padding: 0.5rem;">${htmlSelectEstadoPersonalNomina(p.id, p.estado)}</td>
                         <td style="padding: 0.5rem; text-align: center;">
                             <div class="tabla-acciones">
                             <button class="btn btn-primary btn-sm" onclick="editarPersonalEdificio('${p.id}')">Editar</button>
@@ -44254,7 +44371,8 @@
                     personal.forEach(p => {
                         const option = document.createElement('option');
                         option.value = p.nombre;
-                        option.textContent = p.nombre;
+                        const estadoTxt = etiquetaEstadoPersonalNomina(p.estado);
+                        option.textContent = estadoTxt === 'Activo' ? p.nombre : (p.nombre + ' · ' + estadoTxt);
                         selectTrabajador.appendChild(option);
                     });
                 }
@@ -44263,6 +44381,7 @@
 
             // Actualizar select de personal en módulo de pago de aseo
             await actualizarSelectPersonalAseo();
+            if (typeof cargarTablaNomina === 'function') cargarTablaNomina();
         }
 
         // Función para agregar personal del edificio
@@ -44272,6 +44391,7 @@
             
             const nombre = document.getElementById('personalEdificioNombre').value.trim();
             const cargo = document.getElementById('personalEdificioCargo').value.trim();
+            const estado = normalizarEstadoPersonalNomina(document.getElementById('personalEdificioEstado') && document.getElementById('personalEdificioEstado').value);
             
             if (!nombre) {
                 mostrarAlerta('Por favor ingrese el nombre del personal.', 'Campo Requerido');
@@ -44293,6 +44413,7 @@
                     if (index !== -1) {
                         personal[index].nombre = nombre;
                         personal[index].cargo = cargo || '';
+                        personal[index].estado = estado;
                     }
                     personalEdificioEditando = null;
                     document.getElementById('btnGuardarPersonalEdificio').textContent = 'Agregar';
@@ -44307,7 +44428,8 @@
                     personal.push({
                         id: generarId(),
                         nombre: nombre,
-                        cargo: cargo || ''
+                        cargo: cargo || '',
+                        estado: estado
                     });
                     await guardarDatos('personalEdificio', personal);
                     mostrarAlerta('Personal agregado exitosamente.', 'Registro Exitoso');
@@ -44327,6 +44449,8 @@
                 if (personalEncontrado) {
                     document.getElementById('personalEdificioNombre').value = personalEncontrado.nombre || '';
                     document.getElementById('personalEdificioCargo').value = personalEncontrado.cargo || '';
+                    const selEstado = document.getElementById('personalEdificioEstado');
+                    if (selEstado) selEstado.value = normalizarEstadoPersonalNomina(personalEncontrado.estado);
                     personalEdificioEditando = String(id);
                     
                     // Cambiar texto del botón
