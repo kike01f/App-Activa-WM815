@@ -2266,6 +2266,7 @@
             display: flex;
             align-items: center;
             justify-content: center;
+            position: relative;
             font-size: 0.65rem;
             font-weight: 700;
             cursor: pointer;
@@ -2370,6 +2371,69 @@
         }
         .dashboard2-chart-card:hover { border-color: rgba(117, 187, 33, 0.25); }
         .dashboard2-chart-card--wide { grid-column: 1 / -1; }
+        .bienvenida-panel {
+            background: var(--bg-primary);
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-lg);
+            padding: 0.85rem 1rem;
+        }
+        .bienvenida-panel-kpis {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(140px, 1fr));
+            gap: 0.5rem;
+            margin-bottom: 0.75rem;
+        }
+        .bienvenida-panel-kpi {
+            padding: 0.55rem 0.7rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+            background: var(--bg-secondary);
+        }
+        .bienvenida-panel-kpi .lbl { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--gray-600); }
+        .bienvenida-panel-kpi .val { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
+        .bienvenida-panel-kpi.ok .val { color: #059669; }
+        .bienvenida-panel-kpi.no .val { color: #d97706; }
+        .bienvenida-panel-kpi.na .val { color: #6b7280; }
+        .bienvenida-panel-col h4 { margin: 0 0 0.4rem 0; font-size: 0.8rem; color: var(--gray-800); }
+        .bienvenida-panel-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 0.75rem;
+        }
+        @media (max-width: 720px) {
+            .bienvenida-panel-grid { grid-template-columns: 1fr; }
+        }
+        .bienvenida-chips {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.3rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+        .bienvenida-chip {
+            border: 0;
+            cursor: pointer;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 0.18rem 0.5rem;
+            border-radius: 999px;
+            line-height: 1.3;
+        }
+        .bienvenida-chip.ok { background: rgba(16, 185, 129, 0.16); color: #047857; }
+        .bienvenida-chip.no { background: rgba(245, 158, 11, 0.2); color: #b45309; }
+        .bienvenida-chip.na { background: rgba(107, 114, 128, 0.14); color: #4b5563; }
+        .bienvenida-vacio { font-size: 0.78rem; color: var(--gray-500); }
+        .unit-cell-bienvenida {
+            position: absolute;
+            bottom: 1px;
+            left: 1px;
+            font-size: 0.58rem;
+            line-height: 1;
+            pointer-events: none;
+            text-shadow: 0 0 2px rgba(0,0,0,0.7);
+        }
+        .unit-cell-bienvenida.ok { color: #86efac; }
+        .unit-cell-bienvenida.no { color: #fbbf24; }
         .dashboard2-chart-title {
             margin: 0 0 0.5rem 0;
             font-size: 0.75rem;
@@ -4458,6 +4522,41 @@
                         </article>
                     </div>
                 </section>
+                <!-- 3b. Correo de bienvenida por unidad -->
+                <section class="dashboard2-block" id="dashboardBienvenidaBlock" aria-label="Correo de bienvenida">
+                    <h2 class="dashboard2-block-title">Correo de bienvenida</h2>
+                    <div class="bienvenida-panel">
+                        <div class="bienvenida-panel-kpis">
+                            <div class="bienvenida-panel-kpi ok">
+                                <div class="lbl">Bienvenida enviada</div>
+                                <div class="val" id="dashboardBienvenidaEnviadasCount">0</div>
+                            </div>
+                            <div class="bienvenida-panel-kpi no">
+                                <div class="lbl">Pendiente de envío</div>
+                                <div class="val" id="dashboardBienvenidaPendientesCount">0</div>
+                            </div>
+                            <div class="bienvenida-panel-kpi na">
+                                <div class="lbl">Sin correo registrado</div>
+                                <div class="val" id="dashboardBienvenidaSinCorreoCount">0</div>
+                            </div>
+                        </div>
+                        <div class="bienvenida-panel-grid">
+                            <div class="bienvenida-panel-col">
+                                <h4>Unidades con bienvenida enviada</h4>
+                                <div class="bienvenida-chips" id="dashboardBienvenidaEnviadasList"><span class="bienvenida-vacio">Cargando…</span></div>
+                            </div>
+                            <div class="bienvenida-panel-col">
+                                <h4>Unidades sin bienvenida</h4>
+                                <div class="bienvenida-chips" id="dashboardBienvenidaPendientesList"><span class="bienvenida-vacio">Cargando…</span></div>
+                            </div>
+                        </div>
+                        <p style="margin: 0.65rem 0 0 0; font-size: 0.75rem; color: var(--gray-500);">Pulse un número para ir a Ocupación. Las unidades sin correo aparecen aparte: no se puede enviar hasta registrar un email.</p>
+                        <div id="dashboardBienvenidaSinCorreoWrap" style="margin-top: 0.55rem;">
+                            <h4 style="margin: 0 0 0.35rem 0; font-size: 0.75rem; color: var(--gray-600);">Sin correo registrado</h4>
+                            <div class="bienvenida-chips" id="dashboardBienvenidaSinCorreoList"></div>
+                        </div>
+                    </div>
+                </section>
                 <!-- 4. Nómina y mantenciones -->
                 <section class="dashboard2-block dashboard2-block--extra" aria-label="Nómina y mantenciones">
                     <h2 class="dashboard2-block-title">Nómina y mantenciones</h2>
@@ -5972,6 +6071,14 @@
                     <div id="ocupacionPorcentaje" class="valor" style="color: var(--primary);">0%</div>
                     <div class="etiqueta">Ocupación actual</div>
                 </div>
+                <div class="resumen-item">
+                    <div id="ocupacionBienvenidaEnviadas" class="valor" style="color: #059669;">0</div>
+                    <div class="etiqueta">Bienvenida enviada</div>
+                </div>
+                <div class="resumen-item">
+                    <div id="ocupacionBienvenidaPendientes" class="valor" style="color: #d97706;">0</div>
+                    <div class="etiqueta">Bienvenida pendiente</div>
+                </div>
             </div>
             <section class="form-section" style="margin-bottom: 1.5rem;">
                 <h3 style="margin: 0 0 0.75rem 0; font-size: 1.1rem; font-weight: 700;">🏢 Mapa del Edificio</h3>
@@ -5982,6 +6089,8 @@
                     <div class="leyenda-item"><div class="leyenda-cuadro" style="background: var(--bg-tertiary); border: 2px solid var(--border-color);"></div><span style="font-size: 0.8rem;">Vacía / Disponible</span></div>
                     <div class="leyenda-item"><div class="leyenda-cuadro" style="background: #9b59b6;"></div><span style="font-size: 0.8rem;">Nuevas (últimos 7 días)</span></div>
                     <div class="leyenda-item"><div class="leyenda-cuadro" style="border: 2px solid #ffa502; background: var(--bg-tertiary);"></div><span style="font-size: 0.8rem;">Contrato arriendo</span></div>
+                    <div class="leyenda-item"><span style="font-size: 0.85rem; color: #059669;">✉</span><span style="font-size: 0.8rem;">Bienvenida enviada</span></div>
+                    <div class="leyenda-item"><span style="font-size: 0.85rem; color: #d97706;">✉</span><span style="font-size: 0.8rem;">Bienvenida pendiente</span></div>
                 </div>
                 <div style="margin-bottom: 10px;">
                     <input type="text" id="buildingMapFilterOcupacion" class="form-input" placeholder="🔍 Filtrar por número de unidad, uso, residente, estacionamiento, bodega..." style="width: 100%; max-width: 400px; padding: 0.5rem 0.75rem; font-size: 0.875rem;">
@@ -11961,10 +12070,175 @@
                         actualizado: firebase.firestore.FieldValue.serverTimestamp()
                     }, { merge: true });
                 }
+                window._huellasBienvenidaCache = new Set(setHuellas);
+                if (typeof scheduleRefrescarEstadoBienvenidaUnidades === 'function') {
+                    scheduleRefrescarEstadoBienvenidaUnidades();
+                }
             } catch (e) {
                 console.warn('[bienvenida] No se pudo persistir huellas en nube:', e);
             }
         }
+
+        window._huellasBienvenidaCache = window._huellasBienvenidaCache || new Set();
+        window._clasificacionBienvenida = window._clasificacionBienvenida || { enviadas: [], pendientes: [], sinCorreo: [] };
+        let _unsubHuellasBienvenida = null;
+        let _refrescarBienvenidaTimer = null;
+
+        function ordenarUnidadesPorNumero(arr) {
+            return (arr || []).slice().sort(function (a, b) {
+                var na = parseInt(String(a).replace(/\D/g, ''), 10) || 0;
+                var nb = parseInt(String(b).replace(/\D/g, ''), 10) || 0;
+                if (na !== nb) return na - nb;
+                return String(a).localeCompare(String(b), 'es');
+            });
+        }
+
+        function huellasBienvenidaActuales() {
+            if (window._huellasBienvenidaCache && window._huellasBienvenidaCache.size) return window._huellasBienvenidaCache;
+            return cargarHuellasBienvenidaLocal();
+        }
+
+        function clasificarUnidadesBienvenida(units, huellas) {
+            var enviadas = [];
+            var pendientes = [];
+            var sinCorreo = [];
+            var setH = huellas || huellasBienvenidaActuales();
+            (Array.isArray(units) ? units : []).forEach(function (u) {
+                if (!u) return;
+                var num = String(u.unitNumber || u.departamento || '').trim();
+                if (!num) return;
+                var correos = correosUnidadResidentes(u);
+                if (!correos.length) {
+                    sinCorreo.push(num);
+                    return;
+                }
+                var falta = correos.some(function (c) {
+                    return !setH.has(huellaBienvenidaResidente(num, c));
+                });
+                if (falta) pendientes.push(num);
+                else enviadas.push(num);
+            });
+            return {
+                enviadas: ordenarUnidadesPorNumero(enviadas),
+                pendientes: ordenarUnidadesPorNumero(pendientes),
+                sinCorreo: ordenarUnidadesPorNumero(sinCorreo)
+            };
+        }
+
+        function estadoBienvenidaUnidad(unit) {
+            if (!unit) return '';
+            var num = String(unit.unitNumber || unit.departamento || '').trim();
+            var correos = correosUnidadResidentes(unit);
+            if (!correos.length) return 'sin-correo';
+            var setH = huellasBienvenidaActuales();
+            var falta = correos.some(function (c) {
+                return !setH.has(huellaBienvenidaResidente(num, c));
+            });
+            return falta ? 'pendiente' : 'enviada';
+        }
+
+        function htmlChipsBienvenida(nums, clase) {
+            if (!nums || !nums.length) return '<span class="bienvenida-vacio">Ninguna</span>';
+            return nums.map(function (n) {
+                var t = String(n).replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                return '<button type="button" class="bienvenida-chip ' + clase + '" data-unidad="' + t + '">' + t + '</button>';
+            }).join('');
+        }
+
+        function irAUnidadOcupacionDesdePanel(num) {
+            var n = String(num || '').trim();
+            if (!n) return;
+            if (typeof showTab === 'function') showTab('ocupacion');
+            var inp = document.getElementById('ocupacionUnidadBienvenida');
+            if (inp) inp.value = n;
+            var filtro = document.getElementById('buildingMapFilterOcupacion');
+            if (filtro) {
+                filtro.value = n;
+                if (typeof updateBuildingMapOcupacion === 'function') updateBuildingMapOcupacion();
+            }
+            var unit = typeof buscarUnidadOcupacionPorNumero === 'function' ? buscarUnidadOcupacionPorNumero(n) : null;
+            if (unit && typeof showUnitDetailModalOcupacion === 'function') {
+                setTimeout(function () { showUnitDetailModalOcupacion(unit); }, 220);
+            }
+        }
+
+        function bindChipsBienvenida(el) {
+            if (!el || el._bienvenidaChipsBound) return;
+            el._bienvenidaChipsBound = true;
+            el.addEventListener('click', function (ev) {
+                var btn = ev.target && ev.target.closest ? ev.target.closest('.bienvenida-chip') : null;
+                if (!btn) return;
+                irAUnidadOcupacionDesdePanel(btn.getAttribute('data-unidad'));
+            });
+        }
+
+        function pintarPanelBienvenidaControl(clasif) {
+            var c = clasif || window._clasificacionBienvenida || { enviadas: [], pendientes: [], sinCorreo: [] };
+            var setTxt = function (id, v) {
+                var n = document.getElementById(id);
+                if (n) n.textContent = String(v);
+            };
+            setTxt('dashboardBienvenidaEnviadasCount', (c.enviadas || []).length);
+            setTxt('dashboardBienvenidaPendientesCount', (c.pendientes || []).length);
+            setTxt('dashboardBienvenidaSinCorreoCount', (c.sinCorreo || []).length);
+            setTxt('ocupacionBienvenidaEnviadas', (c.enviadas || []).length);
+            setTxt('ocupacionBienvenidaPendientes', (c.pendientes || []).length);
+            var listOk = document.getElementById('dashboardBienvenidaEnviadasList');
+            var listNo = document.getElementById('dashboardBienvenidaPendientesList');
+            var listNa = document.getElementById('dashboardBienvenidaSinCorreoList');
+            if (listOk) { listOk.innerHTML = htmlChipsBienvenida(c.enviadas, 'ok'); bindChipsBienvenida(listOk); }
+            if (listNo) { listNo.innerHTML = htmlChipsBienvenida(c.pendientes, 'no'); bindChipsBienvenida(listNo); }
+            if (listNa) { listNa.innerHTML = htmlChipsBienvenida(c.sinCorreo, 'na'); bindChipsBienvenida(listNa); }
+        }
+
+        async function refrescarEstadoBienvenidaUnidades() {
+            if (window._refrescandoBienvenida) return;
+            window._refrescandoBienvenida = true;
+            try {
+                var local = cargarHuellasBienvenidaLocal();
+                var cloud = await cargarHuellasBienvenidaCloud();
+                cloud.forEach(function (h) { local.add(h); });
+                window._huellasBienvenidaCache = local;
+                window._clasificacionBienvenida = clasificarUnidadesBienvenida(window.vinculacionUnits || [], local);
+                pintarPanelBienvenidaControl(window._clasificacionBienvenida);
+                if (typeof updateBuildingMapOcupacion === 'function' && document.getElementById('buildingMapOcupacion')) {
+                    updateBuildingMapOcupacion();
+                }
+            } catch (e) {
+                console.warn('[bienvenida] No se pudo refrescar el estado por unidad:', e);
+            } finally {
+                window._refrescandoBienvenida = false;
+            }
+        }
+
+        function scheduleRefrescarEstadoBienvenidaUnidades() {
+            try {
+                if (_refrescarBienvenidaTimer) clearTimeout(_refrescarBienvenidaTimer);
+                _refrescarBienvenidaTimer = setTimeout(function () {
+                    refrescarEstadoBienvenidaUnidades();
+                }, 350);
+            } catch (e) {
+                refrescarEstadoBienvenidaUnidades();
+            }
+        }
+
+        async function iniciarEscuchaHuellasBienvenida() {
+            if (_unsubHuellasBienvenida) return;
+            try {
+                var dbNube = await obtenerDbBienvenidaNube();
+                if (!dbNube) return;
+                _unsubHuellasBienvenida = dbNube.collection('comunidad').doc('welcomeEmailsEnviados').onSnapshot(function () {
+                    scheduleRefrescarEstadoBienvenidaUnidades();
+                }, function (err) {
+                    console.warn('[bienvenida] listener huellas:', err);
+                });
+            } catch (eL) {
+                console.warn('[bienvenida] No se pudo escuchar huellas:', eL);
+            }
+        }
+        window.clasificarUnidadesBienvenida = clasificarUnidadesBienvenida;
+        window.estadoBienvenidaUnidad = estadoBienvenidaUnidad;
+        window.refrescarEstadoBienvenidaUnidades = refrescarEstadoBienvenidaUnidades;
 
         function correosUnidadResidentes(unit) {
             const seen = new Set();
@@ -12316,6 +12590,9 @@
             try {
                 setTimeout(function () {
                     procesarCorreosBienvenidaResidentesNuevos();
+                    if (typeof scheduleRefrescarEstadoBienvenidaUnidades === 'function') {
+                        scheduleRefrescarEstadoBienvenidaUnidades();
+                    }
                 }, 400);
             } catch (e) {}
         }
@@ -28564,8 +28841,13 @@
 
         function iniciarMotorBienvenidaEnNube() {
             try {
+                if (typeof iniciarEscuchaHuellasBienvenida === 'function') iniciarEscuchaHuellasBienvenida();
                 if (typeof obtenerMetricasVinculacion === 'function') {
-                    obtenerMetricasVinculacion().catch(function (e) {
+                    obtenerMetricasVinculacion().then(function () {
+                        if (typeof scheduleRefrescarEstadoBienvenidaUnidades === 'function') {
+                            scheduleRefrescarEstadoBienvenidaUnidades();
+                        }
+                    }).catch(function (e) {
                         console.warn('[bienvenida] No se pudo iniciar el motor en nube:', e);
                     });
                 }
@@ -29339,6 +29621,7 @@
                 if (elOcupadas) elOcupadas.textContent = ocupadas;
                 if (elVacias) elVacias.textContent = vacias;
                 if (elPct) elPct.textContent = pct + '%';
+                if (typeof scheduleRefrescarEstadoBienvenidaUnidades === 'function') scheduleRefrescarEstadoBienvenidaUnidades();
             } catch (e) {
                 console.warn('Ocupación: error cargando unidades', e);
                 window.vinculacionUnits = [];
@@ -29677,16 +29960,21 @@
                         var tieneNota = unit.unitNote && unit.unitNote.trim() !== '';
                         var tieneContrato = unit.hasRentalContract;
                         var tieneMascota = !!unit.hasPet;
-                        if (tieneNota || tieneContrato || tieneMascota) {
+                        var estB = typeof estadoBienvenidaUnidad === 'function' ? estadoBienvenidaUnidad(unit) : '';
+                        var marcaB = '';
+                        if (estB === 'enviada') marcaB = '<span class="unit-cell-bienvenida ok" title="Bienvenida enviada">✉</span>';
+                        else if (estB === 'pendiente') marcaB = '<span class="unit-cell-bienvenida no" title="Bienvenida pendiente">✉</span>';
+                        if (tieneNota || tieneContrato || tieneMascota || marcaB) {
                             var indicadores = '';
                             if (tieneNota) indicadores += '<span class="unit-cell-nota" style="position:absolute;top:1px;right:1px;color:#f59e0b;font-size:0.7rem;line-height:1;pointer-events:none;">&#8226;</span>';
                             if (tieneContrato) indicadores += '<span class="unit-cell-contrato" style="position:absolute;top:1px;left:1px;font-size:0.6rem;line-height:1;pointer-events:none;" title="Contrato de arriendo">&#128196;</span>';
                             if (tieneMascota) indicadores += '<span class="unit-cell-mascota" style="position:absolute;bottom:1px;right:1px;font-size:0.6rem;line-height:1;pointer-events:none;" title="Unidad con mascota">&#128062;</span>';
-                            cell.innerHTML = '<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;"><span>' + String(unitNumber).replace(/</g, '&lt;') + '</span>' + indicadores + '</div>';
+                            cell.innerHTML = '<div style="position:relative;width:100%;height:100%;display:flex;align-items:center;justify-content:center;"><span>' + String(unitNumber).replace(/</g, '&lt;') + '</span>' + indicadores + marcaB + '</div>';
                         } else {
                             cell.textContent = unitNumber;
                         }
-                        cell.title = 'Unidad ' + unitNumber + ' - ' + (unit.unitUse || '') + ' - ' + (unit.residents ? unit.residents.length : 0) + ' residentes' + (unit.hasPet ? ' - Mascota' : '') + ' (clic para ver detalle)';
+                        var titB = estB === 'enviada' ? ' - Bienvenida enviada' : (estB === 'pendiente' ? ' - Bienvenida pendiente' : (estB === 'sin-correo' ? ' - Sin correo' : ''));
+                        cell.title = 'Unidad ' + unitNumber + ' - ' + (unit.unitUse || '') + ' - ' + (unit.residents ? unit.residents.length : 0) + ' residentes' + (unit.hasPet ? ' - Mascota' : '') + titB + ' (clic para ver detalle)';
                         cell.style.cursor = 'pointer';
                         (function(u) {
                             cell.addEventListener('click', function(e) { e.stopPropagation(); showUnitDetailModalOcupacion(u); });
@@ -29738,6 +30026,15 @@
             var noteHtml = (unit.unitNote && unit.unitNote.trim() !== '') ? '<div style="margin:6px 0;padding:6px 8px;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border-color);"><div style="font-size:0.78rem;margin-bottom:2px;"><b>Nota:</b></div><div style="font-size:0.8rem;line-height:1.3;">' + esc(unit.unitNote) + '</div>' + (noteUpdatedStr ? '<div style="font-size:0.7rem;color:var(--gray-500);margin-top:4px;">Modificado: ' + esc(noteUpdatedStr) + '</div>' : '') + '</div>' : '';
             var contratoHtml = unit.hasRentalContract ? '<div style="margin:6px 0;padding:6px 8px;background:rgba(255,165,2,0.12);border-radius:6px;border:1px solid #ffa502;"><span style="font-size:0.8rem;font-weight:600;">📄 Contrato de arriendo</span></div>' : '';
             var mascotaHtml = unit.hasPet ? '<div style="margin:6px 0;padding:6px 8px;background:rgba(117,187,33,0.12);border-radius:6px;border:1px solid var(--primary);"><span style="font-size:0.8rem;font-weight:600;">🐾 Unidad con mascota</span></div>' : '';
+            var estB = typeof estadoBienvenidaUnidad === 'function' ? estadoBienvenidaUnidad(unit) : '';
+            var bienvenidaHtml = '';
+            if (estB === 'enviada') {
+                bienvenidaHtml = '<div style="margin:6px 0;padding:6px 8px;background:rgba(16,185,129,0.12);border-radius:6px;border:1px solid #10b981;"><span style="font-size:0.8rem;font-weight:600;">✉ Bienvenida enviada</span></div>';
+            } else if (estB === 'pendiente') {
+                bienvenidaHtml = '<div style="margin:6px 0;padding:6px 8px;background:rgba(245,158,11,0.14);border-radius:6px;border:1px solid #f59e0b;"><span style="font-size:0.8rem;font-weight:600;">✉ Bienvenida pendiente</span></div>';
+            } else if (estB === 'sin-correo') {
+                bienvenidaHtml = '<div style="margin:6px 0;padding:6px 8px;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border-color);"><span style="font-size:0.8rem;font-weight:600;">✉ Sin correo registrado</span></div>';
+            }
             var modal = document.createElement('div');
             modal.className = 'modal';
             modal.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.5);display:flex;align-items:center;justify-content:center;z-index:9999;padding:1rem;overflow:auto;';
@@ -29746,7 +30043,7 @@
                 '<div style="display:grid;grid-template-columns:repeat(2,1fr);gap:6px;margin-bottom:8px;">' +
                 '<div style="padding:6px 8px;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border-color);"><div style="color:var(--gray-600);font-size:0.7rem;">Uso</div><div style="font-weight:600;font-size:0.82rem;">' + esc(unit.unitUse) + '</div></div>' +
                 '<div style="padding:6px 8px;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border-color);"><div style="color:var(--gray-600);font-size:0.7rem;">Residentes</div><div style="font-weight:600;font-size:0.82rem;">' + (unit.residents ? unit.residents.length : 0) + '</div></div></div>' +
-                parkingHtml + rentalParkingHtml + storageHtml + bikeHtml + contratoHtml + mascotaHtml + noteHtml +
+                parkingHtml + rentalParkingHtml + storageHtml + bikeHtml + contratoHtml + mascotaHtml + bienvenidaHtml + noteHtml +
                 '<div style="margin-top:8px;"><div style="color:var(--gray-600);font-size:0.75rem;margin-bottom:3px;font-weight:600;">👥 Residentes:</div><div style="max-height:280px;overflow-y:auto;padding:6px 8px;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border-color);">' + residentsHtml + '</div></div>' +
                 '<p style="margin:12px 0 0 0;font-size:0.75rem;color:var(--gray-500);">Para editar residentes, notas o imprimir la ficha, use el panel Conserjería.</p>' +
                 '<button type="button" class="btn btn-primary btn-enviar-bienvenida-unidad" style="margin-top:10px;width:100%;padding:8px;font-size:0.8rem;">📧 Enviar correo de bienvenida</button>' +
@@ -37423,6 +37720,9 @@
                 } else {
                     pintarOcupacion({ totalUnidades: 0, ocupacionActual: 0, unidadesEntregadas: 0, unidadesSinVender: 259 });
                 }
+            }
+            if (typeof pintarPanelBienvenidaControl === 'function') {
+                pintarPanelBienvenidaControl(window._clasificacionBienvenida);
             }
             } catch (err) {
                 console.error('Panel de Control 2:', err);
