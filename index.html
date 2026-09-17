@@ -904,6 +904,32 @@
             font-size: 0.75rem;
         }
 
+        #tablaMorosos .moroso-acciones {
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 0.28rem;
+            min-width: 16.5rem;
+        }
+        #tablaMorosos .moroso-acciones .btn {
+            margin: 0;
+            width: 100%;
+            min-height: 1.85rem;
+            padding: 0.28rem 0.4rem;
+            font-size: 0.6875rem;
+            font-weight: 600;
+            line-height: 1.15;
+            border: none;
+            border-radius: 6px;
+            white-space: nowrap;
+            box-sizing: border-box;
+            transform: none;
+            box-shadow: none;
+        }
+        #tablaMorosos .moroso-acciones .btn:hover,
+        #tablaMorosos .moroso-acciones .btn:active {
+            transform: none;
+        }
+
         .table-section {
             margin-top: 1.5rem;
         }
@@ -1010,6 +1036,19 @@
             border-color: var(--primary) !important;
             font-weight: 700;
             color: var(--primary-dark);
+        }
+        #tablaLecturasAgua tr.filtro-inteligente-hit td:first-child {
+            background: var(--bg-primary) !important;
+            box-shadow: none;
+        }
+        #tablaLecturasAgua tr.filtro-inteligente-hit td:first-child input {
+            background: var(--bg-primary) !important;
+            border-color: var(--border-color) !important;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+        #tablaLecturasAgua tr.filtro-inteligente-hit td:nth-child(2) {
+            box-shadow: inset 3px 0 0 var(--primary);
         }
 
         .consulta-rapida {
@@ -5835,7 +5874,7 @@
             <!-- Correos de consejería: CCO en comprobantes de apertura -->
             <div class="form-section" style="margin-bottom: 2rem;">
                 <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700;">Correos de consejería</h3>
-                <p style="color: var(--text-tertiary); font-size: 0.8125rem; margin: 0 0 0.75rem 0; line-height: 1.45;">Además del buzón fijo de conserjería del edificio, estas direcciones reciben <strong>copia oculta (CCO)</strong> al enviar el comprobante de <strong>apertura de puerta</strong> al residente, y <strong>copia (CC)</strong> al enviar la <strong>confirmación de reserva de espacio / evento</strong>.</p>
+                <p style="color: var(--text-tertiary); font-size: 0.8125rem; margin: 0 0 0.75rem 0; line-height: 1.45;">Además del buzón fijo de conserjería del edificio (<strong>conserjeria.wm815@gmail.com</strong>), estas direcciones reciben <strong>copia oculta (CCO)</strong> al enviar el comprobante de <strong>apertura de puerta</strong> y la <strong>confirmación de mudanza</strong> al residente, y <strong>copia (CC)</strong> al enviar la <strong>confirmación de reserva de espacio / evento</strong>.</p>
                 <form id="formCorreoConsejeria">
                     <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.5rem;">
                         <div class="form-group" style="flex: 1; margin-bottom: 0.5rem;">
@@ -9717,6 +9756,7 @@
             { id: 'reportePostventaPendientes', label: 'Postventa — correo con selección de registros' },
             { id: 'comprobanteApertura', label: 'Comprobante — Apertura de puerta' },
             { id: 'confirmacionMudanza', label: 'Mudanzas — Confirmación de mudanza' },
+            { id: 'cancelacionMudanza', label: 'Mudanzas — Cancelación de reserva' },
             { id: 'comprobanteReservaEspacio', label: 'Comprobante — Confirmación reserva espacio' },
             { id: 'comprobanteTarjetaTag', label: 'Comprobante — Tarjeta / TAG' },
             { id: 'comprobanteMulta', label: 'Comprobante — Multa' },
@@ -10256,7 +10296,9 @@
                 etiquetaNotasFinal = null,
                 mensajeInicialPrefill = '',
                 destinatariosUnidad = null,
-                destinatariosDirectorio = null
+                destinatariosDirectorio = null,
+                destinatariosCco = null,
+                correosSiempreSeleccionados = null
             } = opciones || {};
 
             const listaDestUnidad = Array.isArray(destinatariosUnidad)
@@ -10265,6 +10307,22 @@
             const listaDestDirectorio = Array.isArray(destinatariosDirectorio)
                 ? destinatariosDirectorio.filter((d) => d && d.correo && String(d.correo).trim())
                 : [];
+            const correosFijosSet = new Set(
+                (Array.isArray(correosSiempreSeleccionados) ? correosSiempreSeleccionados : [])
+                    .map((e) => String(e || '').trim().toLowerCase())
+                    .filter(Boolean)
+            );
+            const listaDestDirectorioVisible = listaDestDirectorio.filter((d) =>
+                !correosFijosSet.has(String((d && d.correo) || '').trim().toLowerCase())
+            );
+            const emailsYaVisibles = new Set(
+                listaDestUnidad.concat(listaDestDirectorioVisible)
+                    .map((d) => String((d && d.correo) || '').trim().toLowerCase())
+                    .filter(Boolean)
+            );
+            const listaDestCco = (Array.isArray(destinatariosCco) ? destinatariosCco : [])
+                .filter((d) => d && d.correo && String(d.correo).trim())
+                .filter((d) => !emailsYaVisibles.has(String(d.correo).trim().toLowerCase()));
 
             const etiquetaCampoNotas = etiquetaNotasFinal || (insertarNotasDebajoMontoMulta
                 ? 'Notas (debajo del monto en UF) (opcional)'
@@ -10306,28 +10364,33 @@
 
                 const escAttr = (v) => String(v == null ? '' : v).replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
 
-                const renderListaDestinatarios = (lista, etiqueta, dataAttr, checkedByDefault) => {
+                const renderListaDestinatarios = (lista, etiqueta, dataAttr, checkedByDefault, notaExtra) => {
                     if (!lista.length) return '';
                     return `
                         <div style="margin-bottom: 0.85rem;">
-                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">${escAttr(etiqueta)} <span style="font-weight: 500; color: var(--text-tertiary); font-size: 0.8125rem;">(marque uno o más)</span></label>
+                            <label style="display: block; margin-bottom: 0.5rem; font-weight: 600; color: var(--text-primary);">${escAttr(etiqueta)} <span style="font-weight: 500; color: var(--text-tertiary); font-size: 0.8125rem;">(${escAttr(notaExtra || 'marque uno o más')})</span></label>
                             <div style="max-height: 200px; overflow-y: auto; border: 1px solid var(--border-color); border-radius: 8px; padding: 0.5rem 0.65rem; font-size: 0.8125rem;">
-                                ${lista.map((d, idx) => `
-                                <label style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.45rem; cursor: pointer;">
-                                    <input type="checkbox" ${dataAttr} value="${idx}" ${checkedByDefault ? 'checked' : ''} style="margin-top: 0.15rem; flex-shrink: 0;">
+                                ${lista.map((d, idx) => {
+                                    const correoNorm = String(d.correo || '').trim().toLowerCase();
+                                    const siempreOn = !!(d.fijo || correosFijosSet.has(correoNorm));
+                                    const marcado = checkedByDefault || siempreOn;
+                                    return `
+                                <label style="display: flex; align-items: flex-start; gap: 0.5rem; margin-bottom: 0.45rem; cursor: ${siempreOn ? 'default' : 'pointer'};">
+                                    <input type="checkbox" ${dataAttr} value="${idx}" ${marcado ? 'checked' : ''} ${siempreOn ? 'disabled' : ''} style="margin-top: 0.15rem; flex-shrink: 0;">
                                     <span style="color: var(--text-secondary); word-break: break-word;">
-                                        <strong style="color: var(--text-primary);">${escAttr(d.nombre || 'Contacto')}</strong>${d.tipo ? ` <span style="color: var(--text-tertiary);">(${escAttr(d.tipo)})</span>` : ''}<br>
+                                        <strong style="color: var(--text-primary);">${escAttr(d.nombre || 'Contacto')}</strong>${d.tipo ? ` <span style="color: var(--text-tertiary);">(${escAttr(d.tipo)})</span>` : ''}${siempreOn ? ' <span style="color: var(--primary); font-weight: 600;">· siempre</span>' : ''}<br>
                                         <span style="word-break: break-all;">${escAttr(d.correo)}</span>
                                     </span>
-                                </label>`).join('')}
+                                </label>`;
+                                }).join('')}
                             </div>
                         </div>`;
                 };
 
                 let htmlBloqueDest = '';
-                if (listaDestUnidad.length > 0 || listaDestDirectorio.length > 0) {
+                if (listaDestUnidad.length > 0 || listaDestDirectorioVisible.length > 0) {
                     htmlBloqueDest = renderListaDestinatarios(listaDestUnidad, etiquetaDestino, 'data-mcc-dest-chk', true)
-                        + renderListaDestinatarios(listaDestDirectorio, 'Directorio administrativo', 'data-mcc-dest-dir-chk', false);
+                        + renderListaDestinatarios(listaDestDirectorioVisible, 'Directorio administrativo', 'data-mcc-dest-dir-chk', false);
                     htmlBloqueDest += `<p style="margin: 0 0 0.85rem 0; font-size: 0.75rem; color: var(--text-tertiary); line-height: 1.4;">Los destinatarios marcados recibirán <strong>un solo correo</strong> (campo Para).</p>`;
                 } else {
                     htmlBloqueDest = `
@@ -10336,6 +10399,7 @@
                             <span style="word-break: break-all;">${escAttr(correoStr)}</span>
                         </div>`;
                 }
+                htmlBloqueDest += renderListaDestinatarios(listaDestCco, 'Conserjería (copia oculta)', 'data-mcc-dest-cco-chk', true, 'copia oculta, siempre incluida');
 
                 modal.innerHTML = `
                 <div style="background: var(--bg-primary); border-radius: 12px; max-width: 560px; width: 100%; max-height: 90vh; overflow-y: auto; box-shadow: 0 20px 25px -5px rgba(0,0,0,0.1);">
@@ -10427,12 +10491,12 @@
                         }
                     }
                     let residenteFinal = residente;
-                    if (listaDestUnidad.length > 0 || listaDestDirectorio.length > 0) {
+                    if (listaDestUnidad.length > 0 || listaDestDirectorioVisible.length > 0) {
                         const checksUnidad = modal.querySelectorAll('[data-mcc-dest-chk]:checked');
                         const checksDirectorio = modal.querySelectorAll('[data-mcc-dest-dir-chk]:checked');
                         const seleccionados = [
                             ...Array.from(checksUnidad).map((c) => listaDestUnidad[parseInt(c.value, 10)]),
-                            ...Array.from(checksDirectorio).map((c) => listaDestDirectorio[parseInt(c.value, 10)])
+                            ...Array.from(checksDirectorio).map((c) => listaDestDirectorioVisible[parseInt(c.value, 10)])
                         ].filter(Boolean);
                         const emailsUnicos = [...new Set(seleccionados.map((d) => String(d.correo || '').trim()).filter(Boolean))];
                         if (!emailsUnicos.length) {
@@ -10445,6 +10509,24 @@
                         };
                     }
 
+                    const checksCco = modal.querySelectorAll('[data-mcc-dest-cco-chk]:checked');
+                    const emailsCcoSel = Array.from(checksCco)
+                        .map((c) => listaDestCco[parseInt(c.value, 10)])
+                        .filter(Boolean)
+                        .map((d) => String(d.correo || '').trim())
+                        .filter(Boolean);
+                    const emailsCco = typeof normalizarListaCorreosDestino === 'function'
+                        ? normalizarListaCorreosDestino([].concat(
+                            enviarOpciones && enviarOpciones.bcc ? enviarOpciones.bcc : [],
+                            emailsCcoSel,
+                            Array.from(correosFijosSet)
+                        ))
+                        : emailsCcoSel.concat(Array.from(correosFijosSet));
+                    const enviarOpcionesFinal = Object.assign({}, enviarOpciones || {});
+                    if (emailsCco.length === 1) enviarOpcionesFinal.bcc = emailsCco[0];
+                    else if (emailsCco.length > 1) enviarOpcionesFinal.bcc = emailsCco;
+                    else delete enviarOpcionesFinal.bcc;
+
                     try {
                         mostrarProgreso('Enviando correo…');
                         const resultado = await enviarCorreoHTML(
@@ -10452,7 +10534,7 @@
                             asuntoFinal,
                             combinado.html,
                             adjuntosFinales.length ? adjuntosFinales : null,
-                            enviarOpciones
+                            Object.keys(enviarOpcionesFinal).length ? enviarOpcionesFinal : null
                         );
                         ocultarProgreso();
                         if (!resultado || !resultado.exito) {
@@ -11605,18 +11687,58 @@
 
         function mudanzaEstaAutorizada(m) {
             if (!m) return false;
+            if (mudanzaEstaCancelada(m)) return false;
             if (m.autorizada === 'si' || m.autorizada === true) return true;
             if (m.autorizada === 'no' || m.autorizada === false) return false;
             return !!m.selloAutorizado;
         }
 
+        function mudanzaEstaCancelada(m) {
+            if (!m) return false;
+            const estado = String(m.estado || '').toLowerCase();
+            return estado === 'cancelada' || estado === 'cancelado' || m.cancelada === true || m.cancelada === 'si';
+        }
+
+        function mudanzaConCobroVigente(m) {
+            return !!(m && m.aplicaCobro === 'si' && !mudanzaEstaCancelada(m));
+        }
+
         function valorServicioMudanza(m) {
-            const aplica = !!(m && m.aplicaCobro === 'si');
+            const aplica = mudanzaConCobroVigente(m);
             const monto = parseFloat(m && m.monto) || 0;
             const texto = (typeof formatearMoneda === 'function')
                 ? (aplica && monto > 0 ? formatearMoneda(monto) : 'Sin cobro')
                 : (aplica && monto > 0 ? ('$' + Number(monto).toLocaleString('es-CL')) : 'Sin cobro');
             return { aplica, monto: aplica ? monto : 0, texto };
+        }
+
+        function htmlNormativaMudanzaMiniatura() {
+            return `<table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;border:1px solid #d4e8b8;border-radius:8px;margin:8px 0 10px 0;width:100%;">
+  <tr>
+    <td style="background:#75BB21;color:#ffffff;padding:6px 10px;font-size:11px;font-weight:700;letter-spacing:0.03em;font-family:Arial,Helvetica,sans-serif;">NORMAS DE MUDANZA · lun a sáb · aviso 48 h</td>
+  </tr>
+  <tr>
+    <td style="padding:0;">
+      <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="border-collapse:collapse;width:100%;">
+        <tr>
+          <td width="50%" valign="top" style="padding:7px 10px;border-right:1px solid #e8eee8;border-bottom:1px solid #e8eee8;font-size:11px;color:#1a1a1a;line-height:1.4;font-family:Arial,Helvetica,sans-serif;">
+            <strong style="color:#5a9219;">Lun–Vie</strong><br>Mañana 09:00–13:30<br>Tarde 13:30–18:00
+          </td>
+          <td width="50%" valign="top" style="padding:7px 10px;border-bottom:1px solid #e8eee8;font-size:11px;color:#1a1a1a;line-height:1.4;font-family:Arial,Helvetica,sans-serif;">
+            <strong style="color:#5a9219;">Sábado</strong><br>Único 09:00–15:00<br><strong style="color:#dc2626;">No domingo ni festivos</strong>
+          </td>
+        </tr>
+      </table>
+    </td>
+  </tr>
+  <tr>
+    <td style="padding:7px 10px;background:#f7faf2;font-size:11px;color:#333333;line-height:1.45;font-family:Arial,Helvetica,sans-serif;">
+      Ingreso por <strong>Inés de Suárez 7624</strong>. Prohibido camión de gran tamaño que dañe suelo o losa (sin excepción).<br>
+      Si no está agendada en el sistema, <strong>no se autoriza ni puede realizarse</strong>.<br>
+      Resguardo de ascensores y espacios comunes: <strong>$20.000</strong> a GGCC. Consulte el Reglamento Interno.
+    </td>
+  </tr>
+</table>`;
         }
         
         // Función para mostrar/ocultar campos de salida
@@ -11885,17 +12007,21 @@
             tbody.innerHTML = mudanzas.map(m => {
                 const tipoTexto = m.tipo === 'propietario' ? 'Propietario' : m.tipo === 'arrendatario' ? 'Arrendatario' : '-';
                 const movimientoTexto = m.movimiento === 'ingreso' ? 'Ingreso' : m.movimiento === 'salida' ? 'Salida' : '-';
+                const cancelada = mudanzaEstaCancelada(m);
                 const autorizada = mudanzaEstaAutorizada(m);
+                const mesArchivado = window.mesEnConsulta && !window.mesReabierto;
                 return `
-                    <tr>
+                    <tr${cancelada ? ' style="opacity: 0.78;"' : ''}>
                         <td>${formatearFecha(m.fecha)}</td>
                         <td>${m.nombre}</td>
                         <td>${m.departamento}</td>
                         <td><span class="badge badge-info">${tipoTexto}</span></td>
                         <td><span class="badge ${m.movimiento === 'ingreso' ? 'badge-success' : 'badge-warning'}">${movimientoTexto}</span></td>
-                        <td><span class="badge ${autorizada ? 'badge-success' : 'badge-danger'}">${autorizada ? 'Sí' : 'No'}</span></td>
-                        <td><span class="badge ${m.aplicaCobro === 'si' ? 'badge-success' : 'badge-secondary'}">${m.aplicaCobro === 'si' ? 'Sí' : 'No'}</span></td>
-                        <td>${formatearMoneda(m.monto)}</td>
+                        <td>${cancelada
+                            ? '<span class="badge badge-danger">Cancelada</span>'
+                            : `<span class="badge ${autorizada ? 'badge-success' : 'badge-danger'}">${autorizada ? 'Sí' : 'No'}</span>`}</td>
+                        <td><span class="badge ${(!cancelada && m.aplicaCobro === 'si') ? 'badge-success' : 'badge-secondary'}">${cancelada ? 'Anulado' : (m.aplicaCobro === 'si' ? 'Sí' : 'No')}</span></td>
+                        <td>${formatearMoneda(cancelada ? 0 : m.monto)}</td>
                         <td>${m.corredor || '-'}</td>
                         <td class="columna-observaciones" style="max-width: 150px; min-width: 80px;" title="${m.observaciones || ''}">
                             ${m.observaciones ? `<span style="display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${m.observaciones}</span>` : '-'}
@@ -11903,13 +12029,15 @@
                         <td style="width: 120px;">
                             <div style="display: flex; flex-direction: column; gap: 0.15rem; align-items: stretch;">
                                 ${htmlBotonTrasladarCargo('mudanzas', m)}
-                                <button type="button" class="btn btn-info btn-sm" onclick="enviarCorreoMudanza('${m.id}')" style="padding: 0.25rem 0.4rem; font-size: 0.75rem; width: 100%; background: #06b6d4; color: white; border: none;" title="Enviar confirmación de mudanza por correo">📧 Enviar</button>
-                                ${(window.mesEnConsulta && !window.mesReabierto) ? '' : `
+                                ${cancelada
+                                    ? `<button type="button" class="btn btn-info btn-sm" onclick="enviarCorreoCancelacionMudanza('${m.id}')" style="padding: 0.25rem 0.4rem; font-size: 0.75rem; width: 100%; background: #dc2626; color: white; border: none;" title="Reenviar correo de cancelación">📧 Cancelación</button>`
+                                    : `<button type="button" class="btn btn-info btn-sm" onclick="enviarCorreoMudanza('${m.id}')" style="padding: 0.25rem 0.4rem; font-size: 0.75rem; width: 100%; background: #06b6d4; color: white; border: none;" title="Enviar confirmación de mudanza por correo">📧 Enviar</button>`}
+                                ${mesArchivado ? '<span style="color: var(--gray-500); font-size: 0.7rem;">Solo lectura</span>' : `
+                                    ${!cancelada ? `<button type="button" class="btn btn-sm" onclick="cancelarReservaMudanza('${m.id}')" style="padding: 0.25rem 0.4rem; font-size: 0.75rem; width: 100%; background: #f59e0b; color: white; border: none;" title="Cancelar reserva de mudanza y notificar por correo">✖ Cancelar</button>` : ''}
                                     <button class="btn btn-primary btn-sm" onclick="editarMudanza('${m.id}')" style="padding: 0.25rem 0.4rem; font-size: 0.75rem; width: 100%;">Editar</button>
-                                    ${m.movimiento === 'salida' ? `<button class="btn btn-success btn-sm" onclick="generarComprobanteSalida('${m.id}')" style="padding: 0.25rem 0.4rem; font-size: 0.7rem; width: 100%;">📄 Comprobante</button>` : ''}
+                                    ${(!cancelada && m.movimiento === 'salida') ? `<button class="btn btn-success btn-sm" onclick="generarComprobanteSalida('${m.id}')" style="padding: 0.25rem 0.4rem; font-size: 0.7rem; width: 100%;">📄 Comprobante</button>` : ''}
                                     <button class="btn btn-danger btn-sm" onclick="eliminarMudanza('${m.id}')" style="padding: 0.25rem 0.4rem; font-size: 0.75rem; width: 100%;">Eliminar</button>
                                 `}
-                                ${(window.mesEnConsulta && !window.mesReabierto) ? '<span style="color: var(--gray-500); font-size: 0.7rem;">Solo lectura</span>' : ''}
                             </div>
                         </td>
                     </tr>
@@ -11960,31 +12088,32 @@
 
             let parrafoPrincipal = '';
             if (esIngreso && autorizada) {
-                parrafoPrincipal = 'Confirmamos que su <strong>mudanza de ingreso</strong> se encuentra <strong>autorizada</strong> por la administración. Puede realizarse en la fecha indicada, de acuerdo con el protocolo de la comunidad.';
+                parrafoPrincipal = 'Confirmamos que su <strong>mudanza de ingreso</strong> se encuentra <strong>autorizada</strong> por la administración para la fecha indicada.';
             } else if (esIngreso && !autorizada) {
-                parrafoPrincipal = 'Informamos que su <strong>mudanza de ingreso</strong> quedó registrada, pero <strong>aún no se encuentra autorizada</strong>. No podrá realizarse hasta contar con la autorización de la administración.';
+                parrafoPrincipal = 'Informamos que su <strong>mudanza de ingreso</strong> quedó registrada, pero <strong>aún no se encuentra autorizada</strong>.';
             } else if (esSalida && autorizada) {
-                parrafoPrincipal = 'Confirmamos que su <strong>mudanza de salida</strong> se encuentra <strong>autorizada</strong> por la administración. Puede realizarse en la fecha indicada, de acuerdo con el protocolo de la comunidad.';
+                parrafoPrincipal = 'Confirmamos que su <strong>mudanza de salida</strong> se encuentra <strong>autorizada</strong> por la administración para la fecha indicada.';
             } else if (esSalida && !autorizada) {
-                parrafoPrincipal = 'Informamos que su <strong>mudanza de salida</strong> quedó registrada, pero <strong>aún no se encuentra autorizada</strong>. No podrá realizarse hasta regularizar la autorización con la administración.';
+                parrafoPrincipal = 'Informamos que su <strong>mudanza de salida</strong> quedó registrada, pero <strong>aún no se encuentra autorizada</strong>.';
             } else {
                 parrafoPrincipal = 'Le informamos el estado de la mudanza registrada a su nombre.';
             }
 
-            const valorServicioTexto = servicio.aplica
-                ? `El valor del servicio de mudanza es <strong>${linkEsc(servicio.texto)}</strong>, el cual se carga en el gasto común.`
-                : 'Esta mudanza se registró <strong>sin cobro</strong> de servicio.';
+            const tipoMostrar = (esSalida && mudanza.tipoCheck)
+                ? (mudanza.tipoCheck === 'propietario' ? 'Propietario' : mudanza.tipoCheck === 'arrendatario' ? 'Arrendatario' : tipoTexto)
+                : tipoTexto;
 
             let filasSalida = '';
             if (esSalida) {
-                const tipoCheck = mudanza.tipoCheck === 'propietario' ? 'Propietario' : mudanza.tipoCheck === 'arrendatario' ? 'Arrendatario' : '-';
                 const gastosAlDia = mudanza.tieneGastosComunes === 'si' ? 'Sí' : mudanza.tieneGastosComunes === 'no' ? 'No' : '-';
                 const montoGastos = (mudanza.tieneGastosComunes === 'si')
                     ? ((typeof formatearMoneda === 'function' ? formatearMoneda(mudanza.gastosComunes || 0) : String(mudanza.gastosComunes || 0)))
-                    : '-';
+                    : '';
+                const gastosTexto = mudanza.tieneGastosComunes === 'si'
+                    ? (Number(mudanza.gastosComunes || 0) === 0 ? gastosAlDia + ' · ' + montoGastos + ' (sin deuda)' : gastosAlDia + ' · ' + montoGastos)
+                    : gastosAlDia;
                 filasSalida = `
-                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Tipo de check</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(tipoCheck)}</td></tr>
-                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Gastos comunes al día</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(gastosAlDia)}${mudanza.tieneGastosComunes === 'si' ? ' (' + linkEsc(montoGastos) + ')' : ''}</td></tr>
+                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Gastos comunes al día</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(gastosTexto)}</td></tr>
                 <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Salvoconducto propietario</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${mudanza.salvoconducto ? 'Sí' : 'No'}</td></tr>`;
             }
 
@@ -12029,8 +12158,7 @@
           <tr>
             <td class="content-padding" style="padding: 14px 28px 10px 28px;">
               <p style="margin: 0 0 6px 0; font-size: 15px; color: #1a1a1a; line-height: 1.5;">Estimado/a <strong>${linkEsc(mudanza.nombre || 'Residente')}</strong>,</p>
-              <p style="margin: 0 0 8px 0; font-size: 14px; color: #333333; line-height: 1.55;">${parrafoPrincipal}</p>
-              <p style="margin: 0; font-size: 14px; color: #333333; line-height: 1.55;">${valorServicioTexto}</p>
+              <p style="margin: 0; font-size: 14px; color: #333333; line-height: 1.55;">${parrafoPrincipal}</p>
             </td>
           </tr>
           <tr>
@@ -12038,9 +12166,8 @@
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: ${estadoBg}; border-radius: 8px; border: 1px solid ${estadoBorder};">
                 <tr>
                   <td style="padding: 12px 16px; text-align: center;">
-                    <p style="margin: 0 0 2px 0; font-size: 12px; color: ${estadoColor}; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700;">Estado de autorización</p>
+                    <p style="margin: 0 0 2px 0; font-size: 12px; color: ${estadoColor}; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700;">Estado</p>
                     <p style="margin: 0; font-size: 20px; font-weight: 700; color: ${estadoColor};">${estadoTexto}</p>
-                    <p style="margin: 4px 0 0 0; font-size: 13px; color: ${estadoColor};">Mudanza de ${linkEsc(movimientoTexto.toLowerCase())}</p>
                   </td>
                 </tr>
               </table>
@@ -12052,11 +12179,10 @@
                 <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8; width: 42%;">Residente</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; font-weight: 600; border-bottom: 1px solid #e8eee8;">${linkEsc(mudanza.nombre)}</td></tr>
                 <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Departamento</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(mudanza.departamento)}</td></tr>
                 <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Fecha</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(fechaStr)}</td></tr>
-                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Tipo</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(tipoTexto)}</td></tr>
+                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Tipo</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(tipoMostrar)}</td></tr>
                 <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Movimiento</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(movimientoTexto)}</td></tr>
                 ${filaCorredor}
                 ${filasSalida}
-                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666;">Aplica cobro</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a;">${servicio.aplica ? 'Sí' : 'No'}</td></tr>
               </table>
             </td>
           </tr>
@@ -12072,19 +12198,134 @@
               </table>
             </td>
           </tr>
+          <tr>
+            <td class="content-padding" style="padding: 0 28px 10px 28px;">
+              ${htmlNormativaMudanzaMiniatura()}
+            </td>
+          </tr>
           ${autorizada ? '' : `
           <tr>
             <td class="content-padding" style="padding: 0 28px 10px 28px;">
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #fff8e1; border: 1px solid #ffecb3; border-radius: 8px;">
                 <tr>
                   <td style="padding: 12px 14px;">
-                    <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: 700; color: #795548; text-transform: uppercase; letter-spacing: 0.04em;">Importante</p>
-                    <p style="margin: 0; font-size: 14px; color: #333333; line-height: 1.5;">Hasta no contar con la autorización de la administración, la mudanza no puede ejecutarse. Para regularizar, contacte a la administración del edificio.</p>
+                    <p style="margin: 0; font-size: 14px; color: #333333; line-height: 1.5;">Hasta no contar con la autorización de la administración, esta mudanza no puede ejecutarse.</p>
                   </td>
                 </tr>
               </table>
             </td>
           </tr>`}
+          <tr>
+            <td style="padding: 14px 28px 18px 28px; text-align: center; border-top: 1px solid #eeeeee; background-color: #fafafa; border-radius: 0 0 12px 12px;">
+              <p style="margin: 0; font-size: 12px; color: #888888;">Comunicación oficial de administración.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+        }
+
+        async function prepararCorreoMudanzaConsejeria() {
+            await cargarCorreosConsejeria();
+            const correoFijoConsejeria = (typeof CORREOS_BCC_APERTURA_CONSEJERIA_FIJOS !== 'undefined' && CORREOS_BCC_APERTURA_CONSEJERIA_FIJOS[0])
+                ? CORREOS_BCC_APERTURA_CONSEJERIA_FIJOS[0]
+                : 'conserjeria.wm815@gmail.com';
+            const desdeCentral = (correosConsejeria || []).map(c => c.correo).filter(Boolean);
+            const emailsBccConsejeria = typeof normalizarListaCorreosDestino === 'function'
+                ? normalizarListaCorreosDestino([correoFijoConsejeria].concat(desdeCentral))
+                : [correoFijoConsejeria];
+            const enviarOpciones = emailsBccConsejeria.length
+                ? { bcc: emailsBccConsejeria.length === 1 ? emailsBccConsejeria[0] : emailsBccConsejeria }
+                : { bcc: correoFijoConsejeria };
+            const destinatariosCco = [{
+                nombre: 'Conserjería',
+                correo: correoFijoConsejeria,
+                tipo: 'CCO',
+                fijo: true
+            }].concat((correosConsejeria || [])
+                .filter((c) => c && c.correo && String(c.correo).trim().toLowerCase() !== correoFijoConsejeria.toLowerCase())
+                .map((c) => ({
+                    nombre: c.nombre || 'Conserjería',
+                    correo: String(c.correo).trim(),
+                    tipo: 'CCO'
+                })));
+            return { correoFijoConsejeria, destinatariosCco, enviarOpciones };
+        }
+
+        function generarCancelacionMudanzaHtml(mudanza, nombreComunidad) {
+            const comunidad = nombreComunidad || 'Comunidad';
+            const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const esIngreso = mudanza.movimiento === 'ingreso';
+            const esSalida = mudanza.movimiento === 'salida';
+            const movimientoTexto = esIngreso ? 'Ingreso' : esSalida ? 'Salida' : (mudanza.movimiento || 'Mudanza');
+            const fechaStr = mudanza.fecha
+                ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(mudanza.fecha) : mudanza.fecha)
+                : '-';
+            const fechaCancel = mudanza.fechaCancelacion
+                ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(mudanza.fechaCancelacion) : mudanza.fechaCancelacion)
+                : (typeof fechaEmisionCorreoHoy === 'function' ? fechaEmisionCorreoHoy() : '');
+            return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Cancelación de mudanza</title>
+  <style type="text/css">
+    body, p, h1, h2, a, td, span { font-family: Arial, Helvetica, sans-serif; }
+    body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; }
+    table { border-collapse: collapse; }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #ffffff; font-family: Arial, Helvetica, sans-serif;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #ffffff;">
+    <tr>
+      <td align="center" style="padding: 16px 10px;">
+        <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 12px;">
+          <tr>
+            <td style="padding: 18px 28px 14px 28px; border-bottom: 3px solid #dc2626; background-color: #ffffff; border-radius: 12px 12px 0 0;">
+              <div style="text-align:center;margin-bottom:12px"><img src="https://img.mailinblue.com/8323725/images/content_library/original/6844749040dd0f16c5341248.png" alt="Logo" style="max-width:120px;height:auto;"></div>
+              <p style="margin: 0 0 2px 0; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: #dc2626; text-transform: uppercase;">Notificación de mudanza</p>
+              <h2 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 700; color: #1a1a1a;">Cancelación de reserva</h2>
+              <p style="margin: 0; font-size: 14px; color: #555555;">${linkEsc(comunidad)}</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 14px 28px 10px 28px;">
+              <p style="margin: 0 0 6px 0; font-size: 15px; color: #1a1a1a; line-height: 1.5;">Estimado/a <strong>${linkEsc(mudanza.nombre || 'Residente')}</strong>,</p>
+              <p style="margin: 0; font-size: 14px; color: #333333; line-height: 1.55;">Informamos que la reserva de <strong>mudanza de ${linkEsc(movimientoTexto.toLowerCase())}</strong> para el <strong>${linkEsc(fechaStr)}</strong> ha sido <strong>cancelada</strong> por la administración. La mudanza no podrá realizarse en esa fecha.</p>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 28px 10px 28px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #fee2e2; border-radius: 8px; border: 1px solid #fca5a5;">
+                <tr>
+                  <td style="padding: 12px 16px; text-align: center;">
+                    <p style="margin: 0 0 2px 0; font-size: 12px; color: #991b1b; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700;">Estado</p>
+                    <p style="margin: 0; font-size: 20px; font-weight: 700; color: #991b1b;">RESERVA CANCELADA</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 28px 10px 28px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f8faf8; border-radius: 8px; border: 1px solid #e8eee8;">
+                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8; width: 42%;">Residente</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; font-weight: 600; border-bottom: 1px solid #e8eee8;">${linkEsc(mudanza.nombre)}</td></tr>
+                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Departamento</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(mudanza.departamento)}</td></tr>
+                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Fecha reservada</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(fechaStr)}</td></tr>
+                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Movimiento</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(movimientoTexto)}</td></tr>
+                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666;">Fecha de cancelación</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a;">${linkEsc(fechaCancel)}</td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td style="padding: 0 28px 12px 28px;">
+              <p style="margin: 0; padding: 10px 12px; background: #f7faf2; border: 1px solid #d4e8b8; border-radius: 8px; font-size: 13px; color: #333333; line-height: 1.5;">El cobro de resguardo, si existía, queda <strong>anulado</strong>. Para una nueva mudanza debe agendarse otra reserva con al menos 48 horas de anticipación.</p>
+            </td>
+          </tr>
           <tr>
             <td style="padding: 14px 28px 18px 28px; text-align: center; border-top: 1px solid #eeeeee; background-color: #fafafa; border-radius: 0 0 12px 12px;">
               <p style="margin: 0; font-size: 12px; color: #888888;">Comunicación oficial de administración.</p>
@@ -12106,6 +12347,9 @@
                     mostrarAlerta('No se encontró el registro.', 'Error');
                     return;
                 }
+                if (mudanzaEstaCancelada(mudanza)) {
+                    return window.enviarCorreoCancelacionMudanza(id);
+                }
 
                 const nombreComunidad = typeof obtenerNombreComunidad === 'function'
                     ? await obtenerNombreComunidad()
@@ -12122,14 +12366,7 @@
                     return;
                 }
 
-                await cargarCorreosConsejeria();
-                const desdeCentral = (correosConsejeria || []).map(c => c.correo).filter(Boolean);
-                const emailsBccConsejeria = typeof normalizarListaCorreosDestino === 'function'
-                    ? normalizarListaCorreosDestino((typeof CORREOS_BCC_APERTURA_CONSEJERIA_FIJOS !== 'undefined' ? CORREOS_BCC_APERTURA_CONSEJERIA_FIJOS : []).concat(desdeCentral))
-                    : [];
-                const enviarOpciones = emailsBccConsejeria.length
-                    ? { bcc: emailsBccConsejeria.length === 1 ? emailsBccConsejeria[0] : emailsBccConsejeria }
-                    : null;
+                const { correoFijoConsejeria, destinatariosCco, enviarOpciones } = await prepararCorreoMudanzaConsejeria();
 
                 const esIngreso = mudanza.movimiento === 'ingreso';
                 const autorizada = mudanzaEstaAutorizada(mudanza);
@@ -12152,6 +12389,8 @@
                     residente: residenteInfo,
                     destinatariosUnidad,
                     destinatariosDirectorio,
+                    destinatariosCco,
+                    correosSiempreSeleccionados: [correoFijoConsejeria],
                     etiquetaDestino: 'Residentes de la unidad',
                     enviarOpciones
                 });
@@ -12171,6 +12410,117 @@
                 console.error('Error al enviar confirmación de mudanza:', error);
                 mostrarAlerta('Error al enviar correo: ' + (error.message || 'Error desconocido'), 'Error');
             }
+        };
+
+        window.enviarCorreoCancelacionMudanza = async function(id) {
+            try {
+                const mudanzas = await obtenerDatosMes('mudanzas');
+                const mudanza = mudanzas.find(m => m.id === id);
+                if (!mudanza) {
+                    mostrarAlerta('No se encontró el registro.', 'Error');
+                    return;
+                }
+                if (!mudanzaEstaCancelada(mudanza)) {
+                    mostrarAlerta('Esta mudanza aún no está cancelada. Use «Cancelar» para anular la reserva.', 'Mudanza vigente');
+                    return;
+                }
+
+                const nombreComunidad = typeof obtenerNombreComunidad === 'function'
+                    ? await obtenerNombreComunidad()
+                    : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
+                const htmlCancelacion = generarCancelacionMudanzaHtml(mudanza, nombreComunidad);
+                const {
+                    destinatariosUnidad,
+                    destinatariosDirectorio,
+                    residente: residenteInfo
+                } = await obtenerDestinatariosCorreoUnidad(mudanza.departamento, mudanza.nombre);
+
+                if (!residenteInfo || !residenteInfo.correo) {
+                    mostrarAlerta('No se encontraron correos para esta unidad ni en el directorio administrativo. Verifique Ocupación, Conserjería o Central de Notificación.', 'Correo no encontrado');
+                    return;
+                }
+
+                const { correoFijoConsejeria, destinatariosCco, enviarOpciones } = await prepararCorreoMudanzaConsejeria();
+                const movimientoAsunto = mudanza.movimiento === 'ingreso' ? 'ingreso' : (mudanza.movimiento === 'salida' ? 'salida' : 'mudanza');
+                const mapPlant = await obtenerPlantillasCorreoModulosMap();
+                const bloque = obtenerBloquePlantillaModulo(mapPlant, 'cancelacionMudanza');
+                const ctx = {
+                    nombreComunidad,
+                    departamento: mudanza.departamento,
+                    nombreResidente: mudanza.nombre,
+                    fechaEmision: fechaEmisionCorreoHoy()
+                };
+                const asuntoBase = `Cancelación de reserva de mudanza de ${movimientoAsunto} - Depto ${mudanza.departamento} - ${nombreComunidad}`;
+                const resultado = await mostrarModalPersonalizarCorreoYEnviar({
+                    titulo: 'Enviar cancelación de mudanza',
+                    asuntoDefecto: resolverAsuntoPlantillaCorreo(bloque, asuntoBase, ctx),
+                    mensajeInicialPrefill: resolverCuerpoInicioPlantillaCorreo(bloque, ctx),
+                    htmlBase: htmlCancelacion,
+                    residente: residenteInfo,
+                    destinatariosUnidad,
+                    destinatariosDirectorio,
+                    destinatariosCco,
+                    correosSiempreSeleccionados: [correoFijoConsejeria],
+                    etiquetaDestino: 'Residentes de la unidad',
+                    enviarOpciones
+                });
+                if (resultado === null) return;
+
+                if (resultado.exito) {
+                    mostrarAlerta(resultado.mensaje || 'Correo de cancelación enviado correctamente', 'Éxito');
+                    if (typeof window.registrarMovimiento === 'function') {
+                        window.registrarMovimiento('correo', 'mudanzas', `Cancelación de mudanza enviada: Depto ${mudanza.departamento} - ${movimientoAsunto}`);
+                    }
+                    await cargarMudanzas();
+                } else {
+                    mostrarAlerta('Error al enviar correo: ' + (resultado.error || 'Error desconocido'), 'Error');
+                }
+            } catch (error) {
+                ocultarProgreso();
+                console.error('Error al enviar cancelación de mudanza:', error);
+                mostrarAlerta('Error al enviar correo: ' + (error.message || 'Error desconocido'), 'Error');
+            }
+        };
+
+        window.cancelarReservaMudanza = async function(id) {
+            if (window.mesEnConsulta && !window.mesReabierto) {
+                mostrarAlerta('No se pueden cancelar reservas de meses archivados. Vuelva al mes actual o reabra el mes para editarlo.', 'Registro Archivado');
+                return;
+            }
+            const mudanzas = await obtenerDatosMes('mudanzas');
+            const mudanza = mudanzas.find(m => m.id === id);
+            if (!mudanza) {
+                mostrarAlerta('No se encontró el registro.', 'Error');
+                return;
+            }
+            if (mudanzaEstaCancelada(mudanza)) {
+                return window.enviarCorreoCancelacionMudanza(id);
+            }
+            const fechaTxt = typeof formatearFecha === 'function' ? formatearFecha(mudanza.fecha) : (mudanza.fecha || '');
+            const confirmado = await confirmarAccion(
+                `¿Cancelar la reserva de mudanza de ${mudanza.nombre || 'residente'} (Depto ${mudanza.departamento || '-'}) para el ${fechaTxt}? La mudanza no podrá realizarse y se enviará un correo de cancelación.`,
+                'Cancelar reserva'
+            );
+            if (!confirmado) return;
+
+            const index = mudanzas.findIndex(m => m.id === id);
+            if (index === -1) return;
+            const hoy = typeof obtenerFechaHoy === 'function' ? obtenerFechaHoy() : new Date().toISOString().slice(0, 10);
+            mudanzas[index] = {
+                ...mudanzas[index],
+                estado: 'cancelada',
+                cancelada: true,
+                fechaCancelacion: hoy,
+                autorizada: 'no',
+                selloAutorizado: false
+            };
+            await guardarDatosMes('mudanzas', mudanzas);
+            if (typeof window.registrarMovimiento === 'function') {
+                const mov = mudanza.movimiento === 'ingreso' ? 'Ingreso' : mudanza.movimiento === 'salida' ? 'Salida' : 'Mudanza';
+                window.registrarMovimiento('actualizar', 'mudanzas', `Reserva cancelada: ${mov} Depto ${mudanza.departamento} - ${mudanza.nombre}`);
+            }
+            await cargarMudanzas();
+            await window.enviarCorreoCancelacionMudanza(id);
         };
 
         // ============================================
@@ -13881,6 +14231,35 @@
             return m && m.tipoRegistro === 'anulacion';
         }
 
+        function multaEstaAnulada(m) {
+            if (!m) return false;
+            if (multaEsRegistroAnulacion(m)) return true;
+            if (m.anulada === true || m.anulada === 'si') return true;
+            const estado = String(m.estado || '').toLowerCase();
+            return estado === 'anulada' || estado === 'anulado';
+        }
+
+        function filtrarMudanzasParaReporte(lista) {
+            return (Array.isArray(lista) ? lista : []).filter(function (m) {
+                return m && !mudanzaEstaCancelada(m);
+            });
+        }
+
+        function filtrarMultasParaReporte(lista) {
+            const src = (Array.isArray(lista) ? lista : []).filter(Boolean);
+            const foliosAnulados = new Set();
+            src.forEach(function (m) {
+                if (multaEsRegistroAnulacion(m) && m.folioMultaOrigen) {
+                    foliosAnulados.add(String(m.folioMultaOrigen).trim().toLowerCase());
+                }
+            });
+            return src.filter(function (m) {
+                if (multaEstaAnulada(m)) return false;
+                if (m.folio && foliosAnulados.has(String(m.folio).trim().toLowerCase())) return false;
+                return true;
+            });
+        }
+
         function escaparHtmlContenidoMulta(valor) {
             return String(valor == null ? '' : valor)
                 .replace(/&/g, '&amp;')
@@ -14696,6 +15075,11 @@
                 });
                 if (resultado === null) return;
                 if (resultado.exito) {
+                    const idxAn = multas.findIndex(m => m.id === id);
+                    if (idxAn !== -1) {
+                        multas[idxAn] = { ...multas[idxAn], anulada: true, estado: 'anulada' };
+                        await guardarDatosMes('multas', multas);
+                    }
                     mostrarAlerta(resultado.mensaje || 'Correo enviado correctamente', 'Éxito');
                     await cargarMultas();
                 } else {
@@ -15490,14 +15874,14 @@
                         ${m.servicioElectricoSuspendido ? '<span class="badge badge-danger" style="background-color: #ef4444; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">⚠️ Suspendido</span>' : '<span style="color: var(--gray-500); font-size: 0.75rem;">Activo</span>'}
                     </td>
                     <td>
-                        <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center;">
-                            <button type="button" class="btn btn-secondary btn-sm" onclick="abrirComprobanteMoroso('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem;">📄 Comprobante</button>
-                            <button type="button" class="btn btn-info btn-sm" onclick="enviarCorreoMoroso('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem; background: #06b6d4; color: white; border: none;" title="Enviar aviso de morosidad por correo">📧 Enviar</button>
-                            <button type="button" class="btn btn-sm" onclick="enviarCorreoAvisoCorteLuz('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem; background: #f59e0b; color: white; border: none;" title="Enviar aviso de corte de luz por correo">⚡ Corte luz</button>
-                            ${mesArchivado ? '<span style="color: var(--gray-500); font-size: 0.75rem;">Archivado</span>' : `
-                                <button type="button" class="btn btn-sm" onclick="abrirModalAbonarMoroso('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem; background: #10b981; color: white; border: none;" title="Registrar un aporte sobre esta deuda">Abonar</button>
-                                <button class="btn btn-primary btn-sm" onclick="editarMoroso('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem;">Editar</button>
-                                <button class="btn btn-danger btn-sm" onclick="eliminarMoroso('${m.id}')">Eliminar</button>
+                        <div class="moroso-acciones">
+                            <button type="button" class="btn btn-secondary btn-sm" onclick="abrirComprobanteMoroso('${m.id}')">📄 Comprobante</button>
+                            <button type="button" class="btn btn-info btn-sm" onclick="enviarCorreoMoroso('${m.id}')" style="background: #06b6d4; color: white;" title="Enviar aviso de morosidad por correo">📧 Enviar</button>
+                            <button type="button" class="btn btn-sm" onclick="enviarCorreoAvisoCorteLuz('${m.id}')" style="background: #f59e0b; color: white;" title="Enviar aviso de corte de luz por correo">⚡ Corte luz</button>
+                            ${mesArchivado ? '<span style="grid-column: 1 / -1; color: var(--gray-500); font-size: 0.75rem;">Archivado</span>' : `
+                                <button type="button" class="btn btn-sm" onclick="abrirModalAbonarMoroso('${m.id}')" style="background: #10b981; color: white;" title="Registrar un aporte sobre esta deuda">Abonar</button>
+                                <button type="button" class="btn btn-primary btn-sm" onclick="editarMoroso('${m.id}')">Editar</button>
+                                <button type="button" class="btn btn-danger btn-sm" onclick="eliminarMoroso('${m.id}')">Eliminar</button>
                             `}
                         </div>
                     </td>
@@ -18015,8 +18399,10 @@
                 }
                 
                 // Calcular ingresos
+                mudanzas = filtrarMudanzasParaReporte(mudanzas);
+                multas = filtrarMultasParaReporte(multas);
                 const ingresosMudanzas = Array.isArray(mudanzas) 
-                    ? mudanzas.filter(m => m && m.aplicaCobro === 'si').reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0)
+                    ? mudanzas.filter(mudanzaConCobroVigente).reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0)
                     : 0;
                 const ingresosTarjetas = Array.isArray(tarjetas)
                     ? tarjetas.reduce((sum, t) => sum + (parseFloat(t && t.monto) || 0), 0)
@@ -18049,7 +18435,7 @@
                                 <td style="padding: 8px 0; border-bottom: 1px solid #e5e7eb; font-size: 14px; color: #1a1a1a; text-align: right; vertical-align: top;">${valorTexto}</td>
                             </tr>`;
                     const totalMudanzasEj = Array.isArray(mudanzas) ? mudanzas.length : 0;
-                    const mudanzasConCobroEj = Array.isArray(mudanzas) ? mudanzas.filter(m => m && m.aplicaCobro === 'si').length : 0;
+                    const mudanzasConCobroEj = Array.isArray(mudanzas) ? mudanzas.filter(mudanzaConCobroVigente).length : 0;
                     const totalIngresosMud = Array.isArray(mudanzas) ? mudanzas.filter(m => m && m.movimiento === 'ingreso').length : 0;
                     const totalSalidasMud = Array.isArray(mudanzas) ? mudanzas.filter(m => m && m.movimiento === 'salida').length : 0;
                     const totalAperturasEj = Array.isArray(aperturas) ? aperturas.length : 0;
@@ -24378,6 +24764,11 @@
                 return;
             }
             
+            if (mudanzaEstaCancelada(mudanza)) {
+                mostrarAlerta('No se puede emitir comprobante de una mudanza cancelada.', 'Reserva cancelada');
+                return;
+            }
+            
             if (mudanza.movimiento !== 'salida') {
                 mostrarAlerta('Este comprobante solo está disponible para mudanzas de salida.', 'Error');
                 return;
@@ -24661,7 +25052,7 @@
                             </div>
                             <div>
                                 <div class="info-label">Tipo</div>
-                                <div class="info-value">${mudanza.tipo === 'propietario' ? 'Propietario' : 'Arrendatario'}</div>
+                                <div class="info-value">${tipoCheckTexto}</div>
                             </div>
                         </div>
                     </div>
@@ -24670,27 +25061,15 @@
                         <h3 class="section-title">Información del Comprobante</h3>
                         <div class="info-row">
                             <div>
-                                <div class="info-label">Tipo Check</div>
-                                <div class="info-value" style="font-weight: 600;">${tipoCheckTexto}</div>
-                            </div>
-                            <div>
-                                <div class="info-label">¿Tiene Gastos Comunes al Día?</div>
-                                <div class="info-value" style="font-weight: 600;">${tieneGastosComunesTexto}</div>
-                            </div>
-                        </div>
-                        ${mudanza.tieneGastosComunes === 'si' ? `
-                        <div class="info-row">
-                            <div>
-                                <div class="info-label">Gastos Comunes al Día (Monto)</div>
-                                <div class="info-value" style="font-weight: 600; color: ${gastosComunesMonto === 0 ? '#6b7280' : '#1f2937'};">
-                                    ${gastosComunesMonto === 0 ? formatearMoneda(0) + ' (Sin deuda)' : formatearMoneda(gastosComunesMonto)}
+                                <div class="info-label">Gastos comunes al día</div>
+                                <div class="info-value" style="font-weight: 600; color: ${mudanza.tieneGastosComunes === 'si' && Number(gastosComunesMonto) === 0 ? '#6b7280' : '#1f2937'};">
+                                    ${mudanza.tieneGastosComunes === 'si'
+                                        ? (Number(gastosComunesMonto) === 0 ? 'Sí · ' + formatearMoneda(0) + ' (sin deuda)' : 'Sí · ' + formatearMoneda(gastosComunesMonto))
+                                        : tieneGastosComunesTexto}
                                 </div>
                             </div>
-                        </div>
-                        ` : ''}
-                        <div class="info-row">
                             <div>
-                                <div class="info-label">Salvoconducto de Autorización Propietario</div>
+                                <div class="info-label">Salvoconducto propietario</div>
                                 <div class="info-value" style="font-weight: 600; color: ${mudanza.salvoconducto ? '#10b981' : '#dc2626'};">
                                     ${salvoconductoTexto}
                                 </div>
@@ -24718,6 +25097,8 @@
                         </div>
                     </div>
                     ` : ''}
+
+                    ${htmlNormativaMudanzaMiniatura()}
                     
                     <div class="firma-section">
                         <div class="firma-box">
@@ -27640,7 +28021,7 @@
                 
                 const resultados = await Promise.all(datosPromesas);
                 
-                const mudanzas = resultados[0] || [];
+                const mudanzas = filtrarMudanzasParaReporte(resultados[0] || []);
                 const aperturas = resultados[1] || [];
                 let tarjetas = resultados[2] || [];
                 if (datosReporteOverride && Array.isArray(datosReporteOverride.tarjetas)) {
@@ -27648,14 +28029,14 @@
                 }
                 tarjetas = filtrarTarjetasParaReporteSinProvisionales(tarjetas);
                 const espacios = resultados[3] || [];
-                const multas = resultados[4] || [];
+                const multas = filtrarMultasParaReporte(resultados[4] || []);
                 const morosos = resultados[5] || [];
                 const lecturasAguaCaliente = resultados[6] || [];
                 
                 
                 // Calcular estadísticas con validación robusta
                 const totalMudanzas = Array.isArray(mudanzas) ? mudanzas.length : 0;
-                const mudanzasConCobro = Array.isArray(mudanzas) ? mudanzas.filter(m => m && m.aplicaCobro === 'si').length : 0;
+                const mudanzasConCobro = Array.isArray(mudanzas) ? mudanzas.filter(mudanzaConCobroVigente).length : 0;
                 const totalIngresos = Array.isArray(mudanzas) ? mudanzas.filter(m => m && m.movimiento === 'ingreso').length : 0;
                 const totalSalidas = Array.isArray(mudanzas) ? mudanzas.filter(m => m && m.movimiento === 'salida').length : 0;
                 const totalAperturas = Array.isArray(aperturas) ? aperturas.length : 0;
@@ -27670,7 +28051,7 @@
                 
                 // Ingresos con validación
                 const ingresosMudanzas = Array.isArray(mudanzas) 
-                    ? mudanzas.filter(m => m && m.aplicaCobro === 'si').reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0)
+                    ? mudanzas.filter(mudanzaConCobroVigente).reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0)
                     : 0;
                 const ingresosTarjetas = Array.isArray(tarjetas)
                     ? tarjetas.reduce((sum, t) => sum + (parseFloat(t && t.monto) || 0), 0)
@@ -27719,16 +28100,16 @@
                     const modulosPrev = ['mudanzas', 'aperturas', 'tarjetas', 'espacios', 'multas', 'morosos'];
                     const promesasPrev = modulosPrev.map(m => modulosVisibles.includes(m) ? obtenerDatosMesEspecifico(m, mesAnterior) : Promise.resolve([]));
                     const datosPrev = await Promise.all(promesasPrev).catch(() => []);
-                    const prevMudanzas = datosPrev[0] || [];
+                    const prevMudanzas = filtrarMudanzasParaReporte(datosPrev[0] || []);
                     const prevAperturas = datosPrev[1] || [];
                     const prevTarjetas = datosPrev[2] || [];
                     const prevTarjetasReporte = filtrarTarjetasParaReporteSinProvisionales(prevTarjetas);
                     const prevEspacios = datosPrev[3] || [];
-                    const prevMultas = datosPrev[4] || [];
+                    const prevMultas = filtrarMultasParaReporte(datosPrev[4] || []);
                     const prevMorosos = datosPrev[5] || [];
                     prevTotalMudanzas = Array.isArray(prevMudanzas) ? prevMudanzas.length : 0;
-                    prevMudanzasConCobro = Array.isArray(prevMudanzas) ? prevMudanzas.filter(m => m && m.aplicaCobro === 'si').length : 0;
-                    prevIngresosMudanzas = Array.isArray(prevMudanzas) ? prevMudanzas.filter(m => m && m.aplicaCobro === 'si').reduce((s, m) => s + (parseFloat(m.monto) || 0), 0) : 0;
+                    prevMudanzasConCobro = Array.isArray(prevMudanzas) ? prevMudanzas.filter(mudanzaConCobroVigente).length : 0;
+                    prevIngresosMudanzas = Array.isArray(prevMudanzas) ? prevMudanzas.filter(mudanzaConCobroVigente).reduce((s, m) => s + (parseFloat(m.monto) || 0), 0) : 0;
                     prevTotalAperturas = Array.isArray(prevAperturas) ? prevAperturas.length : 0;
                     prevAperturasConCobro = Array.isArray(prevAperturas) ? prevAperturas.filter(a => a && a.aplicaCobro === 'si').length : 0;
                     prevIngresosAperturas = Array.isArray(prevAperturas) ? prevAperturas.filter(a => a && a.aplicaCobro === 'si').reduce((s, a) => s + (parseFloat(a.monto) || 0), 0) : 0;
@@ -28047,7 +28428,7 @@
                             const fechaB = b && b.fecha ? new Date(b.fecha) : new Date(0);
                             return fechaA - fechaB;
                         }).forEach((m, idx) => {
-                            if (!m) return;
+                            if (!m || mudanzaEstaCancelada(m)) return;
                             const tipoTexto = m.tipo === 'propietario' ? 'Propietario' : m.tipo === 'arrendatario' ? 'Arrendatario' : '-';
                             const movimientoTexto = m.movimiento === 'ingreso' ? 'Ingreso' : m.movimiento === 'salida' ? 'Salida' : '-';
                             // Colores diferenciados: Propietario (verde), Arrendatario (naranja)
@@ -28057,12 +28438,15 @@
                             } else if (m.tipo === 'arrendatario') {
                                 badgeTipo = 'background: #f59e0b; color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; display: inline-block; font-weight: 500;';
                             }
-                            const badgeMov = m.movimiento === 'ingreso' ? 'background: #10b981; color: white;' : 'background: #f59e0b; color: white;';
-                            const badgeCobro = m.aplicaCobro === 'si' ? 'background: #10b981; color: white;' : 'background: #6b7280; color: white;';
+                            const badgeMov = (typeof mudanzaEstaCancelada === 'function' && mudanzaEstaCancelada(m))
+                                ? 'background: #dc2626; color: white;'
+                                : (m.movimiento === 'ingreso' ? 'background: #10b981; color: white;' : 'background: #f59e0b; color: white;');
+                            const canceladaFila = typeof mudanzaEstaCancelada === 'function' && mudanzaEstaCancelada(m);
+                            const badgeCobro = mudanzaConCobroVigente(m) ? 'background: #10b981; color: white;' : 'background: #6b7280; color: white;';
                             
                             // Botón de comprobante solo para mudanzas de salida con datos completos
                             let botonComprobante = '-';
-                            if (m.movimiento === 'salida') {
+                            if (m.movimiento === 'salida' && !canceladaFila) {
                                 if (m.tipoCheck && m.tieneGastosComunes && m.salvoconducto !== undefined) {
                                     botonComprobante = `<button onclick="generarComprobanteSalidaReporte('${m.id}')" style="background: #3b82f6; color: white; border: none; padding: 0.3rem 0.6rem; border-radius: 4px; font-size: 0.7rem; cursor: pointer; font-weight: 500;">📄 Descargar</button>`;
                                 } else {
@@ -28076,9 +28460,9 @@
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.nombre || '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.departamento || '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;"><span style="${badgeTipo}">${tipoTexto}</span></td>
-                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;"><span style="${badgeMov} padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; display: inline-block;">${movimientoTexto}</span></td>
-                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;"><span style="${badgeCobro} padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; display: inline-block;">${m.aplicaCobro === 'si' ? 'Sí' : 'No'}</span></td>
-                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${formatearMoneda(m.monto || 0)}</td>
+                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;"><span style="${badgeMov} padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; display: inline-block;">${canceladaFila ? movimientoTexto + ' · cancelada' : movimientoTexto}</span></td>
+                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;"><span style="${badgeCobro} padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; display: inline-block;">${mudanzaConCobroVigente(m) ? 'Sí' : (canceladaFila ? 'Anulado' : 'No')}</span></td>
+                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${formatearMoneda(mudanzaConCobroVigente(m) ? (m.monto || 0) : 0)}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.corredor || '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb; text-align: center;">${botonComprobante}</td>
                                 </tr>
@@ -28123,18 +28507,15 @@
                         html += 'var salvoconductoTexto = mudanza.salvoconducto ? "SÍ" : "NO";';
                         html += 'var htmlComprobante = "<!DOCTYPE html><html lang=\\"es\\"><head><meta charset=\\"UTF-8\\"><meta name=\\"viewport\\" content=\\"width=device-width, initial-scale=1.0\\"><title>Comprobante de Salida - Mudanza</title><style>body{font-family:\\"Segoe UI\\",Tahoma,Geneva,Verdana,sans-serif;padding:0.75rem;max-width:800px;margin:0 auto;font-size:0.875rem;background:#ffffff;color:#1f2937}.header{background:#f8fafc;border-bottom:2px solid rgba(117,187,33,0.3);padding:0.75rem;margin-bottom:0.75rem}.header-logo{text-align:center;margin-bottom:0.5rem}.header-logo img{max-width:120px;height:auto}.header-top{display:grid;grid-template-columns:repeat(2,1fr);gap:0.75rem;margin-bottom:0.5rem;padding:0.5rem 0}.header-title{text-align:center;margin-top:0.25rem}.header-title h1{margin:0.25rem 0;font-size:1.375rem;color:#1f2937;font-weight:700}.header-title h2{margin:0;font-size:0.875rem;color:#6b7280;font-weight:400}.info-box{background:#ffffff;padding:0.625rem;border-radius:4px;margin-bottom:0.625rem;border:1px solid #e5e7eb}.info-row{display:grid;grid-template-columns:1fr 1fr;gap:0.625rem;margin-bottom:0.375rem}.info-row:last-child{margin-bottom:0}.info-label{font-weight:600;color:#6b7280;font-size:0.6875rem;margin-bottom:0.2rem}.info-value{color:#1f2937;font-size:0.8125rem;font-weight:500}.section-title{font-size:0.875rem;font-weight:700;color:#1f2937;margin:0 0 0.5rem 0;padding-bottom:0.375rem;border-bottom:1px solid #e5e7eb}.firma-section{margin-top:2.5rem;padding-top:1.5rem;border-top:2px solid #e5e7eb}.firma-box{display:grid;grid-template-columns:repeat(2,1fr);gap:1.5rem;margin-top:1rem}.firma-item{text-align:center;position:relative}.firma-line{border-top:1px solid #1f2937;width:100%;margin-bottom:0.5rem;padding-top:2rem;position:relative}.firma-label{font-size:0.75rem;color:#6b7280;margin-bottom:0.25rem}.firma-name{font-size:0.8125rem;color:#1f2937;font-weight:600}.sello-digital{position:absolute;top:-65px;left:50%;transform:translateX(-50%);width:140px;height:140px;border-radius:50%;background:radial-gradient(circle at 50% 50%,rgba(220,38,38,0.15) 0%,rgba(220,38,38,0.08) 40%,transparent 70%),radial-gradient(circle at 30% 30%,rgba(220,38,38,0.12) 0%,transparent 50%),radial-gradient(circle at 70% 70%,rgba(220,38,38,0.1) 0%,transparent 50%);backdrop-filter:blur(0.5px);z-index:10;overflow:visible;filter:drop-shadow(0 2px 4px rgba(220,38,38,0.2))}.sello-digital::before{content:\\"\\";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:100%;height:100%;border:4px solid rgba(220,38,38,0.6);border-radius:50%;box-shadow:0 0 0 1px rgba(220,38,38,0.3),inset 0 0 0 2px rgba(255,255,255,0.1)}.sello-digital::after{content:\\"\\";position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:92%;height:92%;border:2px solid rgba(220,38,38,0.4);border-radius:50%;opacity:0.7}.sello-digital-content{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);text-align:center;width:80%;z-index:2}.sello-digital-text{font-size:0.7rem;font-weight:800;color:rgba(220,38,38,0.75);line-height:1.4;text-transform:uppercase;letter-spacing:1.2px;text-shadow:0 0 2px rgba(220,38,38,0.3),0 1px 3px rgba(0,0,0,0.15);filter:drop-shadow(0 0 1px rgba(220,38,38,0.4))}.sello-digital-text.top{margin-bottom:0.25rem;font-size:0.75rem}.sello-digital-text.bottom{margin-top:0.25rem;font-size:0.65rem}.sello-digital-line{width:70%;height:1.5px;background:linear-gradient(to right,transparent,rgba(220,38,38,0.5),transparent);margin:0.3rem auto;opacity:0.6;box-shadow:0 0 3px rgba(220,38,38,0.3)}.footer{margin-top:1.5rem;padding-top:0.75rem;border-top:1px solid #e5e7eb;text-align:center;font-size:0.6875rem;color:#6b7280}@media print{body{padding:0}}</style></head><body>";';
                         html += 'htmlComprobante += "<div class=\\"header\\"><div class=\\"header-logo\\"><img src=\\"https://img.mailinblue.com/8323725/images/content_library/original/6844749040dd0f16c5341248.png\\" alt=\\"Logo\\" style=\\"max-width:120px;height:auto\\"></div><div class=\\"header-top\\"><div><div class=\\"info-label\\">Proyecto</div><div class=\\"info-value\\" style=\\"font-weight:700;font-size:0.9375rem\\">" + personalizacionReporte.comunidad + "</div></div><div><div class=\\"info-label\\">Jefe de Edificio</div><div class=\\"info-value\\" style=\\"font-weight:600\\">" + personalizacionReporte.jefeEdificio + "</div></div></div><div class=\\"header-title\\"><h1>COMPROBANTE DE SALIDA</h1><h2>Mudanza - " + nombreMesReporte + "</h2></div></div>";';
-                        html += 'htmlComprobante += "<div class=\\"info-box\\"><h3 class=\\"section-title\\">Datos del Residente</h3><div class=\\"info-row\\"><div><div class=\\"info-label\\">Nombre</div><div class=\\"info-value\\">" + (mudanza.nombre || "-") + "</div></div><div><div class=\\"info-label\\">Departamento</div><div class=\\"info-value\\">" + (mudanza.departamento || "-") + "</div></div></div><div class=\\"info-row\\"><div><div class=\\"info-label\\">Fecha de Salida</div><div class=\\"info-value\\">" + formatearFechaReporte(mudanza.fecha) + "</div></div><div><div class=\\"info-label\\">Tipo</div><div class=\\"info-value\\">" + (mudanza.tipo === "propietario" ? "Propietario" : "Arrendatario") + "</div></div></div></div>";';
-                        html += 'htmlComprobante += "<div class=\\"info-box\\"><h3 class=\\"section-title\\">Información del Comprobante</h3><div class=\\"info-row\\"><div><div class=\\"info-label\\">Tipo Check</div><div class=\\"info-value\\" style=\\"font-weight:600\\">" + tipoCheckTexto + "</div></div><div><div class=\\"info-label\\">¿Tiene Gastos Comunes al Día?</div><div class=\\"info-value\\" style=\\"font-weight:600\\">" + tieneGastosComunesTexto + "</div></div></div>";';
-                        html += 'if (mudanza.tieneGastosComunes === "si") {';
-                        html += 'htmlComprobante += "<div class=\\"info-row\\"><div><div class=\\"info-label\\">Gastos Comunes al Día (Monto)</div><div class=\\"info-value\\" style=\\"font-weight:600;color:" + (gastosComunesMonto === 0 ? "#6b7280" : "#1f2937") + "\\">" + (gastosComunesMonto === 0 ? formatearMonedaReporte(0) + " (Sin deuda)" : formatearMonedaReporte(gastosComunesMonto)) + "</div></div></div>";';
-                        html += '}';
-                        html += 'htmlComprobante += "<div class=\\"info-row\\"><div><div class=\\"info-label\\">Salvoconducto de Autorización Propietario</div><div class=\\"info-value\\" style=\\"font-weight:600;color:" + (mudanza.salvoconducto ? "#10b981" : "#dc2626") + "\\">" + salvoconductoTexto + "</div></div></div></div>";';
+                        html += 'htmlComprobante += "<div class=\\"info-box\\"><h3 class=\\"section-title\\">Datos del Residente</h3><div class=\\"info-row\\"><div><div class=\\"info-label\\">Nombre</div><div class=\\"info-value\\">" + (mudanza.nombre || "-") + "</div></div><div><div class=\\"info-label\\">Departamento</div><div class=\\"info-value\\">" + (mudanza.departamento || "-") + "</div></div></div><div class=\\"info-row\\"><div><div class=\\"info-label\\">Fecha de Salida</div><div class=\\"info-value\\">" + formatearFechaReporte(mudanza.fecha) + "</div></div><div><div class=\\"info-label\\">Tipo</div><div class=\\"info-value\\">" + tipoCheckTexto + "</div></div></div></div>";';
+                        html += 'htmlComprobante += "<div class=\\"info-box\\"><h3 class=\\"section-title\\">Información del Comprobante</h3><div class=\\"info-row\\"><div><div class=\\"info-label\\">Gastos comunes al día</div><div class=\\"info-value\\" style=\\"font-weight:600\\">" + (mudanza.tieneGastosComunes === "si" ? (gastosComunesMonto === 0 ? "Sí · " + formatearMonedaReporte(0) + " (sin deuda)" : "Sí · " + formatearMonedaReporte(gastosComunesMonto)) : tieneGastosComunesTexto) + "</div></div><div><div class=\\"info-label\\">Salvoconducto propietario</div><div class=\\"info-value\\" style=\\"font-weight:600;color:" + (mudanza.salvoconducto ? "#10b981" : "#dc2626") + "\\">" + salvoconductoTexto + "</div></div></div></div>";';
                         html += 'if (mudanza.corredor) {';
                         html += 'htmlComprobante += "<div class=\\"info-box\\"><h3 class=\\"section-title\\">Información Adicional</h3><div class=\\"info-row\\"><div><div class=\\"info-label\\">Corredor</div><div class=\\"info-value\\">" + mudanza.corredor + "</div></div></div></div>";';
                         html += '}';
                         html += 'if (mudanza.observaciones) {';
                         html += 'htmlComprobante += "<div class=\\"info-box\\"><h3 class=\\"section-title\\">Observaciones</h3><div style=\\"color:#1f2937;font-size:0.8125rem;line-height:1.5\\">" + mudanza.observaciones + "</div></div>";';
                         html += '}';
+                        html += 'htmlComprobante += ' + JSON.stringify(htmlNormativaMudanzaMiniatura()) + ';';
                         html += 'var selloHTML = mudanza.selloAutorizado ? "<div class=\\"sello-digital\\"><div class=\\"sello-digital-content\\"><div class=\\"sello-digital-text top\\">AUTORIZADO</div><div class=\\"sello-digital-line\\"></div><div class=\\"sello-digital-text bottom\\">ADMINISTRACIÓN</div></div></div>" : "";';
                         html += 'htmlComprobante += "<div class=\\"firma-section\\"><div class=\\"firma-box\\"><div class=\\"firma-item\\"><div class=\\"firma-line\\"></div><div class=\\"firma-label\\">Firma del Residente</div><div class=\\"firma-name\\">" + (mudanza.nombre || "-") + "</div></div><div class=\\"firma-item\\"><div class=\\"firma-line\\">" + selloHTML + "</div><div class=\\"firma-label\\">Firma y Sello</div><div class=\\"firma-name\\">Administración</div></div></div></div>";';
                         html += 'htmlComprobante += "<div class=\\"footer\\"><p style=\\"margin:0.15rem 0\\">Comprobante generado automáticamente por el Sistema de Gestión de Comunidad</p><p style=\\"margin:0.15rem 0\\">Fecha de generación: " + new Date().toLocaleDateString("es-CL") + "</p></div></body></html>";';
@@ -28370,7 +28751,7 @@
                             const fechaB = b && b.fecha ? new Date(b.fecha) : new Date(0);
                             return fechaA - fechaB;
                         }).forEach((m, idx) => {
-                            if (!m) return;
+                            if (!m || multaEstaAnulada(m)) return;
                             const evidencias = m.evidencias || (m.link ? [m.link] : []);
                             const archivos = m.archivos || [];
                             const evidenciasHTML = renderizarArchivosReporte(archivos, evidencias);
@@ -28966,14 +29347,14 @@
                 
                 const resultados = await Promise.all(datosPromesas);
                 
-                const mudanzas = resultados[0] || [];
+                const mudanzas = filtrarMudanzasParaReporte(resultados[0] || []);
                 const aperturas = resultados[1] || [];
                 let tarjetas = resultados[2] || [];
                 tarjetas = typeof filtrarTarjetasParaReporteSinProvisionales === 'function'
                     ? filtrarTarjetasParaReporteSinProvisionales(tarjetas)
                     : tarjetas;
                 const espacios = resultados[3] || [];
-                const multas = resultados[4] || [];
+                const multas = filtrarMultasParaReporte(resultados[4] || []);
                 const morosos = resultados[5] || [];
                 const lecturasAguaCaliente = resultados[6] || [];
                 
@@ -29235,9 +29616,9 @@
                 
                 // Calcular totales para resumen
                 const totalMudanzas = Array.isArray(mudanzas) ? mudanzas.length : 0;
-                const mudanzasConCobro = Array.isArray(mudanzas) ? mudanzas.filter(m => m && m.aplicaCobro === 'si').length : 0;
+                const mudanzasConCobro = Array.isArray(mudanzas) ? mudanzas.filter(mudanzaConCobroVigente).length : 0;
                 const ingresosMudanzas = Array.isArray(mudanzas) 
-                    ? mudanzas.filter(m => m && m.aplicaCobro === 'si').reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0)
+                    ? mudanzas.filter(mudanzaConCobroVigente).reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0)
                     : 0;
                 const totalAperturas = Array.isArray(aperturas) ? aperturas.length : 0;
                 const ingresosAperturas = Array.isArray(aperturas)
@@ -29590,9 +29971,9 @@
             
             // Calcular totales
             const totalMudanzas = Array.isArray(mudanzas) ? mudanzas.length : 0;
-            const mudanzasConCobro = Array.isArray(mudanzas) ? mudanzas.filter(m => m && m.aplicaCobro === 'si').length : 0;
+            const mudanzasConCobro = Array.isArray(mudanzas) ? mudanzas.filter(mudanzaConCobroVigente).length : 0;
             const ingresosMudanzas = Array.isArray(mudanzas) 
-                ? mudanzas.filter(m => m && m.aplicaCobro === 'si').reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0)
+                ? mudanzas.filter(mudanzaConCobroVigente).reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0)
                 : 0;
             const totalAperturas = Array.isArray(aperturas) ? aperturas.length : 0;
             const ingresosAperturas = Array.isArray(aperturas)
@@ -29647,13 +30028,14 @@
         
         function generarDatosMudanzas(mudanzas) {
             const datos = [];
+            mudanzas = filtrarMudanzasParaReporte(mudanzas);
             
             // Encabezado
             datos.push(['REGISTRO DE MUDANZAS']);
             datos.push([]);
             
             // Encabezado de tabla
-            datos.push(['Fecha', 'Residente', 'Depto', 'Tipo', 'Movimiento', 'Cobro', 'Monto', 'Corredor', 'Comentarios']);
+            datos.push(['Fecha', 'Residente', 'Depto', 'Tipo', 'Movimiento', 'Estado', 'Cobro', 'Monto', 'Corredor', 'Comentarios']);
             
             // Ordenar por fecha
             const mudanzasOrdenadas = [...mudanzas].sort((a, b) => {
@@ -29667,14 +30049,16 @@
                 if (!m) return;
                 const tipoTexto = m.tipo === 'propietario' ? 'Propietario' : m.tipo === 'arrendatario' ? 'Arrendatario' : '-';
                 const movimientoTexto = m.movimiento === 'ingreso' ? 'Ingreso' : m.movimiento === 'salida' ? 'Salida' : '-';
+                const cancelada = typeof mudanzaEstaCancelada === 'function' && mudanzaEstaCancelada(m);
                 datos.push([
                     m.fecha ? formatearFechaParaCorreo(m.fecha) : '-',
                     m.nombre || '-',
                     m.departamento || '-',
                     tipoTexto,
                     movimientoTexto,
-                    m.aplicaCobro === 'si' ? 'Sí' : 'No',
-                    formatearMoneda(parseFloat(m.monto) || 0),
+                    cancelada ? 'Cancelada' : 'Vigente',
+                    mudanzaConCobroVigente(m) ? 'Sí' : (cancelada && m.aplicaCobro === 'si' ? 'Anulado' : 'No'),
+                    formatearMoneda(mudanzaConCobroVigente(m) ? (parseFloat(m.monto) || 0) : 0),
                     m.corredor || '-',
                     ((m.comentarios || m.observaciones) && String(m.comentarios || m.observaciones).trim()) ? String(m.comentarios || m.observaciones).trim() : '-'
                 ]);
@@ -29683,11 +30067,11 @@
             // Totales
             const totalIngresos = mudanzasOrdenadas.filter(m => m && m.movimiento === 'ingreso').length;
             const totalSalidas = mudanzasOrdenadas.filter(m => m && m.movimiento === 'salida').length;
-            const mudanzasConCobro = mudanzasOrdenadas.filter(m => m && m.aplicaCobro === 'si').length;
-            const ingresosTotales = mudanzasOrdenadas.filter(m => m && m.aplicaCobro === 'si').reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0);
+            const mudanzasConCobro = mudanzasOrdenadas.filter(mudanzaConCobroVigente).length;
+            const ingresosTotales = mudanzasOrdenadas.filter(mudanzaConCobroVigente).reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0);
             
             datos.push([]);
-            datos.push(['TOTALES', mudanzasOrdenadas.length, '', '', `${totalIngresos} / ${totalSalidas}`, mudanzasConCobro, formatearMoneda(ingresosTotales), '', '']);
+            datos.push(['TOTALES', mudanzasOrdenadas.length, '', '', `${totalIngresos} / ${totalSalidas}`, '', mudanzasConCobro, formatearMoneda(ingresosTotales), '', '']);
             
             return datos;
         }
@@ -29809,6 +30193,7 @@
         
         function generarDatosMultas(multas) {
             const datos = [];
+            multas = filtrarMultasParaReporte(multas);
             
             datos.push(['REGISTRO DE MULTAS']);
             datos.push([]);
@@ -30173,15 +30558,16 @@
             }
         }
         function _generarDatosMultasConTotales(multas) {
-            var base = generarDatosMultas(multas || []);
+            var vigentes = filtrarMultasParaReporte(multas || []);
+            var base = generarDatosMultas(vigentes);
             var u = 0, utm = 0;
-            (multas || []).forEach(function (m) {
+            vigentes.forEach(function (m) {
                 if (!m) return;
                 var mo = parseFloat(m.monto) || 0;
                 if ((m.tipoUnidad || 'UF') === 'UTM') utm += mo; else u += mo;
             });
             base.push([]);
-            base.push(['TOTALES', (multas || []).length, '', '', '', '', '']);
+            base.push(['TOTALES', vigentes.length, '', '', '', '', '']);
             base.push(['Total monto UF', u, '', '', '', '', '']);
             base.push(['Total monto UTM', utm, '', '', '', '', '']);
             return base;
@@ -30775,14 +31161,14 @@
                     return modulosPermitidosReporte.indexOf(m) !== -1;
                 });
 
-                var mudanzas = modulosVisibles.indexOf('mudanzas') !== -1 ? await cargarDatosModulo('mudanzas', mesAnio, esPrevisualizacion) : [];
+                var mudanzas = filtrarMudanzasParaReporte(modulosVisibles.indexOf('mudanzas') !== -1 ? await cargarDatosModulo('mudanzas', mesAnio, esPrevisualizacion) : []);
                 var aperturas = modulosVisibles.indexOf('aperturas') !== -1 ? await cargarDatosModulo('aperturas', mesAnio, esPrevisualizacion) : [];
                 var tarjetas = modulosVisibles.indexOf('tarjetas') !== -1 ? await cargarDatosModulo('tarjetas', mesAnio, esPrevisualizacion) : [];
                 if (typeof filtrarTarjetasParaReporteSinProvisionales === 'function') {
                     tarjetas = filtrarTarjetasParaReporteSinProvisionales(tarjetas);
                 }
                 var espacios = modulosVisibles.indexOf('espacios') !== -1 ? await cargarDatosModulo('espacios', mesAnio, esPrevisualizacion) : [];
-                var multas = modulosVisibles.indexOf('multas') !== -1 ? await cargarDatosModulo('multas', mesAnio, esPrevisualizacion) : [];
+                var multas = filtrarMultasParaReporte(modulosVisibles.indexOf('multas') !== -1 ? await cargarDatosModulo('multas', mesAnio, esPrevisualizacion) : []);
                 var morosos = modulosVisibles.indexOf('morosos') !== -1 ? await cargarDatosModulo('morosos', mesAnio, esPrevisualizacion) : [];
                 var lecturasAguaCaliente = [];
                 if (modulosVisibles.indexOf('lecturas-agua') !== -1) {
@@ -30793,7 +31179,7 @@
                             : await obtenerDatosArchivados('lecturasAguaCaliente', mesAnio).catch(function () { return []; });
                 }
 
-                var ingresosMudanzas = (mudanzas || []).filter(function (m) { return m && m.aplicaCobro === 'si'; }).reduce(function (s, m) { return s + (parseFloat(m.monto) || 0); }, 0);
+                var ingresosMudanzas = (mudanzas || []).filter(mudanzaConCobroVigente).reduce(function (s, m) { return s + (parseFloat(m.monto) || 0); }, 0);
                 var ingresosAperturas = (aperturas || []).filter(function (a) { return a && a.aplicaCobro === 'si'; }).reduce(function (s, a) { return s + (parseFloat(a.monto) || 0); }, 0);
                 var ingresosTarjetas = (tarjetas || []).reduce(function (s, t) { return s + (parseFloat(t && t.monto) || 0); }, 0);
                 var ingresosEspaciosAseo = (espacios || []).filter(function (e) { return e && e.aplicaAseo === 'si'; }).reduce(function (s, e) { return s + (parseFloat(e.monto) || 0); }, 0);
@@ -33853,7 +34239,7 @@
             const mantenciones = await obtenerDatosMes('mantenciones');
             
             // Calcular ingresos (usando la misma lógica que cargarEstadisticasDashboard)
-            const mudanzasConCobro = mudanzas.filter(m => m.aplicaCobro === 'si');
+            const mudanzasConCobro = mudanzas.filter(mudanzaConCobroVigente);
             const ingresosMudanzas = mudanzasConCobro.reduce((sum, m) => {
                 const monto = parseFloat(m.monto) || 0;
                 return sum + monto;
@@ -34106,7 +34492,7 @@
 
             // Calcular totales
             const totalMudanzas = mudanzas.length;
-            const mudanzasConCobro = mudanzas.filter(m => m.aplicaCobro === 'si');
+            const mudanzasConCobro = mudanzas.filter(mudanzaConCobroVigente);
             const ingresosMudanzas = mudanzasConCobro.reduce((sum, m) => {
                 const monto = parseFloat(m.monto) || 0;
                 return sum + monto;
@@ -35661,7 +36047,7 @@
             // 5. ANÁLISIS DE MUDANZAS
             // ============================================
             const mudanzasArray = Array.isArray(mudanzas) ? mudanzas : [];
-            const mudanzasConCobro = mudanzasArray.filter(m => m && m.aplicaCobro === 'si');
+            const mudanzasConCobro = mudanzasArray.filter(mudanzaConCobroVigente);
             const mudanzasSinCobro = mudanzasArray.filter(m => m && m.aplicaCobro === 'no');
             const mudanzasIngreso = mudanzasArray.filter(m => m && m.movimiento === 'ingreso');
             const mudanzasSalida = mudanzasArray.filter(m => m && m.movimiento === 'salida');
@@ -36460,7 +36846,7 @@
             const mantenciones = await obtenerDatosMesEspecifico('mantenciones', mes);
             
             // Calcular ingresos (usando la misma lógica que calcularMetricasMesActual)
-            const mudanzasConCobro = mudanzas.filter(m => m.aplicaCobro === 'si');
+            const mudanzasConCobro = mudanzas.filter(mudanzaConCobroVigente);
             const ingresosMudanzas = mudanzasConCobro.reduce((sum, m) => {
                 const monto = parseFloat(m.monto) || 0;
                 return sum + monto;
