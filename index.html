@@ -11915,7 +11915,7 @@
             const unidad = String((unit && (unit.unitNumber || unit.departamento)) || '').trim();
             const primerNombre = (unit && Array.isArray(unit.residents) && unit.residents[0] && (unit.residents[0].name || unit.residents[0].nombre)) || 'Residente';
             const html = htmlCorreoBienvenidaNuevoResidente();
-            const asunto = 'Bienvenida a su nuevo hogar — WM 815' + (unidad ? ' · Depto ' + unidad : '');
+            const asunto = 'Te damos la bienvenida a la Comunidad WM 815 - Unidad ' + (unidad || '').trim();
             const texto = 'Estimado Residente, es un gusto darle la bienvenida de parte del equipo de administración a su nuevo hogar.';
             return await enviarCorreo(
                 { nombre: primerNombre, correo: lista },
@@ -11949,21 +11949,16 @@
                     localStorage.setItem(LS_WELCOME_EMAILS_BOOT, '1');
                     return;
                 }
-                const ahora = Date.now();
-                const graciaMs = 3 * 60 * 1000;
                 const pendientes = [];
                 units.forEach(function (u) {
                     if (!u) return;
                     const nuevos = [];
                     (Array.isArray(u.residents) ? u.residents : []).forEach(function (r) {
                         if (!r) return;
-                        if (r.welcomeEmailSentAt) return;
                         const correo = String(r.email || r.correo || '').trim();
-                        if (!correo) return;
+                        if (!correo || correo.indexOf('@') < 0) return;
                         const h = huellaBienvenidaResidente(u.unitNumber, correo);
                         if (local.has(h)) return;
-                        const tReg = Date.parse(r.registeredAt);
-                        if (Number.isFinite(tReg) && (ahora - tReg) < graciaMs) return;
                         nuevos.push({ residente: r, correo: correo, huella: h });
                     });
                     if (nuevos.length) pendientes.push({ unit: u, nuevos: nuevos });
@@ -11979,13 +11974,15 @@
                 }
                 for (let i = 0; i < pendientes.length; i++) {
                     const item = pendientes[i];
-                    const correosTodos = correosUnidadResidentes(item.unit);
-                    if (!correosTodos.length) continue;
-                    const resultado = await enviarCorreoBienvenidaAUnidad(item.unit, correosTodos);
+                    const correosUnidad = correosUnidadResidentes(item.unit);
+                    const correosNuevosOEditados = item.nuevos.map(function (n) { return n.correo; });
+                    const destinatarios = correosUnidad.length ? correosUnidad : correosNuevosOEditados;
+                    if (!destinatarios.length) continue;
+                    const resultado = await enviarCorreoBienvenidaAUnidad(item.unit, destinatarios);
                     if (resultado && resultado.exito) {
                         item.nuevos.forEach(function (n) { local.add(n.huella); });
                         guardarHuellasBienvenidaLocal(local);
-                        console.log('[bienvenida] Correo enviado a unidad', item.unit.unitNumber, correosTodos);
+                        console.log('[bienvenida] Correo enviado desde Gestión WM a unidad', item.unit.unitNumber, destinatarios);
                     } else {
                         console.warn('[bienvenida] Falló envío unidad', item.unit && item.unit.unitNumber, resultado && resultado.error);
                     }
@@ -12004,7 +12001,7 @@
             try {
                 setTimeout(function () {
                     procesarCorreosBienvenidaResidentesNuevos();
-                }, 600);
+                }, 400);
             } catch (e) {}
         }
         window.procesarCorreosBienvenidaResidentesNuevos = procesarCorreosBienvenidaResidentesNuevos;
@@ -27852,9 +27849,9 @@
                 script.type = 'module';
                 script.textContent =
                     "import { initializeApp, getApps } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js';" +
-                    "import { getFirestore, collection, getDocs, doc, getDoc } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';" +
+                    "import { getFirestore, collection, getDocs, doc, getDoc, onSnapshot } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore.js';" +
                     "import { getAuth, signInAnonymously } from 'https://www.gstatic.com/firebasejs/10.7.1/firebase-auth.js';" +
-                    "window.firebaseModularExtended = { initializeApp, getApps, getFirestore, collection, getDocs, doc, getDoc, getAuth, signInAnonymously };" +
+                    "window.firebaseModularExtended = { initializeApp, getApps, getFirestore, collection, getDocs, doc, getDoc, onSnapshot, getAuth, signInAnonymously };" +
                     "window.firebaseModularExtendedReady = true;";
                 document.head.appendChild(script);
                 var attempts = 0;
@@ -28053,7 +28050,63 @@
             window.vinculacionUnits = units;
             var kpi = Number(cfg.kpiTotalUnidadesEdificio);
             var totalProy = kpi > 0 && kpi === kpi ? Math.floor(kpi) : 259;
+            iniciarEscuchaCorreosBienvenida(cfg, fm, app);
             return __gestionComputeOcupacionMetrics(units, totalProy);
+        }
+
+        let _unsubBienvenidaResidentes = null;
+        let _pollBienvenidaResidentes = null;
+
+        function iniciarEscuchaCorreosBienvenida(cfg, fm, app) {
+            if (!fm || !fm.onSnapshot || !fm.doc || !app) {
+                if (!_pollBienvenidaResidentes) {
+                    _pollBienvenidaResidentes = setInterval(function () {
+                        if (typeof obtenerMetricasVinculacion === 'function') {
+                            obtenerMetricasVinculacion().catch(function () {});
+                        }
+                    }, 25000);
+                }
+                return;
+            }
+            if (!_unsubBienvenidaResidentes) {
+                try {
+                    var dbPcsh = fm.getFirestore(app);
+                    var col = String((cfg && cfg.collection) || 'pcsh_wm815').trim();
+                    var docId = String((cfg && cfg.docId) || 'state').trim();
+                    var ref = fm.doc(dbPcsh, col, docId);
+                    _unsubBienvenidaResidentes = fm.onSnapshot(ref, function (snap) {
+                        try {
+                            var exists = snap && (typeof snap.exists === 'boolean' ? snap.exists : (typeof snap.exists === 'function' ? snap.exists() : false));
+                            if (!exists) return;
+                            var d = snap.data();
+                            var list = d && Array.isArray(d.units) ? d.units : [];
+                            if (!list.length) return;
+                            var units = [];
+                            list.forEach(function (row, idx) {
+                                var nu = __gestionNormalizaUnidadVincStyle(row, row && row.id ? String(row.id) : 'pcshlive_' + idx);
+                                if (nu) units.push(nu);
+                            });
+                            if (units.length) window.vinculacionUnits = units;
+                            if (typeof scheduleProcesarCorreosBienvenidaResidentesNuevos === 'function') {
+                                scheduleProcesarCorreosBienvenidaResidentesNuevos();
+                            }
+                        } catch (eSnap) {
+                            console.warn('[bienvenida] onSnapshot:', eSnap);
+                        }
+                    }, function (err) {
+                        console.warn('[bienvenida] listener unidades:', err);
+                    });
+                } catch (eL) {
+                    console.warn('[bienvenida] No se pudo iniciar listener:', eL);
+                }
+            }
+            if (!_pollBienvenidaResidentes) {
+                _pollBienvenidaResidentes = setInterval(function () {
+                    if (typeof obtenerMetricasVinculacion === 'function') {
+                        obtenerMetricasVinculacion().catch(function () {});
+                    }
+                }, 25000);
+            }
         }
 
         /** Mismas claves que prueba-conserjeria.html (VLCOM + caché WM815). Mismo origen → mismo localStorage si ambas páginas se sirven desde el mismo host. */
