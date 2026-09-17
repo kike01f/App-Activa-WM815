@@ -2392,6 +2392,7 @@
         .bienvenida-panel-kpi .lbl { font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.03em; color: var(--gray-600); }
         .bienvenida-panel-kpi .val { font-size: 1.25rem; font-weight: 800; font-variant-numeric: tabular-nums; }
         .bienvenida-panel-kpi.ok .val { color: #059669; }
+        .bienvenida-panel-kpi.cola .val { color: #2563eb; }
         .bienvenida-panel-kpi.no .val { color: #d97706; }
         .bienvenida-panel-kpi.na .val { color: #6b7280; }
         .bienvenida-panel-col h4 { margin: 0 0 0.4rem 0; font-size: 0.8rem; color: var(--gray-800); }
@@ -2420,6 +2421,7 @@
             line-height: 1.3;
         }
         .bienvenida-chip.ok { background: rgba(16, 185, 129, 0.16); color: #047857; }
+        .bienvenida-chip.cola { background: rgba(37, 99, 235, 0.16); color: #1d4ed8; }
         .bienvenida-chip.no { background: rgba(245, 158, 11, 0.2); color: #b45309; }
         .bienvenida-chip.na { background: rgba(107, 114, 128, 0.14); color: #4b5563; }
         .bienvenida-vacio { font-size: 0.78rem; color: var(--gray-500); }
@@ -2433,6 +2435,7 @@
             text-shadow: 0 0 2px rgba(0,0,0,0.7);
         }
         .unit-cell-bienvenida.ok { color: #86efac; }
+        .unit-cell-bienvenida.cola { color: #93c5fd; }
         .unit-cell-bienvenida.no { color: #fbbf24; }
         .dashboard2-chart-title {
             margin: 0 0 0.5rem 0;
@@ -3069,7 +3072,7 @@
             position: fixed;
             top: 1.5rem;
             right: 1.5rem;
-            z-index: 10001;
+            z-index: 13000;
             display: flex;
             flex-direction: column;
             gap: 0.75rem;
@@ -3079,11 +3082,13 @@
         }
         
         .toast {
-            background: white;
+            background: #ecfdf5;
+            color: #064e3b;
             border-radius: 12px;
             padding: 1rem 1.25rem;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-            border-left: 4px solid;
+            box-shadow: 0 8px 28px rgba(0, 0, 0, 0.28);
+            border: 1px solid #059669;
+            border-left: 5px solid #047857;
             display: flex;
             align-items: center;
             gap: 0.75rem;
@@ -3093,23 +3098,31 @@
         }
         
         .toast-success {
-            border-left-color: #10b981;
-            background: linear-gradient(135deg, #f0fdf4 0%, #ffffff 100%);
+            background: #d1fae5;
+            border-color: #047857;
+            border-left-color: #047857;
+            color: #064e3b;
         }
         
         .toast-error {
-            border-left-color: #ef4444;
-            background: linear-gradient(135deg, #fef2f2 0%, #ffffff 100%);
+            background: #fee2e2;
+            border-color: #b91c1c;
+            border-left-color: #b91c1c;
+            color: #7f1d1d;
         }
         
         .toast-warning {
-            border-left-color: #f59e0b;
-            background: linear-gradient(135deg, #fffbeb 0%, #ffffff 100%);
+            background: #fde68a;
+            border-color: #b45309;
+            border-left-color: #b45309;
+            color: #78350f;
         }
         
         .toast-info {
-            border-left-color: #3b82f6;
-            background: linear-gradient(135deg, #eff6ff 0%, #ffffff 100%);
+            background: #dbeafe;
+            border-color: #1d4ed8;
+            border-left-color: #1d4ed8;
+            color: #1e3a8a;
         }
         
         .toast-icon {
@@ -3122,23 +3135,24 @@
         }
         
         .toast-title {
-            font-weight: 600;
-            color: var(--gray-900);
+            font-weight: 700;
+            color: inherit;
             font-size: 0.9375rem;
             margin-bottom: 0.25rem;
         }
         
         .toast-message {
-            color: var(--gray-600);
-            font-size: 0.875rem;
+            color: inherit;
+            font-size: 0.9rem;
+            font-weight: 600;
             line-height: 1.5;
         }
         
         .toast-close {
-            background: none;
+            background: rgba(0, 0, 0, 0.08);
             border: none;
             font-size: 1.25rem;
-            color: var(--gray-400);
+            color: inherit;
             cursor: pointer;
             padding: 0;
             width: 1.5rem;
@@ -3149,11 +3163,51 @@
             border-radius: 4px;
             transition: all 0.2s ease;
             flex-shrink: 0;
+            opacity: 0.85;
         }
         
         .toast-close:hover {
-            background: var(--gray-100);
-            color: var(--gray-600);
+            background: rgba(0, 0, 0, 0.18);
+            opacity: 1;
+        }
+
+        [data-theme="dark"] .toast {
+            background: #022c22;
+            color: #ecfdf5;
+            border-color: #34d399;
+            border-left-color: #34d399;
+            box-shadow: 0 10px 32px rgba(0, 0, 0, 0.55);
+        }
+        [data-theme="dark"] .toast-success {
+            background: #064e3b;
+            color: #ecfdf5;
+            border-color: #34d399;
+            border-left-color: #6ee7b7;
+        }
+        [data-theme="dark"] .toast-error {
+            background: #7f1d1d;
+            color: #fef2f2;
+            border-color: #fca5a5;
+            border-left-color: #f87171;
+        }
+        [data-theme="dark"] .toast-warning {
+            background: #78350f;
+            color: #fffbeb;
+            border-color: #fbbf24;
+            border-left-color: #fcd34d;
+        }
+        [data-theme="dark"] .toast-info {
+            background: #1e3a8a;
+            color: #eff6ff;
+            border-color: #93c5fd;
+            border-left-color: #60a5fa;
+        }
+        [data-theme="dark"] .toast-close {
+            background: rgba(255, 255, 255, 0.12);
+            color: inherit;
+        }
+        [data-theme="dark"] .toast-close:hover {
+            background: rgba(255, 255, 255, 0.22);
         }
         
         @keyframes toastSlideIn {
@@ -4531,6 +4585,10 @@
                                 <div class="lbl">Bienvenida enviada</div>
                                 <div class="val" id="dashboardBienvenidaEnviadasCount">0</div>
                             </div>
+                            <div class="bienvenida-panel-kpi cola">
+                                <div class="lbl">En cola (no enviada)</div>
+                                <div class="val" id="dashboardBienvenidaEnColaCount">0</div>
+                            </div>
                             <div class="bienvenida-panel-kpi no">
                                 <div class="lbl">Pendiente de envío</div>
                                 <div class="val" id="dashboardBienvenidaPendientesCount">0</div>
@@ -4546,11 +4604,15 @@
                                 <div class="bienvenida-chips" id="dashboardBienvenidaEnviadasList"><span class="bienvenida-vacio">Cargando…</span></div>
                             </div>
                             <div class="bienvenida-panel-col">
+                                <h4>En cola, aún no enviadas</h4>
+                                <div class="bienvenida-chips" id="dashboardBienvenidaEnColaList"><span class="bienvenida-vacio">Cargando…</span></div>
+                            </div>
+                            <div class="bienvenida-panel-col">
                                 <h4>Unidades sin bienvenida</h4>
                                 <div class="bienvenida-chips" id="dashboardBienvenidaPendientesList"><span class="bienvenida-vacio">Cargando…</span></div>
                             </div>
                         </div>
-                        <p style="margin: 0.65rem 0 0 0; font-size: 0.75rem; color: var(--gray-500);">Pulse un número para ir a Ocupación. Se envía a propietarios, arrendatarios y familiares. Las visitas frecuentes/autorizadas no reciben este correo. Las unidades sin correo aparecen aparte.</p>
+                        <p style="margin: 0.65rem 0 0 0; font-size: 0.75rem; color: var(--gray-500);">Pulse un número para ir a Ocupación. «Enviada» solo aparece si el correo se escribió en el servicio de correo. «En cola» no es un envío. Destinatarios: propietarios, arrendatarios y familiares. Copia (CC) a conserjería: conserjeria.wm815@gmail.com. Las visitas frecuentes/autorizadas no reciben este correo.</p>
                         <div id="dashboardBienvenidaSinCorreoWrap" style="margin-top: 0.55rem;">
                             <h4 style="margin: 0 0 0.35rem 0; font-size: 0.75rem; color: var(--gray-600);">Sin correo registrado</h4>
                             <div class="bienvenida-chips" id="dashboardBienvenidaSinCorreoList"></div>
@@ -6076,6 +6138,10 @@
                     <div class="etiqueta">Bienvenida enviada</div>
                 </div>
                 <div class="resumen-item">
+                    <div id="ocupacionBienvenidaEnCola" class="valor" style="color: #2563eb;">0</div>
+                    <div class="etiqueta">Bienvenida en cola</div>
+                </div>
+                <div class="resumen-item">
                     <div id="ocupacionBienvenidaPendientes" class="valor" style="color: #d97706;">0</div>
                     <div class="etiqueta">Bienvenida pendiente</div>
                 </div>
@@ -6090,6 +6156,7 @@
                     <div class="leyenda-item"><div class="leyenda-cuadro" style="background: #9b59b6;"></div><span style="font-size: 0.8rem;">Nuevas (últimos 7 días)</span></div>
                     <div class="leyenda-item"><div class="leyenda-cuadro" style="border: 2px solid #ffa502; background: var(--bg-tertiary);"></div><span style="font-size: 0.8rem;">Contrato arriendo</span></div>
                     <div class="leyenda-item"><span style="font-size: 0.85rem; color: #059669;">✉</span><span style="font-size: 0.8rem;">Bienvenida enviada</span></div>
+                    <div class="leyenda-item"><span style="font-size: 0.85rem; color: #2563eb;">✉</span><span style="font-size: 0.8rem;">Bienvenida en cola</span></div>
                     <div class="leyenda-item"><span style="font-size: 0.85rem; color: #d97706;">✉</span><span style="font-size: 0.8rem;">Bienvenida pendiente</span></div>
                 </div>
                 <div style="margin-bottom: 10px;">
@@ -8673,7 +8740,16 @@
                         ? opciones.bcc
                         : normalizarListaCorreosDestino(opciones.bcc);
                     const bccLista = normalizarListaCorreosDestino(bccBruto);
-                    const bccFiltrado = bccLista.filter(e => e && !enParaSet.has(String(e).toLowerCase()));
+                    const enCcSet = new Set();
+                    if (mailData.cc) {
+                        (Array.isArray(mailData.cc) ? mailData.cc : [mailData.cc]).forEach(function (e) {
+                            if (e) enCcSet.add(String(e).toLowerCase());
+                        });
+                    }
+                    const bccFiltrado = bccLista.filter(function (e) {
+                        var k = String(e).toLowerCase();
+                        return e && !enParaSet.has(k) && !enCcSet.has(k);
+                    });
                     if (bccFiltrado.length === 1) {
                         mailData.bcc = bccFiltrado[0];
                     } else if (bccFiltrado.length > 1) {
@@ -12034,9 +12110,28 @@
 
         const LS_WELCOME_EMAILS_SENT = (typeof LS_WM_PREFIX === 'string' ? LS_WM_PREFIX : 'wm_gestion_v1:') + 'welcome_emails_sent';
         let _bienvenidaResidentesEnCurso = false;
+        let _bienvenidaResidentesVistos = null;
 
         function huellaBienvenidaResidente(unidad, correo) {
             return String(unidad || '').trim().toLowerCase() + '|' + String(correo || '').trim().toLowerCase();
+        }
+
+        function colaPendienteDesdeWelcomeDoc(data) {
+            var out = new Set();
+            var jobs = data && Array.isArray(data.queue) ? data.queue : [];
+            jobs.forEach(function (j) {
+                if (!j || (j.status && j.status !== 'pending')) return;
+                (j.huellas || []).forEach(function (h) { if (h) out.add(String(h)); });
+            });
+            return out;
+        }
+
+        function etiquetaEstadoBienvenida(est) {
+            if (est === 'enviada') return 'Bienvenida enviada';
+            if (est === 'en-cola') return 'Bienvenida en cola (aún no enviada)';
+            if (est === 'pendiente') return 'Bienvenida pendiente (no enviada)';
+            if (est === 'sin-correo') return 'Sin correo registrado';
+            return '';
         }
 
         function cargarHuellasBienvenidaLocal() {
@@ -12125,8 +12220,14 @@
 
         async function guardarHuellasBienvenidaEnPuenteConserjeria(setHuellas) {
             var ref = await obtenerRefWelcomeCompartido();
+            var actuales = new Set();
+            try {
+                var snap = await ref.get();
+                if (snap && snap.exists) actuales = parseHuellasDesdeWelcomeDoc(snap.data() || {});
+            } catch (ePrev) {}
+            Array.from(setHuellas || []).forEach(function (k) { if (k) actuales.add(String(k)); });
             var huellas = {};
-            Array.from(setHuellas).forEach(function (k) { huellas[k] = true; });
+            actuales.forEach(function (k) { huellas[k] = true; });
             await ref.set({
                 huellas: huellas,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -12136,20 +12237,57 @@
 
         async function sincronizarEstadoBienvenidaHaciaConserjeria() {
             try {
-                var setH = cargarHuellasBienvenidaLocal();
-                try {
-                    var cloud = await cargarHuellasBienvenidaCloud();
-                    cloud.forEach(function (h) { setH.add(h); });
-                } catch (eC) {}
+                var ref = await obtenerRefWelcomeCompartido();
+                var snap = await ref.get();
+                var data = (snap && snap.exists) ? (snap.data() || {}) : {};
+                var setH = parseHuellasDesdeWelcomeDoc(data);
                 window._huellasBienvenidaCache = setH;
+                window._colaBienvenidaPendiente = colaPendienteDesdeWelcomeDoc(data);
                 guardarHuellasBienvenidaLocal(setH);
-                await guardarHuellasBienvenidaEnPuenteConserjeria(setH);
                 if (typeof scheduleRefrescarEstadoBienvenidaUnidades === 'function') {
                     scheduleRefrescarEstadoBienvenidaUnidades();
                 }
             } catch (e) {
-                console.warn('[bienvenida] No se pudo sincronizar estado hacia Conserjería:', e);
+                console.warn('[bienvenida] No se pudo leer el estado compartido de Conserjería:', e);
             }
+        }
+
+        async function encolarCorreoBienvenidaCompartido(job) {
+            var ref = await obtenerRefWelcomeCompartido();
+            var FV = firebase.firestore.FieldValue;
+            if (ref.firestore && typeof ref.firestore.runTransaction === 'function') {
+                await ref.firestore.runTransaction(async function (tx) {
+                    var snap = await tx.get(ref);
+                    var data = snap && snap.exists ? (snap.data() || {}) : {};
+                    var jobs = Array.isArray(data.queue) ? data.queue.slice() : [];
+                    var huellasJob = (job.huellas || []).slice().sort().join(',');
+                    var dup = jobs.some(function (j) {
+                        if (!j || j.status === 'sent' || j.status === 'error') return false;
+                        var h = (j.huellas || []).slice().sort().join(',');
+                        return h && h === huellasJob;
+                    });
+                    if (!dup) {
+                        jobs.push(job);
+                        if (jobs.length > 80) jobs = jobs.slice(jobs.length - 80);
+                    }
+                    tx.set(ref, {
+                        queue: jobs,
+                        updatedAt: FV.serverTimestamp(),
+                        origen: 'gestion-wm'
+                    }, { merge: true });
+                });
+                return { encolado: true };
+            }
+            var snap = await ref.get();
+            var data = snap && snap.exists ? (snap.data() || {}) : {};
+            var jobs = Array.isArray(data.queue) ? data.queue.slice() : [];
+            jobs.push(job);
+            await ref.set({
+                queue: jobs,
+                updatedAt: FV.serverTimestamp(),
+                origen: 'gestion-wm'
+            }, { merge: true });
+            return { encolado: true };
         }
 
         var _colaBienvenidaConserjeriaEnCurso = false;
@@ -12170,12 +12308,7 @@
                 if (!pendientes.length) return;
                 var html = typeof htmlCorreoBienvenidaNuevoResidente === 'function' ? htmlCorreoBienvenidaNuevoResidente() : '';
                 var textoDefault = 'Estimado Residente, es un gusto darle la bienvenida de parte del equipo de administración a su nuevo hogar.';
-                var huellas = cargarHuellasBienvenidaLocal();
-                try {
-                    var cloudH = await cargarHuellasBienvenidaCloud();
-                    cloudH.forEach(function (h) { huellas.add(h); });
-                } catch (eC) {}
-                parseHuellasDesdeWelcomeDoc(data).forEach(function (h) { huellas.add(h); });
+                var huellas = parseHuellasDesdeWelcomeDoc(data);
                 var cambio = false;
                 var enviadosOk = 0;
                 for (var i = 0; i < jobs.length; i++) {
@@ -12185,7 +12318,11 @@
                     var texto = job.texto || textoDefault;
                     var para = job.to;
                     var bcc = job.bcc;
-                    var opciones = { silencioso: true, permitirSinLogin: false };
+                    var opciones = {
+                        silencioso: true,
+                        permitirSinLogin: false,
+                        cc: job.cc || correoCcBienvenidaConserjeria()
+                    };
                     if (bcc && ((Array.isArray(bcc) && bcc.length) || (typeof bcc === 'string' && bcc))) {
                         opciones.bcc = bcc;
                     }
@@ -12197,9 +12334,10 @@
                         null,
                         opciones
                     );
-                    if (resultado && resultado.exito) {
+                    if (resultado && resultado.exito && resultado.docId) {
                         job.status = 'sent';
                         job.sentAt = new Date().toISOString();
+                        job.mailId = resultado.docId;
                         (job.huellas || []).forEach(function (h) { if (h) huellas.add(String(h)); });
                         cambio = true;
                         enviadosOk += 1;
@@ -12243,6 +12381,10 @@
             try {
                 var ref = await obtenerRefWelcomeCompartido();
                 _unsubColaBienvenidaConserjeria = ref.onSnapshot(function (snap) {
+                    var data = (snap && snap.exists) ? (snap.data() || {}) : {};
+                    window._huellasBienvenidaCache = parseHuellasDesdeWelcomeDoc(data);
+                    window._colaBienvenidaPendiente = colaPendienteDesdeWelcomeDoc(data);
+                    guardarHuellasBienvenidaLocal(window._huellasBienvenidaCache);
                     if (typeof scheduleRefrescarEstadoBienvenidaUnidades === 'function') {
                         scheduleRefrescarEstadoBienvenidaUnidades();
                     }
@@ -12313,7 +12455,8 @@
         }
 
         window._huellasBienvenidaCache = window._huellasBienvenidaCache || new Set();
-        window._clasificacionBienvenida = window._clasificacionBienvenida || { enviadas: [], pendientes: [], sinCorreo: [] };
+        window._colaBienvenidaPendiente = window._colaBienvenidaPendiente || new Set();
+        window._clasificacionBienvenida = window._clasificacionBienvenida || { enviadas: [], enCola: [], pendientes: [], sinCorreo: [] };
         let _unsubHuellasBienvenida = null;
         let _refrescarBienvenidaTimer = null;
 
@@ -12327,47 +12470,56 @@
         }
 
         function huellasBienvenidaActuales() {
-            if (window._huellasBienvenidaCache && window._huellasBienvenidaCache.size) return window._huellasBienvenidaCache;
-            return cargarHuellasBienvenidaLocal();
+            return window._huellasBienvenidaCache || new Set();
         }
 
-        function clasificarUnidadesBienvenida(units, huellas) {
+        function colaBienvenidaActual() {
+            return window._colaBienvenidaPendiente || new Set();
+        }
+
+        function clasificarUnidadesBienvenida(units, huellas, cola) {
             var enviadas = [];
+            var enCola = [];
             var pendientes = [];
             var sinCorreo = [];
             var setH = huellas || huellasBienvenidaActuales();
+            var setCola = cola || colaBienvenidaActual();
             (Array.isArray(units) ? units : []).forEach(function (u) {
                 if (!u) return;
                 var num = String(u.unitNumber || u.departamento || '').trim();
                 if (!num) return;
-                var correos = correosUnidadResidentes(u);
-                if (!correos.length) {
-                    sinCorreo.push(num);
-                    return;
-                }
-                var falta = correos.some(function (c) {
-                    return !setH.has(huellaBienvenidaResidente(num, c));
-                });
-                if (falta) pendientes.push(num);
-                else enviadas.push(num);
+                var est = estadoBienvenidaUnidad(u, setH, setCola);
+                if (est === 'enviada') enviadas.push(num);
+                else if (est === 'en-cola') enCola.push(num);
+                else if (est === 'pendiente') pendientes.push(num);
+                else sinCorreo.push(num);
             });
             return {
                 enviadas: ordenarUnidadesPorNumero(enviadas),
+                enCola: ordenarUnidadesPorNumero(enCola),
                 pendientes: ordenarUnidadesPorNumero(pendientes),
                 sinCorreo: ordenarUnidadesPorNumero(sinCorreo)
             };
         }
 
-        function estadoBienvenidaUnidad(unit) {
+        function estadoBienvenidaUnidad(unit, huellas, cola) {
             if (!unit) return '';
             var num = String(unit.unitNumber || unit.departamento || '').trim();
             var correos = correosUnidadResidentes(unit);
             if (!correos.length) return 'sin-correo';
-            var setH = huellasBienvenidaActuales();
-            var falta = correos.some(function (c) {
-                return !setH.has(huellaBienvenidaResidente(num, c));
+            var setH = huellas || huellasBienvenidaActuales();
+            var setCola = cola || colaBienvenidaActual();
+            var falta = 0;
+            var enCola = 0;
+            correos.forEach(function (c) {
+                var h = huellaBienvenidaResidente(num, c);
+                if (setH.has(h)) return;
+                falta += 1;
+                if (setCola.has(h)) enCola += 1;
             });
-            return falta ? 'pendiente' : 'enviada';
+            if (!falta) return 'enviada';
+            if (enCola && enCola === falta) return 'en-cola';
+            return 'pendiente';
         }
 
         function htmlChipsBienvenida(nums, clase) {
@@ -12406,20 +12558,24 @@
         }
 
         function pintarPanelBienvenidaControl(clasif) {
-            var c = clasif || window._clasificacionBienvenida || { enviadas: [], pendientes: [], sinCorreo: [] };
+            var c = clasif || window._clasificacionBienvenida || { enviadas: [], enCola: [], pendientes: [], sinCorreo: [] };
             var setTxt = function (id, v) {
                 var n = document.getElementById(id);
                 if (n) n.textContent = String(v);
             };
             setTxt('dashboardBienvenidaEnviadasCount', (c.enviadas || []).length);
+            setTxt('dashboardBienvenidaEnColaCount', (c.enCola || []).length);
             setTxt('dashboardBienvenidaPendientesCount', (c.pendientes || []).length);
             setTxt('dashboardBienvenidaSinCorreoCount', (c.sinCorreo || []).length);
             setTxt('ocupacionBienvenidaEnviadas', (c.enviadas || []).length);
+            setTxt('ocupacionBienvenidaEnCola', (c.enCola || []).length);
             setTxt('ocupacionBienvenidaPendientes', (c.pendientes || []).length);
             var listOk = document.getElementById('dashboardBienvenidaEnviadasList');
+            var listCola = document.getElementById('dashboardBienvenidaEnColaList');
             var listNo = document.getElementById('dashboardBienvenidaPendientesList');
             var listNa = document.getElementById('dashboardBienvenidaSinCorreoList');
             if (listOk) { listOk.innerHTML = htmlChipsBienvenida(c.enviadas, 'ok'); bindChipsBienvenida(listOk); }
+            if (listCola) { listCola.innerHTML = htmlChipsBienvenida(c.enCola, 'cola'); bindChipsBienvenida(listCola); }
             if (listNo) { listNo.innerHTML = htmlChipsBienvenida(c.pendientes, 'no'); bindChipsBienvenida(listNo); }
             if (listNa) { listNa.innerHTML = htmlChipsBienvenida(c.sinCorreo, 'na'); bindChipsBienvenida(listNa); }
         }
@@ -12428,11 +12584,22 @@
             if (window._refrescandoBienvenida) return;
             window._refrescandoBienvenida = true;
             try {
-                var local = cargarHuellasBienvenidaLocal();
-                var cloud = await cargarHuellasBienvenidaCloud();
-                cloud.forEach(function (h) { local.add(h); });
-                window._huellasBienvenidaCache = local;
-                window._clasificacionBienvenida = clasificarUnidadesBienvenida(window.vinculacionUnits || [], local);
+                var setH = new Set();
+                var setCola = new Set();
+                try {
+                    var ref = await obtenerRefWelcomeCompartido();
+                    var snap = await ref.get();
+                    var data = (snap && snap.exists) ? (snap.data() || {}) : {};
+                    setH = parseHuellasDesdeWelcomeDoc(data);
+                    setCola = colaPendienteDesdeWelcomeDoc(data);
+                } catch (eDoc) {
+                    if (window._huellasBienvenidaCache) setH = window._huellasBienvenidaCache;
+                    if (window._colaBienvenidaPendiente) setCola = window._colaBienvenidaPendiente;
+                }
+                window._huellasBienvenidaCache = setH;
+                window._colaBienvenidaPendiente = setCola;
+                guardarHuellasBienvenidaLocal(setH);
+                window._clasificacionBienvenida = clasificarUnidadesBienvenida(window.vinculacionUnits || [], setH, setCola);
                 pintarPanelBienvenidaControl(window._clasificacionBienvenida);
                 if (typeof updateBuildingMapOcupacion === 'function' && document.getElementById('buildingMapOcupacion')) {
                     updateBuildingMapOcupacion();
@@ -12464,9 +12631,6 @@
                 if (!dbNube) return;
                 _unsubHuellasBienvenida = dbNube.collection('comunidad').doc('welcomeEmailsEnviados').onSnapshot(function () {
                     scheduleRefrescarEstadoBienvenidaUnidades();
-                    if (typeof sincronizarEstadoBienvenidaHaciaConserjeria === 'function') {
-                        sincronizarEstadoBienvenidaHaciaConserjeria();
-                    }
                 }, function (err) {
                     console.warn('[bienvenida] listener huellas Gestión:', err);
                     if (_unsubHuellasBienvenida) {
@@ -12520,7 +12684,7 @@
                 texto,
                 html,
                 null,
-                { silencioso: true, permitirSinLogin: true }
+                { silencioso: true, permitirSinLogin: false, cc: correoCcBienvenidaConserjeria() }
             );
         }
 
@@ -12574,6 +12738,10 @@
             return 'edificio.wm815@gmail.com';
         }
 
+        function correoCcBienvenidaConserjeria() {
+            return 'conserjeria.wm815@gmail.com';
+        }
+
         async function enviarCorreoBienvenidaMasivaOcupacion() {
             if (_bienvenidaManualEnCurso) return { exito: false, error: 'Envío en curso' };
             const rec = recolectarDestinatariosBienvenidaMasiva();
@@ -12583,7 +12751,7 @@
             }
             const paraVisible = correoVisibleBienvenidaMasiva();
             const ok = await confirmarAccion(
-                'Se enviará el correo de bienvenida a ' + rec.correos.length + ' direcciones de ' + rec.unidadesConCorreo + ' unidades, en copia oculta (CCO). El destinatario visible será ' + paraVisible + '. Ningún residente verá el correo de otro.\n\nIncluye propietarios, arrendatarios y familiares. Las visitas frecuentes/autorizadas quedan fuera.\n\n¿Enviar ahora?',
+                'Se enviará el correo de bienvenida a ' + rec.correos.length + ' direcciones de ' + rec.unidadesConCorreo + ' unidades, en copia oculta (CCO). El destinatario visible será ' + paraVisible + '. Conserjería recibe copia (CC): ' + correoCcBienvenidaConserjeria() + '. Ningún residente verá el correo de otro.\n\nIncluye propietarios, arrendatarios y familiares. Las visitas frecuentes/autorizadas quedan fuera.\n\n¿Enviar ahora?',
                 'Bienvenida masiva (CCO)'
             );
             if (!ok) return { exito: false, cancelado: true };
@@ -12604,6 +12772,7 @@
                 }
                 let okLotes = 0;
                 let errLotes = 0;
+                const huellasOk = [];
                 for (let i = 0; i < lotes.length; i++) {
                     const resultado = await enviarCorreo(
                         { nombre: 'Comunidad WM 815', correo: paraVisible },
@@ -12611,19 +12780,27 @@
                         texto,
                         html,
                         null,
-                        { bcc: lotes[i], silencioso: true, permitirSinLogin: true }
+                        { bcc: lotes[i], silencioso: true, permitirSinLogin: false, cc: correoCcBienvenidaConserjeria() }
                     );
-                    if (resultado && resultado.exito) okLotes += 1;
-                    else errLotes += 1;
+                    if (resultado && resultado.exito && resultado.docId) {
+                        okLotes += 1;
+                        const setLote = {};
+                        lotes[i].forEach(function (c) { setLote[String(c).toLowerCase()] = true; });
+                        rec.huellas.forEach(function (h) {
+                            var p = String(h).split('|');
+                            if (p[1] && setLote[p[1]]) huellasOk.push(h);
+                        });
+                    } else errLotes += 1;
                     if (progreso && typeof progreso.actualizar === 'function') {
                         progreso.actualizar(i + 1, lotes.length, 'Lote ' + (i + 1) + ' de ' + lotes.length + ' (CCO)…');
                     }
                 }
-                if (okLotes > 0) {
-                    const local = cargarHuellasBienvenidaLocal();
-                    rec.huellas.forEach(function (h) { local.add(h); });
-                    guardarHuellasBienvenidaLocal(local);
-                    await guardarHuellasBienvenidaCloud(local);
+                if (huellasOk.length) {
+                    const confirmadas = window._huellasBienvenidaCache || new Set();
+                    huellasOk.forEach(function (h) { confirmadas.add(h); });
+                    window._huellasBienvenidaCache = confirmadas;
+                    guardarHuellasBienvenidaLocal(confirmadas);
+                    await guardarHuellasBienvenidaCloud(confirmadas);
                 }
                 const resumen = errLotes
                     ? 'Se encolaron ' + okLotes + ' envío(s) en CCO (' + rec.correos.length + ' correos de ' + rec.unidadesConCorreo + ' unidades). Falló ' + errLotes + ' lote(s).'
@@ -12658,7 +12835,7 @@
                 return { exito: false, error: 'Sin correos' };
             }
             const ok = await confirmarAccion(
-                'Se enviará el correo de bienvenida de la unidad ' + unidad + ' a: ' + destinatarios.join(', ') + '.\n\nIncluye propietarios, arrendatarios y familiares. Las visitas frecuentes/autorizadas no reciben este correo.\n\n¿Enviar ahora?',
+                'Se enviará el correo de bienvenida de la unidad ' + unidad + ' a: ' + destinatarios.join(', ') + '.\n\nCopia (CC) a conserjería: ' + correoCcBienvenidaConserjeria() + '.\n\nIncluye propietarios, arrendatarios y familiares. Las visitas frecuentes/autorizadas no reciben este correo.\n\n¿Enviar ahora?',
                 'Enviar correo de bienvenida'
             );
             if (!ok) return { exito: false, cancelado: true };
@@ -12668,13 +12845,14 @@
                 if (typeof mostrarProgreso === 'function') mostrarProgreso('Enviando bienvenida', 'Unidad ' + unidad + '…', 0);
                 const resultado = await enviarCorreoBienvenidaAUnidad(unit, destinatarios);
                 if (typeof ocultarProgreso === 'function') ocultarProgreso();
-                if (resultado && resultado.exito) {
-                    const local = cargarHuellasBienvenidaLocal();
+                if (resultado && resultado.exito && resultado.docId) {
+                    const confirmadas = window._huellasBienvenidaCache || new Set();
                     destinatarios.forEach(function (c) {
-                        local.add(huellaBienvenidaResidente(unidad, c));
+                        confirmadas.add(huellaBienvenidaResidente(unidad, c));
                     });
-                    guardarHuellasBienvenidaLocal(local);
-                    await guardarHuellasBienvenidaCloud(local);
+                    window._huellasBienvenidaCache = confirmadas;
+                    guardarHuellasBienvenidaLocal(confirmadas);
+                    await guardarHuellasBienvenidaCloud(confirmadas);
                     mostrarAlerta(
                         'Correo de bienvenida enviado a la unidad ' + unidad + ' (' + destinatarios.join(', ') + ').',
                         'Bienvenida enviada'
@@ -12738,101 +12916,71 @@
 
         async function procesarCorreosBienvenidaResidentesNuevos() {
             if (_bienvenidaResidentesEnCurso) return;
-            if (typeof enviarCorreo !== 'function') return;
             const units = window.vinculacionUnits;
             if (!Array.isArray(units) || units.length === 0) return;
             _bienvenidaResidentesEnCurso = true;
-            let progreso = null;
             try {
-                const local = cargarHuellasBienvenidaLocal();
-                const cloud = await cargarHuellasBienvenidaCloud();
-                cloud.forEach(function (h) { local.add(h); });
-                const pendientes = [];
+                const actuales = new Set();
                 units.forEach(function (u) {
                     if (!u) return;
-                    const nuevos = [];
-                    (Array.isArray(u.residents) ? u.residents : []).forEach(function (r) {
-                        if (!r) return;
-                        if (typeof residenteRecibeBienvenida === 'function' && !residenteRecibeBienvenida(r)) return;
-                        const correo = String(r.email || r.correo || '').trim();
-                        if (!correo || correo.indexOf('@') < 0) return;
-                        const h = huellaBienvenidaResidente(u.unitNumber, correo);
-                        if (local.has(h)) return;
-                        nuevos.push({ residente: r, correo: correo, huella: h });
+                    var num = String(u.unitNumber || u.departamento || '').trim();
+                    if (!num) return;
+                    correosUnidadResidentes(u).forEach(function (c) {
+                        actuales.add(huellaBienvenidaResidente(num, c));
                     });
-                    if (nuevos.length) pendientes.push({ unit: u, nuevos: nuevos });
                 });
-                if (!pendientes.length) return;
-
-                const totalUnidades = pendientes.length;
-                const totalCorreos = pendientes.reduce(function (n, item) { return n + item.nuevos.length; }, 0);
-                if (typeof mostrarProgreso === 'function') {
-                    progreso = mostrarProgreso(
-                        'Bienvenida automática',
-                        'Se detectó correo nuevo en ' + totalUnidades + ' unidad(es) (' + totalCorreos + ' dirección(es)). Enviando ahora…',
-                        totalUnidades
-                    );
-                } else if (typeof mostrarToast === 'function') {
-                    mostrarToast('Enviando bienvenida a ' + totalUnidades + ' unidad(es) con correo nuevo.', 'info', 'Bienvenida automática', 5000);
+                if (!_bienvenidaResidentesVistos) {
+                    _bienvenidaResidentesVistos = actuales;
+                    return;
                 }
-
-                const enviados = [];
-                const fallidos = [];
-                for (let i = 0; i < pendientes.length; i++) {
-                    const item = pendientes[i];
-                    const unidad = String((item.unit && (item.unit.unitNumber || item.unit.departamento)) || '').trim();
-                    const correosUnidad = correosUnidadResidentes(item.unit);
-                    const correosNuevosOEditados = item.nuevos.map(function (n) { return n.correo; });
-                    const destinatarios = correosUnidad.length ? correosUnidad : correosNuevosOEditados;
-                    if (progreso && typeof progreso.actualizar === 'function') {
-                        progreso.actualizar(i, totalUnidades, 'Unidad ' + (unidad || '?') + ' — ' + destinatarios.join(', '));
-                    }
-                    if (!destinatarios.length) continue;
-                    const resultado = await enviarCorreoBienvenidaAUnidad(item.unit, destinatarios);
-                    if (resultado && resultado.exito) {
-                        item.nuevos.forEach(function (n) { local.add(n.huella); });
-                        guardarHuellasBienvenidaLocal(local);
-                        enviados.push(unidad + ' (' + destinatarios.join(', ') + ')');
-                        console.log('[bienvenida] Correo enviado desde Gestión WM a unidad', unidad, destinatarios);
-                    } else {
-                        const err = (resultado && resultado.error) || 'error desconocido';
-                        fallidos.push(unidad + ': ' + err);
-                        console.warn('[bienvenida] Falló envío unidad', unidad, err);
-                    }
-                    if (progreso && typeof progreso.actualizar === 'function') {
-                        progreso.actualizar(i + 1, totalUnidades, 'Unidad ' + (unidad || '?') + ' lista.');
-                    }
+                const confirmadas = window._huellasBienvenidaCache || new Set();
+                const cola = window._colaBienvenidaPendiente || new Set();
+                const nuevosPorUnidad = {};
+                actuales.forEach(function (h) {
+                    if (_bienvenidaResidentesVistos.has(h)) return;
+                    if (confirmadas.has(h) || cola.has(h)) return;
+                    var parts = String(h).split('|');
+                    var unidad = parts[0] || '';
+                    var correo = parts.slice(1).join('|');
+                    if (!unidad || !correo || correo.indexOf('@') < 0) return;
+                    if (!nuevosPorUnidad[unidad]) nuevosPorUnidad[unidad] = { correos: [], huellas: [] };
+                    nuevosPorUnidad[unidad].correos.push(correo);
+                    nuevosPorUnidad[unidad].huellas.push(h);
+                });
+                _bienvenidaResidentesVistos = actuales;
+                var unidades = Object.keys(nuevosPorUnidad);
+                if (!unidades.length) return;
+                for (var i = 0; i < unidades.length; i++) {
+                    var unidad = unidades[i];
+                    var item = nuevosPorUnidad[unidad];
+                    await encolarCorreoBienvenidaCompartido({
+                        id: 'gwm_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+                        unidad: unidad,
+                        to: item.correos.length === 1 ? item.correos[0] : item.correos,
+                        cc: correoCcBienvenidaConserjeria(),
+                        asunto: 'Te damos la bienvenida a la Comunidad WM 815 - Unidad ' + unidad,
+                        texto: 'Estimado Residente, es un gusto darle la bienvenida de parte del equipo de administración a su nuevo hogar.',
+                        huellas: item.huellas,
+                        createdAt: new Date().toISOString(),
+                        status: 'pending',
+                        origen: 'gestion-wm-ocupacion'
+                    });
+                    item.huellas.forEach(function (h) { cola.add(h); });
                 }
-                await guardarHuellasBienvenidaCloud(local);
-
-                const resumenOk = enviados.length
-                    ? ('Enviado a ' + enviados.length + ' unidad(es):\n' + enviados.slice(0, 12).join('\n') + (enviados.length > 12 ? '\n… y ' + (enviados.length - 12) + ' más.' : ''))
-                    : 'No se pudo enviar ningún correo de bienvenida.';
-                const resumenFail = fallidos.length
-                    ? ('\n\nNo se envió a ' + fallidos.length + ' unidad(es):\n' + fallidos.slice(0, 8).join('\n') + (fallidos.length > 8 ? '\n… y ' + (fallidos.length - 8) + ' más.' : ''))
-                    : '';
-                const titulo = fallidos.length && enviados.length
-                    ? 'Bienvenida automática con errores'
-                    : (enviados.length ? 'Bienvenida automática enviada' : 'Bienvenida automática no enviada');
-                if (progreso && typeof progreso.finalizar === 'function') {
-                    progreso.finalizar(resumenOk + resumenFail, titulo, true);
-                } else {
-                    mostrarAlerta(resumenOk + resumenFail, titulo);
+                window._colaBienvenidaPendiente = cola;
+                if (typeof scheduleRefrescarEstadoBienvenidaUnidades === 'function') {
+                    scheduleRefrescarEstadoBienvenidaUnidades();
                 }
                 if (typeof mostrarToast === 'function') {
                     mostrarToast(
-                        enviados.length
-                            ? ('Bienvenida enviada a ' + enviados.length + ' unidad(es).')
-                            : 'No se pudo enviar la bienvenida automática.',
-                        fallidos.length ? 'warning' : 'success',
-                        'Bienvenida automática',
-                        6000
+                        'Hay ' + unidades.length + ' unidad(es) con correo nuevo en cola de bienvenida. El estado «enviada» aparece solo cuando el correo sale.',
+                        'info',
+                        'Bienvenida en cola',
+                        7000
                     );
                 }
             } catch (e) {
-                console.warn('[bienvenida] Error procesando residentes nuevos:', e);
-                if (typeof ocultarProgreso === 'function') ocultarProgreso();
-                mostrarAlerta('No se pudo completar la bienvenida automática: ' + (e && e.message ? e.message : 'error desconocido'), 'Bienvenida automática');
+                console.warn('[bienvenida] Error detectando residentes nuevos:', e);
             } finally {
                 _bienvenidaResidentesEnCurso = false;
             }
@@ -30223,7 +30371,8 @@
                         var estB = typeof estadoBienvenidaUnidad === 'function' ? estadoBienvenidaUnidad(unit) : '';
                         var marcaB = '';
                         if (estB === 'enviada') marcaB = '<span class="unit-cell-bienvenida ok" title="Bienvenida enviada">✉</span>';
-                        else if (estB === 'pendiente') marcaB = '<span class="unit-cell-bienvenida no" title="Bienvenida pendiente">✉</span>';
+                        else if (estB === 'en-cola') marcaB = '<span class="unit-cell-bienvenida cola" title="Bienvenida en cola (aún no enviada)">✉</span>';
+                        else if (estB === 'pendiente') marcaB = '<span class="unit-cell-bienvenida no" title="Bienvenida pendiente (no enviada)">✉</span>';
                         if (tieneNota || tieneContrato || tieneMascota || marcaB) {
                             var indicadores = '';
                             if (tieneNota) indicadores += '<span class="unit-cell-nota" style="position:absolute;top:1px;right:1px;color:#f59e0b;font-size:0.7rem;line-height:1;pointer-events:none;">&#8226;</span>';
@@ -30233,7 +30382,7 @@
                         } else {
                             cell.textContent = unitNumber;
                         }
-                        var titB = estB === 'enviada' ? ' - Bienvenida enviada' : (estB === 'pendiente' ? ' - Bienvenida pendiente' : (estB === 'sin-correo' ? ' - Sin correo' : ''));
+                        var titB = estB === 'enviada' ? ' - Bienvenida enviada' : (estB === 'en-cola' ? ' - Bienvenida en cola (aún no enviada)' : (estB === 'pendiente' ? ' - Bienvenida pendiente (no enviada)' : (estB === 'sin-correo' ? ' - Sin correo' : '')));
                         cell.title = 'Unidad ' + unitNumber + ' - ' + (unit.unitUse || '') + ' - ' + (unit.residents ? unit.residents.length : 0) + ' residentes' + (unit.hasPet ? ' - Mascota' : '') + titB + ' (clic para ver detalle)';
                         cell.style.cursor = 'pointer';
                         (function(u) {
@@ -30290,8 +30439,10 @@
             var bienvenidaHtml = '';
             if (estB === 'enviada') {
                 bienvenidaHtml = '<div style="margin:6px 0;padding:6px 8px;background:rgba(16,185,129,0.12);border-radius:6px;border:1px solid #10b981;"><span style="font-size:0.8rem;font-weight:600;">✉ Bienvenida enviada</span></div>';
+            } else if (estB === 'en-cola') {
+                bienvenidaHtml = '<div style="margin:6px 0;padding:6px 8px;background:rgba(37,99,235,0.12);border-radius:6px;border:1px solid #2563eb;"><span style="font-size:0.8rem;font-weight:600;">✉ Bienvenida en cola (aún no enviada)</span></div>';
             } else if (estB === 'pendiente') {
-                bienvenidaHtml = '<div style="margin:6px 0;padding:6px 8px;background:rgba(245,158,11,0.14);border-radius:6px;border:1px solid #f59e0b;"><span style="font-size:0.8rem;font-weight:600;">✉ Bienvenida pendiente</span></div>';
+                bienvenidaHtml = '<div style="margin:6px 0;padding:6px 8px;background:rgba(245,158,11,0.14);border-radius:6px;border:1px solid #f59e0b;"><span style="font-size:0.8rem;font-weight:600;">✉ Bienvenida pendiente (no enviada)</span></div>';
             } else if (estB === 'sin-correo') {
                 bienvenidaHtml = '<div style="margin:6px 0;padding:6px 8px;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border-color);"><span style="font-size:0.8rem;font-weight:600;">✉ Sin correo registrado</span></div>';
             }
