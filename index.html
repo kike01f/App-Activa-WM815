@@ -5951,6 +5951,7 @@
                     <label for="ocupacionUnidadBienvenida" style="position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0,0,0,0);">Número de unidad</label>
                     <input type="text" id="ocupacionUnidadBienvenida" class="form-input" placeholder="Nº unidad" autocomplete="off" style="width: 7.5rem; padding: 0.5rem 0.75rem; font-size: 0.875rem;">
                     <button type="button" id="btnEnviarBienvenidaOcupacion" class="btn btn-primary" style="padding: 0.5rem 0.9rem; font-size: 0.875rem; white-space: nowrap;" title="Reenvía el correo de bienvenida a todos los correos de la unidad">📧 Enviar correo de bienvenida</button>
+                    <button type="button" id="btnEnviarBienvenidaMasivaOcupacion" class="btn btn-secondary" style="padding: 0.5rem 0.9rem; font-size: 0.875rem; white-space: nowrap;" title="Envía el correo de bienvenida a todas las unidades en copia oculta (CCO). Nadie verá el correo de otro residente.">📧 Enviar bienvenida a todas (CCO)</button>
                 </div>
             </div>
             <!-- Resumen ocupación (igual que activa-entre-cerros) -->
@@ -11948,6 +11949,117 @@
         }
 
         let _bienvenidaManualEnCurso = false;
+        function setBotonesBienvenidaOcupacionDisabled(disabled) {
+            const btnU = document.getElementById('btnEnviarBienvenidaOcupacion');
+            const btnM = document.getElementById('btnEnviarBienvenidaMasivaOcupacion');
+            if (btnU) btnU.disabled = !!disabled;
+            if (btnM) btnM.disabled = !!disabled;
+        }
+
+        function recolectarDestinatariosBienvenidaMasiva() {
+            const units = Array.isArray(window.vinculacionUnits) ? window.vinculacionUnits : [];
+            const seenEmail = new Set();
+            const correos = [];
+            const huellas = [];
+            let unidadesConCorreo = 0;
+            units.forEach(function (u) {
+                if (!u) return;
+                const lista = correosUnidadResidentes(u);
+                if (!lista.length) return;
+                unidadesConCorreo += 1;
+                const unidad = String(u.unitNumber || u.departamento || '').trim();
+                lista.forEach(function (c) {
+                    const raw = String(c || '').trim();
+                    if (!raw || raw.indexOf('@') < 0) return;
+                    huellas.push(huellaBienvenidaResidente(unidad, raw));
+                    const k = raw.toLowerCase();
+                    if (seenEmail.has(k)) return;
+                    seenEmail.add(k);
+                    correos.push(raw);
+                });
+            });
+            return { correos: correos, huellas: huellas, unidadesConCorreo: unidadesConCorreo };
+        }
+
+        function correoVisibleBienvenidaMasiva() {
+            try {
+                if (typeof auth !== 'undefined' && auth && auth.currentUser && auth.currentUser.email) {
+                    return String(auth.currentUser.email).trim();
+                }
+            } catch (e) {}
+            return 'conserjeria.wm815@gmail.com';
+        }
+
+        async function enviarCorreoBienvenidaMasivaOcupacion() {
+            if (_bienvenidaManualEnCurso) return { exito: false, error: 'Envío en curso' };
+            const rec = recolectarDestinatariosBienvenidaMasiva();
+            if (!rec.correos.length) {
+                mostrarAlerta('No hay correos de residentes en Ocupación para enviar la bienvenida masiva.', 'Sin destinatarios');
+                return { exito: false, error: 'Sin destinatarios' };
+            }
+            const paraVisible = correoVisibleBienvenidaMasiva();
+            const ok = await confirmarAccion(
+                'Se enviará el correo de bienvenida a ' + rec.correos.length + ' direcciones de ' + rec.unidadesConCorreo + ' unidades, en copia oculta (CCO). El destinatario visible será ' + paraVisible + '. Ningún residente verá el correo de otro. ¿Enviar ahora?',
+                'Bienvenida masiva (CCO)'
+            );
+            if (!ok) return { exito: false, cancelado: true };
+            _bienvenidaManualEnCurso = true;
+            setBotonesBienvenidaOcupacionDisabled(true);
+            const LOTE = 50;
+            const lotes = [];
+            for (let i = 0; i < rec.correos.length; i += LOTE) {
+                lotes.push(rec.correos.slice(i, i + LOTE));
+            }
+            const html = htmlCorreoBienvenidaNuevoResidente();
+            const asunto = 'Te damos la bienvenida a la Comunidad WM 815';
+            const texto = 'Estimado Residente, es un gusto darle la bienvenida de parte del equipo de administración a su nuevo hogar.';
+            let progreso = null;
+            try {
+                if (typeof mostrarProgreso === 'function') {
+                    progreso = mostrarProgreso('Enviando bienvenida masiva', 'Copia oculta a ' + rec.correos.length + ' correos…', lotes.length);
+                }
+                let okLotes = 0;
+                let errLotes = 0;
+                for (let i = 0; i < lotes.length; i++) {
+                    const resultado = await enviarCorreo(
+                        { nombre: 'Comunidad WM 815', correo: paraVisible },
+                        asunto,
+                        texto,
+                        html,
+                        null,
+                        { bcc: lotes[i], silencioso: true }
+                    );
+                    if (resultado && resultado.exito) okLotes += 1;
+                    else errLotes += 1;
+                    if (progreso && typeof progreso.actualizar === 'function') {
+                        progreso.actualizar(i + 1, lotes.length, 'Lote ' + (i + 1) + ' de ' + lotes.length + ' (CCO)…');
+                    }
+                }
+                if (okLotes > 0) {
+                    const local = cargarHuellasBienvenidaLocal();
+                    rec.huellas.forEach(function (h) { local.add(h); });
+                    guardarHuellasBienvenidaLocal(local);
+                    await guardarHuellasBienvenidaCloud(local);
+                }
+                const resumen = errLotes
+                    ? 'Se encolaron ' + okLotes + ' envío(s) en CCO (' + rec.correos.length + ' correos de ' + rec.unidadesConCorreo + ' unidades). Falló ' + errLotes + ' lote(s).'
+                    : 'Correo de bienvenida enviado en copia oculta a ' + rec.correos.length + ' correos de ' + rec.unidadesConCorreo + ' unidades. Nadie ve el correo de otro residente.';
+                if (progreso && typeof progreso.finalizar === 'function') {
+                    progreso.finalizar(resumen, errLotes ? 'Bienvenida masiva con errores' : 'Bienvenida masiva enviada', true);
+                } else {
+                    mostrarAlerta(resumen, errLotes ? 'Bienvenida masiva con errores' : 'Bienvenida masiva enviada');
+                }
+                return { exito: errLotes === 0, okLotes: okLotes, errLotes: errLotes };
+            } catch (e) {
+                if (typeof ocultarProgreso === 'function') ocultarProgreso();
+                mostrarAlerta('No se pudo enviar la bienvenida masiva: ' + (e && e.message ? e.message : 'error desconocido'), 'Error de envío');
+                return { exito: false, error: e && e.message ? e.message : 'error' };
+            } finally {
+                _bienvenidaManualEnCurso = false;
+                setBotonesBienvenidaOcupacionDisabled(false);
+            }
+        }
+
         async function enviarCorreoBienvenidaManualUnidad(unitOrNumber) {
             if (_bienvenidaManualEnCurso) return { exito: false, error: 'Envío en curso' };
             let unit = unitOrNumber && typeof unitOrNumber === 'object' ? unitOrNumber : buscarUnidadOcupacionPorNumero(unitOrNumber);
@@ -11967,8 +12079,7 @@
             );
             if (!ok) return { exito: false, cancelado: true };
             _bienvenidaManualEnCurso = true;
-            const btnModulo = document.getElementById('btnEnviarBienvenidaOcupacion');
-            if (btnModulo) btnModulo.disabled = true;
+            setBotonesBienvenidaOcupacionDisabled(true);
             try {
                 if (typeof mostrarProgreso === 'function') mostrarProgreso('Enviando bienvenida', 'Unidad ' + unidad + '…', 0);
                 const resultado = await enviarCorreoBienvenidaAUnidad(unit, destinatarios);
@@ -11997,31 +12108,39 @@
                 return { exito: false, error: e && e.message ? e.message : 'error' };
             } finally {
                 _bienvenidaManualEnCurso = false;
-                if (btnModulo) btnModulo.disabled = false;
+                setBotonesBienvenidaOcupacionDisabled(false);
             }
         }
 
         function initBotonBienvenidaOcupacion() {
             const btn = document.getElementById('btnEnviarBienvenidaOcupacion');
             const inp = document.getElementById('ocupacionUnidadBienvenida');
-            if (!btn || btn._bienvenidaBound) return;
-            btn._bienvenidaBound = true;
-            const lanzar = function () {
-                const num = inp ? String(inp.value || '').trim() : '';
-                if (!num) {
-                    mostrarAlerta('Indique el número de unidad o ábrala en el mapa y use Enviar correo de bienvenida.', 'Unidad requerida');
-                    if (inp) inp.focus();
-                    return;
-                }
-                enviarCorreoBienvenidaManualUnidad(num);
-            };
-            btn.addEventListener('click', lanzar);
-            if (inp) {
-                inp.addEventListener('keydown', function (e) {
-                    if (e.key === 'Enter') {
-                        e.preventDefault();
-                        lanzar();
+            const btnMasiva = document.getElementById('btnEnviarBienvenidaMasivaOcupacion');
+            if (btn && !btn._bienvenidaBound) {
+                btn._bienvenidaBound = true;
+                const lanzar = function () {
+                    const num = inp ? String(inp.value || '').trim() : '';
+                    if (!num) {
+                        mostrarAlerta('Indique el número de unidad o ábrala en el mapa y use Enviar correo de bienvenida.', 'Unidad requerida');
+                        if (inp) inp.focus();
+                        return;
                     }
+                    enviarCorreoBienvenidaManualUnidad(num);
+                };
+                btn.addEventListener('click', lanzar);
+                if (inp) {
+                    inp.addEventListener('keydown', function (e) {
+                        if (e.key === 'Enter') {
+                            e.preventDefault();
+                            lanzar();
+                        }
+                    });
+                }
+            }
+            if (btnMasiva && !btnMasiva._bienvenidaMasivaBound) {
+                btnMasiva._bienvenidaMasivaBound = true;
+                btnMasiva.addEventListener('click', function () {
+                    enviarCorreoBienvenidaMasivaOcupacion();
                 });
             }
         }
@@ -12031,6 +12150,7 @@
             initBotonBienvenidaOcupacion();
         }
         window.enviarCorreoBienvenidaManualUnidad = enviarCorreoBienvenidaManualUnidad;
+        window.enviarCorreoBienvenidaMasivaOcupacion = enviarCorreoBienvenidaMasivaOcupacion;
 
         async function procesarCorreosBienvenidaResidentesNuevos() {
             if (_bienvenidaResidentesEnCurso) return;
