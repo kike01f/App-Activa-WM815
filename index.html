@@ -18365,7 +18365,6 @@
             const round2 = (n) => Math.round((Number(n) || 0) * 100) / 100;
             const listaOk = (Array.isArray(lista) ? lista : []).filter(Boolean);
             const prevOk = (Array.isArray(opts.listaAnterior) ? opts.listaAnterior : []).filter(Boolean);
-            const totalUnidades = parseInt(opts.totalUnidades, 10) || 0;
             const n = listaOk.length;
             const deuda = typeof sumarDeudaOriginalMorosos === 'function' ? sumarDeudaOriginalMorosos(listaOk) : listaOk.reduce((s, m) => s + (parseFloat(m.monto) || 0), 0);
             const abonado = typeof sumarAbonosMorosos === 'function' ? sumarAbonosMorosos(listaOk) : 0;
@@ -18373,110 +18372,39 @@
             const nAbonos = listaOk.reduce((s, m) => s + (typeof obtenerAbonosMoroso === 'function' ? obtenerAbonosMoroso(m).length : 0), 0);
             const conAbono = listaOk.filter(m => (typeof totalAbonadoMoroso === 'function' ? totalAbonadoMoroso(m) : 0) > 0);
             const sinAbono = listaOk.filter(m => (typeof totalAbonadoMoroso === 'function' ? totalAbonadoMoroso(m) : 0) <= 0 && (typeof saldoMoroso === 'function' ? saldoMoroso(m) : parseFloat(m.monto) || 0) > 0);
-            const parciales = listaOk.filter(m => (typeof totalAbonadoMoroso === 'function' ? totalAbonadoMoroso(m) : 0) > 0 && (typeof saldoMoroso === 'function' ? saldoMoroso(m) : 0) > 0);
-            const regularizados = listaOk.filter(m => m.estado === 'regularizado' || (typeof saldoMoroso === 'function' ? saldoMoroso(m) : 0) <= 0);
-            const porEstado = {
-                pendiente: listaOk.filter(m => (m.estado || 'pendiente') === 'pendiente').length,
-                'en-cobranza': listaOk.filter(m => m.estado === 'en-cobranza').length,
-                convenio: listaOk.filter(m => m.estado === 'convenio').length,
-                judicial: listaOk.filter(m => m.estado === 'judicial').length,
-                regularizado: listaOk.filter(m => m.estado === 'regularizado').length
-            };
-            const corteLuz = listaOk.filter(m => m.servicioElectricoSuspendido);
             const tasaRecup = deuda > 0 ? Math.round((abonado / deuda) * 1000) / 10 : 0;
-            const porcUnidades = totalUnidades > 0 ? Math.round((n / totalUnidades) * 1000) / 10 : null;
-            const periodos = listaOk.map(m => parseInt(m.periodosVencidos, 10)).filter(p => !isNaN(p) && p > 0);
-            const maxPeriodos = periodos.length ? Math.max.apply(null, periodos) : 0;
-            const avgPeriodos = periodos.length ? Math.round((periodos.reduce((a, b) => a + b, 0) / periodos.length) * 10) / 10 : 0;
-            const criticosPeriodos = listaOk.filter(m => (parseInt(m.periodosVencidos, 10) || 0) >= 3);
-            const ranking = listaOk.slice().sort((a, b) => {
-                const sa = typeof saldoMoroso === 'function' ? saldoMoroso(a) : (parseFloat(a.monto) || 0);
-                const sb = typeof saldoMoroso === 'function' ? saldoMoroso(b) : (parseFloat(b.monto) || 0);
-                return sb - sa;
-            });
-            const top3 = ranking.filter(m => (typeof saldoMoroso === 'function' ? saldoMoroso(m) : parseFloat(m.monto) || 0) > 0).slice(0, 3);
-            const saldoTop3 = top3.reduce((s, m) => s + (typeof saldoMoroso === 'function' ? saldoMoroso(m) : parseFloat(m.monto) || 0), 0);
-            const concTop3 = saldo > 0 ? Math.round((saldoTop3 / saldo) * 100) : 0;
-            const avgSaldo = n ? round2(saldo / n) : 0;
-            const avgDeuda = n ? round2(deuda / n) : 0;
-            const avgAbonoUnidad = conAbono.length ? round2(abonado / conAbono.length) : 0;
             const prevDeuda = prevOk.length ? (typeof sumarDeudaOriginalMorosos === 'function' ? sumarDeudaOriginalMorosos(prevOk) : 0) : null;
             const prevAbonado = prevOk.length ? (typeof sumarAbonosMorosos === 'function' ? sumarAbonosMorosos(prevOk) : 0) : null;
             const prevSaldo = prevOk.length ? (typeof sumarSaldoMorosos === 'function' ? sumarSaldoMorosos(prevOk) : 0) : null;
             const prevN = prevOk.length || 0;
             const prevTasa = prevDeuda > 0 ? Math.round((prevAbonado / prevDeuda) * 1000) / 10 : 0;
 
-            const vacio = {
-                n: 0, deuda: 0, abonado: 0, saldo: 0, tasaRecup: 0, nAbonos: 0,
-                htmlBloque: '', parrafoFinanciero: '', lineaPortada: 'Sin morosidad registrada en el período.',
+            const kpiCell = (label, valor, color) => `
+                                <td style="padding: 0.5rem 0.55rem; border: 1px solid #e5e7eb; background: #fff; width: 25%; vertical-align: top;">
+                                    <div style="font-size: 0.66rem; color: #6b7280; text-transform: uppercase; letter-spacing: 0.03em;">${label}</div>
+                                    <div style="margin-top: 0.15rem; font-size: 0.92rem; font-weight: 700; color: ${color};">${valor}</div>
+                                </td>`;
+
+            const meta = {
+                n, deuda, abonado, saldo, tasaRecup, nAbonos, conAbono: conAbono.length, sinAbono: sinAbono.length,
+                prevN, prevDeuda, prevAbonado, prevSaldo, prevTasa,
                 htmlAnexo: '',
-                alertas: [], recomendaciones: [], filasExcel: [], prevAbonado: prevAbonado, prevDeuda: prevDeuda, prevSaldo: prevSaldo, prevN: prevN, prevTasa: prevTasa
+                alertas: [],
+                recomendaciones: [],
+                filasExcel: []
             };
+
             if (!n) {
-                vacio.htmlBloque = `
-                        <div style="margin-top: 0.85rem; padding: 0.9rem 1rem; background: #ecfdf5; border: 1px solid #a7f3d0; border-left: 4px solid #10b981; border-radius: 8px;">
-                            <h3 style="margin: 0 0 0.4rem 0; font-size: 0.95rem; color: #065f46;">Análisis inteligente de morosidad</h3>
-                            <p style="margin: 0; font-size: 0.85rem; line-height: 1.65; color: #064e3b;">No hay registros de morosos en este período. No existen deudas, abonos ni saldos pendientes que reportar al Comité.</p>
-                        </div>`;
-                vacio.parrafoFinanciero = 'Morosidad: no se registran departamentos con deuda en el período.';
-                vacio.filasExcel = [
-                    [],
-                    ['ANÁLISIS INTELIGENTE DE MOROSIDAD'],
-                    ['Lectura', 'No hay morosos, abonos ni saldos pendientes en el período.']
-                ];
-                return vacio;
+                return Object.assign(meta, {
+                    htmlBloque: `
+                        <div style="margin-top: 0.75rem; padding: 0.8rem 0.95rem; background: #f8fafc; border: 1px solid #e5e7eb; border-left: 4px solid #64748b; border-radius: 8px;">
+                            <h3 style="margin: 0 0 0.3rem 0; font-size: 0.9rem; color: #111827;">Análisis de morosidad</h3>
+                            <p style="margin: 0; font-size: 0.82rem; line-height: 1.5; color: #374151;">No hay registros de morosos en este período.</p>
+                        </div>`,
+                    parrafoFinanciero: 'Morosidad: no se registran departamentos con deuda en el período.',
+                    lineaPortada: 'Sin morosidad registrada en el período.'
+                });
             }
-
-            const partesEstado = [];
-            if (porEstado.pendiente) partesEstado.push(`${porEstado.pendiente} pendiente${porEstado.pendiente !== 1 ? 's' : ''}`);
-            if (porEstado['en-cobranza']) partesEstado.push(`${porEstado['en-cobranza']} en cobranza`);
-            if (porEstado.convenio) partesEstado.push(`${porEstado.convenio} en convenio`);
-            if (porEstado.judicial) partesEstado.push(`${porEstado.judicial} judicial${porEstado.judicial !== 1 ? 'es' : ''}`);
-            if (porEstado.regularizado) partesEstado.push(`${porEstado.regularizado} regularizado${porEstado.regularizado !== 1 ? 's' : ''}`);
-
-            let lecturaRecup = '';
-            if (abonado <= 0) {
-                lecturaRecup = 'No se registraron abonos: la deuda original coincide con el saldo pendiente.';
-            } else if (tasaRecup >= 70) {
-                lecturaRecup = `La recuperación es alta (${tasaRecup}% de la deuda original ya abonada).`;
-            } else if (tasaRecup >= 40) {
-                lecturaRecup = `La recuperación es moderada (${tasaRecup}% de la deuda original).`;
-            } else {
-                lecturaRecup = `La recuperación es baja (${tasaRecup}% de la deuda original): conviene intensificar el seguimiento de cobranza.`;
-            }
-
-            let lecturaComparativa = '';
-            if (prevSaldo != null && prevOk.length > 0 && opts.nombreMesAnterior) {
-                const dSaldo = round2(saldo - prevSaldo);
-                if (dSaldo > 0) lecturaComparativa = ` Respecto de ${opts.nombreMesAnterior}, el saldo pendiente subió ${fm(dSaldo)}.`;
-                else if (dSaldo < 0) lecturaComparativa = ` Respecto de ${opts.nombreMesAnterior}, el saldo pendiente bajó ${fm(Math.abs(dSaldo))}.`;
-                else lecturaComparativa = ` El saldo pendiente se mantiene igual que en ${opts.nombreMesAnterior}.`;
-            }
-
-            const topTexto = top3.length
-                ? top3.map(m => {
-                    const s = typeof saldoMoroso === 'function' ? saldoMoroso(m) : (parseFloat(m.monto) || 0);
-                    return `depto ${m.departamento || '-'} (${fm(s)})`;
-                }).join(', ')
-                : '';
-
-            const parrafos = [];
-            parrafos.push(`Hay ${n} registro${n !== 1 ? 's' : ''} de morosidad${porcUnidades != null ? ` (${porcUnidades}% de ${totalUnidades} unidades)` : ''}: deuda original ${fm(deuda)}, abonos ${fm(abonado)} en ${nAbonos} movimiento${nAbonos !== 1 ? 's' : ''} y saldo pendiente ${fm(saldo)}. Promedio por unidad: deuda ${fm(avgDeuda)} y saldo ${fm(avgSaldo)}.`);
-            parrafos.push(`Estados: ${partesEstado.join(', ') || 'sin clasificación'}. ${lecturaRecup}${lecturaComparativa}`);
-            if (conAbono.length) {
-                parrafos.push(`${conAbono.length} unidad${conAbono.length !== 1 ? 'es' : ''} ${conAbono.length !== 1 ? 'registraron' : 'registró'} abonos (promedio ${fm(avgAbonoUnidad)} por unidad que pagó)${parciales.length ? `; ${parciales.length} ${parciales.length !== 1 ? 'quedaron' : 'quedó'} con pago parcial` : ''}${regularizados.length ? `; ${regularizados.length} ${regularizados.length !== 1 ? 'regularizaron' : 'regularizó'} el saldo` : ''}. ${sinAbono.length} unidad${sinAbono.length !== 1 ? 'es' : ''} aún no registra${sinAbono.length !== 1 ? 'n' : ''} ningún abono.`);
-            } else {
-                parrafos.push(`Ninguna unidad registró abonos. ${sinAbono.length} caso${sinAbono.length !== 1 ? 's' : ''} permanece${sinAbono.length !== 1 ? 'n' : ''} con el saldo completo.`);
-            }
-            if (top3.length && saldo > 0) {
-                parrafos.push(`Concentración: los ${top3.length} mayores saldos (${topTexto}) representan el ${concTop3}% del saldo pendiente.`);
-            }
-            const riesgos = [];
-            if (corteLuz.length) riesgos.push(`${corteLuz.length} con servicio eléctrico suspendido`);
-            if (criticosPeriodos.length) riesgos.push(`${criticosPeriodos.length} con 3 o más periodos vencidos (máximo ${maxPeriodos}${avgPeriodos ? `, promedio ${avgPeriodos}` : ''})`);
-            if (porEstado.judicial) riesgos.push(`${porEstado.judicial} en vía judicial`);
-            if (porEstado['en-cobranza']) riesgos.push(`${porEstado['en-cobranza']} en cobranza activa`);
-            if (riesgos.length) parrafos.push(`Señales de riesgo: ${riesgos.join('; ')}.`);
 
             const mesRef = opts.mesAnio || (listaOk[0] && listaOk[0].mes) || (typeof obtenerMesPeriodoVista === 'function' ? obtenerMesPeriodoVista() : '');
             const vencISO = typeof fechaVencimientoGastosComunes === 'function' ? fechaVencimientoGastosComunes(mesRef) : (mesRef ? mesRef + '-15' : '');
@@ -18484,7 +18412,6 @@
                 ? `el 15 de ${opts.nombreMes}`
                 : (vencISO ? `el ${vencISO.slice(8, 10)}/${vencISO.slice(5, 7)}/${vencISO.slice(0, 4)}` : 'el 15 de cada mes');
             const jefeNombre = opts.jefeEdificio || 'Jefe de Edificio';
-            const nombreComunidadAnalisis = opts.nombreComunidad || '';
             const ff = (f) => (typeof formatearFechaParaCorreo === 'function' && f ? formatearFechaParaCorreo(f) : (f || '-'));
             const aTiempo = [];
             const fueraDePlazo = [];
@@ -18494,165 +18421,85 @@
                 const fechas = abonos.map(a => fechaISOCorta(a.fecha)).filter(Boolean).sort();
                 const algunaATiempo = vencISO ? fechas.some(f => f <= vencISO) : false;
                 const item = {
-                    m,
                     depto: m.departamento || '-',
                     fechasAbono: fechas,
-                    fechaReferencia: algunaATiempo ? fechas.filter(f => f <= vencISO)[0] : (fechas[fechas.length - 1] || ''),
-                    suspendido: !!m.servicioElectricoSuspendido,
-                    notifs: typeof obtenerNotificacionesJefeMoroso === 'function' ? obtenerNotificacionesJefeMoroso(m) : []
+                    suspendido: !!m.servicioElectricoSuspendido
                 };
                 if (algunaATiempo) aTiempo.push(item);
                 else fueraDePlazo.push(item);
             });
-            const aTiempoMalCorte = aTiempo.filter(x => x.suspendido);
-            parrafos.push(`La fecha de vencimiento de los gastos comunes corresponde al 15 de cada mes (${vencTexto}). Las unidades que abonaron en o antes de esa fecha <strong>no corresponde que se les suspenda el servicio eléctrico</strong>.`);
-            if (aTiempo.length) {
-                const listaDeptos = aTiempo.map(x => `depto ${x.depto} (${ff(x.fechaReferencia)})`).join(', ');
-                parrafos.push(`Abonaron en o antes del vencimiento: ${listaDeptos}. Por ese pago oportuno no corresponde suspensión del servicio eléctrico.`);
-            } else if (conAbono.length) {
-                parrafos.push(`Ninguna unidad con abonos pagó en o antes de ${vencTexto}.`);
-            }
-            if (fueraDePlazo.length) {
-                parrafos.push(`Abonos posteriores al vencimiento: ${fueraDePlazo.map(x => `depto ${x.depto} (${ff(x.fechaReferencia)})`).join(', ')}.`);
-            }
-            if (aTiempoMalCorte.length) {
-                parrafos.push(`Inconsistencia: ${aTiempoMalCorte.map(x => 'depto ' + x.depto).join(', ')} abonó a tiempo y aún figura con servicio eléctrico suspendido.`);
-            }
+            const verboAbono = aTiempo.length === 1 ? 'abonó' : 'abonaron';
+            const notaCorte = aTiempo.length
+                ? `${aTiempo.length} unidad${aTiempo.length !== 1 ? 'es' : ''} ${verboAbono} en o antes de ${vencTexto}; no corresponde suspensión del servicio eléctrico.`
+                : `La fecha de vencimiento de gastos comunes es ${vencTexto}. Quien abone en o antes de ese día no corresponde suspensión del servicio eléctrico.`;
 
-            const filasNotif = [];
-            const filasExcelNotif = [];
-            const anexos = [];
-            const escSrc = (html) => String(html || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
-            const tipoNotifTxt = (t) => t === 'aviso-corte-luz' ? 'Aviso de corte de luz' : 'Aviso de morosidad';
-            listaOk.forEach(m => {
-                let notifs = typeof obtenerNotificacionesJefeMoroso === 'function' ? obtenerNotificacionesJefeMoroso(m) : [];
-                const pagoATiempo = aTiempo.some(x => x.m === m);
-                if (!notifs.length && pagoATiempo) {
-                    notifs = [{
-                        tipo: 'aviso-morosidad',
-                        fecha: m.fecha || '',
-                        enviadoPor: jefeNombre,
-                        html: '',
-                        mailId: '',
-                        reconstruido: true
-                    }];
-                }
-                if (!notifs.length) return;
-                notifs.forEach((notif, ni) => {
-                    const aid = 'notif-jefe-' + String(m.id || m.departamento || 'x').replace(/[^a-zA-Z0-9_-]/g, '') + '-' + ni;
-                    let htmlNotif = notif.html || '';
-                    if (!htmlNotif && notif.tipo === 'aviso-corte-luz' && typeof generarAvisoCorteLuzHtml === 'function') {
-                        htmlNotif = generarAvisoCorteLuzHtml(m, nombreComunidadAnalisis);
-                    } else if (!htmlNotif && typeof generarAvisoMorosidadHtml === 'function') {
-                        htmlNotif = generarAvisoMorosidadHtml(m, nombreComunidadAnalisis);
-                    }
-                    if (htmlNotif) htmlNotif = String(htmlNotif).replace(/<\/iframe/gi, '&lt;/iframe');
-                    const enlace = htmlNotif
-                        ? `<a href="#${aid}" style="color: #1d4ed8; font-weight: 700; text-decoration: underline;">Ver comprobante</a>`
-                        : (notif.mailId ? ('mail/' + notif.mailId) : 'Sin respaldo HTML');
-                    filasNotif.push(`<tr>
-                        <td style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; font-size: 0.78rem;">${m.departamento || '-'}</td>
-                        <td style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; font-size: 0.78rem;">${tipoNotifTxt(notif.tipo)}</td>
-                        <td style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; font-size: 0.78rem;">${ff(notif.fecha)}</td>
-                        <td style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; font-size: 0.78rem;">${notif.enviadoPor || jefeNombre}</td>
-                        <td style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; font-size: 0.78rem;">${enlace}</td>
-                    </tr>`);
-                    filasExcelNotif.push([
-                        m.departamento || '-',
-                        tipoNotifTxt(notif.tipo),
-                        ff(notif.fecha),
-                        notif.enviadoPor || jefeNombre,
-                        htmlNotif ? ('Ver anexo #' + aid) : (notif.mailId ? ('mail/' + notif.mailId) : 'Sin respaldo')
-                    ]);
-                    if (htmlNotif) {
-                        const notaEnvio = notif.reconstruido
-                            ? `Comprobante del aviso del Jefe de Edificio (${notif.enviadoPor || jefeNombre}).`
-                            : `Enviado el ${ff(notif.fecha)} por ${notif.enviadoPor || jefeNombre}${notif.mailId ? ` · Ref. correo mail/${notif.mailId}` : ''}.`;
-                        anexos.push(`
-                        <div id="${aid}" style="margin-top: 1rem; padding: 0.85rem 1rem; background: #fff; border: 1px solid #e5e7eb; border-radius: 8px;">
-                            <h4 style="margin: 0 0 0.35rem 0; font-size: 0.88rem; color: #111827;">Comprobante de notificación — Depto ${m.departamento || '-'} · ${tipoNotifTxt(notif.tipo)}</h4>
-                            <p style="margin: 0 0 0.55rem 0; font-size: 0.78rem; color: #4b5563;">${notaEnvio}</p>
-                            <iframe title="Comprobante notificación depto ${m.departamento || ''}" srcdoc="${escSrc(htmlNotif)}" style="width: 100%; min-height: 520px; border: 1px solid #e5e7eb; border-radius: 6px; background: #fff;"></iframe>
-                        </div>`);
-                    }
-                });
-            });
-            if (filasNotif.length) {
-                parrafos.push(`Se anexa, en enlace, el comprobante de la notificación enviada por el Jefe de Edificio (${jefeNombre}).`);
-            }
-
+            const th = 'padding: 0.35rem 0.45rem; border: 1px solid #e5e7eb; background: #f3f4f6; text-align: left; font-size: 0.7rem;';
+            const td = 'padding: 0.35rem 0.45rem; border: 1px solid #e5e7eb; font-size: 0.76rem;';
             const tablaPlazo = (aTiempo.length || fueraDePlazo.length) ? `
-                            <table style="width: 100%; border-collapse: collapse; margin: 0.65rem 0 0.35rem 0;">
+                            <table style="width: 100%; border-collapse: collapse; margin: 0.45rem 0 0.25rem 0;">
                                 <thead>
                                     <tr>
-                                        <th style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; background: #f3f4f6; text-align: left; font-size: 0.72rem;">Depto</th>
-                                        <th style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; background: #f3f4f6; text-align: left; font-size: 0.72rem;">Fecha abono</th>
-                                        <th style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; background: #f3f4f6; text-align: left; font-size: 0.72rem;">Vencimiento</th>
-                                        <th style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; background: #f3f4f6; text-align: left; font-size: 0.72rem;">Plazo</th>
-                                        <th style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; background: #f3f4f6; text-align: left; font-size: 0.72rem;">Servicio eléctrico</th>
-                                        <th style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; background: #f3f4f6; text-align: left; font-size: 0.72rem;">Notificación jefe</th>
+                                        <th style="${th}">Depto</th>
+                                        <th style="${th}">Fecha abono</th>
+                                        <th style="${th}">Plazo</th>
+                                        <th style="${th}">Servicio eléctrico</th>
                                     </tr>
                                 </thead>
                                 <tbody>
                                     ${aTiempo.concat(fueraDePlazo).map(x => {
                                         const aTiempoPago = aTiempo.indexOf(x) !== -1;
-                                        const aid0 = 'notif-jefe-' + String((x.m && x.m.id) || x.depto || 'x').replace(/[^a-zA-Z0-9_-]/g, '') + '-0';
-                                        const tieneNotif = aTiempoPago || (x.notifs && x.notifs.length);
                                         return `<tr>
-                                            <td style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; font-size: 0.78rem;">${x.depto}</td>
-                                            <td style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; font-size: 0.78rem;">${x.fechasAbono.map(ff).join(', ') || '-'}</td>
-                                            <td style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; font-size: 0.78rem;">${vencTexto}</td>
-                                            <td style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; font-size: 0.78rem; font-weight: 700; color: ${aTiempoPago ? '#047857' : '#b45309'};">${aTiempoPago ? 'En o antes del 15' : 'Después del 15'}</td>
-                                            <td style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; font-size: 0.78rem;">${aTiempoPago ? '<strong style="color:#047857;">No corresponde suspensión</strong>' : (x.suspendido ? 'Suspendido' : 'Activo')}</td>
-                                            <td style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; font-size: 0.78rem;">${tieneNotif ? `<a href="#${aid0}" style="color: #1d4ed8; font-weight: 700; text-decoration: underline;">Ver comprobante</a>` : '-'}</td>
+                                            <td style="${td}">${x.depto}</td>
+                                            <td style="${td}">${x.fechasAbono.map(ff).join(', ') || '-'}</td>
+                                            <td style="${td} font-weight: 700; color: ${aTiempoPago ? '#047857' : '#b45309'};">${aTiempoPago ? 'En o antes del 15' : 'Después del 15'}</td>
+                                            <td style="${td}">${aTiempoPago ? '<strong style="color:#047857;">No corresponde suspensión</strong>' : (x.suspendido ? 'Suspendido' : 'Activo')}</td>
                                         </tr>`;
                                     }).join('')}
                                 </tbody>
                             </table>` : '';
+
+            const tipoNotifTxt = (t) => t === 'aviso-corte-luz' ? 'Aviso de corte de luz' : 'Aviso de morosidad';
+            const filasNotif = [];
+            listaOk.forEach(m => {
+                const notifs = typeof obtenerNotificacionesJefeMoroso === 'function' ? obtenerNotificacionesJefeMoroso(m) : [];
+                notifs.forEach(notif => {
+                    if (!notif) return;
+                    const htmlNotif = notif.html || '';
+                    let comprobante = 'Sin comprobante';
+                    if (htmlNotif) {
+                        const href = 'data:text/html;charset=utf-8,' + encodeURIComponent(htmlNotif);
+                        comprobante = `<a href="${href}" target="_blank" rel="noopener" style="color: #1d4ed8; font-weight: 700;">Ver comprobante</a>`;
+                    } else if (notif.mailId) {
+                        comprobante = 'Enviado';
+                    }
+                    filasNotif.push(`<tr>
+                        <td style="${td}">${m.departamento || '-'}</td>
+                        <td style="${td}">${tipoNotifTxt(notif.tipo)}</td>
+                        <td style="${td}">${ff(notif.fecha)}</td>
+                        <td style="${td}">${notif.enviadoPor || jefeNombre}</td>
+                        <td style="${td}">${comprobante}</td>
+                    </tr>`);
+                });
+            });
             const tablaNotif = filasNotif.length ? `
-                            <p style="margin: 0.7rem 0 0.35rem 0; font-size: 0.84rem; font-weight: 700; color: #111827;">Comprobantes de notificación enviados por el Jefe de Edificio</p>
-                            <table style="width: 100%; border-collapse: collapse; margin: 0 0 0.35rem 0;">
+                            <p style="margin: 0.55rem 0 0.25rem 0; font-size: 0.8rem; font-weight: 700; color: #111827;">Notificaciones del Jefe de Edificio</p>
+                            <table style="width: 100%; border-collapse: collapse; margin: 0;">
                                 <thead>
                                     <tr>
-                                        <th style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; background: #f3f4f6; text-align: left; font-size: 0.72rem;">Depto</th>
-                                        <th style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; background: #f3f4f6; text-align: left; font-size: 0.72rem;">Tipo</th>
-                                        <th style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; background: #f3f4f6; text-align: left; font-size: 0.72rem;">Fecha envío</th>
-                                        <th style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; background: #f3f4f6; text-align: left; font-size: 0.72rem;">Enviado por</th>
-                                        <th style="padding: 0.4rem 0.5rem; border: 1px solid #e5e7eb; background: #f3f4f6; text-align: left; font-size: 0.72rem;">Comprobante</th>
+                                        <th style="${th}">Depto</th>
+                                        <th style="${th}">Tipo</th>
+                                        <th style="${th}">Fecha envío</th>
+                                        <th style="${th}">Enviado por</th>
+                                        <th style="${th}">Comprobante</th>
                                     </tr>
                                 </thead>
                                 <tbody>${filasNotif.join('')}</tbody>
                             </table>` : '';
-            const htmlAnexo = anexos.length ? `
-                        <div class="reporte-section" style="margin-top: 1rem;">
-                            <h3 style="margin: 0 0 0.5rem 0; font-size: 0.95rem;">Anexos: comprobantes de notificación del Jefe de Edificio</h3>
-                            <p style="margin: 0 0 0.75rem 0; font-size: 0.8rem; color: #4b5563;">Respaldo de los avisos enviados por ${jefeNombre} a las unidades morosas del período.</p>
-                            ${anexos.join('')}
-                        </div>` : '';
-
-            const alertas = [];
-            const recomendaciones = [];
-            if (porcUnidades != null && porcUnidades > 10) alertas.push(`Morosidad crítica: ${porcUnidades}% de las unidades (${n} casos) requiere acción inmediata`);
-            else if (porcUnidades != null && porcUnidades > 5) recomendaciones.push(`Monitorear activamente ${n} casos de morosidad (${porcUnidades}% de las unidades)`);
-            if (tasaRecup < 40 && deuda > 0) recomendaciones.push(`Acelerar cobranza: solo se ha recuperado el ${tasaRecup}% de la deuda original (${fm(abonado)} de ${fm(deuda)})`);
-            if (sinAbono.length && sinAbono.length >= Math.max(1, Math.ceil(n * 0.4))) recomendaciones.push(`Priorizar ${sinAbono.length} unidad${sinAbono.length !== 1 ? 'es' : ''} sin ningún abono registrado`);
-            if (corteLuz.length) recomendaciones.push(`Revisar protocolos de corte y regularización eléctrica (${corteLuz.length} suspendido${corteLuz.length !== 1 ? 's' : ''})`);
-            if (porEstado.judicial) recomendaciones.push(`Seguimiento jurídico de ${porEstado.judicial} caso${porEstado.judicial !== 1 ? 's' : ''} judicial${porEstado.judicial !== 1 ? 'es' : ''}`);
-            if (top3.length && concTop3 >= 50) recomendaciones.push(`Focalizar gestión en los mayores saldos: concentran el ${concTop3}% de lo pendiente`);
-            if (parciales.length) recomendaciones.push(`Cerrar convenios o planes de pago en ${parciales.length} unidad${parciales.length !== 1 ? 'es' : ''} con abono parcial`);
-            if (aTiempo.length) recomendaciones.push(`No suspender el servicio eléctrico a ${aTiempo.length} unidad${aTiempo.length !== 1 ? 'es' : ''} que ${aTiempo.length !== 1 ? 'abonaron' : 'abonó'} en o antes de ${vencTexto}`);
-            if (aTiempoMalCorte.length) recomendaciones.push(`Revertir la suspensión eléctrica en ${aTiempoMalCorte.map(x => 'depto ' + x.depto).join(', ')} porque abonaron a tiempo`);
-
-            const kpiCell = (label, value, color) => `
-                                <td style="padding: 0.55rem 0.6rem; border: 1px solid #e5e7eb; background: #fff; text-align: center; vertical-align: top;">
-                                    <div style="font-size: 0.68rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: #6b7280;">${label}</div>
-                                    <div style="margin-top: 0.2rem; font-size: 0.95rem; font-weight: 800; color: ${color || '#111827'};">${value}</div>
-                                </td>`;
 
             const htmlBloque = `
-                        <div style="margin-top: 0.9rem; padding: 0.95rem 1.05rem; background: #f8fafc; border: 1px solid #e5e7eb; border-left: 4px solid #dc2626; border-radius: 8px;">
-                            <h3 style="margin: 0 0 0.55rem 0; font-size: 0.95rem; color: #111827;">Análisis inteligente de morosidad</h3>
-                            <table style="width: 100%; border-collapse: collapse; margin: 0 0 0.75rem 0;">
+                        <div style="margin-top: 0.75rem; padding: 0.8rem 0.95rem; background: #f8fafc; border: 1px solid #e5e7eb; border-left: 4px solid #2563eb; border-radius: 8px;">
+                            <h3 style="margin: 0 0 0.45rem 0; font-size: 0.9rem; color: #111827;">Análisis de morosidad</h3>
+                            <table style="width: 100%; border-collapse: collapse; margin: 0 0 0.45rem 0;">
                                 <tr>
                                     ${kpiCell('Deuda original', fm(deuda), '#111827')}
                                     ${kpiCell('Abonado', fm(abonado), '#059669')}
@@ -18660,61 +18507,19 @@
                                     ${kpiCell('Recuperación', tasaRecup + '%', tasaRecup >= 70 ? '#059669' : (tasaRecup >= 40 ? '#d97706' : '#dc2626'))}
                                 </tr>
                             </table>
-                            ${parrafos.map(p => `<p style="margin: 0 0 0.45rem 0; font-size: 0.84rem; line-height: 1.7; color: #374151;">${p}</p>`).join('')}
+                            <p style="margin: 0 0 0.35rem 0; font-size: 0.82rem; line-height: 1.5; color: #374151;">${n} registro${n !== 1 ? 's' : ''}. ${conAbono.length} con abono, ${sinAbono.length} sin abono.</p>
+                            <p style="margin: 0 0 0.3rem 0; font-size: 0.82rem; line-height: 1.5; color: #374151;">${notaCorte}</p>
                             ${tablaPlazo}
                             ${tablaNotif}
-                            ${recomendaciones.length ? `<p style="margin: 0.55rem 0 0 0; font-size: 0.84rem; line-height: 1.7; color: #92400e;"><strong>Recomendación al Comité:</strong> ${recomendaciones.join('. ')}.</p>` : ''}
                         </div>`;
 
-            const filasExcel = [
-                [],
-                ['ANÁLISIS INTELIGENTE DE MOROSIDAD'],
-                ['Indicador', 'Valor'],
-                ['Registros', n],
-                ['Deuda original', fm(deuda)],
-                ['Total abonado', fm(abonado)],
-                ['Cantidad de abonos', nAbonos],
-                ['Unidades con abono', conAbono.length],
-                ['Unidades sin abono', sinAbono.length],
-                ['Pagos parciales', parciales.length],
-                ['Regularizados', regularizados.length],
-                ['Saldo pendiente', fm(saldo)],
-                ['Tasa de recuperación', tasaRecup + '%'],
-                ['Saldo promedio por unidad', fm(avgSaldo)],
-                ['Pendientes', porEstado.pendiente],
-                ['En cobranza', porEstado['en-cobranza']],
-                ['Convenio', porEstado.convenio],
-                ['Judicial', porEstado.judicial],
-                ['Servicio eléctrico suspendido', corteLuz.length],
-                ['Unidades con 3+ periodos vencidos', criticosPeriodos.length],
-                ['Concentración top saldos', top3.length ? `${concTop3}% (${topTexto})` : '-'],
-                ['Vencimiento gastos comunes', vencTexto],
-                ['Abonaron en o antes del 15', aTiempo.length ? aTiempo.map(x => `Depto ${x.depto} (${x.fechasAbono.map(ff).join(', ')})`).join('; ') : 'Ninguna'],
-                ['Suspensión eléctrica (pago oportuno)', aTiempo.length ? 'No corresponde suspensión del servicio eléctrico: abonaron en o antes de la fecha de vencimiento (día 15 de cada mes)' : '-'],
-                ['Abonaron después del 15', fueraDePlazo.length ? fueraDePlazo.map(x => `Depto ${x.depto} (${x.fechasAbono.map(ff).join(', ')})`).join('; ') : 'Ninguna'],
-                ['Inconsistencia: pago a tiempo con corte', aTiempoMalCorte.length ? aTiempoMalCorte.map(x => 'Depto ' + x.depto).join(', ') : 'Ninguna'],
-                [],
-                ['Lectura para el Comité', parrafos.map(p => String(p).replace(/<[^>]+>/g, '')).join(' ')],
-                ['Recomendación', recomendaciones.join('. ') || 'Mantener seguimiento rutinario de cobranzas.'],
-                [],
-                ['COMPROBANTES DE NOTIFICACIÓN DEL JEFE DE EDIFICIO'],
-                ['Depto', 'Tipo', 'Fecha envío', 'Enviado por', 'Comprobante']
-            ].concat(filasExcelNotif);
-
-            return {
-                n, deuda, abonado, saldo, tasaRecup, nAbonos, conAbono: conAbono.length, sinAbono: sinAbono.length,
-                prevN, prevDeuda, prevAbonado, prevSaldo, prevTasa,
+            return Object.assign(meta, {
                 htmlBloque,
-                htmlAnexo,
-                parrafoFinanciero: parrafos[0] + ' ' + (parrafos[1] || '') + (aTiempo.length
-                    ? ` ${aTiempo.length} unidad${aTiempo.length !== 1 ? 'es' : ''} ${aTiempo.length !== 1 ? 'abonaron' : 'abonó'} en o antes de ${vencTexto}; no corresponde suspensión del servicio eléctrico.`
-                    : ` La fecha de vencimiento de gastos comunes es ${vencTexto}; no corresponde suspensión eléctrica a quien abone en o antes de ese día.`),
-                lineaPortada: `Morosidad: ${n} registro(s). Deuda ${fm(deuda)}. Abonado ${fm(abonado)}. Saldo ${fm(saldo)}. Recuperación ${tasaRecup}%. Vencimiento día 15: no corresponde corte eléctrico si abonaron a tiempo.`,
-                alertas,
-                recomendaciones,
-                filasExcel
-            };
+                parrafoFinanciero: `${n} registro(s). Deuda ${fm(deuda)}. Abonado ${fm(abonado)}. Saldo ${fm(saldo)}. Recuperación ${tasaRecup}%.`,
+                lineaPortada: `Morosidad: ${n} registro(s). Deuda ${fm(deuda)}. Abonado ${fm(abonado)}. Saldo ${fm(saldo)}. Recuperación ${tasaRecup}%.`
+            });
         }
+
         window.analizarMorososParaComite = analizarMorososParaComite;
 
         async function editarMoroso(id) {
@@ -33128,12 +32933,7 @@
                 }
                 
                 if (modulosVisibles.includes('morosos') && morosos.length > 0) {
-                    const datosMorosos = generarDatosMorosos(morosos, {
-                        mesAnio: mesAnio,
-                        nombreMes: nombreMes,
-                        jefeEdificio: jefeEdificio,
-                        nombreComunidad: nombreComunidad
-                    });
+                    const datosMorosos = generarDatosMorosos(morosos);
                     excelContent += generarTablaHTML(datosMorosos, 'REGISTRO DE MOROSOS');
                 }
                 
@@ -33471,7 +33271,7 @@
             return datos;
         }
         
-        function generarDatosMorosos(morosos, opcionesAnalisis) {
+        function generarDatosMorosos(morosos) {
             const datos = [];
             
             datos.push(['REGISTRO DE MOROSOS']);
@@ -33518,12 +33318,6 @@
             
             datos.push([]);
             datos.push(['TOTALES', '', '', formatearMoneda(totalDeuda), formatearMoneda(totalAbonado), formatearMoneda(totalSaldo), '', '', '']);
-            if (typeof analizarMorososParaComite === 'function') {
-                const analisisXls = analizarMorososParaComite(morososOrdenados, opcionesAnalisis || {});
-                if (analisisXls && Array.isArray(analisisXls.filasExcel) && analisisXls.filasExcel.length) {
-                    analisisXls.filasExcel.forEach(fila => datos.push(fila));
-                }
-            }
             
             return datos;
         }
@@ -34452,16 +34246,8 @@
                 var lineasResumen = [];
                 lineasResumen.push('Ingresos operativos del período (mudanzas, aperturas, tarjetas/TAG, espacios): ' + (typeof formatearMoneda === 'function' ? formatearMoneda(ingresosTotales) : ingresosTotales));
                 if (modulosVisibles.indexOf('morosos') !== -1) {
-                    if (typeof analizarMorososParaComite === 'function') {
-                        var analisisXlsPortada = analizarMorososParaComite(morosos, {
-                            mesAnio: mesAnio,
-                            nombreMes: nombreMes,
-                            jefeEdificio: jefeEdificio,
-                            nombreComunidad: nombreComunidad
-                        });
-                        lineasResumen.push(analisisXlsPortada && analisisXlsPortada.lineaPortada
-                            ? analisisXlsPortada.lineaPortada
-                            : ('Morosidad: ' + (morosos || []).length + ' registro(s). Saldo pendiente: ' + (typeof formatearMoneda === 'function' ? formatearMoneda(totalDeudaMorosos) : totalDeudaMorosos)));
+                    if (typeof resumenMorososParaReporte === 'function') {
+                        lineasResumen.push('Morosidad: ' + resumenMorososParaReporte(morosos));
                     } else {
                         lineasResumen.push('Morosidad: ' + (morosos || []).length + ' registro(s). Saldo pendiente: ' + (typeof formatearMoneda === 'function' ? formatearMoneda(totalDeudaMorosos) : totalDeudaMorosos) + (totalAbonadoMorososXls > 0 ? ('. Abonado: ' + (typeof formatearMoneda === 'function' ? formatearMoneda(totalAbonadoMorososXls) : totalAbonadoMorososXls)) : ''));
                     }
@@ -34582,12 +34368,7 @@
                     });
                     else if (clave === 'espacios') _escribirHojaDesdeAOA(ws, generarDatosEspacios(espacios || []), { rellenoCeldaArgb: _rellenoCeldaArgbEspacioColumnaNombre });
                     else if (clave === 'multas') _escribirHojaDesdeAOA(ws, _generarDatosMultasConTotales(multas || []));
-                    else if (clave === 'morosos') _escribirHojaDesdeAOA(ws, generarDatosMorosos(morosos || [], {
-                        mesAnio: mesAnio,
-                        nombreMes: nombreMes,
-                        jefeEdificio: jefeEdificio,
-                        nombreComunidad: nombreComunidad
-                    }));
+                    else if (clave === 'morosos') _escribirHojaDesdeAOA(ws, generarDatosMorosos(morosos || []));
                     else if (clave === 'lecturas-agua') _escribirHojaDesdeAOA(ws, generarDatosLecturasAgua(lecturasAguaCaliente || []));
                     else if (clave === 'caja') {
                         var cajaDatos = await cargarDatosModulo('caja', mesAnio, esPrevisualizacion);
