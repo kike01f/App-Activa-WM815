@@ -4556,6 +4556,14 @@
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0.5rem;">
+                            <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">¿Mudanza autorizada? *</label>
+                            <select id="mudanzaAutorizada" required style="padding: 0.5rem; font-size: 0.875rem;">
+                                <option value="">Seleccione...</option>
+                                <option value="si">Sí, autorizada</option>
+                                <option value="no">No autorizada</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0.5rem;">
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Monto</label>
                             <input type="text" id="mudanzaMonto" value="$0" readonly style="padding: 0.5rem; font-size: 0.875rem;">
                         </div>
@@ -4625,6 +4633,7 @@
                             <th>Depto</th>
                             <th>Tipo</th>
                             <th>Movimiento</th>
+                            <th>Autorizada</th>
                             <th>Cobro</th>
                             <th>Monto</th>
                             <th>Corredor</th>
@@ -5072,7 +5081,7 @@
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Monto de la Deuda *</label>
                             <input type="number" id="morosoMonto" step="0.01" min="0" required placeholder="Ingrese el monto de la deuda" style="padding: 0.5rem; font-size: 0.875rem;">
                             <small style="color: var(--gray-500); font-size: 0.7rem; margin-top: 0.15rem; display: block;">
-                                Ingrese el monto total de la deuda en pesos chilenos
+                                Monto original de la deuda. Los aportes se registran con Abonar y no reemplazan este valor.
                             </small>
                         </div>
                         <div class="form-group" style="margin-bottom: 0.5rem;">
@@ -5098,7 +5107,9 @@
                             <th>Fecha</th>
                             <th>Depto</th>
                             <th>Estado</th>
-                            <th>Monto Deuda</th>
+                            <th>Deuda</th>
+                            <th>Abonado</th>
+                            <th>Saldo</th>
                             <th>Periodos vencidos</th>
                             <th>Servicio Eléctrico</th>
                             <th>Acciones</th>
@@ -6709,6 +6720,35 @@
             <div class="modal-buttons" id="modalAlertButtons">
                 <button class="btn btn-primary" onclick="cerrarModalAlert()" id="modalAlertButton">Aceptar</button>
             </div>
+        </div>
+    </div>
+
+    <!-- Modal Abonar Moroso -->
+    <div id="modalAbonarMoroso" class="modal-overlay">
+        <div class="modal-confirm" style="max-width: 540px; width: 100%;">
+            <h3 style="margin: 0 0 0.5rem 0;">Registrar abono</h3>
+            <p id="abonoMorosoResumen" style="margin: 0 0 0.75rem 0; color: var(--gray-600); font-size: 0.875rem;"></p>
+            <div id="abonoMorosoHistorial" style="margin-bottom: 0.75rem; max-height: 180px; overflow-y: auto;"></div>
+            <form id="formAbonoMoroso" onsubmit="confirmarAbonoMoroso(event)">
+                <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.5rem;">
+                    <div class="form-group" style="margin-bottom: 0.5rem; flex: 1;">
+                        <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Fecha del abono *</label>
+                        <input type="date" id="abonoMorosoFecha" required style="padding: 0.5rem; font-size: 0.875rem; width: 100%;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0.5rem; flex: 1;">
+                        <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Monto a abonar *</label>
+                        <input type="number" id="abonoMorosoMonto" step="0.01" min="0.01" required placeholder="Monto del aporte" style="padding: 0.5rem; font-size: 0.875rem; width: 100%;">
+                    </div>
+                </div>
+                <div class="form-group" style="margin-bottom: 0.75rem;">
+                    <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Observación (opcional)</label>
+                    <input type="text" id="abonoMorosoObservacion" placeholder="Ej: Transferencia, convenio, etc." maxlength="120" style="padding: 0.5rem; font-size: 0.875rem; width: 100%;">
+                </div>
+                <div class="modal-buttons">
+                    <button type="button" class="btn btn-secondary" onclick="cerrarModalAbonarMoroso()">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btnConfirmarAbonoMoroso">Registrar abono</button>
+                </div>
+            </form>
         </div>
     </div>
 
@@ -9657,6 +9697,7 @@
             { id: 'reportePostventa', label: 'Reporte Postventa (tabla completa)' },
             { id: 'reportePostventaPendientes', label: 'Postventa — correo con selección de registros' },
             { id: 'comprobanteApertura', label: 'Comprobante — Apertura de puerta' },
+            { id: 'confirmacionMudanza', label: 'Mudanzas — Confirmación de mudanza' },
             { id: 'comprobanteReservaEspacio', label: 'Comprobante — Confirmación reserva espacio' },
             { id: 'comprobanteTarjetaTag', label: 'Comprobante — Tarjeta / TAG' },
             { id: 'comprobanteMulta', label: 'Comprobante — Multa' },
@@ -11542,6 +11583,22 @@
         window.editandoEspacio = null;
         window.editandoMoroso = null;
         window.editandoCaja = null;
+
+        function mudanzaEstaAutorizada(m) {
+            if (!m) return false;
+            if (m.autorizada === 'si' || m.autorizada === true) return true;
+            if (m.autorizada === 'no' || m.autorizada === false) return false;
+            return !!m.selloAutorizado;
+        }
+
+        function valorServicioMudanza(m) {
+            const aplica = !!(m && m.aplicaCobro === 'si');
+            const monto = parseFloat(m && m.monto) || 0;
+            const texto = (typeof formatearMoneda === 'function')
+                ? (aplica && monto > 0 ? formatearMoneda(monto) : 'Sin cobro')
+                : (aplica && monto > 0 ? ('$' + Number(monto).toLocaleString('es-CL')) : 'Sin cobro');
+            return { aplica, monto: aplica ? monto : 0, texto };
+        }
         
         // Función para mostrar/ocultar campos de salida
         function toggleCamposSalida() {
@@ -11621,6 +11678,7 @@
             document.getElementById('mudanzaTipo').value = mudanza.tipo || '';
             document.getElementById('mudanzaMovimiento').value = mudanza.movimiento || '';
             document.getElementById('mudanzaCobro').value = mudanza.aplicaCobro || 'no';
+            document.getElementById('mudanzaAutorizada').value = mudanzaEstaAutorizada(mudanza) ? 'si' : 'no';
             document.getElementById('mudanzaMonto').value = mudanza.aplicaCobro === 'si' ? formatearMoneda(20000) : '$0';
             document.getElementById('mudanzaCorredor').value = mudanza.corredor || '';
             document.getElementById('mudanzaObservaciones').value = (mudanza.comentarios || mudanza.observaciones || '');
@@ -11726,6 +11784,7 @@
                 tipo: document.getElementById('mudanzaTipo').value,
                 movimiento: movimiento,
                 aplicaCobro: document.getElementById('mudanzaCobro').value,
+                autorizada: document.getElementById('mudanzaAutorizada').value,
                 monto: document.getElementById('mudanzaCobro').value === 'si' ? 20000 : 0,
                 corredor: document.getElementById('mudanzaCorredor').value || '',
                 comentarios: document.getElementById('mudanzaObservaciones').value || '',
@@ -11797,7 +11856,7 @@
             if (!tbody) return;
 
             if (!Array.isArray(mudanzas) || mudanzas.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="10" class="empty-state"><p>No hay registros de mudanzas</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="11" class="empty-state"><p>No hay registros de mudanzas</p></td></tr>';
                 return;
             }
 
@@ -11807,6 +11866,7 @@
             tbody.innerHTML = mudanzas.map(m => {
                 const tipoTexto = m.tipo === 'propietario' ? 'Propietario' : m.tipo === 'arrendatario' ? 'Arrendatario' : '-';
                 const movimientoTexto = m.movimiento === 'ingreso' ? 'Ingreso' : m.movimiento === 'salida' ? 'Salida' : '-';
+                const autorizada = mudanzaEstaAutorizada(m);
                 return `
                     <tr>
                         <td>${formatearFecha(m.fecha)}</td>
@@ -11814,15 +11874,17 @@
                         <td>${m.departamento}</td>
                         <td><span class="badge badge-info">${tipoTexto}</span></td>
                         <td><span class="badge ${m.movimiento === 'ingreso' ? 'badge-success' : 'badge-warning'}">${movimientoTexto}</span></td>
+                        <td><span class="badge ${autorizada ? 'badge-success' : 'badge-danger'}">${autorizada ? 'Sí' : 'No'}</span></td>
                         <td><span class="badge ${m.aplicaCobro === 'si' ? 'badge-success' : 'badge-secondary'}">${m.aplicaCobro === 'si' ? 'Sí' : 'No'}</span></td>
                         <td>${formatearMoneda(m.monto)}</td>
                         <td>${m.corredor || '-'}</td>
                         <td class="columna-observaciones" style="max-width: 150px; min-width: 80px;" title="${m.observaciones || ''}">
                             ${m.observaciones ? `<span style="display: inline-block; max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;">${m.observaciones}</span>` : '-'}
                         </td>
-                        <td style="width: 110px;">
+                        <td style="width: 120px;">
                             <div style="display: flex; flex-direction: column; gap: 0.15rem; align-items: stretch;">
                                 ${htmlBotonTrasladarCargo('mudanzas', m)}
+                                <button type="button" class="btn btn-info btn-sm" onclick="enviarCorreoMudanza('${m.id}')" style="padding: 0.25rem 0.4rem; font-size: 0.75rem; width: 100%; background: #06b6d4; color: white; border: none;" title="Enviar confirmación de mudanza por correo">📧 Enviar</button>
                                 ${(window.mesEnConsulta && !window.mesReabierto) ? '' : `
                                     <button class="btn btn-primary btn-sm" onclick="editarMudanza('${m.id}')" style="padding: 0.25rem 0.4rem; font-size: 0.75rem; width: 100%;">Editar</button>
                                     ${m.movimiento === 'salida' ? `<button class="btn btn-success btn-sm" onclick="generarComprobanteSalida('${m.id}')" style="padding: 0.25rem 0.4rem; font-size: 0.7rem; width: 100%;">📄 Comprobante</button>` : ''}
@@ -11854,6 +11916,243 @@
                 await cargarMudanzas();
             }
         }
+
+        function generarConfirmacionMudanzaHtml(mudanza, nombreComunidad) {
+            const comunidad = nombreComunidad || 'Comunidad';
+            const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const esIngreso = mudanza.movimiento === 'ingreso';
+            const esSalida = mudanza.movimiento === 'salida';
+            const movimientoTexto = esIngreso ? 'Ingreso' : esSalida ? 'Salida' : (mudanza.movimiento || 'Mudanza');
+            const tipoTexto = mudanza.tipo === 'propietario' ? 'Propietario' : mudanza.tipo === 'arrendatario' ? 'Arrendatario' : '-';
+            const autorizada = mudanzaEstaAutorizada(mudanza);
+            const servicio = valorServicioMudanza(mudanza);
+            const fechaStr = mudanza.fecha
+                ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(mudanza.fecha) : mudanza.fecha)
+                : '-';
+            const titulo = esIngreso ? 'Confirmación de mudanza de ingreso' : esSalida ? 'Confirmación de mudanza de salida' : 'Confirmación de mudanza';
+            const colorAcento = autorizada ? '#74BD20' : '#dc2626';
+            const estadoBg = autorizada ? '#e8f5e9' : '#fee2e2';
+            const estadoBorder = autorizada ? '#c8e6c9' : '#fca5a5';
+            const estadoColor = autorizada ? '#166534' : '#991b1b';
+            const estadoTexto = autorizada ? 'AUTORIZADA' : 'NO AUTORIZADA';
+            const montoBg = servicio.aplica ? '#e8f5e9' : '#f5f5f5';
+            const montoColor = servicio.aplica ? '#2e7d32' : '#616161';
+            const montoBorder = servicio.aplica ? '#c8e6c9' : '#e0e0e0';
+
+            let parrafoPrincipal = '';
+            if (esIngreso && autorizada) {
+                parrafoPrincipal = 'Confirmamos que su <strong>mudanza de ingreso</strong> se encuentra <strong>autorizada</strong> por la administración. Puede realizarse en la fecha indicada, de acuerdo con el protocolo de la comunidad.';
+            } else if (esIngreso && !autorizada) {
+                parrafoPrincipal = 'Informamos que su <strong>mudanza de ingreso</strong> quedó registrada, pero <strong>aún no se encuentra autorizada</strong>. No podrá realizarse hasta contar con la autorización de la administración.';
+            } else if (esSalida && autorizada) {
+                parrafoPrincipal = 'Confirmamos que su <strong>mudanza de salida</strong> se encuentra <strong>autorizada</strong> por la administración. Puede realizarse en la fecha indicada, de acuerdo con el protocolo de la comunidad.';
+            } else if (esSalida && !autorizada) {
+                parrafoPrincipal = 'Informamos que su <strong>mudanza de salida</strong> quedó registrada, pero <strong>aún no se encuentra autorizada</strong>. No podrá realizarse hasta regularizar la autorización con la administración.';
+            } else {
+                parrafoPrincipal = 'Le informamos el estado de la mudanza registrada a su nombre.';
+            }
+
+            const valorServicioTexto = servicio.aplica
+                ? `El valor del servicio de mudanza es <strong>${linkEsc(servicio.texto)}</strong>, el cual se carga en el gasto común.`
+                : 'Esta mudanza se registró <strong>sin cobro</strong> de servicio.';
+
+            let filasSalida = '';
+            if (esSalida) {
+                const tipoCheck = mudanza.tipoCheck === 'propietario' ? 'Propietario' : mudanza.tipoCheck === 'arrendatario' ? 'Arrendatario' : '-';
+                const gastosAlDia = mudanza.tieneGastosComunes === 'si' ? 'Sí' : mudanza.tieneGastosComunes === 'no' ? 'No' : '-';
+                const montoGastos = (mudanza.tieneGastosComunes === 'si')
+                    ? ((typeof formatearMoneda === 'function' ? formatearMoneda(mudanza.gastosComunes || 0) : String(mudanza.gastosComunes || 0)))
+                    : '-';
+                filasSalida = `
+                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Tipo de check</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(tipoCheck)}</td></tr>
+                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Gastos comunes al día</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(gastosAlDia)}${mudanza.tieneGastosComunes === 'si' ? ' (' + linkEsc(montoGastos) + ')' : ''}</td></tr>
+                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Salvoconducto propietario</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${mudanza.salvoconducto ? 'Sí' : 'No'}</td></tr>`;
+            }
+
+            const filaCorredor = mudanza.corredor
+                ? `<tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Corredor</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(mudanza.corredor)}</td></tr>`
+                : '';
+
+            return `<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <title>${linkEsc(titulo)}</title>
+  <style type="text/css">
+    body, p, h1, h2, a, td, span { font-family: Arial, Helvetica, sans-serif; }
+    body { margin: 0; padding: 0; -webkit-text-size-adjust: 100%; -ms-text-size-adjust: 100%; }
+    table { border-collapse: collapse; mso-table-lspace: 0pt; mso-table-rspace: 0pt; }
+    @media only screen and (max-width: 620px) {
+      .wrapper-td { padding: 16px 8px !important; }
+      .main-table { width: 100% !important; max-width: 100% !important; }
+      .content-padding { padding-left: 20px !important; padding-right: 20px !important; }
+      .content-padding-lg { padding: 24px 20px !important; }
+      .data-cell { padding: 12px 16px !important; }
+      h2 { font-size: 17px !important; }
+    }
+  </style>
+</head>
+<body style="margin: 0; padding: 0; background-color: #ffffff; font-family: Arial, Helvetica, sans-serif;">
+  <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #ffffff;">
+    <tr>
+      <td class="wrapper-td" align="center" style="padding: 16px 10px;">
+        <table class="main-table" role="presentation" cellpadding="0" cellspacing="0" border="0" width="600" style="max-width: 600px; width: 100%; background-color: #ffffff; border-radius: 12px;">
+          <tr>
+            <td class="content-padding content-padding-lg" style="padding: 18px 28px 14px 28px; border-bottom: 3px solid ${colorAcento}; background-color: #ffffff; border-radius: 12px 12px 0 0;">
+              <div style="text-align:center;margin-bottom:12px"><img src="https://img.mailinblue.com/8323725/images/content_library/original/6844749040dd0f16c5341248.png" alt="Logo" style="max-width:120px;height:auto;"></div>
+              <p style="margin: 0 0 2px 0; font-size: 11px; font-weight: 700; letter-spacing: 0.05em; color: ${colorAcento}; text-transform: uppercase;">Notificación de mudanza</p>
+              <h2 style="margin: 0 0 4px 0; font-size: 20px; font-weight: 700; color: #1a1a1a;">${linkEsc(titulo)}</h2>
+              <p style="margin: 0; font-size: 14px; color: #555555;">${linkEsc(comunidad)}</p>
+            </td>
+          </tr>
+          <tr>
+            <td class="content-padding" style="padding: 14px 28px 10px 28px;">
+              <p style="margin: 0 0 6px 0; font-size: 15px; color: #1a1a1a; line-height: 1.5;">Estimado/a <strong>${linkEsc(mudanza.nombre || 'Residente')}</strong>,</p>
+              <p style="margin: 0 0 8px 0; font-size: 14px; color: #333333; line-height: 1.55;">${parrafoPrincipal}</p>
+              <p style="margin: 0; font-size: 14px; color: #333333; line-height: 1.55;">${valorServicioTexto}</p>
+            </td>
+          </tr>
+          <tr>
+            <td class="content-padding" style="padding: 0 28px 10px 28px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: ${estadoBg}; border-radius: 8px; border: 1px solid ${estadoBorder};">
+                <tr>
+                  <td style="padding: 12px 16px; text-align: center;">
+                    <p style="margin: 0 0 2px 0; font-size: 12px; color: ${estadoColor}; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700;">Estado de autorización</p>
+                    <p style="margin: 0; font-size: 20px; font-weight: 700; color: ${estadoColor};">${estadoTexto}</p>
+                    <p style="margin: 4px 0 0 0; font-size: 13px; color: ${estadoColor};">Mudanza de ${linkEsc(movimientoTexto.toLowerCase())}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td class="content-padding" style="padding: 0 28px 6px 28px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #f8faf8; border-radius: 8px; border: 1px solid #e8eee8;">
+                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8; width: 42%;">Residente</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; font-weight: 600; border-bottom: 1px solid #e8eee8;">${linkEsc(mudanza.nombre)}</td></tr>
+                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Departamento</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(mudanza.departamento)}</td></tr>
+                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Fecha</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(fechaStr)}</td></tr>
+                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Tipo</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(tipoTexto)}</td></tr>
+                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Movimiento</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(movimientoTexto)}</td></tr>
+                ${filaCorredor}
+                ${filasSalida}
+                <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666;">Aplica cobro</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a;">${servicio.aplica ? 'Sí' : 'No'}</td></tr>
+              </table>
+            </td>
+          </tr>
+          <tr>
+            <td class="content-padding" style="padding: 0 28px 12px 28px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: ${montoBg}; border-radius: 8px; border: 1px solid ${montoBorder};">
+                <tr>
+                  <td style="padding: 12px 16px; text-align: center;">
+                    <p style="margin: 0 0 2px 0; font-size: 12px; color: #666666; text-transform: uppercase; letter-spacing: 0.04em;">Valor del servicio</p>
+                    <p style="margin: 0; font-size: 22px; font-weight: 700; color: ${montoColor}; letter-spacing: -0.02em;">${linkEsc(servicio.texto)}</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>
+          ${autorizada ? '' : `
+          <tr>
+            <td class="content-padding" style="padding: 0 28px 10px 28px;">
+              <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #fff8e1; border: 1px solid #ffecb3; border-radius: 8px;">
+                <tr>
+                  <td style="padding: 12px 14px;">
+                    <p style="margin: 0 0 4px 0; font-size: 12px; font-weight: 700; color: #795548; text-transform: uppercase; letter-spacing: 0.04em;">Importante</p>
+                    <p style="margin: 0; font-size: 14px; color: #333333; line-height: 1.5;">Hasta no contar con la autorización de la administración, la mudanza no puede ejecutarse. Para regularizar, contacte a la administración del edificio.</p>
+                  </td>
+                </tr>
+              </table>
+            </td>
+          </tr>`}
+          <tr>
+            <td style="padding: 14px 28px 18px 28px; text-align: center; border-top: 1px solid #eeeeee; background-color: #fafafa; border-radius: 0 0 12px 12px;">
+              <p style="margin: 0; font-size: 12px; color: #888888;">Comunicación oficial de administración.</p>
+            </td>
+          </tr>
+        </table>
+      </td>
+    </tr>
+  </table>
+</body>
+</html>`;
+        }
+
+        window.enviarCorreoMudanza = async function(id) {
+            try {
+                const mudanzas = await obtenerDatosMes('mudanzas');
+                const mudanza = mudanzas.find(m => m.id === id);
+                if (!mudanza) {
+                    mostrarAlerta('No se encontró el registro.', 'Error');
+                    return;
+                }
+
+                const nombreComunidad = typeof obtenerNombreComunidad === 'function'
+                    ? await obtenerNombreComunidad()
+                    : (localStorage.getItem(lsKey('nombreComunidad')) || 'Comunidad');
+                const htmlConfirmacion = generarConfirmacionMudanzaHtml(mudanza, nombreComunidad);
+                const {
+                    destinatariosUnidad,
+                    destinatariosDirectorio,
+                    residente: residenteInfo
+                } = await obtenerDestinatariosCorreoUnidad(mudanza.departamento, mudanza.nombre);
+
+                if (!residenteInfo || !residenteInfo.correo) {
+                    mostrarAlerta('No se encontraron correos para esta unidad ni en el directorio administrativo. Verifique Ocupación, Conserjería o Central de Notificación.', 'Correo no encontrado');
+                    return;
+                }
+
+                await cargarCorreosConsejeria();
+                const desdeCentral = (correosConsejeria || []).map(c => c.correo).filter(Boolean);
+                const emailsBccConsejeria = typeof normalizarListaCorreosDestino === 'function'
+                    ? normalizarListaCorreosDestino((typeof CORREOS_BCC_APERTURA_CONSEJERIA_FIJOS !== 'undefined' ? CORREOS_BCC_APERTURA_CONSEJERIA_FIJOS : []).concat(desdeCentral))
+                    : [];
+                const enviarOpciones = emailsBccConsejeria.length
+                    ? { bcc: emailsBccConsejeria.length === 1 ? emailsBccConsejeria[0] : emailsBccConsejeria }
+                    : null;
+
+                const esIngreso = mudanza.movimiento === 'ingreso';
+                const autorizada = mudanzaEstaAutorizada(mudanza);
+                const movimientoAsunto = esIngreso ? 'ingreso' : (mudanza.movimiento === 'salida' ? 'salida' : 'mudanza');
+                const estadoAsunto = autorizada ? 'autorizada' : 'no autorizada';
+                const mapPlant = await obtenerPlantillasCorreoModulosMap();
+                const bloque = obtenerBloquePlantillaModulo(mapPlant, 'confirmacionMudanza');
+                const ctx = {
+                    nombreComunidad,
+                    departamento: mudanza.departamento,
+                    nombreResidente: mudanza.nombre,
+                    fechaEmision: fechaEmisionCorreoHoy()
+                };
+                const asuntoBase = `Confirmación de mudanza de ${movimientoAsunto} (${estadoAsunto}) - Depto ${mudanza.departamento} - ${nombreComunidad}`;
+                const resultado = await mostrarModalPersonalizarCorreoYEnviar({
+                    titulo: 'Enviar confirmación de mudanza',
+                    asuntoDefecto: resolverAsuntoPlantillaCorreo(bloque, asuntoBase, ctx),
+                    mensajeInicialPrefill: resolverCuerpoInicioPlantillaCorreo(bloque, ctx),
+                    htmlBase: htmlConfirmacion,
+                    residente: residenteInfo,
+                    destinatariosUnidad,
+                    destinatariosDirectorio,
+                    etiquetaDestino: 'Residentes de la unidad',
+                    enviarOpciones
+                });
+                if (resultado === null) return;
+
+                if (resultado.exito) {
+                    mostrarAlerta(resultado.mensaje || 'Correo enviado correctamente', 'Éxito');
+                    if (typeof window.registrarMovimiento === 'function') {
+                        window.registrarMovimiento('correo', 'mudanzas', `Confirmación de mudanza enviada: Depto ${mudanza.departamento} - ${movimientoAsunto} ${estadoAsunto}`);
+                    }
+                    await cargarMudanzas();
+                } else {
+                    mostrarAlerta('Error al enviar correo: ' + (resultado.error || 'Error desconocido'), 'Error');
+                }
+            } catch (error) {
+                ocultarProgreso();
+                console.error('Error al enviar confirmación de mudanza:', error);
+                mostrarAlerta('Error al enviar correo: ' + (error.message || 'Error desconocido'), 'Error');
+            }
+        };
 
         // ============================================
         // MÓDULO 2: APERTURAS DE PUERTA
@@ -14922,6 +15221,60 @@
         // MÓDULO 6: MOROSOS
         // ============================================
 
+        function obtenerAbonosMoroso(m) {
+            if (!m || !Array.isArray(m.abonos)) return [];
+            return m.abonos.filter(a => a && (parseFloat(a.monto) || 0) > 0);
+        }
+
+        function deudaOriginalMoroso(m) {
+            return parseFloat(m && m.monto) || 0;
+        }
+
+        function totalAbonadoMoroso(m) {
+            return obtenerAbonosMoroso(m).reduce((s, a) => s + (parseFloat(a.monto) || 0), 0);
+        }
+
+        function saldoMoroso(m) {
+            return Math.max(0, Math.round((deudaOriginalMoroso(m) - totalAbonadoMoroso(m)) * 100) / 100);
+        }
+
+        function sumarDeudaOriginalMorosos(lista) {
+            return (Array.isArray(lista) ? lista : []).reduce((s, m) => s + deudaOriginalMoroso(m), 0);
+        }
+
+        function sumarAbonosMorosos(lista) {
+            return (Array.isArray(lista) ? lista : []).reduce((s, m) => s + totalAbonadoMoroso(m), 0);
+        }
+
+        function sumarSaldoMorosos(lista) {
+            return (Array.isArray(lista) ? lista : []).reduce((s, m) => s + saldoMoroso(m), 0);
+        }
+
+        function formatearDetalleAbonosMoroso(m) {
+            const abonos = obtenerAbonosMoroso(m);
+            if (!abonos.length) return '-';
+            return abonos.map(a => {
+                const fecha = a.fecha
+                    ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(a.fecha) : a.fecha)
+                    : '-';
+                const monto = typeof formatearMoneda === 'function' ? formatearMoneda(a.monto || 0) : a.monto;
+                const obs = a.observacion && String(a.observacion).trim() ? ` (${String(a.observacion).trim()})` : '';
+                return `${fecha}: ${monto}${obs}`;
+            }).join(' | ');
+        }
+
+        function resumenMorososParaReporte(lista) {
+            const total = Array.isArray(lista) ? lista.length : 0;
+            const deuda = sumarDeudaOriginalMorosos(lista);
+            const abonado = sumarAbonosMorosos(lista);
+            const saldo = sumarSaldoMorosos(lista);
+            let texto = `${total} - Deuda: ${formatearMoneda(deuda)}`;
+            if (abonado > 0) {
+                texto += ` | Abonado: ${formatearMoneda(abonado)} | Saldo: ${formatearMoneda(saldo)}`;
+            }
+            return texto;
+        }
+
         async function editarMoroso(id) {
             if (window.mesEnConsulta && !window.mesReabierto) {
                 mostrarAlerta('No se pueden editar registros de meses archivados.', 'Registro Archivado');
@@ -15014,7 +15367,12 @@
             if (window.editandoMoroso) {
                 const index = morosos.findIndex(m => m.id === window.editandoMoroso);
                 if (index !== -1) {
-                    morosos[index] = { ...morosos[index], ...morosoData };
+                    const actualizado = { ...morosos[index], ...morosoData };
+                    if (!Array.isArray(actualizado.abonos)) actualizado.abonos = [];
+                    if (saldoMoroso(actualizado) <= 0 && actualizado.estado !== 'regularizado') {
+                        actualizado.estado = 'regularizado';
+                    }
+                    morosos[index] = actualizado;
                     await guardarDatosMes('morosos', morosos);
                     if (typeof window.registrarMovimiento === 'function') {
                         window.registrarMovimiento('actualizar', 'morosos', `Moroso actualizado: Depto ${morosoData.departamento} - ${morosoData.estado} - ${formatearMoneda(morosoData.monto || 0)}`);
@@ -15023,7 +15381,7 @@
                     cancelarEdicionMoroso();
                 }
             } else {
-                const moroso = { id: generarId(), ...morosoData };
+                const moroso = { id: generarId(), abonos: [], ...morosoData };
                 if (!moroso.folio) {
                     moroso.folio = getSiguienteFolioMoroso(morosos, moroso.mes);
                 }
@@ -15054,7 +15412,11 @@
                     const morososAnterior = await obtenerDatosMesEspecifico('morosos', mesAnterior);
                     const sinRegularizados = (morososAnterior || []).filter(m => m && m.estado !== 'regularizado');
                     if (sinRegularizados.length > 0) {
-                        const copiaParaMesActual = sinRegularizados.map(m => ({ ...m, id: generarId() }));
+                        const copiaParaMesActual = sinRegularizados.map(m => ({
+                            ...m,
+                            id: generarId(),
+                            abonos: Array.isArray(m.abonos) ? m.abonos.map(a => ({ ...a, id: a && a.id ? a.id : generarId() })) : []
+                        }));
                         await guardarDatosMes('morosos', copiaParaMesActual);
                         morosos = copiaParaMesActual;
                         if (typeof window.registrarMovimiento === 'function') {
@@ -15065,7 +15427,7 @@
             }
             
             if (morosos.length === 0) {
-                tbody.innerHTML = '<tr><td colspan="7" class="empty-state"><p>No hay registros de morosos</p></td></tr>';
+                tbody.innerHTML = '<tr><td colspan="9" class="empty-state"><p>No hay registros de morosos</p></td></tr>';
                 return;
             }
 
@@ -15087,12 +15449,23 @@
                 'judicial': 'Judicial'
             };
 
-            tbody.innerHTML = morosos.map(m => `
+            const mesArchivado = window.mesEnConsulta && !window.mesReabierto;
+
+            tbody.innerHTML = morosos.map(m => {
+                const abonado = totalAbonadoMoroso(m);
+                const saldo = saldoMoroso(m);
+                const nAbonos = obtenerAbonosMoroso(m).length;
+                return `
                 <tr>
                     <td>${formatearFecha(m.fecha)}</td>
                     <td>${m.departamento}</td>
                     <td><span class="badge ${estadoBadges[m.estado]}">${estadoTextos[m.estado]}</span></td>
                     <td>${formatearMoneda(m.monto)}</td>
+                    <td>
+                        ${formatearMoneda(abonado)}
+                        ${nAbonos > 0 ? `<div style="font-size: 0.7rem; color: var(--gray-500);">${nAbonos} abono${nAbonos !== 1 ? 's' : ''}</div>` : ''}
+                    </td>
+                    <td style="font-weight: 600; color: ${saldo <= 0 ? '#10b981' : '#dc2626'};">${formatearMoneda(saldo)}</td>
                     <td>${m.periodosVencidos !== undefined && m.periodosVencidos !== '' ? m.periodosVencidos : '-'}</td>
                     <td>
                         ${m.servicioElectricoSuspendido ? '<span class="badge badge-danger" style="background-color: #ef4444; color: white; padding: 0.25rem 0.5rem; border-radius: 4px; font-size: 0.75rem;">⚠️ Suspendido</span>' : '<span style="color: var(--gray-500); font-size: 0.75rem;">Activo</span>'}
@@ -15102,14 +15475,165 @@
                             <button type="button" class="btn btn-secondary btn-sm" onclick="abrirComprobanteMoroso('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem;">📄 Comprobante</button>
                             <button type="button" class="btn btn-info btn-sm" onclick="enviarCorreoMoroso('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem; background: #06b6d4; color: white; border: none;" title="Enviar aviso de morosidad por correo">📧 Enviar</button>
                             <button type="button" class="btn btn-sm" onclick="enviarCorreoAvisoCorteLuz('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem; background: #f59e0b; color: white; border: none;" title="Enviar aviso de corte de luz por correo">⚡ Corte luz</button>
-                            ${(window.mesEnConsulta && !window.mesReabierto) ? '<span style="color: var(--gray-500); font-size: 0.75rem;">Archivado</span>' : `
+                            ${mesArchivado ? '<span style="color: var(--gray-500); font-size: 0.75rem;">Archivado</span>' : `
+                                <button type="button" class="btn btn-sm" onclick="abrirModalAbonarMoroso('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem; background: #10b981; color: white; border: none;" title="Registrar un aporte sobre esta deuda">Abonar</button>
                                 <button class="btn btn-primary btn-sm" onclick="editarMoroso('${m.id}')" style="padding: 0.375rem 0.75rem; font-size: 0.8125rem;">Editar</button>
                                 <button class="btn btn-danger btn-sm" onclick="eliminarMoroso('${m.id}')">Eliminar</button>
                             `}
                         </div>
                     </td>
                 </tr>
-            `).join('');
+            `;
+            }).join('');
+        }
+
+        function renderHistorialAbonosMoroso(moroso, permitirEliminar) {
+            const historial = document.getElementById('abonoMorosoHistorial');
+            if (!historial) return;
+            const abonos = obtenerAbonosMoroso(moroso).slice().sort((a, b) => {
+                const fa = a && a.fecha ? new Date(a.fecha) : new Date(0);
+                const fb = b && b.fecha ? new Date(b.fecha) : new Date(0);
+                return fa - fb;
+            });
+            if (!abonos.length) {
+                historial.innerHTML = '<p style="margin: 0; font-size: 0.8rem; color: var(--gray-500); font-style: italic;">Aún no hay abonos registrados en este moroso.</p>';
+                return;
+            }
+            historial.innerHTML = `
+                <div style="border: 1px solid var(--border-color, #e5e7eb); border-radius: 8px; overflow: hidden;">
+                    <div style="padding: 0.4rem 0.65rem; background: var(--gray-100, #f3f4f6); font-size: 0.75rem; font-weight: 700; color: var(--gray-700);">Abonos registrados</div>
+                    ${abonos.map(a => `
+                        <div style="display: flex; justify-content: space-between; align-items: center; gap: 0.5rem; padding: 0.4rem 0.65rem; border-top: 1px solid var(--border-color, #e5e7eb); font-size: 0.8rem;">
+                            <span>${formatearFecha(a.fecha)} · <strong>${formatearMoneda(a.monto || 0)}</strong>${a.observacion ? ` · ${String(a.observacion).replace(/</g, '&lt;')}` : ''}</span>
+                            ${permitirEliminar ? `<button type="button" class="btn btn-danger btn-sm" onclick="eliminarAbonoMoroso('${moroso.id}', '${a.id}')" style="padding: 0.2rem 0.45rem; font-size: 0.7rem;">Quitar</button>` : ''}
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+        }
+
+        async function abrirModalAbonarMoroso(id) {
+            if (window.mesEnConsulta && !window.mesReabierto) {
+                mostrarAlerta('No se pueden registrar abonos en meses archivados.', 'Registro Archivado');
+                return;
+            }
+            const morosos = await obtenerDatosMes('morosos');
+            const moroso = morosos.find(m => m.id === id);
+            if (!moroso) {
+                mostrarAlerta('No se encontró el registro.', 'Error');
+                return;
+            }
+            window.morosoAbonandoId = id;
+            const saldo = saldoMoroso(moroso);
+            const resumen = document.getElementById('abonoMorosoResumen');
+            if (resumen) {
+                resumen.innerHTML = `<strong>Depto ${moroso.departamento || '-'}</strong> · Deuda ${formatearMoneda(deudaOriginalMoroso(moroso))} · Abonado ${formatearMoneda(totalAbonadoMoroso(moroso))} · <span style="color:${saldo <= 0 ? '#10b981' : '#dc2626'};">Saldo ${formatearMoneda(saldo)}</span>`;
+            }
+            renderHistorialAbonosMoroso(moroso, true);
+            const fechaInput = document.getElementById('abonoMorosoFecha');
+            const montoInput = document.getElementById('abonoMorosoMonto');
+            const obsInput = document.getElementById('abonoMorosoObservacion');
+            const form = document.getElementById('formAbonoMoroso');
+            if (fechaInput) fechaInput.value = obtenerFechaHoy();
+            if (montoInput) {
+                montoInput.value = '';
+                montoInput.max = String(saldo > 0 ? saldo : 0);
+            }
+            if (obsInput) obsInput.value = '';
+            if (form) form.style.display = saldo > 0 ? '' : 'none';
+            const modal = document.getElementById('modalAbonarMoroso');
+            if (modal) modal.classList.add('active');
+        }
+
+        function cerrarModalAbonarMoroso() {
+            window.morosoAbonandoId = null;
+            const modal = document.getElementById('modalAbonarMoroso');
+            if (modal) modal.classList.remove('active');
+        }
+
+        async function confirmarAbonoMoroso(event) {
+            if (event) event.preventDefault();
+            if (window.mesEnConsulta && !window.mesReabierto) {
+                mostrarAlerta('No se pueden registrar abonos en meses archivados.', 'Registro Archivado');
+                return;
+            }
+            const id = window.morosoAbonandoId;
+            if (!id) return;
+            const fecha = document.getElementById('abonoMorosoFecha')?.value;
+            const monto = parseFloat(document.getElementById('abonoMorosoMonto')?.value);
+            const observacion = (document.getElementById('abonoMorosoObservacion')?.value || '').trim();
+            if (!fecha) {
+                mostrarAlerta('Indique la fecha del abono.', 'Fecha requerida');
+                return;
+            }
+            if (!monto || monto <= 0) {
+                mostrarAlerta('Ingrese un monto de abono mayor a cero.', 'Monto inválido');
+                return;
+            }
+            const morosos = await obtenerDatosMes('morosos');
+            const index = morosos.findIndex(m => m.id === id);
+            if (index === -1) {
+                mostrarAlerta('No se encontró el registro.', 'Error');
+                return;
+            }
+            const moroso = { ...morosos[index], abonos: Array.isArray(morosos[index].abonos) ? [...morosos[index].abonos] : [] };
+            const saldo = saldoMoroso(moroso);
+            if (saldo <= 0) {
+                mostrarAlerta('Este registro no tiene saldo pendiente.', 'Sin saldo');
+                return;
+            }
+            if (monto > saldo + 0.009) {
+                mostrarAlerta(`El abono no puede superar el saldo pendiente (${formatearMoneda(saldo)}).`, 'Monto excedido');
+                return;
+            }
+            moroso.abonos.push({
+                id: generarId(),
+                fecha,
+                monto: Math.round(monto * 100) / 100,
+                observacion
+            });
+            const nuevoSaldo = saldoMoroso(moroso);
+            if (nuevoSaldo <= 0) {
+                moroso.estado = 'regularizado';
+            }
+            morosos[index] = moroso;
+            await guardarDatosMes('morosos', morosos);
+            if (typeof window.registrarMovimiento === 'function') {
+                window.registrarMovimiento('actualizar', 'morosos', `Abono registrado: Depto ${moroso.departamento} - ${formatearMoneda(monto)}${nuevoSaldo <= 0 ? ' (regularizado)' : ''}`);
+            }
+            await cargarMorosos();
+            cerrarModalAbonarMoroso();
+            mostrarAlerta(
+                nuevoSaldo <= 0
+                    ? `Abono de ${formatearMoneda(monto)} registrado. La deuda quedó en saldo $0 y el estado pasó a Regularizado.`
+                    : `Abono de ${formatearMoneda(monto)} registrado. Saldo pendiente: ${formatearMoneda(nuevoSaldo)}.`,
+                'Abono registrado'
+            );
+        }
+
+        async function eliminarAbonoMoroso(idMoroso, idAbono) {
+            if (window.mesEnConsulta && !window.mesReabierto) {
+                mostrarAlerta('No se pueden modificar abonos de meses archivados.', 'Registro Archivado');
+                return;
+            }
+            const confirmado = await confirmarAccion('¿Quitar este abono del registro?', 'Quitar abono');
+            if (!confirmado) return;
+            const morosos = await obtenerDatosMes('morosos');
+            const index = morosos.findIndex(m => m.id === idMoroso);
+            if (index === -1) return;
+            const moroso = { ...morosos[index], abonos: Array.isArray(morosos[index].abonos) ? morosos[index].abonos.filter(a => a && a.id !== idAbono) : [] };
+            if (saldoMoroso(moroso) > 0 && moroso.estado === 'regularizado') {
+                moroso.estado = 'pendiente';
+            }
+            morosos[index] = moroso;
+            await guardarDatosMes('morosos', morosos);
+            if (typeof window.registrarMovimiento === 'function') {
+                window.registrarMovimiento('actualizar', 'morosos', `Abono eliminado: Depto ${moroso.departamento}`);
+            }
+            await cargarMorosos();
+            if (window.morosoAbonandoId === idMoroso) {
+                await abrirModalAbonarMoroso(idMoroso);
+            }
         }
 
         /** Obtiene el siguiente folio correlativo para morosos del mes (formato MOR-YYYYMM-NNN). */
@@ -15134,6 +15658,14 @@
             const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             const fechaStr = moroso.fecha ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(moroso.fecha) : moroso.fecha) : '-';
             const montoStr = typeof formatearMoneda === 'function' ? formatearMoneda(moroso.monto || 0) : '$' + Number(moroso.monto || 0).toLocaleString('es-CL');
+            const abonadoVal = typeof totalAbonadoMoroso === 'function' ? totalAbonadoMoroso(moroso) : 0;
+            const saldoVal = typeof saldoMoroso === 'function' ? saldoMoroso(moroso) : (parseFloat(moroso.monto) || 0);
+            const abonadoStr = typeof formatearMoneda === 'function' ? formatearMoneda(abonadoVal) : '$' + Number(abonadoVal).toLocaleString('es-CL');
+            const saldoStr = typeof formatearMoneda === 'function' ? formatearMoneda(saldoVal) : '$' + Number(saldoVal).toLocaleString('es-CL');
+            const detalleAbonos = typeof formatearDetalleAbonosMoroso === 'function' ? formatearDetalleAbonosMoroso(moroso) : '-';
+            const filaAbonos = abonadoVal > 0
+                ? `<tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Abonos registrados</td><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(detalleAbonos)}</td></tr>`
+                : '';
             
             const estadoTextos = {
                 'pendiente': 'Pendiente',
@@ -15205,6 +15737,7 @@
                 <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Fecha</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(fechaStr)}</td></tr>
                 <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Estado</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(estadoTexto)}</td></tr>
                 ${moroso.periodosVencidos !== undefined && moroso.periodosVencidos !== '' ? `<tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #e8eee8;">Periodos Vencidos</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #e8eee8;">${linkEsc(moroso.periodosVencidos)}</td></tr>` : ''}
+                ${filaAbonos}
                 <tr><td class="data-cell" style="padding: 10px 14px; font-size: 13px; color: #666666;">Servicio Eléctrico</td><td class="data-cell" style="padding: 10px 14px; font-size: 14px; color: #1a1a1a;">${moroso.servicioElectricoSuspendido ? '<span style="color: #ef4444; font-weight: 600;">⚠️ Suspendido</span>' : 'Activo'}</td></tr>
               </table>
             </td>
@@ -15214,8 +15747,9 @@
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #fee2e2; border-radius: 8px; border: 1px solid #fca5a5;">
                 <tr>
                   <td style="padding: 12px 16px; text-align: center;">
-                    <p style="margin: 0 0 2px 0; font-size: 12px; color: #991b1b; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700;">Monto de la Deuda</p>
-                    <p style="margin: 0; font-size: 22px; font-weight: 700; color: #dc2626; letter-spacing: -0.02em;">${linkEsc(montoStr)}</p>
+                    <p style="margin: 0 0 2px 0; font-size: 12px; color: #991b1b; text-transform: uppercase; letter-spacing: 0.04em; font-weight: 700;">Saldo pendiente</p>
+                    <p style="margin: 0; font-size: 22px; font-weight: 700; color: #dc2626; letter-spacing: -0.02em;">${linkEsc(saldoStr)}</p>
+                    <p style="margin: 6px 0 0 0; font-size: 12px; color: #7f1d1d;">Deuda ${linkEsc(montoStr)} · Abonado ${linkEsc(abonadoStr)}</p>
                   </td>
                 </tr>
               </table>
@@ -15251,8 +15785,18 @@
             const linkEsc = (v) => String(v || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             const fechaStr = moroso.fecha ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(moroso.fecha) : moroso.fecha) : '-';
             const montoStr = typeof formatearMoneda === 'function' ? formatearMoneda(moroso.monto || 0) : '$' + Number(moroso.monto || 0).toLocaleString('es-CL');
+            const abonadoVal = typeof totalAbonadoMoroso === 'function' ? totalAbonadoMoroso(moroso) : 0;
+            const saldoVal = typeof saldoMoroso === 'function' ? saldoMoroso(moroso) : (parseFloat(moroso.monto) || 0);
+            const abonadoStr = typeof formatearMoneda === 'function' ? formatearMoneda(abonadoVal) : '$' + Number(abonadoVal).toLocaleString('es-CL');
+            const saldoStr = typeof formatearMoneda === 'function' ? formatearMoneda(saldoVal) : '$' + Number(saldoVal).toLocaleString('es-CL');
+            const detalleAbonos = typeof formatearDetalleAbonosMoroso === 'function' ? formatearDetalleAbonosMoroso(moroso) : '-';
             const filaPeriodos = (moroso.periodosVencidos !== undefined && moroso.periodosVencidos !== '')
                 ? `<tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #fde68a;">Periodos vencidos</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #fde68a;">${linkEsc(moroso.periodosVencidos)}</td></tr>`
+                : '';
+            const filasAbonos = abonadoVal > 0
+                ? `<tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #fde68a;">Deuda original</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #fde68a;">${linkEsc(montoStr)}</td></tr>
+                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #fde68a;">Abonado</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #fde68a;">${linkEsc(abonadoStr)}</td></tr>
+                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #fde68a;">Detalle abonos</td><td style="padding: 10px 14px; font-size: 13px; color: #1a1a1a; border-bottom: 1px solid #fde68a;">${linkEsc(detalleAbonos)}</td></tr>`
                 : '';
 
             return `
@@ -15281,7 +15825,8 @@
                 <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #fde68a; width: 40%;">Departamento</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; font-weight: 600; border-bottom: 1px solid #fde68a;">${linkEsc(moroso.departamento)}</td></tr>
                 <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666; border-bottom: 1px solid #fde68a;">Fecha registro</td><td style="padding: 10px 14px; font-size: 14px; color: #1a1a1a; border-bottom: 1px solid #fde68a;">${linkEsc(fechaStr)}</td></tr>
                 ${filaPeriodos}
-                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666;">Monto adeudado</td><td style="padding: 10px 14px; font-size: 15px; color: #dc2626; font-weight: 700;">${linkEsc(montoStr)}</td></tr>
+                ${filasAbonos}
+                <tr><td style="padding: 10px 14px; font-size: 13px; color: #666666;">Monto adeudado</td><td style="padding: 10px 14px; font-size: 15px; color: #dc2626; font-weight: 700;">${linkEsc(abonadoVal > 0 ? saldoStr : montoStr)}</td></tr>
               </table>
             </td>
           </tr>
@@ -17494,9 +18039,9 @@
                     const totalEspaciosEj = Array.isArray(espacios) ? espacios.length : 0;
                     const totalMultasEj = Array.isArray(multas) ? multas.length : 0;
                     const totalMorososEj = Array.isArray(morosos) ? morosos.length : 0;
-                    const totalDeudaMorososEj = Array.isArray(morosos)
-                        ? morosos.reduce((sum, m) => sum + (parseFloat(m && m.monto) || 0), 0)
-                        : 0;
+                    const totalDeudaMorososEj = typeof sumarDeudaOriginalMorosos === 'function'
+                        ? sumarDeudaOriginalMorosos(morosos)
+                        : (Array.isArray(morosos) ? morosos.reduce((sum, m) => sum + (parseFloat(m && m.monto) || 0), 0) : 0);
                     let totalMultasUF = 0;
                     let totalMultasUTM = 0;
                     if (Array.isArray(multas)) {
@@ -17541,7 +18086,7 @@
                         filasHtml += filaResumen('Multas Registradas:', linkEsc(`${totalMultasEj} ${sufijoMultas}`));
                     }
                     if (modulosVisibles.includes('morosos')) {
-                        filasHtml += filaResumen('Morosos:', linkEsc(`${totalMorososEj} - Deuda Total: ${formatearMoneda(totalDeudaMorososEj)}`));
+                        filasHtml += filaResumen('Morosos:', linkEsc(typeof resumenMorososParaReporte === 'function' ? resumenMorososParaReporte(morosos) : `${totalMorososEj} - Deuda Total: ${formatearMoneda(totalDeudaMorososEj)}`));
                     }
                     filasHtml += `
                             <tr>
@@ -27093,9 +27638,9 @@
                     ? espacios.filter(e => e && e.aplicaCobroEspacio === 'si').reduce((sum, e) => sum + (parseFloat(e.montoCobroEspacio) || 0), 0)
                     : 0;
                 const ingresosEspacios = ingresosEspaciosAseo + ingresosEspaciosUso;
-                const totalDeudaMorosos = Array.isArray(morosos)
-                    ? morosos.reduce((sum, m) => sum + (parseFloat(m && m.monto) || 0), 0)
-                    : 0;
+                const totalDeudaOriginalMorosos = typeof sumarDeudaOriginalMorosos === 'function' ? sumarDeudaOriginalMorosos(morosos) : (Array.isArray(morosos) ? morosos.reduce((sum, m) => sum + (parseFloat(m && m.monto) || 0), 0) : 0);
+                const totalAbonadoMorososRep = typeof sumarAbonosMorosos === 'function' ? sumarAbonosMorosos(morosos) : 0;
+                const totalDeudaMorosos = typeof sumarSaldoMorosos === 'function' ? sumarSaldoMorosos(morosos) : totalDeudaOriginalMorosos;
                 // Calcular totales separados por tipo de unidad
                 let totalMultasUF = 0;
                 let totalMultasUTM = 0;
@@ -27148,7 +27693,7 @@
                     prevIngresosEspacios = prevIngresosEspaciosAseo + prevIngresosEspaciosUso;
                     prevTotalMultas = Array.isArray(prevMultas) ? prevMultas.length : 0;
                     prevTotalMorosos = Array.isArray(prevMorosos) ? prevMorosos.length : 0;
-                    prevTotalDeudaMorosos = Array.isArray(prevMorosos) ? prevMorosos.reduce((s, m) => s + (parseFloat(m && m.monto) || 0), 0) : 0;
+                    prevTotalDeudaMorosos = typeof sumarSaldoMorosos === 'function' ? sumarSaldoMorosos(prevMorosos) : (Array.isArray(prevMorosos) ? prevMorosos.reduce((s, m) => s + (parseFloat(m && m.monto) || 0), 0) : 0);
                     prevIngresosTotales = (modulosVisibles.includes('mudanzas') ? prevIngresosMudanzas : 0) + (modulosVisibles.includes('aperturas') ? prevIngresosAperturas : 0) + (modulosVisibles.includes('tarjetas') ? prevIngresosTarjetas : 0) + (modulosVisibles.includes('espacios') ? prevIngresosEspacios : 0);
                 }
                 const variacionTexto = (actual, anterior) => {
@@ -27279,7 +27824,7 @@
                     html += `
                             <div class="reporte-summary-item">
                                 <span class="reporte-summary-label">Morosos:</span>
-                                <span class="reporte-summary-value">${totalMorosos} - Deuda Total: ${formatearMoneda(totalDeudaMorosos)}</span>
+                                <span class="reporte-summary-value">${typeof resumenMorososParaReporte === 'function' ? resumenMorososParaReporte(morosos) : `${totalMorosos} - Deuda Total: ${formatearMoneda(totalDeudaMorosos)}`}</span>
                             </div>
                     `;
                 }
@@ -27815,7 +28360,7 @@
                             6. REGISTRO DE MOROSOS
                         </h2>
                         <div style="margin-bottom: 0.4rem;">
-                            <p style="margin: 0.25rem 0; font-size: 0.85rem;"><strong>Total Morosos:</strong> ${totalMorosos} | <strong>Deuda Total:</strong> ${formatearMoneda(totalDeudaMorosos)}</p>
+                            <p style="margin: 0.25rem 0; font-size: 0.85rem;"><strong>Total Morosos:</strong> ${totalMorosos} | <strong>Deuda:</strong> ${formatearMoneda(totalDeudaOriginalMorosos)} | <strong>Abonado:</strong> ${formatearMoneda(totalAbonadoMorososRep)} | <strong>Saldo:</strong> ${formatearMoneda(totalDeudaMorosos)}</p>
                         </div>
                     `;
                     if (morosos && morosos.length > 0) {
@@ -27827,9 +28372,12 @@
                                         <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem; border: 1px solid #e5e7eb; background: #f3f4f6;">Fecha</th>
                                         <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem; border: 1px solid #e5e7eb; background: #f3f4f6;">Depto</th>
                                         <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem; border: 1px solid #e5e7eb; background: #f3f4f6;">Estado</th>
-                                        <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem; border: 1px solid #e5e7eb; background: #f3f4f6;">Monto</th>
+                                        <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem; border: 1px solid #e5e7eb; background: #f3f4f6;">Deuda</th>
+                                        <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem; border: 1px solid #e5e7eb; background: #f3f4f6;">Abonado</th>
+                                        <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem; border: 1px solid #e5e7eb; background: #f3f4f6;">Saldo</th>
                                         <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem; border: 1px solid #e5e7eb; background: #f3f4f6;">Periodos vencidos</th>
                                         <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem; border: 1px solid #e5e7eb; background: #f3f4f6;">Servicio Eléctrico</th>
+                                        <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem; border: 1px solid #e5e7eb; background: #f3f4f6;">Detalle abonos</th>
                                     </tr>
                                 </thead>
                                 <tbody>
@@ -27860,14 +28408,20 @@
                             const servicioElectricoHTML = m.servicioElectricoSuspendido 
                                 ? '<span style="background: #ef4444; color: white; padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; display: inline-block;">⚠️ Suspendido</span>'
                                 : '<span style="color: #6b7280; font-size: 0.7rem;">Activo</span>';
+                            const abonadoFila = typeof totalAbonadoMoroso === 'function' ? totalAbonadoMoroso(m) : 0;
+                            const saldoFila = typeof saldoMoroso === 'function' ? saldoMoroso(m) : (parseFloat(m.monto) || 0);
+                            const detalleAbonosFila = typeof formatearDetalleAbonosMoroso === 'function' ? formatearDetalleAbonosMoroso(m) : '-';
                             html += `
                                 <tr>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.fecha ? formatearFechaParaCorreo(m.fecha) : '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.departamento || '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;"><span style="${badgeStyle} padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; display: inline-block;">${estadoTexto}</span></td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${formatearMoneda(m.monto || 0)}</td>
+                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${formatearMoneda(abonadoFila)}</td>
+                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb; font-weight: 600; color: ${saldoFila <= 0 ? '#10b981' : '#dc2626'};">${formatearMoneda(saldoFila)}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${periodosVencidosTexto}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${servicioElectricoHTML}</td>
+                                    <td style="padding: 0.5rem; font-size: 0.7rem; border: 1px solid #e5e7eb;">${detalleAbonosFila}</td>
                                 </tr>
                             `;
                         });
@@ -28020,7 +28574,12 @@
                         } catch (e) {}
                         }
                         
-                    let analisisMorosos = `Morosidad: ${totalMorosos} departamentos con deuda acumulada de ${formatearMoneda(totalDeudaMorosos)}`;
+                    let analisisMorosos = `Morosidad: ${totalMorosos} departamentos con deuda original de ${formatearMoneda(totalDeudaOriginalMorosos)}`;
+                    if (totalAbonadoMorososRep > 0) {
+                        analisisMorosos += `, abonos por ${formatearMoneda(totalAbonadoMorososRep)} y saldo pendiente de ${formatearMoneda(totalDeudaMorosos)}`;
+                    } else {
+                        analisisMorosos += ` (saldo pendiente ${formatearMoneda(totalDeudaMorosos)})`;
+                    }
                         if (totalUnidadesRef && totalUnidadesRef > 0) {
                             const porcentajeMorosos = Math.round((totalMorosos / totalUnidadesRef) * 100);
                         analisisMorosos += ` (${porcentajeMorosos}% del total)`;
@@ -28651,9 +29210,9 @@
                 const ingresosEspacios = ingresosEspaciosAseo + ingresosEspaciosUso;
                 const totalMultas = Array.isArray(multas) ? multas.length : 0;
                 const totalMorosos = Array.isArray(morosos) ? morosos.length : 0;
-                const totalDeudaMorosos = Array.isArray(morosos)
-                    ? morosos.reduce((sum, m) => sum + (parseFloat(m && m.monto) || 0), 0)
-                    : 0;
+                const totalDeudaOriginalMorosos = typeof sumarDeudaOriginalMorosos === 'function' ? sumarDeudaOriginalMorosos(morosos) : (Array.isArray(morosos) ? morosos.reduce((sum, m) => sum + (parseFloat(m && m.monto) || 0), 0) : 0);
+                const totalAbonadoMorososRep = typeof sumarAbonosMorosos === 'function' ? sumarAbonosMorosos(morosos) : 0;
+                const totalDeudaMorosos = typeof sumarSaldoMorosos === 'function' ? sumarSaldoMorosos(morosos) : totalDeudaOriginalMorosos;
                 
                 const ingresosTotales = ingresosMudanzas + ingresosAperturas + ingresosTarjetas + ingresosEspacios;
                 
@@ -28713,7 +29272,7 @@
                             <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">Morosos</td>
                             <td class="text-center" style="text-align: center !important; vertical-align: middle !important;">${totalMorosos}</td>
                             <td class="text-right" style="text-align: right !important; vertical-align: middle !important; font-weight: 500;">${formatearMoneda(totalDeudaMorosos)}</td>
-                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">Deuda acumulada</td>
+                            <td class="text-left" style="text-align: left !important; vertical-align: middle !important;">${totalAbonadoMorososRep > 0 ? `Saldo pendiente (abonado ${formatearMoneda(totalAbonadoMorososRep)})` : 'Deuda acumulada'}</td>
                         </tr>
                     `;
                 }
@@ -28747,7 +29306,7 @@
                     const h = String(headerLabel || '').trim().toLowerCase();
                     if (cell === null || cell === undefined) return { align: 'left', attrs: '', display: '' };
                     if (typeof cell === 'number' && !isNaN(cell)) {
-                        if (h === 'monto' || h === 'lectura anterior' || h === 'lectura actual' || h === 'consumo') {
+                        if (h === 'monto' || h === 'deuda' || h === 'abonado' || h === 'saldo' || h === 'lectura anterior' || h === 'lectura actual' || h === 'consumo') {
                             const dec = (String(cell).indexOf('.') >= 0 || String(cell).indexOf('e') >= 0) ? '0.##########' : '0';
                             return {
                                 align: 'right',
@@ -29006,9 +29565,9 @@
             const ingresosEspacios = ingresosEspaciosAseo + ingresosEspaciosUso;
             const totalMultas = Array.isArray(multas) ? multas.length : 0;
             const totalMorosos = Array.isArray(morosos) ? morosos.length : 0;
-            const totalDeudaMorosos = Array.isArray(morosos)
-                ? morosos.reduce((sum, m) => sum + (parseFloat(m && m.monto) || 0), 0)
-                : 0;
+            const totalDeudaOriginalMorosos = typeof sumarDeudaOriginalMorosos === 'function' ? sumarDeudaOriginalMorosos(morosos) : (Array.isArray(morosos) ? morosos.reduce((sum, m) => sum + (parseFloat(m && m.monto) || 0), 0) : 0);
+            const totalAbonadoMorososRep = typeof sumarAbonosMorosos === 'function' ? sumarAbonosMorosos(morosos) : 0;
+            const totalDeudaMorosos = typeof sumarSaldoMorosos === 'function' ? sumarSaldoMorosos(morosos) : totalDeudaOriginalMorosos;
             
             const ingresosTotales = ingresosMudanzas + ingresosAperturas + ingresosTarjetas + ingresosEspacios;
             
@@ -29029,7 +29588,7 @@
                 datos.push(['Multas', totalMultas, '-', 'Multas registradas']);
             }
             if (modulosVisibles.includes('morosos')) {
-                datos.push(['Morosos', totalMorosos, totalDeudaMorosos, 'Deuda acumulada']);
+                datos.push(['Morosos', totalMorosos, totalDeudaMorosos, totalAbonadoMorososRep > 0 ? `Saldo pendiente (abonado ${formatearMoneda(totalAbonadoMorososRep)})` : 'Deuda acumulada']);
             }
             
             // Totales
@@ -29236,7 +29795,7 @@
             
             datos.push(['REGISTRO DE MOROSOS']);
             datos.push([]);
-            datos.push(['Fecha', 'Depto', 'Estado', 'Monto', 'Periodos vencidos', 'Servicio Eléctrico']);
+            datos.push(['Fecha', 'Depto', 'Estado', 'Deuda', 'Abonado', 'Saldo', 'Periodos vencidos', 'Servicio Eléctrico', 'Detalle abonos']);
             
             const morososOrdenados = [...morosos].sort((a, b) => {
                 const fechaA = a && a.fecha ? new Date(a.fecha) : new Date(0);
@@ -29257,20 +29816,27 @@
                 const estadoTexto = estadoTextos[m.estado] || m.estado || '-';
                 const periodosVencidos = m.periodosVencidos !== undefined && m.periodosVencidos !== '' ? String(m.periodosVencidos) : '-';
                 const servicioElectrico = m.servicioElectricoSuspendido ? 'Suspendido' : 'Activo';
+                const abonado = typeof totalAbonadoMoroso === 'function' ? totalAbonadoMoroso(m) : 0;
+                const saldo = typeof saldoMoroso === 'function' ? saldoMoroso(m) : (parseFloat(m.monto) || 0);
                 datos.push([
                     m.fecha ? formatearFechaParaCorreo(m.fecha) : '-',
                     m.departamento || '-',
                     estadoTexto,
                     formatearMoneda(parseFloat(m.monto) || 0),
+                    formatearMoneda(abonado),
+                    formatearMoneda(saldo),
                     periodosVencidos,
-                    servicioElectrico
+                    servicioElectrico,
+                    typeof formatearDetalleAbonosMoroso === 'function' ? formatearDetalleAbonosMoroso(m) : '-'
                 ]);
             });
             
-            const totalDeuda = morososOrdenados.reduce((sum, m) => sum + (parseFloat(m && m.monto) || 0), 0);
+            const totalDeuda = typeof sumarDeudaOriginalMorosos === 'function' ? sumarDeudaOriginalMorosos(morososOrdenados) : morososOrdenados.reduce((sum, m) => sum + (parseFloat(m && m.monto) || 0), 0);
+            const totalAbonado = typeof sumarAbonosMorosos === 'function' ? sumarAbonosMorosos(morososOrdenados) : 0;
+            const totalSaldo = typeof sumarSaldoMorosos === 'function' ? sumarSaldoMorosos(morososOrdenados) : totalDeuda;
             
             datos.push([]);
-            datos.push(['TOTALES', '', '', formatearMoneda(totalDeuda), '', '']);
+            datos.push(['TOTALES', '', '', formatearMoneda(totalDeuda), formatearMoneda(totalAbonado), formatearMoneda(totalSaldo), '', '', '']);
             
             return datos;
         }
@@ -30191,13 +30757,14 @@
                 if (modulosVisibles.indexOf('aperturas') !== -1) ingresosTotales += ingresosAperturas;
                 if (modulosVisibles.indexOf('tarjetas') !== -1) ingresosTotales += ingresosTarjetas;
                 if (modulosVisibles.indexOf('espacios') !== -1) ingresosTotales += ingresosEspacios;
-                var totalDeudaMorosos = (morosos || []).reduce(function (s, m) { return s + (parseFloat(m && m.monto) || 0); }, 0);
+                var totalDeudaMorosos = typeof sumarSaldoMorosos === 'function' ? sumarSaldoMorosos(morosos) : (morosos || []).reduce(function (s, m) { return s + (parseFloat(m && m.monto) || 0); }, 0);
+                var totalAbonadoMorososXls = typeof sumarAbonosMorosos === 'function' ? sumarAbonosMorosos(morosos) : 0;
 
                 var metricas = await obtenerMetricasVinculacion();
                 var lineasResumen = [];
                 lineasResumen.push('Ingresos operativos del período (mudanzas, aperturas, tarjetas/TAG, espacios): ' + (typeof formatearMoneda === 'function' ? formatearMoneda(ingresosTotales) : ingresosTotales));
                 if (modulosVisibles.indexOf('morosos') !== -1) {
-                    lineasResumen.push('Morosidad: ' + (morosos || []).length + ' registro(s). Deuda total: ' + (typeof formatearMoneda === 'function' ? formatearMoneda(totalDeudaMorosos) : totalDeudaMorosos));
+                    lineasResumen.push('Morosidad: ' + (morosos || []).length + ' registro(s). Saldo pendiente: ' + (typeof formatearMoneda === 'function' ? formatearMoneda(totalDeudaMorosos) : totalDeudaMorosos) + (totalAbonadoMorososXls > 0 ? ('. Abonado: ' + (typeof formatearMoneda === 'function' ? formatearMoneda(totalAbonadoMorososXls) : totalAbonadoMorososXls)) : ''));
                 }
                 if (metricas && !metricas.error) {
                     lineasResumen.push('Ocupación indicada: ' + (metricas.porcentajeOcupacion != null ? metricas.porcentajeOcupacion : '-') + '%. Unidades entregadas: ' + (metricas.unidadesEntregadas != null ? metricas.unidadesEntregadas : '-') + '. Residentes en edificio: ' + (metricas.totalResidentesViviendo != null ? metricas.totalResidentesViviendo : '-') + '.');
@@ -33620,10 +34187,9 @@
             });
 
             // Morosos con deuda - asegurar que monto sea numérico
-            const totalDeudaMorosos = morosos.reduce((sum, m) => {
-                const monto = parseFloat(m.monto) || 0;
-                return sum + monto;
-            }, 0);
+            const totalDeudaMorosos = typeof sumarSaldoMorosos === 'function'
+                ? sumarSaldoMorosos(morosos)
+                : morosos.reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0);
 
             // Calcular aseos pendientes por asignar
             const espaciosConAseo = espacios.filter(e => {
@@ -34939,9 +35505,11 @@
             // ============================================
             // 2. ANÁLISIS DE MOROSOS
             // ============================================
-            const morososPendientes = Array.isArray(morosos) ? morosos.filter(m => m && m.estado !== 'pagado' && m.estado !== 'cancelado') : [];
+            const morososPendientes = Array.isArray(morosos) ? morosos.filter(m => m && m.estado !== 'pagado' && m.estado !== 'cancelado' && m.estado !== 'regularizado') : [];
             if (morososPendientes.length > 0) {
-                const totalDeuda = morososPendientes.reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0);
+                const totalDeuda = typeof sumarSaldoMorosos === 'function'
+                    ? sumarSaldoMorosos(morososPendientes)
+                    : morososPendientes.reduce((sum, m) => sum + (parseFloat(m.monto) || 0), 0);
                 const promedioDeuda = totalDeuda / morososPendientes.length;
                 
                 if (totalDeuda > 1000000) {
@@ -36829,6 +37397,14 @@
                         e.preventDefault();
                         if (typeof registrarMoroso === 'function') {
                             registrarMoroso(e);
+                        }
+                    });
+                }
+                const modalAbonarMoroso = document.getElementById('modalAbonarMoroso');
+                if (modalAbonarMoroso) {
+                    modalAbonarMoroso.addEventListener('click', function(e) {
+                        if (e.target === modalAbonarMoroso && typeof cerrarModalAbonarMoroso === 'function') {
+                            cerrarModalAbonarMoroso();
                         }
                     });
                 }
