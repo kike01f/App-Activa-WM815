@@ -8247,17 +8247,21 @@
         }
 
         // Requiere que la extensión "Trigger Email" esté instalada en Firebase
-        // opciones: { cc?: string|string[], bcc?: string|string[] } — copia / copia oculta
+        // opciones: { cc?: string|string[], bcc?: string|string[], silencioso?: boolean } — copia / copia oculta
         async function enviarCorreo(residente, asunto, mensaje, html = null, adjuntos = null, opciones = null) {
+            const silencioso = !!(opciones && (opciones.silencioso || opciones.silent));
+            const avisarEnvio = function (msg, titulo) {
+                if (!silencioso) mostrarAlerta(msg, titulo);
+            };
             if (typeof window !== 'undefined' && window.location && window.location.protocol === 'file:') {
                 const msgFile = 'No se puede enviar correos ejecutando la app con file://. Abra la app en http://localhost (por ejemplo: python3 -m http.server 5500) y luego inicie sesión.';
                 console.error(msgFile);
-                mostrarAlerta(msgFile, 'Origen no soportado');
+                avisarEnvio(msgFile, 'Origen no soportado');
                 return { exito: false, error: 'Ejecución en file:// no soportada para envío de correos' };
             }
             if (!firebaseInitialized || !db) {
                 console.error('Firebase no está inicializado');
-                mostrarAlerta('Error: Firebase no está inicializado', 'Error');
+                avisarEnvio('Error: Firebase no está inicializado', 'Error');
                 return { exito: false, error: 'Firebase no inicializado' };
             }
 
@@ -8271,20 +8275,20 @@
             
             if (!usuarioActual) {
                 console.error('Usuario no autenticado');
-                mostrarAlerta('Error: Debes estar autenticado para enviar correos. Por favor, inicia sesión.', 'Error de Autenticación');
+                avisarEnvio('Error: Debes estar autenticado para enviar correos. Por favor, inicia sesión.', 'Error de Autenticación');
                 return { exito: false, error: 'Usuario no autenticado' };
             }
 
             const listaCorreos = residente ? normalizarListaCorreosDestino(residente.correo) : [];
             if (!residente || listaCorreos.length === 0) {
                 console.error('No se proporcionó correo del residente');
-                mostrarAlerta('Error: No se proporcionó correo del residente', 'Error');
+                avisarEnvio('Error: No se proporcionó correo del residente', 'Error');
                 return { exito: false, error: 'Correo del residente no proporcionado' };
             }
 
             if (!asunto || (!mensaje && !html)) {
                 console.error('Faltan asunto o mensaje');
-                mostrarAlerta('Error: Faltan asunto o contenido del mensaje', 'Error');
+                avisarEnvio('Error: Faltan asunto o contenido del mensaje', 'Error');
                 return { exito: false, error: 'Asunto o contenido faltante' };
             }
 
@@ -8664,7 +8668,7 @@
                 // Nota: Los errores de envío reales (como problemas de SMTP) aparecerán en el documento de Firestore
                 // en el campo delivery.error, no aquí. Este error es solo para problemas al agregar el documento.
                 
-                mostrarAlerta(mensajeError, "Error de Envío");
+                avisarEnvio(mensajeError, "Error de Envío");
                 return { exito: false, error: err.message || 'Error desconocido' };
             }
         }
@@ -9762,7 +9766,8 @@
             { id: 'comprobanteMulta', label: 'Comprobante — Multa' },
             { id: 'comprobanteAnulacionMulta', label: 'Comprobante — Anulación de multa' },
             { id: 'comprobanteMoroso', label: 'Comprobante — Estado de morosidad' },
-            { id: 'avisoCorteLuz', label: 'Morosos — Aviso de corte de luz' }
+            { id: 'avisoCorteLuz', label: 'Morosos — Aviso de corte de luz' },
+            { id: 'bienvenidaResidente', label: 'Bienvenida — Nuevo residente' }
         ];
 
         function aplicarPlaceholdersPlantillaCorreo(str, ctx) {
@@ -10565,6 +10570,1446 @@
         // Hacer disponible globalmente
         window.enviarCorreo = enviarCorreo;
         window.enviarCorreoHTML = enviarCorreoHTML;
+        function htmlCorreoBienvenidaNuevoResidente() {
+            return `<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0"><title>Bienvenida WM 815</title></head><body style="margin:0;padding:0;background:#ffffff;"><!-- [if !mso]><!--><!--<![endif]--><!-- [if mso]><xml> <o:OfficeDocumentSettings> <o:AllowPNG/> <o:PixelsPerInch>96</o:PixelsPerInch> </o:OfficeDocumentSettings> </xml><![endif]-->
+<table class="nl2go-body-table" style="background-color: #ffffff; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td>
+<table class="r0-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" align="center">
+<tbody>
+<tr>
+<td valign="top">
+<table class="r2-o" style="table-layout: fixed; width: 550px;" role="presentation" border="0" width="550" cellspacing="0" cellpadding="0" align="center">
+<tbody>
+<tr>
+<td class="r3-i">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="100%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r6-i" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r7-c" align="center">
+<table class="r8-o" style="table-layout: fixed; width: 90%;" role="presentation" border="0" width="90%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r9-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; word-break: break-word; line-height: 1.6; text-align: center;" align="center" valign="top">
+<div>
+<p style="margin: 0;"><a style="color: #000; text-decoration: none;" href="https://sites.google.com/view/homewm/inicio" target="_blank" rel="noopener"><span style="color: #828181; font-family: arial; font-size: 12px;"><u>Ver en navegador</u></span></a></p>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 15px; line-height: 15px;" height="15">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+<table class="r2-o" style="table-layout: fixed; width: 550px;" role="presentation" border="0" width="550" cellspacing="0" cellpadding="0" align="center">
+<tbody>
+<tr>
+<td class="r10-i" style="background-color: #ffffff;" valign="top">
+<table class="r12-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" align="center">
+<tbody>
+<tr>
+<td class="r3-i">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="100%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r13-i" style="padding-bottom: 15px; padding-left: 15px; padding-right: 15px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r14-c" style="font-size: 0px; line-height: 0px; padding-bottom: 15px; padding-top: 15px; valign: top;" align="center"><img style="display: block; width: 257px;" src="https://img.mailinblue.com/8323725/images/content_library/original/685f21fb4a1b4fde403defaf.jpeg" width="520" height="129" border="0"></td>
+</tr>
+<tr>
+<td class="r7-c" align="center">
+<table class="r8-o" style="table-layout: fixed; width: 90%;" role="presentation" border="0" width="90%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r9-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; word-break: break-word; line-height: 1.6; text-align: center;" align="center" valign="top">
+<div>
+<p style="margin: 0; text-align: center;"><span style="font-family: arial; font-size: 14px;">Estimado Residente,</span></p>
+<p style="margin: 0; text-align: center;">&nbsp;</p>
+<p style="margin: 0; text-align: center;"><span style="font-family: arial; font-size: 14px;">Es un gusto darle la bienvenida de parte del equipo de administración a su nuevo hogar. A continuación enviaremos la información necesaria para que usted pueda conocer todo lo relacionado a la comunidad.</span></p>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 15px; line-height: 15px;" height="15">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r7-c" align="center">
+<table class="r15-o" style="table-layout: fixed; width: 188px;" role="presentation" border="0" width="188" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r16-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word;" align="center" valign="top" height="21"><!-- [if mso]> <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://sites.google.com/d/1_okJ6nK0KJQiBq5kKV_gIfytQgdAv0HV/p/1flPVHEVT-H6MjP8p8cmHn9A-K4ZHwQ6T/edit" style="v-text-anchor:middle; height: 44px; width: 187px;" arcsize="47%" fillcolor="#73d415" strokecolor="#73d415" strokeweight="1px" data-btn="1"> <w:anchorlock> </w:anchorlock> <v:textbox inset="0,0,0,0"> <div style="display:none;"> <center class="default-button"><span><span style="color:#FFFFFF;font-family:arial;font-size:15px;"><strong>Carta de Bienvenida →</strong></span></span></center> </div> </v:textbox> </v:roundrect> <![endif]--> <!-- [if !mso]><!-- --> <a class="r17-r default-button" style="color: #000; font-size: 18px; font-style: normal; font-weight: normal; line-height: 1.15; text-decoration: none; word-break: break-word; word-wrap: break-word; display: block; -webkit-text-size-adjust: none; background-color: #73d415; border-radius: 21px; font-family: Arial; height: 21px; mso-hide: all; width: 188px; padding: 12px 0px 12px 0px; border: 0px solid #666666;" href="https://sites.google.com/d/1_okJ6nK0KJQiBq5kKV_gIfytQgdAv0HV/p/1flPVHEVT-H6MjP8p8cmHn9A-K4ZHwQ6T/edit" target="_blank" rel="noopener" data-btn="1"> <span style="color: #ffffff; font-family: arial; font-size: 15px;"><strong>Carta de Bienvenida →</strong></span></a> <!--<![endif]--></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r18-c" style="font-size: 10px; line-height: 10px; background-color: transparent;" align="center" height="10">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+<table class="r19-o" style="background-image: url('https://img.mailinblue.com/8323725/images/content_library/original/685f1cd047acd8fc66a9fe1f.jpeg'); background-position: center; background-repeat: no-repeat; background-size: auto; font-size: 0; table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" align="center">
+<tbody>
+<tr>
+<td class="r3-i">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<th class="r20-c" style="font-weight: normal;" valign="top" width="100%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r6-i" style="padding-left: 5px; padding-right: 5px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r21-c" style="font-size: 0px; line-height: 0px; valign: top;" align="center"><img style="display: block; width: 100%;" src="https://img.mailinblue.com/8323725/images/content_library/original/685f1be19db0f64469f29d18.jpeg" width="540" border="0"></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+<table class="r12-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" align="center">
+<tbody>
+<tr>
+<td class="r22-i" style="background-color: #3b3f44;">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="50%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r6-i" style="padding-left: 15px; padding-right: 15px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r7-c" align="center">
+<table class="r23-o" style="border-collapse: separate; border-radius: 8px; table-layout: fixed; width: 147px;" role="presentation" border="0" width="147" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r24-i" style="border-radius: 8px; font-size: 0px; line-height: 0px;"><img style="display: block; width: 100%; border-radius: 8px;" src="https://img.mailinblue.com/8323725/images/content_library/original/683f86c35ba9135a66033f75.png" width="147" border="0"></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="50%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r25-i" style="padding-left: 15px; padding-right: 15px; padding-top: 10px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r26-c" align="left">
+<table class="r27-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r28-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; word-break: break-word; line-height: 1; text-align: left;" align="left" valign="top">
+<div>
+<h2 class="default-heading2" style="margin: 0; color: #000; font-family: Arial; font-size: 32px; word-break: break-word;"><span style="color: #ffff; font-size: 22px;">Conserjería 24/7</span></h2>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 5px; line-height: 5px;" height="5">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r26-c" align="left">
+<table class="r29-o" style="table-layout: fixed; width: 90%;" role="presentation" border="0" width="90%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r30-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word; text-align: left;" align="left" valign="top">
+<div>
+<p style="margin: 0;"><span style="color: #ffffff; font-family: arial; font-size: 13px;">Estamos siempre disponibles para ayudarle y aclarar cualquier duda que pueda tener.</span></p>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 15px; line-height: 15px;" height="15">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r26-c" align="left">
+<table class="r29-o" style="table-layout: fixed; width: 90%;" role="presentation" border="0" width="90%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r30-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word; text-align: left;" align="left" valign="top">
+<div>
+<p style="margin: 0;"><span style="color: #ffffff; font-family: arial; font-size: 24px;"><strong>✆ </strong></span><span style="color: #ffffff; font-family: arial; font-size: 20px;"><strong>+56 442876398</strong></span></p>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 15px; line-height: 15px;" height="15">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r7-c" align="center">
+<table class="r15-o" style="table-layout: fixed; width: 188px;" role="presentation" border="0" width="188" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r16-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word;" align="center" valign="top" height="41"><!-- [if mso]> <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://sites.google.com/view/homewm/inicio?authuser=0" style="v-text-anchor:middle; height: 64px; width: 187px;" arcsize="33%" fillcolor="#73d415" strokecolor="#73d415" strokeweight="1px" data-btn="2"> <w:anchorlock> </w:anchorlock> <v:textbox inset="0,0,0,0"> <div style="display:none;"> <center class="default-button"><span><span style="color:#FFFFFF;font-family:arial;font-size:15px;"><strong>Sitio de Ayuda 💻​</strong></span></span><br><span><span style="color:#FFFFFF;font-family:arial;font-size:15px;"><strong>→</strong></span></span></center> </div> </v:textbox> </v:roundrect> <![endif]--> <!-- [if !mso]><!-- --> <a class="r17-r default-button" style="color: #000; font-size: 18px; font-style: normal; font-weight: normal; line-height: 1.15; text-decoration: none; word-break: break-word; word-wrap: break-word; display: block; -webkit-text-size-adjust: none; background-color: #73d415; border-radius: 21px; font-family: Arial; height: 41px; mso-hide: all; width: 188px; padding: 12px 0px 12px 0px; border: 0px solid #666666;" href="https://sites.google.com/view/homewm/inicio?authuser=0" target="_blank" rel="noopener" data-btn="2"> <span style="color: #ffffff; font-family: arial; font-size: 15px;"><strong>Sitio de Ayuda 💻​</strong></span><br><span style="color: #ffffff; font-family: arial; font-size: 15px;"><strong>→</strong></span></a> <!--<![endif]--></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r18-c" style="font-size: 30px; line-height: 30px; background-color: transparent;" align="center" height="30">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+<table class="r31-o" style="background-color: #1d2541; background-image: url('https://img.mailinblue.com/8323725/images/content_library/original/695b2a2d833bc04e7b37290f.jpg'); background-position: center; background-repeat: no-repeat; background-size: cover; font-size: 0; table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" align="center">
+<tbody>
+<tr>
+<td class="r3-i">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="50%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r6-i" style="padding-left: 15px; padding-right: 15px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r7-c" align="center">
+<table class="r23-o" style="border-collapse: separate; border-radius: 8px; table-layout: fixed; width: 205px;" role="presentation" border="0" width="205" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r24-i" style="border-radius: 8px; font-size: 0px; line-height: 0px;"><img style="display: block; width: 100%; border-radius: 8px;" src="https://img.mailinblue.com/8323725/images/content_library/original/695b28fa833bc04e7b372909.png" width="205" border="0"></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="50%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r25-i" style="padding-left: 15px; padding-right: 15px; padding-top: 10px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r26-c" align="left">
+<table class="r27-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r28-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; word-break: break-word; line-height: 1; text-align: left;" align="left" valign="top">
+<div>
+<h2 class="default-heading2" style="margin: 0; color: #000; font-family: Arial; font-size: 32px; word-break: break-word;"><span style="color: #ffff; font-size: 22px;"><span id="isPasted" style="font-style: normal; text-decoration: none; background-color: rgb(29, 37, 65);"><strong>Tu conserje virtual 🤖</strong></span></span></h2>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 5px; line-height: 5px;" height="5">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r26-c" align="left">
+<table class="r29-o" style="table-layout: fixed; width: 90%;" role="presentation" border="0" width="90%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r30-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word; text-align: left;" align="left" valign="top">
+<div>
+<p style="margin: 0;"><span style="color: rgb(255, 255, 255); font-family: arial; font-size: 13px; background-color: rgb(29, 37, 65);">Arturito es parte de nuestro personal digital, disponible 24/7 para resolver tus dudas</span></p>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 15px; line-height: 15px;" height="15">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r7-c" align="center">
+<table class="r15-o" style="table-layout: fixed; width: 188px;" role="presentation" border="0" width="188" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r16-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word;" align="center" valign="top" height="41"><!-- [if mso]> <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://sites.google.com/view/homewm/preguntas-frecuentes_1" style="v-text-anchor:middle; height: 64px; width: 187px;" arcsize="33%" fillcolor="#73d415" strokecolor="#73d415" strokeweight="1px" data-btn="3"> <w:anchorlock> </w:anchorlock> <v:textbox inset="0,0,0,0"> <div style="display:none;"> <center class="default-button"><span><span style="color:#FFFFFF;font-family:arial;font-size:15px;"><strong>Iniciar Chat</strong></span></span><br><span><span style="color:#FFFFFF;font-family:arial;font-size:15px;"><strong>→</strong></span></span></center> </div> </v:textbox> </v:roundrect> <![endif]--> <!-- [if !mso]><!-- --> <a class="r17-r default-button" style="color: #000; font-size: 18px; font-style: normal; font-weight: normal; line-height: 1.15; text-decoration: none; word-break: break-word; word-wrap: break-word; display: block; -webkit-text-size-adjust: none; background-color: #73d415; border-radius: 21px; font-family: Arial; height: 41px; mso-hide: all; width: 188px; padding: 12px 0px 12px 0px; border: 0px solid #666666;" href="https://sites.google.com/view/homewm/preguntas-frecuentes_1" target="_blank" rel="noopener" data-btn="3"> <span style="color: #ffffff; font-family: arial; font-size: 15px;"><strong>Iniciar Chat</strong></span><br><span style="color: #ffffff; font-family: arial; font-size: 15px;"><strong>→</strong></span></a> <!--<![endif]--></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r18-c" style="font-size: 30px; line-height: 30px; background-color: transparent;" align="center" height="30">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+<table class="r12-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" align="center">
+<tbody>
+<tr>
+<td class="r22-i" style="background-color: #3b3f44;">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="50%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r6-i" style="padding-left: 15px; padding-right: 15px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r7-c" align="center">
+<table class="r23-o" style="border-collapse: separate; border-radius: 8px; table-layout: fixed; width: 110px;" role="presentation" border="0" width="110" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r24-i" style="border-radius: 8px; font-size: 0px; line-height: 0px;"><img style="display: block; width: 100%; border-radius: 8px;" src="https://img.mailinblue.com/8323725/images/content_library/original/683a3a571014a69181705c1e.png" width="110" border="0"></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="50%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r25-i" style="padding-left: 15px; padding-right: 15px; padding-top: 10px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r26-c" align="left">
+<table class="r27-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r28-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; word-break: break-word; line-height: 1; text-align: left;" align="left" valign="top">
+<div>
+<h2 class="default-heading2" style="margin: 0; color: #000; font-family: Arial; font-size: 32px; word-break: break-word;"><span style="color: #ffff; font-size: 22px;">Reglamentos</span></h2>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 5px; line-height: 5px;" height="5">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r26-c" align="left">
+<table class="r29-o" style="table-layout: fixed; width: 90%;" role="presentation" border="0" width="90%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r30-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word; text-align: left;" align="left" valign="top">
+<div>
+<p style="margin: 0;"><span style="color: #ffffff; font-family: arial; font-size: 13px;">Por favor leer en detalle las normativa que promueven la buena convivencia.</span></p>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 15px; line-height: 15px;" height="15">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r18-c" style="font-size: 30px; line-height: 30px; background-color: transparent;" align="center" height="30">­</td>
+</tr>
+<tr>
+<td class="r7-c" align="center">
+<table class="r15-o" style="table-layout: fixed; width: 188px;" role="presentation" border="0" width="188" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r16-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word;" align="center" valign="top" height="41"><!-- [if mso]> <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://sites.google.com/view/edificiowm815/ley-de-copropiedad" style="v-text-anchor:middle; height: 64px; width: 187px;" arcsize="33%" fillcolor="#73d415" strokecolor="#73d415" strokeweight="1px" data-btn="4"> <w:anchorlock> </w:anchorlock> <v:textbox inset="0,0,0,0"> <div style="display:none;"> <center class="default-button"><span><span style="color:#FFFFFF;font-family:arial;font-size:15px;"><strong>Reglamento Interno&nbsp;</strong></span></span><br><span><span style="color:#FFFFFF;font-family:arial;font-size:15px;"><strong>→</strong></span></span></center> </div> </v:textbox> </v:roundrect> <![endif]--> <!-- [if !mso]><!-- --> <a class="r17-r default-button" style="color: #000; font-size: 18px; font-style: normal; font-weight: normal; line-height: 1.15; text-decoration: none; word-break: break-word; word-wrap: break-word; display: block; -webkit-text-size-adjust: none; background-color: #73d415; border-radius: 21px; font-family: Arial; height: 41px; mso-hide: all; width: 188px; padding: 12px 0px 12px 0px; border: 0px solid #666666;" href="https://sites.google.com/view/edificiowm815/ley-de-copropiedad" target="_blank" rel="noopener" data-btn="4"> <span style="color: #ffffff; font-family: arial; font-size: 15px;"><strong>Reglamento Interno </strong></span><br><span style="color: #ffffff; font-family: arial; font-size: 15px;"><strong>→</strong></span></a> <!--<![endif]--></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r18-c" style="font-size: 30px; line-height: 30px; background-color: transparent;" align="center" height="30">­</td>
+</tr>
+<tr>
+<td class="r7-c" align="center">
+<table class="r15-o" style="table-layout: fixed; width: 188px;" role="presentation" border="0" width="188" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r16-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word;" align="center" valign="top" height="41"><!-- [if mso]> <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://sites.google.com/view/leydecopropiedadwm/ley-de-copropiedad" style="v-text-anchor:middle; height: 64px; width: 187px;" arcsize="33%" fillcolor="#73d415" strokecolor="#73d415" strokeweight="1px" data-btn="5"> <w:anchorlock> </w:anchorlock> <v:textbox inset="0,0,0,0"> <div style="display:none;"> <center class="default-button"><span><span style="color:#FFFFFF;font-family:arial;font-size:14px;"><strong>Reglamento de copropiedad →</strong></span></span></center> </div> </v:textbox> </v:roundrect> <![endif]--> <!-- [if !mso]><!-- --> <a class="r17-r default-button" style="color: #000; font-size: 18px; font-style: normal; font-weight: normal; line-height: 1.15; text-decoration: none; word-break: break-word; word-wrap: break-word; display: block; -webkit-text-size-adjust: none; background-color: #73d415; border-radius: 21px; font-family: Arial; height: 41px; mso-hide: all; width: 188px; padding: 12px 0px 12px 0px; border: 0px solid #666666;" href="https://sites.google.com/view/leydecopropiedadwm/ley-de-copropiedad" target="_blank" rel="noopener" data-btn="5"> <span style="color: #ffffff; font-family: arial; font-size: 14px;"><strong>Reglamento de copropiedad →</strong></span></a> <!--<![endif]--></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r18-c" style="font-size: 30px; line-height: 30px; background-color: transparent;" align="center" height="30">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+<table class="r32-o" style="background-image: url('https://img.mailinblue.com/8323725/images/content_library/original/681aa2d9b8cdfae3220ad472.png'); background-position: top; background-repeat: no-repeat; background-size: cover; font-size: 0; table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" align="center">
+<tbody>
+<tr>
+<td class="r3-i">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="50%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r6-i" style="padding-left: 15px; padding-right: 15px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r7-c" align="center">
+<table class="r0-o" style="table-layout: fixed; width: 95px;" role="presentation" border="0" width="95" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r33-i" style="font-size: 0px; line-height: 0px; padding-bottom: 15px; padding-top: 15px;"><img style="display: block; width: 100%;" src="https://img.mailinblue.com/8323725/images/content_library/original/683a396e01b41dcfa479e132.png" width="95" border="0"></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="50%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r34-i" style="padding: 50px 15px 50px 15px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r35-c nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; word-break: break-word; line-height: 1; text-align: left; valign: top;" align="left">
+<div>
+<p style="margin: 0;"><span style="color: #ffffff; font-family: arial;"><em>Reservar</em></span></p>
+</div>
+</td>
+</tr>
+<tr>
+<td class="r26-c" align="left">
+<table class="r27-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r28-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; word-break: break-word; line-height: 1; text-align: left;" align="left" valign="top">
+<div>
+<h2 class="default-heading2" style="margin: 0; color: #000; font-family: Arial; font-size: 32px; word-break: break-word;"><span style="color: #ffffff; font-size: 22px;">Mudanza</span></h2>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 5px; line-height: 5px;" height="5">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r26-c" align="left">
+<table class="r29-o" style="table-layout: fixed; width: 93%;" role="presentation" border="0" width="93%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r30-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word; text-align: left;" align="left" valign="top">
+<div>
+<p style="margin: 0; text-align: justify;"><span style="color: #ffffff; font-family: arial; font-size: 13px;">Puedes realizar solicitudes de mudanzas con 48 hrs de anticipación.</span></p>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 15px; line-height: 15px;" height="15">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r7-c" align="center">
+<table class="r15-o" style="table-layout: fixed; width: 162px;" role="presentation" border="0" width="162" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r16-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word;" align="center" valign="top" height="21"><!-- [if mso]> <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ2NCdwJTRckw6AwajrvEGKBomNxxHzzkNQFZR963Pi541AsFz5ctFt0G2gvoNdKNsNC2FCD1G_H" style="v-text-anchor:middle; height: 44px; width: 161px;" arcsize="47%" fillcolor="#73d415" strokecolor="#73d415" strokeweight="1px" data-btn="6"> <w:anchorlock> </w:anchorlock> <v:textbox inset="0,0,0,0"> <div style="display:none;"> <center class="default-button"><span><span style="color:#FFFFFF;font-family:arial;font-size:15px;"><strong>Abrir&nbsp;</strong></span></span></center> </div> </v:textbox> </v:roundrect> <![endif]--> <!-- [if !mso]><!-- --> <a class="r17-r default-button" style="color: #000; font-size: 18px; font-style: normal; font-weight: normal; line-height: 1.15; text-decoration: none; word-break: break-word; word-wrap: break-word; display: block; -webkit-text-size-adjust: none; background-color: #73d415; border-radius: 21px; font-family: Arial; height: 21px; mso-hide: all; width: 162px; padding: 12px 0px 12px 0px; border: 0px solid #666666;" href="https://calendar.google.com/calendar/u/0/appointments/schedules/AcZssZ2NCdwJTRckw6AwajrvEGKBomNxxHzzkNQFZR963Pi541AsFz5ctFt0G2gvoNdKNsNC2FCD1G_H" target="_blank" rel="noopener" data-btn="6"> <span style="color: #ffffff; font-family: arial; font-size: 15px;"><strong>Abrir </strong></span></a> <!--<![endif]--></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+<table class="r12-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" align="center">
+<tbody>
+<tr>
+<td class="r36-i" style="background-color: #3b3f44; padding-top: 26px;">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="50%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r6-i" style="padding-left: 15px; padding-right: 15px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r7-c" align="center">
+<table class="r0-o" style="table-layout: fixed; width: 105px;" role="presentation" border="0" width="105" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r33-i" style="font-size: 0px; line-height: 0px; padding-bottom: 15px; padding-top: 15px;"><img style="display: block; width: 100%;" src="https://img.mailinblue.com/8323725/images/content_library/original/683a44b701b41dcfa479e1a4.png" width="105" border="0"></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="50%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r24-i" style="padding-left: 15px; padding-right: 15px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r35-c nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; word-break: break-word; line-height: 1; text-align: left; valign: top;" align="left">
+<div>
+<p style="margin: 0;"><span style="color: #fffefe; font-family: arial;"><em>Consultas</em></span></p>
+</div>
+</td>
+</tr>
+<tr>
+<td class="r26-c" align="left">
+<table class="r27-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r28-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; word-break: break-word; line-height: 1; text-align: left;" align="left" valign="top">
+<div>
+<h2 class="default-heading2" style="margin: 0; color: #000; font-family: Arial; font-size: 32px; word-break: break-word;"><span style="color: #ffff; font-size: 22px;">Administración</span></h2>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 5px; line-height: 5px;" height="5">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r26-c" align="left">
+<table class="r29-o" style="table-layout: fixed; width: 90%;" role="presentation" border="0" width="90%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r30-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word; text-align: left;" align="left" valign="top">
+<div>
+<p style="margin: 0; text-align: justify;"><span style="color: #ffffff; font-family: arial; font-size: 13px;">Para consultas sobre el cobro de gastos comunes o el uso de la App Comunidad Feliz, escribe al correo indicado.</span></p>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 15px; line-height: 15px;" height="15">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r7-c" align="center">
+<table class="r8-o" style="table-layout: fixed; width: 90%;" role="presentation" border="0" width="90%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r9-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; word-break: break-word; line-height: 1; text-align: center;" align="center" valign="top">
+<div>
+<p style="margin: 0; text-align: center;"><span style="color: #ffffff; font-family: arial; font-size: 13px;"><strong><u>activawalkermartinez815@gmail.com</u></strong></span></p>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 15px; line-height: 15px;" height="15">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+<table class="r37-o" style="background-image: url('https://img.mailinblue.com/8323725/images/content_library/original/6838ad8e84a76fbc37924b19.png'); background-position: center; background-repeat: no-repeat; background-size: cover; font-size: 0; table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" align="center">
+<tbody>
+<tr>
+<td class="r38-i" style="padding-bottom: 20px; padding-top: 20px;">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="50%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r6-i" style="padding-left: 7px; padding-right: 7px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r18-c" style="font-size: 30px; line-height: 30px; background-color: transparent;" align="center" height="30">­</td>
+</tr>
+<tr>
+<td class="r7-c" align="center">
+<table class="r39-o" style="border-collapse: separate; border-radius: 8px; table-layout: fixed; width: 101px; border-width: 0px;" role="presentation" border="0" width="101" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r24-i" style="border-radius: 8px; font-size: 0px; line-height: 0px;"><img style="display: block; width: 100%; border-radius: 8px;" src="https://img.mailinblue.com/8323725/images/content_library/original/683a39e7ad467d0fe8413747.png" width="101" border="0"></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="50%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r24-i" style="padding-left: 7px; padding-right: 7px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r35-c nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; word-break: break-word; line-height: 1; text-align: left; valign: top;" align="left">
+<div>
+<p style="margin: 0;">&nbsp;</p>
+<p style="margin: 0;">&nbsp;</p>
+<p style="margin: 0;"><span style="color: #fffefe; font-family: arial;"><em>Certificación</em></span></p>
+</div>
+</td>
+</tr>
+<tr>
+<td class="r26-c" align="left">
+<table class="r27-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r28-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; word-break: break-word; line-height: 1; text-align: left;" align="left" valign="top">
+<div>
+<h2 class="default-heading2" style="margin: 0; color: #000; font-family: Arial; font-size: 32px; word-break: break-word;"><span style="color: #ffff; font-size: 22px;">Green Certified </span></h2>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 5px; line-height: 5px;" height="5">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r18-c" style="font-size: 30px; line-height: 30px; background-color: transparent;" align="center" height="30">­</td>
+</tr>
+<tr>
+<td class="r7-c" align="center">
+<table class="r15-o" style="table-layout: fixed; width: 164px;" role="presentation" border="0" width="164" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r16-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word;" align="center" valign="top" height="21"><!-- [if mso]> <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://sites.google.com/view/greencertificadoactiva/ley-de-copropiedad" style="v-text-anchor:middle; height: 44px; width: 163px;" arcsize="47%" fillcolor="#73d415" strokecolor="#73d415" strokeweight="1px" data-btn="7"> <w:anchorlock> </w:anchorlock> <v:textbox inset="0,0,0,0"> <div style="display:none;"> <center class="default-button"><span><span style="color:#FFFFFF;font-family:arial;font-size:14px;"><strong>Abrir</strong></span></span></center> </div> </v:textbox> </v:roundrect> <![endif]--> <!-- [if !mso]><!-- --> <a class="r17-r default-button" style="color: #000; font-size: 18px; font-style: normal; font-weight: normal; line-height: 1.15; text-decoration: none; word-break: break-word; word-wrap: break-word; display: block; -webkit-text-size-adjust: none; background-color: #73d415; border-radius: 21px; font-family: Arial; height: 21px; mso-hide: all; width: 164px; padding: 12px 0px 12px 0px; border: 0px solid #666666;" href="https://sites.google.com/view/greencertificadoactiva/ley-de-copropiedad" target="_blank" rel="noopener" data-btn="7"> <span style="color: #ffffff; font-family: arial; font-size: 14px;"><strong>Abrir</strong></span></a> <!--<![endif]--></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r18-c" style="font-size: 30px; line-height: 30px; background-color: transparent;" align="center" height="30">­</td>
+</tr>
+<tr>
+<td class="r18-c" style="font-size: 30px; line-height: 30px; background-color: transparent;" align="center" height="30">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+<table class="r12-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" align="center">
+<tbody>
+<tr>
+<td class="r3-i">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="50%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r6-i" style="padding-left: 15px; padding-right: 15px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r7-c" align="center">
+<table class="r23-o" style="border-collapse: separate; border-radius: 8px; table-layout: fixed; width: 188px;" role="presentation" border="0" width="188" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r24-i" style="border-radius: 8px; font-size: 0px; line-height: 0px;"><img style="display: block; width: 100%; border-radius: 8px;" src="https://img.mailinblue.com/8323725/images/content_library/original/6801bceadf5411cb3165c0b6.png" width="188" border="0"></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r7-c" align="center">
+<table class="r15-o" style="table-layout: fixed; width: 140px;" role="presentation" border="0" width="140" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r16-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word;" align="center" valign="top" height="21"><!-- [if mso]> <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://drive.google.com/file/d/1TdU16O4w7xIGwhKOZxzoVvHfrlzAc__0/view" style="v-text-anchor:middle; height: 44px; width: 139px;" arcsize="47%" fillcolor="#00b376" strokecolor="#00b376" strokeweight="1px" data-btn="8"> <w:anchorlock> </w:anchorlock> <v:textbox inset="0,0,0,0"> <div style="display:none;"> <center class="default-button"><span><span style="color:#FFFFFF;font-family:arial;font-size:13px;"><strong>🎥 👉Video Tutorial &nbsp;</strong></span></span></center> </div> </v:textbox> </v:roundrect> <![endif]--> <!-- [if !mso]><!-- --> <a class="r40-r default-button" style="color: #000; font-size: 18px; font-style: normal; font-weight: normal; line-height: 1.15; text-decoration: none; word-break: break-word; word-wrap: break-word; display: block; -webkit-text-size-adjust: none; background-color: #00b376; border-radius: 21px; font-family: Arial; height: 21px; mso-hide: all; width: 140px; padding: 12px 0px 12px 0px; border: 0px solid #666666;" href="https://drive.google.com/file/d/1TdU16O4w7xIGwhKOZxzoVvHfrlzAc__0/view" target="_blank" rel="noopener" data-btn="8"> <span style="color: #ffffff; font-family: arial; font-size: 13px;"><strong>🎥 👉Video Tutorial </strong></span></a> <!--<![endif]--></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="50%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r41-i" style="padding: 20px 15px 60px 15px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r35-c nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; word-break: break-word; line-height: 1; text-align: left; valign: top;" align="left">
+<div>
+<p style="margin: 0;"><span style="color: #030303; font-family: arial;"><em>App</em></span></p>
+</div>
+</td>
+</tr>
+<tr>
+<td class="r26-c" align="left">
+<table class="r27-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r28-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; word-break: break-word; line-height: 1; text-align: left;" align="left" valign="top">
+<div>
+<h2 class="default-heading2" style="margin: 0; color: #000; font-family: Arial; font-size: 32px; word-break: break-word;"><span style="color: #040404; font-size: 22px;">Comunidad Feliz</span></h2>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 5px; line-height: 5px;" height="5">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r7-c" align="center">
+<table class="r8-o" style="table-layout: fixed; width: 90%;" role="presentation" border="0" width="90%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r30-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word; text-align: left;" align="left" valign="top">
+<div>
+<p style="margin: 0; text-align: justify;"><span style="color: #000000; font-family: arial; font-size: 13px;">El Software de Administración del Condominio WM 815 mejora la gestión al facilitar el acceso a gastos comunes, reservas y anuncios internos, optimizando la comunicación y transparencia. </span><a style="color: #000; text-decoration: none;" href="https://sites.google.com/view/homewm/inicio?authuser=1#h.2ei9oil9er8i" target="_blank" rel="noopener"><span style="color: #000000; font-family: arial; font-size: 13px;"><strong>Ver más...</strong></span></a></p>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 15px; line-height: 15px;" height="15">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r7-c" align="center">
+<table class="r15-o" style="table-layout: fixed; width: 140px;" role="presentation" border="0" width="140" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r16-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word;" align="center" valign="top" height="21"><!-- [if mso]> <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://play.google.com/store/apps/details?id=com.comunidadfeliz.residents" style="v-text-anchor:middle; height: 44px; width: 139px;" arcsize="47%" fillcolor="#73d415" strokecolor="#73d415" strokeweight="1px" data-btn="9"> <w:anchorlock> </w:anchorlock> <v:textbox inset="0,0,0,0"> <div style="display:none;"> <center class="default-button"><span><span style="color:#FFFFFF;font-family:arial;font-size:13px;"><strong>▶️ Play Store&nbsp;</strong></span></span></center> </div> </v:textbox> </v:roundrect> <![endif]--> <!-- [if !mso]><!-- --> <a class="r17-r default-button" style="color: #000; font-size: 18px; font-style: normal; font-weight: normal; line-height: 1.15; text-decoration: none; word-break: break-word; word-wrap: break-word; display: block; -webkit-text-size-adjust: none; background-color: #73d415; border-radius: 21px; font-family: Arial; height: 21px; mso-hide: all; width: 140px; padding: 12px 0px 12px 0px; border: 0px solid #666666;" href="https://play.google.com/store/apps/details?id=com.comunidadfeliz.residents" target="_blank" rel="noopener" data-btn="9"> <span style="color: #ffffff; font-family: arial; font-size: 13px;"><strong>▶️ Play Store </strong></span></a> <!--<![endif]--></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r18-c" style="font-size: 30px; line-height: 30px; background-color: transparent;" align="center" height="30">­</td>
+</tr>
+<tr>
+<td class="r7-c" align="center">
+<table class="r15-o" style="table-layout: fixed; width: 140px;" role="presentation" border="0" width="140" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r16-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word;" align="center" valign="top" height="21"><!-- [if mso]> <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://apps.apple.com/cl/app/comunidadfeliz/id1477486368" style="v-text-anchor:middle; height: 44px; width: 139px;" arcsize="47%" fillcolor="#73d415" strokecolor="#73d415" strokeweight="1px" data-btn="10"> <w:anchorlock> </w:anchorlock> <v:textbox inset="0,0,0,0"> <div style="display:none;"> <center class="default-button"><span><span style="color:#FFFFFF;font-family:arial;font-size:13px;"><strong> Apple Store &nbsp;</strong></span></span></center> </div> </v:textbox> </v:roundrect> <![endif]--> <!-- [if !mso]><!-- --> <a class="r17-r default-button" style="color: #000; font-size: 18px; font-style: normal; font-weight: normal; line-height: 1.15; text-decoration: none; word-break: break-word; word-wrap: break-word; display: block; -webkit-text-size-adjust: none; background-color: #73d415; border-radius: 21px; font-family: Arial; height: 21px; mso-hide: all; width: 140px; padding: 12px 0px 12px 0px; border: 0px solid #666666;" href="https://apps.apple.com/cl/app/comunidadfeliz/id1477486368" target="_blank" rel="noopener" data-btn="10"> <span style="color: #ffffff; font-family: arial; font-size: 13px;"><strong> Apple Store </strong></span></a> <!--<![endif]--></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+<table class="r12-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" align="center">
+<tbody>
+<tr>
+<td class="r22-i" style="background-color: #3b3f44;">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="50%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r6-i" style="padding-left: 15px; padding-right: 15px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r42-c" style="border-radius: 8px; font-size: 0px; line-height: 0px; valign: top;" align="center"><img style="display: block; width: 100%; border-radius: 8px;" src="https://img.mailinblue.com/8323725/images/content_library/original/680aa3115b5ed8e012ea1288.png" width="245" border="0"></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="50%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r43-i" style="padding: 20px 15px 50px 15px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r35-c nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; word-break: break-word; line-height: 1; text-align: left; valign: top;" align="left">
+<div>
+<p style="margin: 0;"><span style="color: #fffefe; font-family: arial;"><em>Servicio</em></span></p>
+</div>
+</td>
+</tr>
+<tr>
+<td class="r26-c" align="left">
+<table class="r27-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r28-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; word-break: break-word; line-height: 1; text-align: left;" align="left" valign="top">
+<div>
+<h2 class="default-heading2" style="margin: 0; color: #000; font-family: Arial; font-size: 32px; word-break: break-word;"><span style="color: #ffff; font-size: 22px;">Postventa</span></h2>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 5px; line-height: 5px;" height="5">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r26-c" align="left">
+<table class="r29-o" style="table-layout: fixed; width: 90%;" role="presentation" border="0" width="90%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r30-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word; text-align: left;" align="left" valign="top">
+<div>
+<p style="margin: 0; text-align: justify;"><span style="color: #ffffff; font-family: arial; font-size: 13px;">Si detectas daños menores en tu vivienda (como en el piso, pared, ventanas o puertas), repórtalos a través del portal de atención postventa.</span></p>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 15px; line-height: 15px;" height="15">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r7-c" align="center">
+<table class="r15-o" style="table-layout: fixed; width: 140px;" role="presentation" border="0" width="140" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r16-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word;" align="center" valign="top" height="21"><!-- [if mso]> <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://sites.google.com/view/homewm/servicios/postventa?authuser=2" style="v-text-anchor:middle; height: 44px; width: 139px;" arcsize="47%" fillcolor="#73d415" strokecolor="#73d415" strokeweight="1px" data-btn="11"> <w:anchorlock> </w:anchorlock> <v:textbox inset="0,0,0,0"> <div style="display:none;"> <center class="default-button"><span><span style="color:#FFFFFF;font-family:arial;font-size:13px;"><strong>Portal Postventa&nbsp;</strong></span></span></center> </div> </v:textbox> </v:roundrect> <![endif]--> <!-- [if !mso]><!-- --> <a class="r17-r default-button" style="color: #000; font-size: 18px; font-style: normal; font-weight: normal; line-height: 1.15; text-decoration: none; word-break: break-word; word-wrap: break-word; display: block; -webkit-text-size-adjust: none; background-color: #73d415; border-radius: 21px; font-family: Arial; height: 21px; mso-hide: all; width: 140px; padding: 12px 0px 12px 0px; border: 0px solid #666666;" href="https://sites.google.com/view/homewm/servicios/postventa?authuser=2" target="_blank" rel="noopener" data-btn="11"> <span style="color: #ffffff; font-family: arial; font-size: 13px;"><strong>Portal Postventa </strong></span></a> <!--<![endif]--></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r18-c" style="font-size: 30px; line-height: 30px; background-color: transparent;" align="center" height="30">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+<table class="r12-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" align="center">
+<tbody>
+<tr>
+<td class="r38-i" style="padding-bottom: 20px; padding-top: 20px;">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="50%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r6-i" style="padding-left: 7px; padding-right: 7px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r18-c" style="font-size: 30px; line-height: 30px; background-color: transparent;" align="center" height="30">­</td>
+</tr>
+<tr>
+<td class="r7-c" align="center">
+<table class="r39-o" style="border-collapse: separate; border-radius: 8px; table-layout: fixed; width: 198px; border-width: 0px;" role="presentation" border="0" width="198" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r24-i" style="border-radius: 8px; font-size: 0px; line-height: 0px;"><img style="display: block; width: 100%; border-radius: 8px;" src="https://img.mailinblue.com/8323725/images/content_library/original/691cc8058e43cfee409bca71.png" width="198" border="0"></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+<th class="r4-c" style="font-weight: normal;" valign="middle" width="50%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r3-i" style="padding-left: 22px; padding-right: 22px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r35-c nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; word-break: break-word; line-height: 1; text-align: left; valign: top;" align="left">
+<div>
+<p style="margin: 0;"><span style="color: rgb(59, 63, 68);"> </span></p>
+<p style="margin: 0;"><span style="color: rgb(59, 63, 68);"> </span><span style="color: rgb(59, 63, 68); font-family: arial;"><em>Tips de</em></span></p>
+</div>
+</td>
+</tr>
+<tr>
+<td class="r26-c" align="left">
+<table class="r27-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r28-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; word-break: break-word; line-height: 1; text-align: left;" align="left" valign="top">
+<div>
+<h2 class="default-heading2" style="margin: 0; color: #000; font-family: Arial; font-size: 32px; word-break: break-word;"><span style="color: rgb(59, 63, 68); font-size: 22px;">Convivencia</span></h2>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 5px; line-height: 5px;" height="5">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r26-c" align="left">
+<table class="r29-o" style="table-layout: fixed; width: 90%;" role="presentation" border="0" width="90%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r44-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word; text-align: justify;" align="justify" valign="top">
+<div>
+<p id="isPasted" style="margin: 0;"><span style="font-size: 13px;">Solo un recordatorio: las alfombras deben mantenerse dentro del departamento para conservar los pasillos limpios y seguros.</span></p>
+<p style="margin: 0;"><span style="font-size: 13px;">🙌 ¡Gracias por su colaboración!</span></p>
+<p style="margin: 0;"><span style="font-size: 13px;">📘 Visiten nuestro blog informativo para más tips y novedades.</span></p>
+</div>
+</td>
+</tr>
+<tr class="nl2go-responsive-hide">
+<td style="font-size: 15px; line-height: 15px;" height="15">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r18-c" style="font-size: 30px; line-height: 30px; background-color: transparent;" align="center" height="30">­</td>
+</tr>
+<tr>
+<td class="r7-c" align="center">
+<table class="r15-o" style="table-layout: fixed; width: 164px;" role="presentation" border="0" width="164" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r16-i nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word;" align="center" valign="top" height="21"><!-- [if mso]> <v:roundrect xmlns:v="urn:schemas-microsoft-com:vml" xmlns:w="urn:schemas-microsoft-com:office:word" href="https://sites.google.com/view/homewm/blog?authuser=1" style="v-text-anchor:middle; height: 44px; width: 163px;" arcsize="47%" fillcolor="#73d415" strokecolor="#73d415" strokeweight="1px" data-btn="12"> <w:anchorlock> </w:anchorlock> <v:textbox inset="0,0,0,0"> <div style="display:none;"> <center class="default-button"><span><span style="color:#FFFFFF;font-family:arial;font-size:14px;"><strong>Blog Informativo</strong></span></span></center> </div> </v:textbox> </v:roundrect> <![endif]--> <!-- [if !mso]><!-- --> <a class="r17-r default-button" style="color: #000; font-size: 18px; font-style: normal; font-weight: normal; line-height: 1.15; text-decoration: none; word-break: break-word; word-wrap: break-word; display: block; -webkit-text-size-adjust: none; background-color: #73d415; border-radius: 21px; font-family: Arial; height: 21px; mso-hide: all; width: 164px; padding: 12px 0px 12px 0px; border: 0px solid #666666;" href="https://sites.google.com/view/homewm/blog?authuser=1" target="_blank" rel="noopener" data-btn="12"> <span style="color: #ffffff; font-family: arial; font-size: 14px;"><strong>Blog Informativo</strong></span></a> <!--<![endif]--></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+<table class="r19-o" style="background-image: url('https://img.mailinblue.com/8323725/images/content_library/original/685f1cd047acd8fc66a9fe1f.jpeg'); background-position: center; background-repeat: no-repeat; background-size: auto; font-size: 0; table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" align="center">
+<tbody>
+<tr>
+<td class="r3-i">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<th class="r20-c" style="font-weight: normal;" valign="top" width="100%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r6-i" style="padding-left: 5px; padding-right: 5px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r21-c" style="font-size: 0px; line-height: 0px; valign: top;" align="center"><img style="display: block; width: 100%;" src="https://img.mailinblue.com/8323725/images/content_library/original/685f1be19db0f64469f29d18.jpeg" width="540" border="0"></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+<!-- [if !mso]><!-- -->
+<table class="r46-o mobshow" style="border: none; display: none; float: none; font-size: 0; height: 0; line-height: 0; max-height: 0; mso-hide: all; overflow: hidden; table-layout: fixed; visibility: hidden; width: 0;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0" align="center">
+<tbody>
+<tr>
+<td class="r47-i mobshow resp-table magic-resp" style="background-color: #3b3f44; border: none; display: none; float: none; font-size: 0; height: 0; line-height: 0; max-height: 0; mso-hide: all; overflow: hidden; padding-bottom: 20px; padding-top: 20px; visibility: hidden; width: 0;">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<th class="r4-c mobshow resp-table" style="font-weight: normal;" valign="middle" width="100%">
+<table class="r5-o" style="table-layout: fixed; width: 100%;" role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r6-i" style="padding-left: 15px; padding-right: 15px;" valign="top">
+<table role="presentation" border="0" width="100%" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r7-c" align="center">
+<table class="r48-o" style="border-collapse: separate; border-radius: 400px; table-layout: fixed; width: 52px; border: 3px solid #aaaaaa;" role="presentation" border="0" width="52" cellspacing="0" cellpadding="0">
+<tbody>
+<tr>
+<td class="r24-i" style="border-radius: 397px; font-size: 0px; line-height: 0px;"><img style="display: block; width: 100%; border-radius: 397px;" src="https://img.mailinblue.com/8323725/images/content_library/original/681aa7a4f40ac14bc7ead1bc.png" width="46" border="0"></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+<tr>
+<td class="r42-c nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word; text-align: center; valign: top;" align="center">
+<div>
+<p style="margin: 0;"><span style="color: #f9f6f6; font-family: arial; font-size: 14px;"><strong>Angel Avendaño</strong></span></p>
+<p style="margin: 0;"><span style="color: #ffffff; font-family: arial; font-size: 14px;"><strong> Jefe de Edificio</strong></span></p>
+</div>
+</td>
+</tr>
+<tr>
+<td class="r42-c nl2go-default-textstyle" style="color: #000; font-family: Arial; font-size: 18px; line-height: 1.8; word-break: break-word; text-align: center; valign: top;" align="center">
+<div>
+<p style="margin: 0;"><span style="color: #fefcfc; font-family: arial; font-size: 13px;">edificio.wm815@gmail.com</span></p>
+<p style="margin: 0; font-style: normal; font-weight: 400; text-decoration-style: initial; text-decoration-thickness: initial;"><span style="color: #fefcfc; font-family: arial; font-size: 13px;">Walker Martínez 815 - La Florida</span></p>
+</div>
+</td>
+</tr>
+<tr>
+<td class="r18-c" style="font-size: 29px; line-height: 29px; background-color: transparent;" align="center" height="29">­</td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+</th>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table>
+<!--<![endif]--></td>
+</tr>
+</tbody>
+</table>
+</td>
+</tr>
+</tbody>
+</table></body></html>`;
+        }
+
+        const LS_WELCOME_EMAILS_SENT = (typeof LS_WM_PREFIX === 'string' ? LS_WM_PREFIX : 'wm_gestion_v1:') + 'welcome_emails_sent';
+        const LS_WELCOME_EMAILS_BOOT = (typeof LS_WM_PREFIX === 'string' ? LS_WM_PREFIX : 'wm_gestion_v1:') + 'welcome_emails_bootstrapped';
+        let _bienvenidaResidentesEnCurso = false;
+
+        function huellaBienvenidaResidente(unidad, correo) {
+            return String(unidad || '').trim().toLowerCase() + '|' + String(correo || '').trim().toLowerCase();
+        }
+
+        function cargarHuellasBienvenidaLocal() {
+            const out = new Set();
+            try {
+                const raw = localStorage.getItem(LS_WELCOME_EMAILS_SENT);
+                const arr = raw ? JSON.parse(raw) : [];
+                if (Array.isArray(arr)) arr.forEach(function (h) { if (h) out.add(String(h)); });
+            } catch (e) {}
+            return out;
+        }
+
+        function guardarHuellasBienvenidaLocal(setHuellas) {
+            try {
+                localStorage.setItem(LS_WELCOME_EMAILS_SENT, JSON.stringify(Array.from(setHuellas)));
+            } catch (e) {}
+        }
+
+        async function cargarHuellasBienvenidaCloud() {
+            const out = new Set();
+            try {
+                const datos = await obtenerDatos('welcomeEmailsEnviados');
+                const mapa = datos && datos.huellas && typeof datos.huellas === 'object' ? datos.huellas : datos;
+                if (mapa && typeof mapa === 'object' && !Array.isArray(mapa)) {
+                    Object.keys(mapa).forEach(function (k) { if (k) out.add(String(k)); });
+                }
+            } catch (e) {}
+            return out;
+        }
+
+        async function guardarHuellasBienvenidaCloud(setHuellas) {
+            try {
+                const huellas = {};
+                Array.from(setHuellas).forEach(function (k) { huellas[k] = true; });
+                await guardarDatos('welcomeEmailsEnviados', { huellas: huellas, updatedAt: new Date().toISOString() });
+            } catch (e) {
+                console.warn('[bienvenida] No se pudo persistir huellas en nube:', e);
+            }
+        }
+
+        function correosUnidadResidentes(unit) {
+            const seen = new Set();
+            const out = [];
+            const residents = unit && Array.isArray(unit.residents) ? unit.residents : [];
+            residents.forEach(function (r) {
+                const c = String((r && (r.email || r.correo)) || '').trim();
+                if (!c) return;
+                const k = c.toLowerCase();
+                if (seen.has(k)) return;
+                seen.add(k);
+                out.push(c);
+            });
+            return out;
+        }
+
+        async function enviarCorreoBienvenidaAUnidad(unit, correos) {
+            const lista = Array.isArray(correos) ? correos.filter(Boolean) : [];
+            if (!lista.length) return { exito: false, error: 'Sin correos' };
+            const unidad = String((unit && (unit.unitNumber || unit.departamento)) || '').trim();
+            const primerNombre = (unit && Array.isArray(unit.residents) && unit.residents[0] && (unit.residents[0].name || unit.residents[0].nombre)) || 'Residente';
+            const html = htmlCorreoBienvenidaNuevoResidente();
+            const asunto = 'Bienvenida a su nuevo hogar — WM 815' + (unidad ? ' · Depto ' + unidad : '');
+            const texto = 'Estimado Residente, es un gusto darle la bienvenida de parte del equipo de administración a su nuevo hogar.';
+            return await enviarCorreo(
+                { nombre: primerNombre, correo: lista },
+                asunto,
+                texto,
+                html,
+                null,
+                { silencioso: true }
+            );
+        }
+
+        async function procesarCorreosBienvenidaResidentesNuevos() {
+            if (_bienvenidaResidentesEnCurso) return;
+            if (typeof enviarCorreo !== 'function') return;
+            const units = window.vinculacionUnits;
+            if (!Array.isArray(units) || units.length === 0) return;
+            _bienvenidaResidentesEnCurso = true;
+            try {
+                const local = cargarHuellasBienvenidaLocal();
+                const cloud = await cargarHuellasBienvenidaCloud();
+                cloud.forEach(function (h) { local.add(h); });
+                const boot = localStorage.getItem(LS_WELCOME_EMAILS_BOOT) === '1';
+                if (!boot) {
+                    units.forEach(function (u) {
+                        correosUnidadResidentes(u).forEach(function (c) {
+                            local.add(huellaBienvenidaResidente(u.unitNumber, c));
+                        });
+                    });
+                    guardarHuellasBienvenidaLocal(local);
+                    await guardarHuellasBienvenidaCloud(local);
+                    localStorage.setItem(LS_WELCOME_EMAILS_BOOT, '1');
+                    return;
+                }
+                const ahora = Date.now();
+                const graciaMs = 3 * 60 * 1000;
+                const pendientes = [];
+                units.forEach(function (u) {
+                    if (!u) return;
+                    const nuevos = [];
+                    (Array.isArray(u.residents) ? u.residents : []).forEach(function (r) {
+                        if (!r) return;
+                        if (r.welcomeEmailSentAt) return;
+                        const correo = String(r.email || r.correo || '').trim();
+                        if (!correo) return;
+                        const h = huellaBienvenidaResidente(u.unitNumber, correo);
+                        if (local.has(h)) return;
+                        const tReg = Date.parse(r.registeredAt);
+                        if (Number.isFinite(tReg) && (ahora - tReg) < graciaMs) return;
+                        nuevos.push({ residente: r, correo: correo, huella: h });
+                    });
+                    if (nuevos.length) pendientes.push({ unit: u, nuevos: nuevos });
+                });
+                if (pendientes.length > 8) {
+                    pendientes.forEach(function (item) {
+                        item.nuevos.forEach(function (n) { local.add(n.huella); });
+                    });
+                    guardarHuellasBienvenidaLocal(local);
+                    await guardarHuellasBienvenidaCloud(local);
+                    console.warn('[bienvenida] Se omitió el envío masivo (' + pendientes.length + ' unidades).');
+                    return;
+                }
+                for (let i = 0; i < pendientes.length; i++) {
+                    const item = pendientes[i];
+                    const correosTodos = correosUnidadResidentes(item.unit);
+                    if (!correosTodos.length) continue;
+                    const resultado = await enviarCorreoBienvenidaAUnidad(item.unit, correosTodos);
+                    if (resultado && resultado.exito) {
+                        item.nuevos.forEach(function (n) { local.add(n.huella); });
+                        guardarHuellasBienvenidaLocal(local);
+                        console.log('[bienvenida] Correo enviado a unidad', item.unit.unitNumber, correosTodos);
+                    } else {
+                        console.warn('[bienvenida] Falló envío unidad', item.unit && item.unit.unitNumber, resultado && resultado.error);
+                    }
+                }
+                if (pendientes.length) {
+                    await guardarHuellasBienvenidaCloud(local);
+                }
+            } catch (e) {
+                console.warn('[bienvenida] Error procesando residentes nuevos:', e);
+            } finally {
+                _bienvenidaResidentesEnCurso = false;
+            }
+        }
+
+        function scheduleProcesarCorreosBienvenidaResidentesNuevos() {
+            try {
+                setTimeout(function () {
+                    procesarCorreosBienvenidaResidentesNuevos();
+                }, 600);
+            } catch (e) {}
+        }
+        window.procesarCorreosBienvenidaResidentesNuevos = procesarCorreosBienvenidaResidentesNuevos;
+        window.htmlCorreoBienvenidaNuevoResidente = htmlCorreoBienvenidaNuevoResidente;
+
 
         // Función auxiliar para abrir HTML en nueva ventana (compatible con file://)
         function abrirHTMLEnNuevaVentana(html, titulo = 'Comprobante') {
@@ -26690,6 +28135,7 @@
                     if (window.vinculacionUnits && window.vinculacionUnits.length > 0) {
                         window.__gestionResidentesFuente = 'prueba-conserjeria-cloud';
                         try { actualizarTextoFuenteResidentesOcupacion(); } catch (eTPcsh) {}
+                        scheduleProcesarCorreosBienvenidaResidentesNuevos();
                         return rPcsh;
                     }
                 } catch (ePcsh) {
@@ -26704,6 +28150,7 @@
                     if (window.vinculacionUnits && window.vinculacionUnits.length > 0) {
                         window.__gestionResidentesFuente = 'index-fabrica';
                         try { actualizarTextoFuenteResidentesOcupacion(); } catch (eT0) {}
+                        scheduleProcesarCorreosBienvenidaResidentesNuevos();
                         return rFab;
                     }
                 } catch (eFab) {
@@ -26716,6 +28163,7 @@
                 if (rLocal && window.vinculacionUnits && window.vinculacionUnits.length > 0) {
                     window.__gestionResidentesFuente = 'prueba-conserjeria-local';
                     try { actualizarTextoFuenteResidentesOcupacion(); } catch (eTloc) {}
+                    scheduleProcesarCorreosBienvenidaResidentesNuevos();
                     return rLocal;
                 }
             } catch (eLoc) {
@@ -26728,6 +28176,7 @@
                 try { actualizarTextoFuenteResidentesOcupacion(); } catch (eTpcEmpty) {}
                 var kpiPc = conserjeria ? Number(conserjeria.kpiTotalUnidadesEdificio) : 0;
                 var totalProyPc = kpiPc > 0 && kpiPc === kpiPc ? Math.floor(kpiPc) : 259;
+                scheduleProcesarCorreosBienvenidaResidentesNuevos();
                 return __gestionComputeOcupacionMetrics([], totalProyPc);
             }
 
@@ -26737,9 +28186,11 @@
                 try { actualizarTextoFuenteResidentesOcupacion(); } catch (eTempty) {}
                 var kpiE = integ ? Number(integ.kpiTotalUnidadesEdificio) : 0;
                 var totalProyE = kpiE > 0 && kpiE === kpiE ? Math.floor(kpiE) : 259;
+                scheduleProcesarCorreosBienvenidaResidentesNuevos();
                 return __gestionComputeOcupacionMetrics([], totalProyE);
             }
 
+            scheduleProcesarCorreosBienvenidaResidentesNuevos();
             return obtenerMetricasSinFuenteConserjeria(integ);
         }
 
