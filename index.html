@@ -980,15 +980,20 @@
         }
         #nomina .nomina-estado-select {
             width: 100%;
-            max-width: 11.5rem;
-            min-height: 1.55rem;
-            padding: 0.12rem 0.28rem;
-            font-size: 0.68rem;
-            font-weight: 700;
-            border-radius: 5px;
-            border: 1px solid transparent;
+            min-height: 2.25rem;
+            padding: 0.45rem 0.5rem;
+            font-size: 0.8125rem;
+            font-weight: 600;
+            border-radius: 6px;
+            border: 1px solid var(--border-color);
             cursor: pointer;
             box-sizing: border-box;
+        }
+        #nomina tr.nomina-fila-destacada td {
+            background: #fef08a !important;
+        }
+        #nomina tr.nomina-fila-destacada:hover td {
+            background: #fde047 !important;
         }
 
         .table-section {
@@ -2486,6 +2491,34 @@
         .bienvenida-chip.no { background: rgba(245, 158, 11, 0.2); color: #b45309; }
         .bienvenida-chip.na { background: rgba(107, 114, 128, 0.14); color: #4b5563; }
         .bienvenida-vacio { font-size: 0.78rem; color: var(--gray-500); }
+        .bienvenida-registro {
+            max-height: 220px;
+            overflow: auto;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            background: var(--bg-secondary);
+        }
+        .bienvenida-registro table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.78rem;
+        }
+        .bienvenida-registro th,
+        .bienvenida-registro td {
+            text-align: left;
+            padding: 0.32rem 0.5rem;
+            border-bottom: 1px solid var(--border-color);
+            vertical-align: middle;
+        }
+        .bienvenida-registro th {
+            font-size: 0.7rem;
+            color: var(--gray-600);
+            font-weight: 700;
+            position: sticky;
+            top: 0;
+            background: var(--bg-secondary);
+        }
+        .bienvenida-registro td.fecha { white-space: nowrap; font-variant-numeric: tabular-nums; }
         .unit-cell-bienvenida {
             position: absolute;
             bottom: 1px;
@@ -4674,10 +4707,14 @@
                                 <div class="bienvenida-chips" id="dashboardBienvenidaPendientesList"><span class="bienvenida-vacio">Cargando…</span></div>
                             </div>
                         </div>
-                        <p style="margin: 0.65rem 0 0 0; font-size: 0.75rem; color: var(--gray-500);">Pulse un número para ir a Ocupación. «Enviada» solo aparece si el correo se escribió en el servicio de correo. «En cola» no es un envío. Destinatarios: propietarios, arrendatarios y familiares. Copia (CC) a conserjería: conserjeria.wm815@gmail.com. Las visitas frecuentes/autorizadas no reciben este correo.</p>
+                        <p style="margin: 0.65rem 0 0 0; font-size: 0.75rem; color: var(--gray-500);">Pulse un número para ir a Ocupación. «Enviada» solo aparece si el correo se escribió en el servicio de correo. Cada envío queda con fecha y hora (Santiago). «En cola» no es un envío. Destinatarios: propietarios, arrendatarios y familiares. Copia (CC) a conserjería: conserjeria.wm815@gmail.com. Las visitas frecuentes/autorizadas no reciben este correo.</p>
                         <div id="dashboardBienvenidaSinCorreoWrap" style="margin-top: 0.55rem;">
                             <h4 style="margin: 0 0 0.35rem 0; font-size: 0.75rem; color: var(--gray-600);">Sin correo registrado</h4>
                             <div class="bienvenida-chips" id="dashboardBienvenidaSinCorreoList"></div>
+                        </div>
+                        <div id="dashboardBienvenidaRegistroWrap" style="margin-top: 0.75rem;">
+                            <h4 style="margin: 0 0 0.35rem 0; font-size: 0.8rem; color: var(--gray-700);">Registro de fecha de envío</h4>
+                            <div class="bienvenida-registro" id="dashboardBienvenidaRegistro"><span class="bienvenida-vacio">Cargando…</span></div>
                         </div>
                     </div>
                 </section>
@@ -6221,6 +6258,10 @@
                     <div class="leyenda-item"><span style="font-size: 0.85rem; color: #2563eb;">✉</span><span style="font-size: 0.8rem;">Bienvenida en cola</span></div>
                     <div class="leyenda-item"><span style="font-size: 0.85rem; color: #d97706;">✉</span><span style="font-size: 0.8rem;">Bienvenida pendiente</span></div>
                 </div>
+                <div id="ocupacionBienvenidaRegistroWrap" style="margin: 0 0 12px 0;">
+                    <h4 style="margin: 0 0 0.35rem 0; font-size: 0.85rem; font-weight: 700;">Registro de fecha de envío de bienvenida</h4>
+                    <div class="bienvenida-registro" id="ocupacionBienvenidaRegistro"><span class="bienvenida-vacio">Cargando…</span></div>
+                </div>
                 <div style="margin-bottom: 10px;">
                     <input type="text" id="buildingMapFilterOcupacion" class="form-input" placeholder="🔍 Filtrar por número de unidad, uso, residente, estacionamiento, bodega..." style="width: 100%; max-width: 400px; padding: 0.5rem 0.75rem; font-size: 0.875rem;">
                 </div>
@@ -6629,7 +6670,7 @@
                             </div>
                             <div class="form-group" style="margin-bottom: 0;">
                                 <label style="font-size: 0.8125rem; margin-bottom: 0.25rem;">Estado</label>
-                                <select id="personalEdificioEstado" style="padding: 0.5rem; font-size: 0.875rem; width: 100%;">
+                                <select id="personalEdificioEstado" class="nomina-estado-select" onchange="actualizarEstiloSelectEstadoPersonal(this)" style="padding: 0.5rem; font-size: 0.875rem; width: 100%;">
                                     <option value="activo">Activo</option>
                                     <option value="licencia-medica">Licencia médica</option>
                                     <option value="vacaciones">Vacaciones</option>
@@ -6646,13 +6687,12 @@
                                 <tr style="background: linear-gradient(135deg, #6366f1 0%, #4f46e5 100%); color: white; position: sticky; top: 0;">
                                     <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem;">Nombre</th>
                                     <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem;">Cargo</th>
-                                    <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem;">Estado</th>
                                     <th style="padding: 0.5rem; text-align: center; font-weight: 600; font-size: 0.75rem; width: 120px;">Acciones</th>
                                 </tr>
                             </thead>
                             <tbody id="tbodyPersonalEdificio">
                                 <tr>
-                                    <td colspan="4" style="padding: 1rem; text-align: center; color: var(--gray-500); font-style: italic; font-size: 0.8125rem;">
+                                    <td colspan="3" style="padding: 1rem; text-align: center; color: var(--gray-500); font-style: italic; font-size: 0.8125rem;">
                                         No hay personal registrado. Agregue el primer personal usando el formulario.
                                     </td>
                                 </tr>
@@ -6681,6 +6721,16 @@
                         <div class="form-group" style="margin-bottom: 0.5rem;">
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Cargo *</label>
                             <input type="text" id="trabajadorCargo" required placeholder="Ej: Portero" style="padding: 0.5rem; font-size: 0.875rem;">
+                        </div>
+                        <div class="form-group" style="margin-bottom: 0.5rem;">
+                            <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Estado</label>
+                            <select id="trabajadorEstado" class="nomina-estado-select" onchange="actualizarEstiloSelectEstadoPersonal(this)">
+                                <option value="activo">Activo</option>
+                                <option value="licencia-medica">Licencia médica</option>
+                                <option value="vacaciones">Vacaciones</option>
+                                <option value="permiso-no-remunerado">Permiso no remunerado</option>
+                            </select>
+                            <small style="color: var(--gray-500); font-size: 0.7rem; margin-top: 0.15rem; display: block;">Se mantiene hasta que lo cambie. Licencia y permiso no remunerado van al final, en amarillo.</small>
                         </div>
                         <div class="form-group" style="margin-bottom: 0.5rem;">
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Días Trabajados *</label>
@@ -6751,7 +6801,6 @@
                                 <th style="padding: 0.5rem 0.625rem; text-align: left; font-weight: 600; font-size: 0.6875rem; white-space: nowrap; letter-spacing: 0.02em; color: white !important; border: 1px solid #4a7a15;">Nº</th>
                                 <th style="padding: 0.5rem 0.625rem; text-align: left; font-weight: 600; font-size: 0.6875rem; white-space: nowrap; letter-spacing: 0.02em; color: white !important; border: 1px solid #4a7a15;">Nombre</th>
                                 <th style="padding: 0.5rem 0.625rem; text-align: left; font-weight: 600; font-size: 0.6875rem; white-space: nowrap; letter-spacing: 0.02em; color: white !important; border: 1px solid #4a7a15;">Cargo</th>
-                                <th style="padding: 0.5rem 0.625rem; text-align: left; font-weight: 600; font-size: 0.6875rem; white-space: nowrap; letter-spacing: 0.02em; color: white !important; border: 1px solid #4a7a15;">Estado</th>
                                 <th style="padding: 0.5rem 0.625rem; text-align: center; font-weight: 600; font-size: 0.6875rem; white-space: nowrap; letter-spacing: 0.02em; color: white !important; border: 1px solid #4a7a15;">Días Trab.</th>
                                 <th style="padding: 0.5rem 0.625rem; text-align: center; font-weight: 600; font-size: 0.6875rem; white-space: nowrap; letter-spacing: 0.02em; color: white !important; border: 1px solid #4a7a15;">Lic. Méd.</th>
                                 <th style="padding: 0.5rem 0.625rem; text-align: center; font-weight: 600; font-size: 0.6875rem; white-space: nowrap; letter-spacing: 0.02em; color: white !important; border: 1px solid #4a7a15;">Turnos Fest.</th>
@@ -6766,7 +6815,7 @@
                         </thead>
                         <tbody id="tbodyNomina">
                             <tr>
-                                <td colspan="14" style="padding: 2rem; text-align: center; color: var(--gray-500); font-style: italic;">
+                                <td colspan="13" style="padding: 2rem; text-align: center; color: var(--gray-500); font-style: italic;">
                                     No hay trabajadores registrados. Agregue el primer trabajador usando el formulario.
                                 </td>
                             </tr>
@@ -12283,11 +12332,241 @@
         }
 
         const LS_WELCOME_EMAILS_SENT = (typeof LS_WM_PREFIX === 'string' ? LS_WM_PREFIX : 'wm_gestion_v1:') + 'welcome_emails_sent';
+        const LS_WELCOME_EMAILS_REGISTROS = (typeof LS_WM_PREFIX === 'string' ? LS_WM_PREFIX : 'wm_gestion_v1:') + 'welcome_emails_sent_registros';
         let _bienvenidaResidentesEnCurso = false;
         let _bienvenidaResidentesVistos = null;
+        window._registrosBienvenidaCache = window._registrosBienvenidaCache || {};
 
         function huellaBienvenidaResidente(unidad, correo) {
             return String(unidad || '').trim().toLowerCase() + '|' + String(correo || '').trim().toLowerCase();
+        }
+
+        function registroEnvioBienvenidaDesdeIso(iso, mailId) {
+            var d = iso ? new Date(iso) : new Date();
+            if (isNaN(d.getTime())) d = new Date();
+            var fecha = (typeof obtenerFechaSantiago === 'function') ? obtenerFechaSantiago(d) : d.toISOString().slice(0, 10);
+            var hora = '';
+            try {
+                hora = new Intl.DateTimeFormat('es-CL', {
+                    timeZone: 'America/Santiago',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    hour12: false
+                }).format(d);
+            } catch (eH) {
+                hora = String(d.getHours()).padStart(2, '0') + ':' + String(d.getMinutes()).padStart(2, '0');
+            }
+            return {
+                enviado: true,
+                fecha: fecha,
+                hora: hora,
+                iso: d.toISOString(),
+                mailId: mailId || ''
+            };
+        }
+
+        function parseRegistroEnvioBienvenida(v) {
+            if (v === false || v === 0 || v === '0' || v == null || v === '') return null;
+            if (typeof v === 'object' && !Array.isArray(v)) {
+                var iso = String(v.iso || v.sentAt || '').trim();
+                var fecha = String(v.fecha || '').trim();
+                var hora = String(v.hora || '').trim();
+                if (!fecha && iso) {
+                    var fromIso = registroEnvioBienvenidaDesdeIso(iso, v.mailId || '');
+                    fecha = fromIso.fecha;
+                    hora = hora || fromIso.hora;
+                    iso = fromIso.iso;
+                }
+                return {
+                    enviado: v.enviado !== false,
+                    fecha: fecha,
+                    hora: hora,
+                    iso: iso,
+                    mailId: v.mailId || ''
+                };
+            }
+            return { enviado: true, fecha: '', hora: '', iso: '', mailId: '' };
+        }
+
+        function fusionarRegistrosBienvenidaDesdeMapa(mapa) {
+            if (!mapa || typeof mapa !== 'object' || Array.isArray(mapa)) return;
+            var cache = window._registrosBienvenidaCache || {};
+            Object.keys(mapa).forEach(function (k) {
+                if (!k || k === 'updatedAt' || k === 'huellas' || k === 'datos' || k === 'queue') return;
+                var r = parseRegistroEnvioBienvenida(mapa[k]);
+                if (!r || !r.enviado) return;
+                var prev = cache[k];
+                if (!prev) {
+                    cache[k] = r;
+                    return;
+                }
+                var score = function (x) { return (x.fecha ? 2 : 0) + (x.hora ? 1 : 0) + (x.iso ? 1 : 0) + (x.mailId ? 1 : 0); };
+                if (score(r) > score(prev)) cache[k] = r;
+                else if (score(r) === score(prev) && r.iso && prev.iso && r.iso > prev.iso) cache[k] = r;
+            });
+            window._registrosBienvenidaCache = cache;
+        }
+
+        function fusionarRegistrosBienvenidaDesdeCola(jobs) {
+            (jobs || []).forEach(function (j) {
+                if (!j || j.status !== 'sent') return;
+                var iso = j.sentAt || j.createdAt || '';
+                if (!iso) return;
+                var mailId = j.mailId || '';
+                var mapa = {};
+                (j.huellas || []).forEach(function (h) {
+                    if (!h) return;
+                    mapa[String(h)] = registroEnvioBienvenidaDesdeIso(iso, mailId);
+                });
+                fusionarRegistrosBienvenidaDesdeMapa(mapa);
+            });
+        }
+
+        function guardarRegistrosBienvenidaLocal() {
+            try {
+                localStorage.setItem(LS_WELCOME_EMAILS_REGISTROS, JSON.stringify(window._registrosBienvenidaCache || {}));
+            } catch (e) {}
+        }
+
+        function cargarRegistrosBienvenidaLocal() {
+            try {
+                var raw = localStorage.getItem(LS_WELCOME_EMAILS_REGISTROS);
+                var obj = raw ? JSON.parse(raw) : {};
+                if (obj && typeof obj === 'object' && !Array.isArray(obj)) fusionarRegistrosBienvenidaDesdeMapa(obj);
+            } catch (e) {}
+        }
+
+        function mapaHuellasBienvenidaParaGuardar(setHuellas) {
+            var mapa = {};
+            var regs = window._registrosBienvenidaCache || {};
+            Array.from(setHuellas || []).forEach(function (k) {
+                if (!k) return;
+                var r = regs[k];
+                if (r && (r.fecha || r.hora || r.iso || r.mailId)) {
+                    mapa[k] = {
+                        enviado: true,
+                        fecha: r.fecha || '',
+                        hora: r.hora || '',
+                        iso: r.iso || '',
+                        mailId: r.mailId || ''
+                    };
+                } else {
+                    mapa[k] = { enviado: true, fecha: '', hora: '', iso: '', mailId: '' };
+                }
+            });
+            return mapa;
+        }
+
+        function marcarHuellasBienvenidaEnviadas(listaHuellas, mailId, isoOpcional) {
+            var setH = window._huellasBienvenidaCache || new Set();
+            var cache = window._registrosBienvenidaCache || {};
+            var reg = registroEnvioBienvenidaDesdeIso(isoOpcional || new Date().toISOString(), mailId || '');
+            (listaHuellas || []).forEach(function (h) {
+                if (!h) return;
+                var k = String(h);
+                setH.add(k);
+                cache[k] = {
+                    enviado: true,
+                    fecha: reg.fecha,
+                    hora: reg.hora,
+                    iso: reg.iso,
+                    mailId: mailId || (cache[k] && cache[k].mailId) || ''
+                };
+            });
+            window._huellasBienvenidaCache = setH;
+            window._registrosBienvenidaCache = cache;
+            guardarHuellasBienvenidaLocal(setH);
+            return setH;
+        }
+
+        function textoFechaEnvioBienvenida(reg) {
+            if (!reg) return '';
+            var fecha = String(reg.fecha || '').trim();
+            if (!fecha) return '';
+            var pretty = fecha;
+            if (/^\d{4}-\d{2}-\d{2}$/.test(fecha) && typeof formatearFechaParaCorreo === 'function') {
+                pretty = formatearFechaParaCorreo(fecha);
+            } else if (/^\d{4}-\d{2}-\d{2}$/.test(fecha)) {
+                pretty = fecha.slice(8, 10) + '/' + fecha.slice(5, 7) + '/' + fecha.slice(0, 4);
+            }
+            var hora = String(reg.hora || '').trim();
+            return pretty + (hora ? (' ' + hora) : '');
+        }
+
+        function registroEnvioBienvenidaUnidad(unitOrNum) {
+            var unit = unitOrNum && typeof unitOrNum === 'object' ? unitOrNum : null;
+            if (!unit && typeof buscarUnidadOcupacionPorNumero === 'function') {
+                unit = buscarUnidadOcupacionPorNumero(unitOrNum);
+            }
+            var num = String((unit && (unit.unitNumber || unit.departamento)) || unitOrNum || '').trim();
+            if (!num) return null;
+            var correos = (unit && typeof correosUnidadResidentes === 'function') ? correosUnidadResidentes(unit) : [];
+            var cache = window._registrosBienvenidaCache || {};
+            var keys = [];
+            if (correos.length) {
+                correos.forEach(function (c) { keys.push(huellaBienvenidaResidente(num, c)); });
+            } else {
+                var pref = String(num).toLowerCase() + '|';
+                Object.keys(cache).forEach(function (k) { if (String(k).indexOf(pref) === 0) keys.push(k); });
+            }
+            var mejor = null;
+            keys.forEach(function (h) {
+                var r = cache[h];
+                if (!r || !r.enviado) return;
+                if (!mejor) { mejor = r; return; }
+                var a = r.iso || (r.fecha + 'T' + (r.hora || '00:00'));
+                var b = mejor.iso || (mejor.fecha + 'T' + (mejor.hora || '00:00'));
+                if (a > b) mejor = r;
+            });
+            return mejor;
+        }
+
+        function htmlDetalleEnviosBienvenidaUnidad(unit, escFn) {
+            escFn = escFn || function (s) { return String(s || '').replace(/</g, '&lt;'); };
+            var correos = (typeof correosUnidadResidentes === 'function') ? correosUnidadResidentes(unit) : [];
+            if (!correos.length) return '';
+            var num = String((unit && (unit.unitNumber || unit.departamento)) || '').trim();
+            var cache = window._registrosBienvenidaCache || {};
+            var setH = window._huellasBienvenidaCache || new Set();
+            return correos.map(function (c) {
+                var h = huellaBienvenidaResidente(num, c);
+                var r = cache[h];
+                var txt = textoFechaEnvioBienvenida(r);
+                var estado = setH.has(h)
+                    ? (txt ? ('Enviada el ' + txt) : 'Enviada (sin fecha registrada)')
+                    : 'No enviada';
+                return '<div style="font-size:0.74rem;margin-top:3px;line-height:1.35;">' + escFn(c) + ' — <b>' + escFn(estado) + '</b></div>';
+            }).join('');
+        }
+
+        function htmlRegistroEnviosBienvenida(numsEnviadas) {
+            var nums = numsEnviadas || [];
+            if (!nums.length) return '<span class="bienvenida-vacio">Sin envíos registrados</span>';
+            var filas = nums.map(function (n) {
+                var r = registroEnvioBienvenidaUnidad(n);
+                var txt = textoFechaEnvioBienvenida(r);
+                return {
+                    unidad: n,
+                    fecha: txt || 'Sin fecha registrada (envío anterior)',
+                    sort: (r && (r.iso || r.fecha)) || ''
+                };
+            });
+            filas.sort(function (a, b) {
+                var da = a.sort ? 1 : 0;
+                var db = b.sort ? 1 : 0;
+                if (da !== db) return db - da;
+                if (a.sort && b.sort && a.sort !== b.sort) return a.sort < b.sort ? 1 : -1;
+                var na = parseInt(String(a.unidad).replace(/\D/g, ''), 10) || 0;
+                var nb = parseInt(String(b.unidad).replace(/\D/g, ''), 10) || 0;
+                return na - nb;
+            });
+            var html = '<table><thead><tr><th>Unidad</th><th>Fecha de envío</th></tr></thead><tbody>';
+            filas.forEach(function (f) {
+                var u = String(f.unidad).replace(/</g, '&lt;').replace(/"/g, '&quot;');
+                html += '<tr><td><button type="button" class="bienvenida-chip ok" data-unidad="' + u + '">' + u + '</button></td><td class="fecha">' + String(f.fecha).replace(/</g, '&lt;') + '</td></tr>';
+            });
+            html += '</tbody></table>';
+            return html;
         }
 
         function colaPendienteDesdeWelcomeDoc(data) {
@@ -12310,6 +12589,7 @@
 
         function cargarHuellasBienvenidaLocal() {
             const out = new Set();
+            cargarRegistrosBienvenidaLocal();
             try {
                 const raw = localStorage.getItem(LS_WELCOME_EMAILS_SENT);
                 const arr = raw ? JSON.parse(raw) : [];
@@ -12322,6 +12602,7 @@
             try {
                 localStorage.setItem(LS_WELCOME_EMAILS_SENT, JSON.stringify(Array.from(setHuellas)));
             } catch (e) {}
+            guardarRegistrosBienvenidaLocal();
         }
 
         function obtenerAppWelcomeConserjeria() {
@@ -12357,6 +12638,7 @@
         function parseHuellasBienvenidaMapa(mapa) {
             var out = new Set();
             if (!mapa || typeof mapa !== 'object' || Array.isArray(mapa)) return out;
+            fusionarRegistrosBienvenidaDesdeMapa(mapa);
             Object.keys(mapa).forEach(function (k) {
                 if (!k || k === 'updatedAt' || k === 'huellas' || k === 'datos' || k === 'queue') return;
                 var v = mapa[k];
@@ -12394,14 +12676,22 @@
 
         async function guardarHuellasBienvenidaEnPuenteConserjeria(setHuellas) {
             var ref = await obtenerRefWelcomeCompartido();
-            var actuales = new Set();
+            var actualesMapa = {};
             try {
                 var snap = await ref.get();
-                if (snap && snap.exists) actuales = parseHuellasDesdeWelcomeDoc(snap.data() || {});
+                if (snap && snap.exists) {
+                    var data = snap.data() || {};
+                    if (data.huellas && typeof data.huellas === 'object' && !Array.isArray(data.huellas)) {
+                        actualesMapa = data.huellas;
+                    }
+                    fusionarRegistrosBienvenidaDesdeCola(data.queue);
+                }
             } catch (ePrev) {}
-            Array.from(setHuellas || []).forEach(function (k) { if (k) actuales.add(String(k)); });
-            var huellas = {};
-            actuales.forEach(function (k) { huellas[k] = true; });
+            fusionarRegistrosBienvenidaDesdeMapa(actualesMapa);
+            var union = new Set();
+            Object.keys(actualesMapa).forEach(function (k) { if (k) union.add(String(k)); });
+            Array.from(setHuellas || []).forEach(function (k) { if (k) union.add(String(k)); });
+            var huellas = mapaHuellasBienvenidaParaGuardar(union);
             await ref.set({
                 huellas: huellas,
                 updatedAt: firebase.firestore.FieldValue.serverTimestamp(),
@@ -12417,6 +12707,7 @@
                 var setH = parseHuellasDesdeWelcomeDoc(data);
                 window._huellasBienvenidaCache = setH;
                 window._colaBienvenidaPendiente = colaPendienteDesdeWelcomeDoc(data);
+                fusionarRegistrosBienvenidaDesdeCola(data.queue);
                 guardarHuellasBienvenidaLocal(setH);
                 if (typeof scheduleRefrescarEstadoBienvenidaUnidades === 'function') {
                     scheduleRefrescarEstadoBienvenidaUnidades();
@@ -12512,7 +12803,8 @@
                         job.status = 'sent';
                         job.sentAt = new Date().toISOString();
                         job.mailId = resultado.docId;
-                        (job.huellas || []).forEach(function (h) { if (h) huellas.add(String(h)); });
+                        marcarHuellasBienvenidaEnviadas(job.huellas || [], resultado.docId, job.sentAt);
+                        huellas = window._huellasBienvenidaCache || huellas;
                         cambio = true;
                         enviadosOk += 1;
                     } else if (resultado && resultado.reintentar) {
@@ -12528,8 +12820,7 @@
                     }
                 }
                 if (cambio) {
-                    var mapaH = {};
-                    huellas.forEach(function (k) { mapaH[k] = true; });
+                    var mapaH = mapaHuellasBienvenidaParaGuardar(huellas);
                     await ref.set({
                         queue: jobs,
                         huellas: mapaH,
@@ -12558,6 +12849,7 @@
                     var data = (snap && snap.exists) ? (snap.data() || {}) : {};
                     window._huellasBienvenidaCache = parseHuellasDesdeWelcomeDoc(data);
                     window._colaBienvenidaPendiente = colaPendienteDesdeWelcomeDoc(data);
+                    fusionarRegistrosBienvenidaDesdeCola(data.queue);
                     guardarHuellasBienvenidaLocal(window._huellasBienvenidaCache);
                     if (typeof scheduleRefrescarEstadoBienvenidaUnidades === 'function') {
                         scheduleRefrescarEstadoBienvenidaUnidades();
@@ -12591,6 +12883,7 @@
                 const mapa = (inner.huellas && typeof inner.huellas === 'object' && !Array.isArray(inner.huellas))
                     ? inner.huellas
                     : inner;
+                fusionarRegistrosBienvenidaDesdeMapa(mapa);
                 if (mapa && typeof mapa === 'object' && !Array.isArray(mapa)) {
                     Object.keys(mapa).forEach(function (k) {
                         if (!k || k === 'updatedAt' || k === 'huellas' || k === 'datos') return;
@@ -12607,8 +12900,7 @@
 
         async function guardarHuellasBienvenidaCloud(setHuellas) {
             try {
-                const huellas = {};
-                Array.from(setHuellas).forEach(function (k) { huellas[k] = true; });
+                const huellas = mapaHuellasBienvenidaParaGuardar(setHuellas);
                 const payload = { huellas: huellas, updatedAt: new Date().toISOString() };
                 try { await guardarHuellasBienvenidaEnPuenteConserjeria(setHuellas); } catch (eP) {}
                 const dbNube = await obtenerDbBienvenidaNube();
@@ -12620,6 +12912,7 @@
                     }, { merge: true });
                 }
                 window._huellasBienvenidaCache = new Set(setHuellas);
+                guardarRegistrosBienvenidaLocal();
                 if (typeof scheduleRefrescarEstadoBienvenidaUnidades === 'function') {
                     scheduleRefrescarEstadoBienvenidaUnidades();
                 }
@@ -12631,6 +12924,7 @@
         window._huellasBienvenidaCache = window._huellasBienvenidaCache || new Set();
         window._colaBienvenidaPendiente = window._colaBienvenidaPendiente || new Set();
         window._clasificacionBienvenida = window._clasificacionBienvenida || { enviadas: [], enCola: [], pendientes: [], sinCorreo: [] };
+        try { cargarRegistrosBienvenidaLocal(); } catch (eRegB) {}
         let _unsubHuellasBienvenida = null;
         let _refrescarBienvenidaTimer = null;
 
@@ -12700,7 +12994,15 @@
             if (!nums || !nums.length) return '<span class="bienvenida-vacio">Ninguna</span>';
             return nums.map(function (n) {
                 var t = String(n).replace(/</g, '&lt;').replace(/"/g, '&quot;');
-                return '<button type="button" class="bienvenida-chip ' + clase + '" data-unidad="' + t + '">' + t + '</button>';
+                var title = 'Unidad ' + t;
+                if (clase === 'ok') {
+                    var r = registroEnvioBienvenidaUnidad(n);
+                    var f = textoFechaEnvioBienvenida(r);
+                    title = f ? ('Bienvenida enviada el ' + f) : 'Bienvenida enviada';
+                } else if (clase === 'cola') title = 'Bienvenida en cola (aún no enviada)';
+                else if (clase === 'no') title = 'Bienvenida pendiente (no enviada)';
+                else if (clase === 'na') title = 'Sin correo registrado';
+                return '<button type="button" class="bienvenida-chip ' + clase + '" data-unidad="' + t + '" title="' + String(title).replace(/"/g, '&quot;') + '">' + t + '</button>';
             }).join('');
         }
 
@@ -12752,6 +13054,13 @@
             if (listCola) { listCola.innerHTML = htmlChipsBienvenida(c.enCola, 'cola'); bindChipsBienvenida(listCola); }
             if (listNo) { listNo.innerHTML = htmlChipsBienvenida(c.pendientes, 'no'); bindChipsBienvenida(listNo); }
             if (listNa) { listNa.innerHTML = htmlChipsBienvenida(c.sinCorreo, 'na'); bindChipsBienvenida(listNa); }
+            var htmlReg = htmlRegistroEnviosBienvenida(c.enviadas);
+            ['dashboardBienvenidaRegistro', 'ocupacionBienvenidaRegistro'].forEach(function (id) {
+                var el = document.getElementById(id);
+                if (!el) return;
+                el.innerHTML = htmlReg;
+                bindChipsBienvenida(el);
+            });
         }
 
         async function refrescarEstadoBienvenidaUnidades() {
@@ -12766,6 +13075,7 @@
                     var data = (snap && snap.exists) ? (snap.data() || {}) : {};
                     setH = parseHuellasDesdeWelcomeDoc(data);
                     setCola = colaPendienteDesdeWelcomeDoc(data);
+                    fusionarRegistrosBienvenidaDesdeCola(data.queue);
                 } catch (eDoc) {
                     if (window._huellasBienvenidaCache) setH = window._huellasBienvenidaCache;
                     if (window._colaBienvenidaPendiente) setCola = window._colaBienvenidaPendiente;
@@ -12773,8 +13083,19 @@
                 window._huellasBienvenidaCache = setH;
                 window._colaBienvenidaPendiente = setCola;
                 guardarHuellasBienvenidaLocal(setH);
+                guardarRegistrosBienvenidaLocal();
                 window._clasificacionBienvenida = clasificarUnidadesBienvenida(window.vinculacionUnits || [], setH, setCola);
                 pintarPanelBienvenidaControl(window._clasificacionBienvenida);
+                if (!window._backfillFechasBienvenidaHecho) {
+                    var regsB = window._registrosBienvenidaCache || {};
+                    var hayFechaB = Object.keys(regsB).some(function (k) { return regsB[k] && regsB[k].fecha; });
+                    if (hayFechaB && setH && setH.size) {
+                        window._backfillFechasBienvenidaHecho = true;
+                        guardarHuellasBienvenidaCloud(setH).catch(function () {
+                            window._backfillFechasBienvenidaHecho = false;
+                        });
+                    }
+                }
                 if (typeof updateBuildingMapOcupacion === 'function' && document.getElementById('buildingMapOcupacion')) {
                     updateBuildingMapOcupacion();
                 }
@@ -12803,7 +13124,15 @@
             try {
                 var dbNube = await obtenerDbBienvenidaNube();
                 if (!dbNube) return;
-                _unsubHuellasBienvenida = dbNube.collection('comunidad').doc('welcomeEmailsEnviados').onSnapshot(function () {
+                _unsubHuellasBienvenida = dbNube.collection('comunidad').doc('welcomeEmailsEnviados').onSnapshot(function (snap) {
+                    try {
+                        var dataSnap = (snap && snap.exists) ? (snap.data() || {}) : {};
+                        var innerSnap = (dataSnap.datos && typeof dataSnap.datos === 'object') ? dataSnap.datos : dataSnap;
+                        var mapaSnap = (innerSnap.huellas && typeof innerSnap.huellas === 'object' && !Array.isArray(innerSnap.huellas))
+                            ? innerSnap.huellas
+                            : innerSnap;
+                        fusionarRegistrosBienvenidaDesdeMapa(mapaSnap);
+                    } catch (eS) {}
                     scheduleRefrescarEstadoBienvenidaUnidades();
                 }, function (err) {
                     console.warn('[bienvenida] listener huellas Gestión:', err);
@@ -12960,21 +13289,20 @@
                         okLotes += 1;
                         const setLote = {};
                         lotes[i].forEach(function (c) { setLote[String(c).toLowerCase()] = true; });
+                        const huellasLote = [];
                         rec.huellas.forEach(function (h) {
                             var p = String(h).split('|');
-                            if (p[1] && setLote[p[1]]) huellasOk.push(h);
+                            if (p[1] && setLote[p[1]]) huellasLote.push(h);
                         });
+                        marcarHuellasBienvenidaEnviadas(huellasLote, resultado.docId);
+                        huellasLote.forEach(function (h) { huellasOk.push(h); });
                     } else errLotes += 1;
                     if (progreso && typeof progreso.actualizar === 'function') {
                         progreso.actualizar(i + 1, lotes.length, 'Lote ' + (i + 1) + ' de ' + lotes.length + ' (CCO)…');
                     }
                 }
                 if (huellasOk.length) {
-                    const confirmadas = window._huellasBienvenidaCache || new Set();
-                    huellasOk.forEach(function (h) { confirmadas.add(h); });
-                    window._huellasBienvenidaCache = confirmadas;
-                    guardarHuellasBienvenidaLocal(confirmadas);
-                    await guardarHuellasBienvenidaCloud(confirmadas);
+                    await guardarHuellasBienvenidaCloud(window._huellasBienvenidaCache || new Set());
                 }
                 const resumen = errLotes
                     ? 'Se encolaron ' + okLotes + ' envío(s) en CCO (' + rec.correos.length + ' correos de ' + rec.unidadesConCorreo + ' unidades). Falló ' + errLotes + ' lote(s).'
@@ -13020,15 +13348,15 @@
                 const resultado = await enviarCorreoBienvenidaAUnidad(unit, destinatarios);
                 if (typeof ocultarProgreso === 'function') ocultarProgreso();
                 if (resultado && resultado.exito && resultado.docId) {
-                    const confirmadas = window._huellasBienvenidaCache || new Set();
-                    destinatarios.forEach(function (c) {
-                        confirmadas.add(huellaBienvenidaResidente(unidad, c));
+                    const huellasUnidad = destinatarios.map(function (c) {
+                        return huellaBienvenidaResidente(unidad, c);
                     });
-                    window._huellasBienvenidaCache = confirmadas;
-                    guardarHuellasBienvenidaLocal(confirmadas);
-                    await guardarHuellasBienvenidaCloud(confirmadas);
+                    marcarHuellasBienvenidaEnviadas(huellasUnidad, resultado.docId);
+                    await guardarHuellasBienvenidaCloud(window._huellasBienvenidaCache || new Set());
+                    var fechaEnvio = textoFechaEnvioBienvenida(registroEnvioBienvenidaUnidad(unit));
                     mostrarAlerta(
-                        'Correo de bienvenida enviado a la unidad ' + unidad + ' (' + destinatarios.join(', ') + ').',
+                        'Correo de bienvenida enviado a la unidad ' + unidad + ' (' + destinatarios.join(', ') + ').' +
+                        (fechaEnvio ? ('\n\nFecha de envío: ' + fechaEnvio) : ''),
                         'Bienvenida enviada'
                     );
                 } else {
@@ -30865,8 +31193,12 @@
                         var tieneMascota = !!unit.hasPet;
                         var estB = typeof estadoBienvenidaUnidad === 'function' ? estadoBienvenidaUnidad(unit) : '';
                         var marcaB = '';
-                        if (estB === 'enviada') marcaB = '<span class="unit-cell-bienvenida ok" title="Bienvenida enviada">✉</span>';
-                        else if (estB === 'en-cola') marcaB = '<span class="unit-cell-bienvenida cola" title="Bienvenida en cola (aún no enviada)">✉</span>';
+                        var titEnv = '';
+                        if (estB === 'enviada') {
+                            var regMapa = typeof registroEnvioBienvenidaUnidad === 'function' ? registroEnvioBienvenidaUnidad(unit) : null;
+                            titEnv = (typeof textoFechaEnvioBienvenida === 'function') ? textoFechaEnvioBienvenida(regMapa) : '';
+                            marcaB = '<span class="unit-cell-bienvenida ok" title="' + (titEnv ? ('Bienvenida enviada el ' + titEnv.replace(/"/g, '&quot;')) : 'Bienvenida enviada') + '">✉</span>';
+                        } else if (estB === 'en-cola') marcaB = '<span class="unit-cell-bienvenida cola" title="Bienvenida en cola (aún no enviada)">✉</span>';
                         else if (estB === 'pendiente') marcaB = '<span class="unit-cell-bienvenida no" title="Bienvenida pendiente (no enviada)">✉</span>';
                         if (tieneNota || tieneContrato || tieneMascota || marcaB) {
                             var indicadores = '';
@@ -30877,7 +31209,7 @@
                         } else {
                             cell.textContent = unitNumber;
                         }
-                        var titB = estB === 'enviada' ? ' - Bienvenida enviada' : (estB === 'en-cola' ? ' - Bienvenida en cola (aún no enviada)' : (estB === 'pendiente' ? ' - Bienvenida pendiente (no enviada)' : (estB === 'sin-correo' ? ' - Sin correo' : '')));
+                        var titB = estB === 'enviada' ? (titEnv ? (' - Bienvenida enviada el ' + titEnv) : ' - Bienvenida enviada') : (estB === 'en-cola' ? ' - Bienvenida en cola (aún no enviada)' : (estB === 'pendiente' ? ' - Bienvenida pendiente (no enviada)' : (estB === 'sin-correo' ? ' - Sin correo' : '')));
                         cell.title = 'Unidad ' + unitNumber + ' - ' + (unit.unitUse || '') + ' - ' + (unit.residents ? unit.residents.length : 0) + ' residentes' + (unit.hasPet ? ' - Mascota' : '') + titB + ' (clic para ver detalle)';
                         cell.style.cursor = 'pointer';
                         (function(u) {
@@ -30932,12 +31264,15 @@
             var mascotaHtml = unit.hasPet ? '<div style="margin:6px 0;padding:6px 8px;background:rgba(117,187,33,0.12);border-radius:6px;border:1px solid var(--primary);"><span style="font-size:0.8rem;font-weight:600;">🐾 Unidad con mascota</span></div>' : '';
             var estB = typeof estadoBienvenidaUnidad === 'function' ? estadoBienvenidaUnidad(unit) : '';
             var bienvenidaHtml = '';
+            var detalleFechasB = (typeof htmlDetalleEnviosBienvenidaUnidad === 'function') ? htmlDetalleEnviosBienvenidaUnidad(unit, esc) : '';
             if (estB === 'enviada') {
-                bienvenidaHtml = '<div style="margin:6px 0;padding:6px 8px;background:rgba(16,185,129,0.12);border-radius:6px;border:1px solid #10b981;"><span style="font-size:0.8rem;font-weight:600;">✉ Bienvenida enviada</span></div>';
+                var regB = typeof registroEnvioBienvenidaUnidad === 'function' ? registroEnvioBienvenidaUnidad(unit) : null;
+                var fechaB = typeof textoFechaEnvioBienvenida === 'function' ? textoFechaEnvioBienvenida(regB) : '';
+                bienvenidaHtml = '<div style="margin:6px 0;padding:6px 8px;background:rgba(16,185,129,0.12);border-radius:6px;border:1px solid #10b981;"><div style="font-size:0.8rem;font-weight:600;">✉ Bienvenida enviada' + (fechaB ? (' el ' + esc(fechaB)) : '') + '</div>' + (detalleFechasB || '') + '</div>';
             } else if (estB === 'en-cola') {
-                bienvenidaHtml = '<div style="margin:6px 0;padding:6px 8px;background:rgba(37,99,235,0.12);border-radius:6px;border:1px solid #2563eb;"><span style="font-size:0.8rem;font-weight:600;">✉ Bienvenida en cola (aún no enviada)</span></div>';
+                bienvenidaHtml = '<div style="margin:6px 0;padding:6px 8px;background:rgba(37,99,235,0.12);border-radius:6px;border:1px solid #2563eb;"><div style="font-size:0.8rem;font-weight:600;">✉ Bienvenida en cola (aún no enviada)</div>' + (detalleFechasB || '') + '</div>';
             } else if (estB === 'pendiente') {
-                bienvenidaHtml = '<div style="margin:6px 0;padding:6px 8px;background:rgba(245,158,11,0.14);border-radius:6px;border:1px solid #f59e0b;"><span style="font-size:0.8rem;font-weight:600;">✉ Bienvenida pendiente (no enviada)</span></div>';
+                bienvenidaHtml = '<div style="margin:6px 0;padding:6px 8px;background:rgba(245,158,11,0.14);border-radius:6px;border:1px solid #f59e0b;"><div style="font-size:0.8rem;font-weight:600;">✉ Bienvenida pendiente (no enviada)</div>' + (detalleFechasB || '') + '</div>';
             } else if (estB === 'sin-correo') {
                 bienvenidaHtml = '<div style="margin:6px 0;padding:6px 8px;background:var(--bg-secondary);border-radius:6px;border:1px solid var(--border-color);"><span style="font-size:0.8rem;font-weight:600;">✉ Sin correo registrado</span></div>';
             }
@@ -41573,6 +41908,33 @@
             return ESTADOS_PERSONAL_NOMINA[normalizarEstadoPersonalNomina(valor)].label;
         }
 
+        function estadoPersonalDestacadoNomina(valor) {
+            const e = normalizarEstadoPersonalNomina(valor);
+            return e === 'licencia-medica' || e === 'permiso-no-remunerado';
+        }
+
+        function estadoPersonalDeNombreNomina(nombre) {
+            const info = infoEstadoPersonalPorNombre(nombre);
+            return info ? info.estado : 'activo';
+        }
+
+        function ordenarPorEstadoDestacadoNomina(lista, obtenerNombre) {
+            const items = Array.isArray(lista) ? lista.slice() : [];
+            const normales = [];
+            const destacados = [];
+            items.forEach(item => {
+                const nombre = typeof obtenerNombre === 'function' ? obtenerNombre(item) : (item && item.nombre);
+                if (estadoPersonalDestacadoNomina(estadoPersonalDeNombreNomina(nombre))) destacados.push(item);
+                else normales.push(item);
+            });
+            return normales.concat(destacados);
+        }
+
+        function htmlEtiquetaEstadoDestacadoNomina(estado) {
+            if (!estadoPersonalDestacadoNomina(estado)) return '';
+            return ` <span style="display:inline-block;margin-left:0.35rem;font-size:0.65rem;font-weight:700;color:#854d0e;text-transform:uppercase;letter-spacing:0.02em;">${etiquetaEstadoPersonalNomina(estado)}</span>`;
+        }
+
         function actualizarMapaEstadoPersonalNomina(personal) {
             const mapa = {};
             (Array.isArray(personal) ? personal : []).forEach(p => {
@@ -41600,33 +41962,6 @@
             sel.setAttribute('data-estado', est);
             sel.style.cssText = ESTADOS_PERSONAL_NOMINA[est].estilo;
         }
-
-        function htmlSelectEstadoPersonalNomina(id, estado) {
-            const actual = normalizarEstadoPersonalNomina(estado);
-            const idEsc = String(id || '').replace(/\\/g, '\\\\').replace(/'/g, "\\'");
-            const opciones = Object.keys(ESTADOS_PERSONAL_NOMINA).map(v => {
-                return `<option value="${v}"${v === actual ? ' selected' : ''}>${ESTADOS_PERSONAL_NOMINA[v].label}</option>`;
-            }).join('');
-            return `<select class="nomina-estado-select" data-estado="${actual}" style="${ESTADOS_PERSONAL_NOMINA[actual].estilo}" onchange="cambiarEstadoPersonalEdificio('${idEsc}', this.value); actualizarEstiloSelectEstadoPersonal(this);" title="El estado se mantiene hasta que lo cambie">${opciones}</select>`;
-        }
-
-        async function cambiarEstadoPersonalEdificio(id, estado) {
-            const nuevo = normalizarEstadoPersonalNomina(estado);
-            const personalRaw = await obtenerDatos('personalEdificio');
-            const personal = deduplicarEmpleadosNomina(Array.isArray(personalRaw) ? personalRaw : []);
-            const idx = personal.findIndex(p => idsIgualesNomina(p.id, id));
-            if (idx === -1) return;
-            if (normalizarEstadoPersonalNomina(personal[idx].estado) === nuevo) return;
-            personal[idx].estado = nuevo;
-            await guardarDatos('personalEdificio', personal);
-            actualizarMapaEstadoPersonalNomina(personal);
-            if (typeof window.registrarMovimiento === 'function') {
-                window.registrarMovimiento('actualizar', 'nomina', `Estado de ${personal[idx].nombre}: ${etiquetaEstadoPersonalNomina(nuevo)}`);
-            }
-            await cargarPersonalEdificio();
-            if (typeof cargarTablaNomina === 'function') cargarTablaNomina();
-        }
-        window.cambiarEstadoPersonalEdificio = cambiarEstadoPersonalEdificio;
         window.actualizarEstiloSelectEstadoPersonal = actualizarEstiloSelectEstadoPersonal;
 
         function deduplicarEmpleadosNomina(lista) {
@@ -41790,6 +42125,7 @@
 
             const nombre = document.getElementById('trabajadorNombre').value.trim();
             const cargo = document.getElementById('trabajadorCargo').value.trim();
+            const estadoPersonal = normalizarEstadoPersonalNomina(document.getElementById('trabajadorEstado') && document.getElementById('trabajadorEstado').value);
 
             if (!nombre || !cargo) {
                 mostrarAlerta('Por favor complete todos los campos obligatorios.', 'Campos Incompletos');
@@ -41825,9 +42161,11 @@
 
                 const personal = await obtenerDatos('personalEdificio');
                 const personalEncontrado = Array.isArray(personal) ? personal.find(p => p.nombre === nombre) : null;
-                if (personalEncontrado && cargo) {
-                    personalEncontrado.cargo = cargo;
+                if (personalEncontrado) {
+                    if (cargo) personalEncontrado.cargo = cargo;
+                    personalEncontrado.estado = estadoPersonal;
                     await guardarDatos('personalEdificio', personal);
+                    actualizarMapaEstadoPersonalNomina(personal);
                 }
 
                 if (idEditando) {
@@ -41882,6 +42220,11 @@
             document.getElementById('trabajadorHorasExtras100').value = trabajador.horasExtras100 || 0;
             document.getElementById('trabajadorAnticipos').value = trabajador.anticipos;
             document.getElementById('trabajadorObservaciones').value = trabajador.observaciones || '';
+            const selEstadoTrab = document.getElementById('trabajadorEstado');
+            if (selEstadoTrab) {
+                selEstadoTrab.value = estadoPersonalDeNombreNomina(trabajador.nombre);
+                actualizarEstiloSelectEstadoPersonal(selEstadoTrab);
+            }
 
             // Establecer modo edición
             trabajadorEditando = String(id);
@@ -41984,6 +42327,11 @@
             document.getElementById('trabajadorHorasExtras50').value = 0;
             document.getElementById('trabajadorHorasExtras100').value = 0;
             document.getElementById('trabajadorAnticipos').value = 0;
+            const selEstadoLimpio = document.getElementById('trabajadorEstado');
+            if (selEstadoLimpio) {
+                selEstadoLimpio.value = 'activo';
+                actualizarEstiloSelectEstadoPersonal(selEstadoLimpio);
+            }
             trabajadorEditando = null;
             document.getElementById('btnGuardarTrabajador').textContent = 'Agregar Trabajador';
             document.getElementById('btnCancelarEdicionNomina').style.display = 'none';
@@ -42011,7 +42359,7 @@
             if (trabajadoresNomina.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="14" style="padding: 2rem; text-align: center; color: var(--gray-500); font-style: italic;">
+                        <td colspan="13" style="padding: 2rem; text-align: center; color: var(--gray-500); font-style: italic;">
                             No hay trabajadores registrados. Agregue el primer trabajador usando el formulario.
                         </td>
                     </tr>
@@ -42033,6 +42381,8 @@
             let totalDescuentosGeneral = 0;
             let totalPagarGeneral = 0;
 
+            trabajadoresNomina = ordenarPorEstadoDestacadoNomina(trabajadoresNomina, t => t && t.nombre);
+
             tbody.innerHTML = trabajadoresNomina.map((trabajador, index) => {
                 const calculos = calcularTotalesTrabajador(trabajador);
                 
@@ -42053,18 +42403,16 @@
                 totalDescuentosGeneral += calculos.totalDescuentos;
                 totalPagarGeneral += calculos.totalPagar;
 
-                const esPar = index % 2 === 0;
-                const bgColor = esPar ? 'white' : '#f9fafb';
-                const infoEstado = infoEstadoPersonalPorNombre(trabajador.nombre);
-                const htmlEstado = infoEstado && infoEstado.id
-                    ? htmlSelectEstadoPersonalNomina(infoEstado.id, infoEstado.estado)
-                    : `<span style="font-size: 0.72rem; color: #6b7280;">${etiquetaEstadoPersonalNomina('activo')}</span>`;
+                const estadoPers = estadoPersonalDeNombreNomina(trabajador.nombre);
+                const destacado = estadoPersonalDestacadoNomina(estadoPers);
+                const bgColor = destacado ? '#fef08a' : (index % 2 === 0 ? 'white' : '#f9fafb');
+                const hoverColor = destacado ? '#fde047' : '#f3f4f6';
+                const claseFila = destacado ? ' nomina-fila-destacada' : '';
                 return `
-                    <tr style="background-color: ${bgColor}; border: 1px solid #e5e7eb; transition: background-color 0.2s ease;" onmouseover="this.style.backgroundColor='#f3f4f6'" onmouseout="this.style.backgroundColor='${bgColor}'">
+                    <tr class="${claseFila.trim()}" style="background-color: ${bgColor}; border: 1px solid #e5e7eb; transition: background-color 0.2s ease;" onmouseover="this.style.backgroundColor='${hoverColor}'" onmouseout="this.style.backgroundColor='${bgColor}'">
                         <td style="padding: 0.5rem 0.625rem; text-align: center; font-weight: 600; color: #111827; font-size: 0.8125rem; border: 1px solid #e5e7eb;">${index + 1}</td>
-                        <td style="padding: 0.5rem 0.625rem; font-weight: 600; color: #111827; font-size: 0.8125rem; border: 1px solid #e5e7eb;">${trabajador.nombre}</td>
+                        <td style="padding: 0.5rem 0.625rem; font-weight: 600; color: #111827; font-size: 0.8125rem; border: 1px solid #e5e7eb;">${trabajador.nombre}${htmlEtiquetaEstadoDestacadoNomina(estadoPers)}</td>
                         <td style="padding: 0.5rem 0.625rem; color: #111827; font-size: 0.8125rem; border: 1px solid #e5e7eb;">${trabajador.cargo}</td>
-                        <td style="padding: 0.5rem 0.625rem; text-align: left; border: 1px solid #e5e7eb; min-width: 8.5rem;">${htmlEstado}</td>
                         <td style="padding: 0.5rem 0.625rem; text-align: center; color: #111827; font-size: 0.8125rem; border: 1px solid #e5e7eb;">${trabajador.diasTrabajados}</td>
                         <td style="padding: 0.5rem 0.625rem; text-align: center; color: #111827; font-size: 0.8125rem; border: 1px solid #e5e7eb;">${trabajador.licenciaMedica}</td>
                         <td style="padding: 0.5rem 0.625rem; text-align: center; color: #111827; font-size: 0.8125rem; border: 1px solid #e5e7eb;">${trabajador.turnosFestivos}</td>
@@ -42089,7 +42437,7 @@
             // Agregar fila de totales
             tfoot.innerHTML = `
                 <tr style="background: linear-gradient(135deg, #374151 0%, #4b5563 100%); font-weight: 700;">
-                    <td colspan="4" style="padding: 0.75rem 0.625rem; text-align: right; color: white !important; font-size: 0.875rem; border: 1px solid #6b7280;">TOTALES:</td>
+                    <td colspan="3" style="padding: 0.75rem 0.625rem; text-align: right; color: white !important; font-size: 0.875rem; border: 1px solid #6b7280;">TOTALES:</td>
                     <td style="padding: 0.75rem 0.625rem; text-align: center; color: white !important; font-size: 0.8125rem; border: 1px solid #6b7280;">${totalDiasTrabajados}</td>
                     <td style="padding: 0.75rem 0.625rem; text-align: center; color: white !important; font-size: 0.8125rem; border: 1px solid #6b7280;">${totalLicenciaMedica}</td>
                     <td style="padding: 0.75rem 0.625rem; text-align: center; color: white !important; font-size: 0.8125rem; border: 1px solid #6b7280;">${totalTurnosFestivos}</td>
@@ -42129,6 +42477,7 @@
             try {
                 actualizarMapaEstadoPersonalNomina(await obtenerDatos('personalEdificio'));
             } catch (e) {}
+            trabajadoresNomina = ordenarPorEstadoDestacadoNomina(trabajadoresNomina, t => t && t.nombre);
 
             // Formatear fechas
             const formatearFecha = (fechaStr) => {
@@ -43351,6 +43700,7 @@
             try {
                 actualizarMapaEstadoPersonalNomina(await obtenerDatos('personalEdificio'));
             } catch (e) {}
+            trabajadoresNomina = ordenarPorEstadoDestacadoNomina(trabajadoresNomina, t => t && t.nombre);
             const { blob, nombreArchivo } = generarBlobNominaExcelHtmlIgualEntreCerros(trabajadoresNomina, reemplazosReporte, encabezado);
 
             try {
@@ -44341,17 +44691,20 @@
             if (!personal || personal.length === 0) {
                 tbody.innerHTML = `
                     <tr>
-                        <td colspan="4" style="padding: 1rem; text-align: center; color: var(--gray-500); font-style: italic; font-size: 0.8125rem;">
+                        <td colspan="3" style="padding: 1rem; text-align: center; color: var(--gray-500); font-style: italic; font-size: 0.8125rem;">
                             No hay personal registrado. Agregue el primer personal usando el formulario.
                         </td>
                     </tr>
                 `;
             } else {
-                tbody.innerHTML = personal.map(p => `
-                    <tr style="border-bottom: 1px solid var(--gray-200);">
-                        <td style="padding: 0.5rem; color: var(--gray-900); font-weight: 500; font-size: 0.8125rem;">${p.nombre}</td>
+                const personalVista = ordenarPorEstadoDestacadoNomina(personal, p => p && p.nombre);
+                tbody.innerHTML = personalVista.map(p => {
+                    const destacado = estadoPersonalDestacadoNomina(p.estado);
+                    const fondo = destacado ? 'background:#fef08a;' : '';
+                    return `
+                    <tr class="${destacado ? 'nomina-fila-destacada' : ''}" style="border-bottom: 1px solid var(--gray-200); ${fondo}">
+                        <td style="padding: 0.5rem; color: var(--gray-900); font-weight: 500; font-size: 0.8125rem;">${p.nombre}${htmlEtiquetaEstadoDestacadoNomina(p.estado)}</td>
                         <td style="padding: 0.5rem; color: var(--gray-700); font-size: 0.8125rem;">${p.cargo || '-'}</td>
-                        <td style="padding: 0.5rem;">${htmlSelectEstadoPersonalNomina(p.id, p.estado)}</td>
                         <td style="padding: 0.5rem; text-align: center;">
                             <div class="tabla-acciones">
                             <button class="btn btn-primary btn-sm" onclick="editarPersonalEdificio('${p.id}')">Editar</button>
@@ -44359,7 +44712,8 @@
                             </div>
                         </td>
                     </tr>
-                `).join('');
+                `;
+                }).join('');
             }
 
             // Actualizar select de trabajador en el formulario de nómina
@@ -44450,7 +44804,10 @@
                     document.getElementById('personalEdificioNombre').value = personalEncontrado.nombre || '';
                     document.getElementById('personalEdificioCargo').value = personalEncontrado.cargo || '';
                     const selEstado = document.getElementById('personalEdificioEstado');
-                    if (selEstado) selEstado.value = normalizarEstadoPersonalNomina(personalEncontrado.estado);
+                    if (selEstado) {
+                        selEstado.value = normalizarEstadoPersonalNomina(personalEncontrado.estado);
+                        actualizarEstiloSelectEstadoPersonal(selEstado);
+                    }
                     personalEdificioEditando = String(id);
                     
                     // Cambiar texto del botón
@@ -44490,9 +44847,16 @@
             const personal = await obtenerDatos('personalEdificio');
             const personalEncontrado = personal.find(p => p.nombre === nombreSeleccionado);
             
-            if (personalEncontrado && personalEncontrado.cargo) {
-                document.getElementById('trabajadorCargo').value = personalEncontrado.cargo;
-                return;
+            if (personalEncontrado) {
+                if (personalEncontrado.cargo) {
+                    document.getElementById('trabajadorCargo').value = personalEncontrado.cargo;
+                }
+                const selEstado = document.getElementById('trabajadorEstado');
+                if (selEstado) {
+                    selEstado.value = normalizarEstadoPersonalNomina(personalEncontrado.estado);
+                    actualizarEstiloSelectEstadoPersonal(selEstado);
+                }
+                if (personalEncontrado.cargo) return;
             }
 
             // Si no tiene cargo en personal del edificio, buscar en nóminas anteriores
