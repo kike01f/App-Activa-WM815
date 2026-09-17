@@ -999,7 +999,17 @@
             display: none !important;
         }
         tr.filtro-inteligente-hit td {
-            background: rgba(117, 187, 33, 0.08);
+            background: rgba(117, 187, 33, 0.28) !important;
+            box-shadow: inset 3px 0 0 var(--primary);
+        }
+        tr.filtro-inteligente-hit td:first-child {
+            background: rgba(117, 187, 33, 0.38) !important;
+        }
+        tr.filtro-inteligente-hit td:first-child input {
+            background: rgba(117, 187, 33, 0.22) !important;
+            border-color: var(--primary) !important;
+            font-weight: 700;
+            color: var(--primary-dark);
         }
 
         .consulta-rapida {
@@ -19035,7 +19045,7 @@
                     : '';
                 
                 return `
-                <tr data-id="${l.id}">
+                <tr data-id="${l.id}" data-unidad="${(l.unidad || '').replace(/"/g, '&quot;')}">
                     <td>
                         <input type="text" value="${(l.unidad || '').replace(/"/g, '&quot;')}" ${unidadDisabled}
                             style="width: 100%; padding: 0.25rem 0.4rem; font-size: 0.8rem;"
@@ -19090,6 +19100,8 @@
                 const lectura = { ...lecturas[index] };
                 if (campo === 'unidad') {
                     lectura.unidad = valor.trim();
+                    const fila = document.querySelector('#tbodyLecturasAgua tr[data-id="' + id + '"]');
+                    if (fila) fila.setAttribute('data-unidad', lectura.unidad);
                 } else if (campo === 'lecturaAnterior' || campo === 'lecturaActual') {
                     // Si el valor está en blanco (string vacío, null, undefined), guardar como null
                     const valorTrimmed = (valor || '').toString().trim();
@@ -36691,7 +36703,15 @@
             if (!q) return true;
             const h = normalizarTextoFiltro(haystack);
             const hCompact = h.replace(/\s+/g, '');
-            return q.split(' ').every(function (token) {
+            const stop = {
+                depto: 1, dpto: 1, departamento: 1, dept: 1, de: 1,
+                unidad: 1, nro: 1, numero: 1, num: 1, el: 1, la: 1, del: 1
+            };
+            const tokens = q.split(' ').filter(function (token) {
+                return token && !stop[token];
+            });
+            const usar = tokens.length ? tokens : q.split(' ').filter(Boolean);
+            return usar.every(function (token) {
                 if (!token) return true;
                 return h.indexOf(token) !== -1 || hCompact.indexOf(token) !== -1;
             });
@@ -36710,11 +36730,28 @@
 
         function textoFilaFiltro(tr) {
             const celdas = Array.from(tr.cells || []);
-            return celdas.map(function (td) {
+            const extrasFila = [];
+            ['data-unidad', 'data-depto', 'data-departamento'].forEach(function (attr) {
+                const v = tr.getAttribute && tr.getAttribute(attr);
+                if (v) extrasFila.push(v);
+            });
+            const textoCeldas = celdas.map(function (td) {
+                const extras = [];
+                td.querySelectorAll('input, select, textarea').forEach(function (el) {
+                    if (el.type === 'checkbox' || el.type === 'radio') {
+                        extras.push(el.checked ? (el.value || 'si') : '');
+                        return;
+                    }
+                    extras.push(el.value || '');
+                    if (el.tagName === 'SELECT' && el.selectedOptions && el.selectedOptions[0]) {
+                        extras.push(el.selectedOptions[0].textContent || '');
+                    }
+                });
                 const clone = td.cloneNode(true);
-                clone.querySelectorAll('button, input, select, svg, .btn').forEach(function (el) { el.remove(); });
-                return (clone.textContent || '').replace(/\s+/g, ' ').trim();
+                clone.querySelectorAll('button, input, select, textarea, svg, .btn').forEach(function (el) { el.remove(); });
+                return ((clone.textContent || '') + ' ' + extras.join(' ')).replace(/\s+/g, ' ').trim();
             }).filter(Boolean).join(' ');
+            return (extrasFila.join(' ') + ' ' + textoCeldas).trim();
         }
 
         function esFilaVaciaFiltro(tr) {
