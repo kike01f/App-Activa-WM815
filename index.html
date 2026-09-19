@@ -6287,15 +6287,11 @@
         </div>
 
         <div id="conserjeria" class="tab-content">
-            <div style="margin-bottom: 1.25rem; display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1rem;">
-                <div>
-                    <h2 style="margin: 0; color: var(--gray-900); font-size: 1.5rem; font-weight: 700;">🛡️ Conserjería</h2>
-                    <p id="conserjeriaFuenteDatos" style="color: var(--gray-600); font-size: 0.875rem; margin: 0.5rem 0 0 0; max-width: 40rem; line-height: 1.45;">Conectado con Conserjería WM. Muestra novedades del mes (reclamos, incidencias, seguridad y aperturas) y visitas con multa por permanencia.</p>
-                </div>
-                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
-                    <button type="button" class="btn btn-primary" id="btnActualizarModuloConserjeria" style="padding: 0.5rem 0.9rem; font-size: 0.875rem;">Actualizar</button>
-                    <a href="conserjeria%20wm.html" target="_blank" rel="noopener" class="btn btn-secondary" style="padding: 0.5rem 0.9rem; font-size: 0.875rem; text-decoration: none; display: inline-flex; align-items: center;">Abrir Conserjería WM</a>
-                </div>
+            <div style="margin-bottom: 1.5rem;">
+                <h2 id="tituloConserjeria" style="margin: 0; color: var(--gray-900); font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 0.75rem;">
+                    <span style="display: inline-flex; align-items: center; width: 1.75rem; height: 1.75rem;"></span> Conserjería
+                </h2>
+                <p id="conserjeriaFuenteDatos" style="color: var(--gray-600); font-size: 0.875rem; margin: 0.5rem 0 0 0; max-width: 42rem; line-height: 1.45;">Novedades e incidencias de Conserjería WM. Puede destacar, anotar y editar desde aquí; los cambios quedan en la bitácora de conserjería.</p>
             </div>
             <p id="conserjeriaMesTexto" style="margin: 0 0 1rem 0; font-size: 0.82rem; color: var(--gray-600);"></p>
             <div id="conserjeriaKpis" class="resumen-ocupacion-map" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.85rem; margin-bottom: 1.25rem;">
@@ -6303,21 +6299,39 @@
                 <div class="resumen-item"><div class="valor" id="conserjeriaKpiIncidencias" style="color: #d97706;">0</div><div class="etiqueta">Incidencias</div></div>
                 <div class="resumen-item"><div class="valor" id="conserjeriaKpiSeguridad" style="color: #dc2626;">0</div><div class="etiqueta">Seguridad</div></div>
                 <div class="resumen-item"><div class="valor" id="conserjeriaKpiAperturas" style="color: #059669;">0</div><div class="etiqueta">Aperturas</div></div>
+                <div class="resumen-item"><div class="valor" id="conserjeriaKpiDestacadas" style="color: #b45309;">0</div><div class="etiqueta">Destacadas</div></div>
                 <div class="resumen-item"><div class="valor" id="conserjeriaKpiVisitasMulta" style="color: #b45309;">0</div><div class="etiqueta">Visitas con multa</div></div>
             </div>
-            <div class="form-section" style="margin-bottom: 1.25rem;">
-                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem;">
-                    <input type="text" id="conserjeriaFiltroTexto" class="form-input" placeholder="Buscar texto, conserje, unidad o visitante…" style="flex: 1 1 16rem; min-width: 12rem; padding: 0.5rem 0.75rem; font-size: 0.875rem;">
-                    <select id="conserjeriaFiltroCategoria" class="form-input" style="width: 12rem; padding: 0.5rem 0.75rem; font-size: 0.875rem;">
-                        <option value="">Todas las categorías</option>
-                        <option value="reclamos">Reclamos</option>
-                        <option value="incidencias">Incidencias</option>
-                        <option value="seguridad">Seguridad</option>
-                        <option value="aperturas">Aperturas</option>
-                    </select>
+            <div class="form-section" style="margin-bottom: 1rem;">
+                <h3 style="margin: 0 0 0.65rem 0; font-size: 1rem; font-weight: 700;">Novedades destacadas</h3>
+                <div id="conserjeriaDestacadasList"><p style="margin: 0; color: var(--gray-500); font-size: 0.85rem;">Cargando…</p></div>
+            </div>
+            <div class="form-section" style="margin-bottom: 1rem;">
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; justify-content: space-between; margin-bottom: 0.75rem;">
+                    <h3 style="margin: 0; font-size: 1rem; font-weight: 700;">Novedades del mes</h3>
+                    <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                        <button type="button" class="btn btn-primary" id="btnActualizarModuloConserjeria" style="padding: 0.35rem 0.75rem; font-size: 0.8rem;">Actualizar</button>
+                        <a href="conserjeria%20wm.html" target="_blank" rel="noopener" class="btn btn-secondary" style="padding: 0.35rem 0.75rem; font-size: 0.8rem; text-decoration: none;">Abrir Conserjería WM</a>
+                    </div>
                 </div>
-                <h3 style="margin: 0 0 0.65rem 0; font-size: 1.05rem; font-weight: 700;">Novedades del mes</h3>
-                <div style="overflow-x: auto;">
+                <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.75rem;">
+                    <div class="form-group" style="flex: 1 1 16rem; margin-bottom: 0;">
+                        <input type="text" id="conserjeriaFiltroTexto" class="form-input" placeholder="Buscar texto, conserje, nota o visitante…" style="padding: 0.5rem; font-size: 0.875rem; width: 100%;">
+                    </div>
+                    <div class="form-group" style="margin-bottom: 0; min-width: 11rem;">
+                        <select id="conserjeriaFiltroCategoria" class="form-input" style="padding: 0.5rem; font-size: 0.875rem; width: 100%;">
+                            <option value="">Todas las categorías</option>
+                            <option value="reclamos">Reclamos</option>
+                            <option value="incidencias">Incidencias</option>
+                            <option value="seguridad">Seguridad</option>
+                            <option value="aperturas">Aperturas</option>
+                        </select>
+                    </div>
+                    <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.8rem; color: var(--gray-700); white-space: nowrap;">
+                        <input type="checkbox" id="conserjeriaFiltroDestacadas"> Solo destacadas
+                    </label>
+                </div>
+                <div class="table-section" style="padding: 0; box-shadow: none; border: none;">
                     <table id="tablaConserjeriaNovedades">
                         <thead>
                             <tr>
@@ -6327,16 +6341,17 @@
                                 <th>Categoría</th>
                                 <th>Conserje</th>
                                 <th>Descripción</th>
+                                <th>Acciones</th>
                             </tr>
                         </thead>
                         <tbody id="tbodyConserjeriaNovedades">
-                            <tr><td colspan="6" class="empty-state"><p>Cargando novedades…</p></td></tr>
+                            <tr><td colspan="7" class="empty-state"><p>Cargando novedades…</p></td></tr>
                         </tbody>
                     </table>
                 </div>
             </div>
-            <div class="form-section">
-                <h3 style="margin: 0 0 0.35rem 0; font-size: 1.05rem; font-weight: 700;">Visitas con multa</h3>
+            <div class="table-section">
+                <h3>Visitas con multa</h3>
                 <p style="margin: 0 0 0.75rem 0; font-size: 0.78rem; color: var(--gray-600); line-height: 1.4;">Misma regla de Conserjería WM: visita vehicular (no proveedor) que supera 5 horas más 15 minutos de gracia.</p>
                 <div style="overflow-x: auto;">
                     <table id="tablaConserjeriaVisitasMulta">
@@ -7163,6 +7178,59 @@
             </div>
             <div class="modal-buttons" id="modalAlertButtons">
                 <button class="btn btn-primary" onclick="cerrarModalAlert()" id="modalAlertButton">Aceptar</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalNotaConserjeriaGestion" class="modal-overlay">
+        <div class="modal-confirm" style="max-width: 560px; width: 100%;">
+            <h3 id="modalNotaConserjeriaTitulo" style="margin: 0 0 0.35rem 0;">Notas de la novedad</h3>
+            <p id="modalNotaConserjeriaInfo" style="margin: 0 0 0.75rem 0; color: var(--gray-600); font-size: 0.875rem;"></p>
+            <div id="modalNotaConserjeriaLista" style="max-height: 220px; overflow: auto; margin-bottom: 0.85rem;"></div>
+            <div class="form-group" style="margin-bottom: 0.85rem;">
+                <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Nueva nota *</label>
+                <textarea id="modalNotaConserjeriaTexto" rows="4" placeholder="Texto de la nota…" style="width: 100%; padding: 0.5rem; font-size: 0.875rem; box-sizing: border-box;"></textarea>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-secondary" id="btnCerrarNotaConserjeria">Cerrar</button>
+                <button type="button" class="btn btn-primary" id="btnGuardarNotaConserjeria">Guardar nota</button>
+            </div>
+        </div>
+    </div>
+
+    <div id="modalEditarNovedadGestion" class="modal-overlay">
+        <div class="modal-confirm" style="max-width: 560px; width: 100%;">
+            <h3 style="margin: 0 0 0.35rem 0;">Editar novedad</h3>
+            <p id="modalEditarNovedadInfo" style="margin: 0 0 0.75rem 0; color: var(--gray-600); font-size: 0.875rem;"></p>
+            <input type="hidden" id="editNovedadCorrelativoGestion" value="">
+            <div class="form-group" style="margin-bottom: 0.65rem;">
+                <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Categoría</label>
+                <select id="editNovedadCategoriaGestion" style="width: 100%; padding: 0.5rem; font-size: 0.875rem;">
+                    <option value="Reclamos">Reclamos</option>
+                    <option value="Incidentes">Incidentes</option>
+                    <option value="Seguridad">Seguridad</option>
+                    <option value="Apertura">Apertura</option>
+                    <option value="General">General</option>
+                    <option value="Mudanza">Mudanza</option>
+                    <option value="Eventos">Eventos</option>
+                    <option value="Mantenimiento">Mantenimiento</option>
+                    <option value="Ronda">Ronda</option>
+                    <option value="Proveedores">Proveedores</option>
+                    <option value="Multa">Multa</option>
+                    <option value="Otros">Otros</option>
+                </select>
+            </div>
+            <div class="form-group" style="margin-bottom: 0.65rem;">
+                <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Descripción *</label>
+                <textarea id="editNovedadTextoGestion" rows="5" style="width: 100%; padding: 0.5rem; font-size: 0.875rem; box-sizing: border-box;"></textarea>
+            </div>
+            <div class="form-group" style="margin-bottom: 0.85rem;">
+                <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Nota interna</label>
+                <textarea id="editNovedadNotaIntGestion" rows="3" placeholder="Aclaración interna (opcional)" style="width: 100%; padding: 0.5rem; font-size: 0.875rem; box-sizing: border-box;"></textarea>
+            </div>
+            <div class="modal-buttons">
+                <button type="button" class="btn btn-secondary" id="btnCancelarEditarNovedadGestion">Cancelar</button>
+                <button type="button" class="btn btn-primary" id="btnGuardarEditarNovedadGestion">Guardar cambios</button>
             </div>
         </div>
     </div>
@@ -12999,9 +13067,62 @@
                 incidencias: inc,
                 seguridad: seg,
                 aperturas: ape,
+                destacadas: nov.filter(function (n) { return novedadEstaDestacadaGestion(n); }).length,
                 totalNovedades: nov.length,
                 visitasMulta: vis.length
             };
+        }
+
+        function novedadEstaDestacadaGestion(n) {
+            return !!(n && (n.relevante || n.destacada));
+        }
+
+        function fechaHoraChileGestion() {
+            try {
+                var p = {};
+                new Intl.DateTimeFormat('en-GB', {
+                    timeZone: 'America/Santiago',
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit',
+                    second: '2-digit',
+                    hour12: false
+                }).formatToParts(new Date()).forEach(function (x) { p[x.type] = x.value; });
+                return {
+                    fecha: p.day + '-' + p.month + '-' + p.year,
+                    hora: p.hour + ':' + p.minute + ':' + p.second
+                };
+            } catch (e) {
+                var d = new Date();
+                var pad = function (n) { return String(n).padStart(2, '0'); };
+                return {
+                    fecha: pad(d.getDate()) + '-' + pad(d.getMonth() + 1) + '-' + d.getFullYear(),
+                    hora: pad(d.getHours()) + ':' + pad(d.getMinutes()) + ':' + pad(d.getSeconds())
+                };
+            }
+        }
+
+        function novedadDesdeCacheGestion(cor) {
+            var list = (window._moduloConserjeriaCache && window._moduloConserjeriaCache.novedades) || [];
+            var c = Number(cor);
+            return list.filter(function (n) { return Number(n.correlativo) === c; })[0] || null;
+        }
+
+        function notasDeNovedadGestion(cor) {
+            var map = (window._moduloConserjeriaCache && window._moduloConserjeriaCache.notasByCor) || {};
+            return (map[String(cor)] || []).slice();
+        }
+
+        function abrirOverlayGestion(id) {
+            var el = document.getElementById(id);
+            if (el) el.classList.add('active');
+        }
+
+        function cerrarOverlayGestion(id) {
+            var el = document.getElementById(id);
+            if (el) el.classList.remove('active');
         }
 
         function bindUiModuloConserjeria() {
@@ -13017,8 +13138,22 @@
             }
             var inp = document.getElementById('conserjeriaFiltroTexto');
             var sel = document.getElementById('conserjeriaFiltroCategoria');
+            var dest = document.getElementById('conserjeriaFiltroDestacadas');
             if (inp) inp.addEventListener('input', pintarTablasModuloConserjeria);
             if (sel) sel.addEventListener('change', pintarTablasModuloConserjeria);
+            if (dest) dest.addEventListener('change', pintarTablasModuloConserjeria);
+            var btnCerrarNota = document.getElementById('btnCerrarNotaConserjeria');
+            var btnGuardarNota = document.getElementById('btnGuardarNotaConserjeria');
+            if (btnCerrarNota) btnCerrarNota.addEventListener('click', function () { cerrarOverlayGestion('modalNotaConserjeriaGestion'); });
+            if (btnGuardarNota) btnGuardarNota.addEventListener('click', guardarNotaNovedadConserjeriaGestion);
+            var btnCancelEdit = document.getElementById('btnCancelarEditarNovedadGestion');
+            var btnSaveEdit = document.getElementById('btnGuardarEditarNovedadGestion');
+            if (btnCancelEdit) btnCancelEdit.addEventListener('click', function () { cerrarOverlayGestion('modalEditarNovedadGestion'); });
+            if (btnSaveEdit) btnSaveEdit.addEventListener('click', guardarEdicionNovedadConserjeriaGestion);
+            var modalNota = document.getElementById('modalNotaConserjeriaGestion');
+            var modalEdit = document.getElementById('modalEditarNovedadGestion');
+            if (modalNota) modalNota.addEventListener('click', function (e) { if (e.target === modalNota) cerrarOverlayGestion('modalNotaConserjeriaGestion'); });
+            if (modalEdit) modalEdit.addEventListener('click', function (e) { if (e.target === modalEdit) cerrarOverlayGestion('modalEditarNovedadGestion'); });
         }
 
         function pintarKpisModuloConserjeria() {
@@ -13031,6 +13166,7 @@
             setTxt('conserjeriaKpiIncidencias', r.incidencias);
             setTxt('conserjeriaKpiSeguridad', r.seguridad);
             setTxt('conserjeriaKpiAperturas', r.aperturas);
+            setTxt('conserjeriaKpiDestacadas', r.destacadas);
             setTxt('conserjeriaKpiVisitasMulta', r.visitasMulta);
             var mesEl = document.getElementById('conserjeriaMesTexto');
             if (mesEl) {
@@ -13039,18 +13175,41 @@
             }
         }
 
+        function pintarDestacadasModuloConserjeria() {
+            var wrap = document.getElementById('conserjeriaDestacadasList');
+            if (!wrap) return;
+            var dests = ((window._moduloConserjeriaCache && window._moduloConserjeriaCache.novedades) || []).filter(novedadEstaDestacadaGestion);
+            if (!dests.length) {
+                wrap.innerHTML = '<p style="margin: 0; color: var(--gray-500); font-size: 0.85rem;">No hay novedades destacadas. Use ★ Destacar en el listado.</p>';
+                return;
+            }
+            wrap.innerHTML = dests.map(function (n) {
+                var snip = String(n.texto || '').replace(/\s+/g, ' ').trim();
+                if (snip.length > 140) snip = snip.slice(0, 137) + '…';
+                return '<button type="button" class="btn btn-secondary" style="display:block;width:100%;text-align:left;margin-bottom:0.4rem;padding:0.45rem 0.65rem;font-size:0.8rem;" onclick="enfocarNovedadConserjeriaGestion(' + Number(n.correlativo) + ')">' +
+                    '<strong>' + escaparHtmlModuloConserjeria(n.libro || ('#' + n.correlativo)) + '</strong> · ' +
+                    escaparHtmlModuloConserjeria(n.fecha || '') + ' · ' + escaparHtmlModuloConserjeria(n.conserje || '') +
+                    '<div style="margin-top:0.2rem;color:var(--gray-600);font-weight:400;">' + escaparHtmlModuloConserjeria(snip || '(sin texto)') + '</div></button>';
+            }).join('');
+        }
+
         function pintarTablasModuloConserjeria() {
             var cache = window._moduloConserjeriaCache || {};
             var q = '';
             var cat = '';
+            var soloDest = false;
             var inp = document.getElementById('conserjeriaFiltroTexto');
             var sel = document.getElementById('conserjeriaFiltroCategoria');
+            var destChk = document.getElementById('conserjeriaFiltroDestacadas');
             if (inp) q = String(inp.value || '').trim().toLowerCase();
             if (sel) cat = String(sel.value || '').trim();
+            if (destChk) soloDest = !!destChk.checked;
             var nov = (cache.novedades || []).filter(function (n) {
                 if (cat && n.catClave !== cat) return false;
+                if (soloDest && !novedadEstaDestacadaGestion(n)) return false;
                 if (!q) return true;
-                var blob = [n.texto, n.conserje, n.categoria, n.fecha, n.hora].join(' ').toLowerCase();
+                var notasTxt = (n.notas || []).map(function (x) { return x && x.texto; }).join(' ');
+                var blob = [n.texto, n.conserje, n.categoria, n.fecha, n.hora, n.notaInterna, notasTxt].join(' ').toLowerCase();
                 return blob.indexOf(q) !== -1;
             });
             var vis = (cache.visitas || []).filter(function (v) {
@@ -13061,20 +13220,32 @@
             var tbN = document.getElementById('tbodyConserjeriaNovedades');
             if (tbN) {
                 if (cache.error && !nov.length) {
-                    tbN.innerHTML = '<tr><td colspan="6" class="empty-state"><p>' + escaparHtmlModuloConserjeria(cache.error) + '</p></td></tr>';
+                    tbN.innerHTML = '<tr><td colspan="7" class="empty-state"><p>' + escaparHtmlModuloConserjeria(cache.error) + '</p></td></tr>';
                 } else if (!nov.length) {
-                    tbN.innerHTML = '<tr><td colspan="6" class="empty-state"><p>No hay novedades de reclamos, incidencias, seguridad o aperturas en este mes.</p></td></tr>';
+                    tbN.innerHTML = '<tr><td colspan="7" class="empty-state"><p>No hay novedades de reclamos, incidencias, seguridad o aperturas en este mes.</p></td></tr>';
                 } else {
                     tbN.innerHTML = nov.map(function (n) {
                         var st = estiloBadgeCategoriaNovedad(n.catClave);
-                        var badge = '<span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:999px;font-size:0.72rem;font-weight:700;background:' + st.bg + ';color:' + st.fg + ';border:1px solid ' + st.bd + ';">' + escaparHtmlModuloConserjeria(etiquetaCategoriaNovedadGestion(n.catClave)) + '</span>';
-                        return '<tr>' +
+                        var badge = '<span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:999px;font-size:0.72rem;font-weight:700;background:' + st.bg + ';color:' + st.fg + ';border:1px solid ' + st.bd + ';">' + escaparHtmlModuloConserjeria(etiquetaCategoriaNovedadGestion(n.catClave) || n.categoria || '—') + '</span>';
+                        var dest = novedadEstaDestacadaGestion(n);
+                        var nNotas = (n.notas || []).length;
+                        var cor = Number(n.correlativo);
+                        var acciones = '<div class="tabla-acciones">' +
+                            '<button type="button" class="btn btn-sm ' + (dest ? 'btn-warning' : 'btn-secondary') + '" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="destacarNovedadConserjeriaGestion(' + cor + ')" title="' + (dest ? 'Quitar destacado' : 'Destacar novedad') + '">' + (dest ? '★ Destacada' : '☆ Destacar') + '</button>' +
+                            '<button type="button" class="btn btn-info btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem; background: #06b6d4; color: white; border: none;" onclick="abrirNotasNovedadConserjeriaGestion(' + cor + ')" title="Ver y agregar notas">📝 Notas' + (nNotas ? ' (' + nNotas + ')' : '') + '</button>' +
+                            '<button type="button" class="btn btn-primary btn-sm" style="padding: 0.25rem 0.5rem; font-size: 0.75rem;" onclick="editarNovedadConserjeriaGestion(' + cor + ')">Editar</button>' +
+                            '</div>';
+                        var extra = '';
+                        if (n.notaInterna) extra += '<div style="margin-top:0.3rem;font-size:0.75rem;color:var(--gray-500);">Interna: ' + escaparHtmlModuloConserjeria(n.notaInterna) + '</div>';
+                        if (nNotas) extra += '<div style="margin-top:0.2rem;font-size:0.75rem;color:#0369a1;">' + nNotas + (nNotas === 1 ? ' nota' : ' notas') + '</div>';
+                        return '<tr id="filaNovedadGestion-' + cor + '"' + (dest ? ' style="background: rgba(245, 158, 11, 0.12);"' : '') + '>' +
                             '<td>' + escaparHtmlModuloConserjeria(n.libro || '—') + '</td>' +
                             '<td>' + escaparHtmlModuloConserjeria(n.fecha || '—') + '</td>' +
                             '<td>' + escaparHtmlModuloConserjeria(n.hora || '—') + '</td>' +
                             '<td>' + badge + '</td>' +
                             '<td>' + escaparHtmlModuloConserjeria(n.conserje || '—') + '</td>' +
-                            '<td style="max-width:28rem;white-space:pre-wrap;line-height:1.4;">' + escaparHtmlModuloConserjeria(n.texto || '') + '</td>' +
+                            '<td style="max-width:28rem;white-space:pre-wrap;line-height:1.4;">' + escaparHtmlModuloConserjeria(n.texto || '') + extra + '</td>' +
+                            '<td>' + acciones + '</td>' +
                             '</tr>';
                     }).join('');
                 }
@@ -13103,6 +13274,7 @@
                 }
             }
             pintarKpisModuloConserjeria();
+            pintarDestacadasModuloConserjeria();
         }
 
         async function cargarDatosCrudosModuloConserjeria(mes) {
@@ -13129,21 +13301,48 @@
                     nLibro += 1;
                     libroPorCorr[d.correlativo] = nLibro;
                 });
+                var notasByCor = {};
+                try {
+                    var snapNotas = await sdb.collection('notas').limit(400).get();
+                    snapNotas.forEach(function (doc) {
+                        var nt = doc.data() || {};
+                        nt.id = nt.id || doc.id;
+                        var ck = String(nt.novedadCorrelativo != null ? nt.novedadCorrelativo : '');
+                        if (!ck) return;
+                        if (!notasByCor[ck]) notasByCor[ck] = [];
+                        notasByCor[ck].push(nt);
+                    });
+                    Object.keys(notasByCor).forEach(function (k) {
+                        notasByCor[k].sort(function (a, b) {
+                            var fa = String(a.fechaCreacion || ''), fb = String(b.fechaCreacion || '');
+                            if (fa !== fb) return fa.localeCompare(fb);
+                            return String(a.horaCreacion || '').localeCompare(String(b.horaCreacion || ''));
+                        });
+                    });
+                } catch (eNt) {
+                    console.warn('[conserjeria-modulo] Notas:', eNt);
+                }
                 novedades = todasMes.filter(function (d) {
                     return !!categoriaNovedadGestion(d.categoria);
                 }).map(function (d) {
+                    var cor = d.correlativo;
                     return {
                         id: d._id,
-                        correlativo: d.correlativo,
-                        libro: libroPorCorr[d.correlativo] != null ? ('#' + libroPorCorr[d.correlativo]) : '—',
+                        correlativo: cor,
+                        libro: libroPorCorr[cor] != null ? ('#' + libroPorCorr[cor]) : '—',
                         fecha: d.fecha || '',
                         hora: d.hora || '',
                         conserje: d.conserje || '',
                         texto: d.texto || '',
                         categoria: d.categoria || '',
-                        catClave: categoriaNovedadGestion(d.categoria)
+                        catClave: categoriaNovedadGestion(d.categoria) || String(d.categoria || '').toLowerCase(),
+                        relevante: !!d.relevante,
+                        destacada: !!d.destacada,
+                        notaInterna: d.notaInterna || '',
+                        notas: notasByCor[String(cor)] || []
                     };
                 }).reverse();
+                window._moduloConserjeriaNotasByCor = notasByCor;
             } catch (eN) {
                 console.warn('[conserjeria-modulo] Novedades:', eN);
                 throw eN;
@@ -13204,7 +13403,7 @@
                 console.warn('[conserjeria-modulo] Visitas:', eV);
                 throw eV;
             }
-            return { novedades: novedades, visitas: visitas };
+            return { novedades: novedades, visitas: visitas, notasByCor: window._moduloConserjeriaNotasByCor || {} };
         }
 
         window.cargarModuloConserjeriaGestion = async function (opts) {
@@ -13220,7 +13419,7 @@
             window._moduloConserjeriaCargando = true;
             var tbN = document.getElementById('tbodyConserjeriaNovedades');
             var tbV = document.getElementById('tbodyConserjeriaVisitasMulta');
-            if (tbN) tbN.innerHTML = '<tr><td colspan="6" class="empty-state"><p>Cargando novedades…</p></td></tr>';
+            if (tbN) tbN.innerHTML = '<tr><td colspan="7" class="empty-state"><p>Cargando novedades…</p></td></tr>';
             if (tbV) tbV.innerHTML = '<tr><td colspan="7" class="empty-state"><p>Cargando visitas…</p></td></tr>';
             try {
                 var datos = await cargarDatosCrudosModuloConserjeria(mes);
@@ -13228,6 +13427,7 @@
                     mes: mes,
                     novedades: datos.novedades || [],
                     visitas: datos.visitas || [],
+                    notasByCor: datos.notasByCor || {},
                     error: ''
                 };
                 pintarTablasModuloConserjeria();
@@ -13237,6 +13437,7 @@
                     mes: mes,
                     novedades: (cache.novedades || []),
                     visitas: (cache.visitas || []),
+                    notasByCor: (cache.notasByCor || {}),
                     error: 'Sin conexión con Conserjería WM: ' + msg
                 };
                 pintarTablasModuloConserjeria();
@@ -13251,6 +13452,187 @@
                 window.cargarModuloConserjeriaGestion().catch(function () {});
             }
         };
+
+        window.enfocarNovedadConserjeriaGestion = function (cor) {
+            var fila = document.getElementById('filaNovedadGestion-' + Number(cor));
+            if (!fila) {
+                var destChk = document.getElementById('conserjeriaFiltroDestacadas');
+                if (destChk) destChk.checked = false;
+                var sel = document.getElementById('conserjeriaFiltroCategoria');
+                if (sel) sel.value = '';
+                var inp = document.getElementById('conserjeriaFiltroTexto');
+                if (inp) inp.value = '';
+                pintarTablasModuloConserjeria();
+                fila = document.getElementById('filaNovedadGestion-' + Number(cor));
+            }
+            if (fila) {
+                fila.scrollIntoView({ behavior: 'smooth', block: 'center' });
+                fila.style.outline = '2px solid #f59e0b';
+                setTimeout(function () { if (fila) fila.style.outline = ''; }, 1800);
+            }
+        };
+
+        window.destacarNovedadConserjeriaGestion = async function (cor) {
+            var n = novedadDesdeCacheGestion(cor);
+            if (!n) {
+                if (typeof mostrarAlerta === 'function') mostrarAlerta('No se encontró la novedad.', 'Conserjería');
+                return;
+            }
+            var next = !novedadEstaDestacadaGestion(n);
+            try {
+                var sdb = await obtenerDbConserjeriaOperativa();
+                await sdb.collection('novedades').doc(String(n.correlativo)).update({ relevante: next, destacada: next });
+                n.relevante = next;
+                n.destacada = next;
+                pintarTablasModuloConserjeria();
+                if (typeof mostrarAlerta === 'function') mostrarAlerta(next ? 'Novedad destacada. También queda marcada en Conserjería WM.' : 'Se quitó el destacado.', 'Conserjería');
+            } catch (e) {
+                console.warn('[conserjeria-modulo] Destacar:', e);
+                if (typeof mostrarAlerta === 'function') mostrarAlerta('No se pudo actualizar el destacado.', 'Error');
+            }
+        };
+
+        function pintarListaNotasModalGestion(cor) {
+            var lista = document.getElementById('modalNotaConserjeriaLista');
+            if (!lista) return;
+            var notas = notasDeNovedadGestion(cor);
+            if (!notas.length) {
+                lista.innerHTML = '<p style="margin:0;color:var(--gray-500);font-size:0.85rem;">Aún no hay notas. Escriba una y pulse Guardar nota.</p>';
+                return;
+            }
+            lista.innerHTML = notas.map(function (nt) {
+                var resp = (nt.respuestas || []).map(function (r) {
+                    return '<div style="margin:0.35rem 0 0 0.85rem;padding-left:0.6rem;border-left:2px solid rgba(6,182,212,0.35);font-size:0.78rem;color:var(--gray-600);">' +
+                        escaparHtmlModuloConserjeria((r && r.texto) || '') +
+                        '<div style="font-size:0.7rem;color:var(--gray-500);">' + escaparHtmlModuloConserjeria((r && (r.autor || r.conserje)) || '') + ' · ' + escaparHtmlModuloConserjeria((r && r.fechaCreacion) || '') + '</div></div>';
+                }).join('');
+                return '<div style="padding:0.5rem 0;border-bottom:1px solid var(--gray-200);">' +
+                    '<div style="font-size:0.8rem;color:var(--gray-500);">' + escaparHtmlModuloConserjeria(nt.autor || nt.conserje || 'Gestión') + ' · ' + escaparHtmlModuloConserjeria(nt.fechaCreacion || '') + ' ' + escaparHtmlModuloConserjeria(nt.horaCreacion || '') + '</div>' +
+                    '<div style="white-space:pre-wrap;line-height:1.4;margin-top:0.2rem;">' + escaparHtmlModuloConserjeria(nt.texto || '') + '</div>' + resp +
+                    '</div>';
+            }).join('');
+        }
+
+        window.abrirNotasNovedadConserjeriaGestion = function (cor) {
+            var n = novedadDesdeCacheGestion(cor);
+            if (!n) {
+                if (typeof mostrarAlerta === 'function') mostrarAlerta('No se encontró la novedad.', 'Conserjería');
+                return;
+            }
+            window._notaNovedadCorGestion = Number(cor);
+            var info = document.getElementById('modalNotaConserjeriaInfo');
+            if (info) info.textContent = (n.libro || ('#' + n.correlativo)) + ' · ' + (n.conserje || '') + ' · ' + (n.fecha || '');
+            var ta = document.getElementById('modalNotaConserjeriaTexto');
+            if (ta) ta.value = '';
+            pintarListaNotasModalGestion(cor);
+            abrirOverlayGestion('modalNotaConserjeriaGestion');
+        };
+
+        async function guardarNotaNovedadConserjeriaGestion() {
+            var cor = Number(window._notaNovedadCorGestion);
+            var n = novedadDesdeCacheGestion(cor);
+            var ta = document.getElementById('modalNotaConserjeriaTexto');
+            var texto = ta ? String(ta.value || '').replace(/\s+/g, ' ').trim() : '';
+            if (!n) {
+                if (typeof mostrarAlerta === 'function') mostrarAlerta('No se encontró la novedad.', 'Conserjería');
+                return;
+            }
+            if (!texto) {
+                if (typeof mostrarAlerta === 'function') mostrarAlerta('Escriba el texto de la nota.', 'Nota');
+                return;
+            }
+            var fh = fechaHoraChileGestion();
+            var nota = {
+                id: String(Date.now()) + Math.random().toString(36).slice(2, 9),
+                novedadCorrelativo: cor,
+                conserje: n.conserje || '',
+                autor: 'Gestión WM',
+                texto: texto,
+                fechaCreacion: fh.fecha,
+                horaCreacion: fh.hora,
+                cerrada: false,
+                respuestas: []
+            };
+            try {
+                var sdb = await obtenerDbConserjeriaOperativa();
+                await sdb.collection('notas').doc(String(nota.id)).set(nota);
+                var cache = window._moduloConserjeriaCache || {};
+                cache.notasByCor = cache.notasByCor || {};
+                var key = String(cor);
+                cache.notasByCor[key] = (cache.notasByCor[key] || []).concat([nota]);
+                n.notas = cache.notasByCor[key];
+                if (ta) ta.value = '';
+                pintarListaNotasModalGestion(cor);
+                pintarTablasModuloConserjeria();
+                if (typeof mostrarAlerta === 'function') mostrarAlerta('Nota guardada. También queda visible en Conserjería WM.', 'Nota');
+            } catch (e) {
+                console.warn('[conserjeria-modulo] Nota:', e);
+                if (typeof mostrarAlerta === 'function') mostrarAlerta('No se pudo guardar la nota.', 'Error');
+            }
+        }
+
+        window.editarNovedadConserjeriaGestion = function (cor) {
+            var n = novedadDesdeCacheGestion(cor);
+            if (!n) {
+                if (typeof mostrarAlerta === 'function') mostrarAlerta('No se encontró la novedad.', 'Conserjería');
+                return;
+            }
+            var hid = document.getElementById('editNovedadCorrelativoGestion');
+            var info = document.getElementById('modalEditarNovedadInfo');
+            var cat = document.getElementById('editNovedadCategoriaGestion');
+            var txt = document.getElementById('editNovedadTextoGestion');
+            var ni = document.getElementById('editNovedadNotaIntGestion');
+            if (hid) hid.value = String(n.correlativo);
+            if (info) info.textContent = (n.libro || ('#' + n.correlativo)) + ' · ' + (n.conserje || '') + ' · ' + (n.fecha || '');
+            if (cat) {
+                var raw = String(n.categoria || '');
+                if (Array.prototype.some.call(cat.options, function (o) { return o.value === raw; })) cat.value = raw;
+                else if (n.catClave === 'incidencias') cat.value = 'Incidentes';
+                else if (n.catClave === 'aperturas') cat.value = 'Apertura';
+                else if (n.catClave === 'reclamos') cat.value = 'Reclamos';
+                else if (n.catClave === 'seguridad') cat.value = 'Seguridad';
+                else cat.value = raw || 'General';
+            }
+            if (txt) txt.value = n.texto || '';
+            if (ni) ni.value = n.notaInterna || '';
+            abrirOverlayGestion('modalEditarNovedadGestion');
+        };
+
+        async function guardarEdicionNovedadConserjeriaGestion() {
+            var cor = Number((document.getElementById('editNovedadCorrelativoGestion') || {}).value);
+            var n = novedadDesdeCacheGestion(cor);
+            var txt = document.getElementById('editNovedadTextoGestion');
+            var cat = document.getElementById('editNovedadCategoriaGestion');
+            var ni = document.getElementById('editNovedadNotaIntGestion');
+            var texto = txt ? String(txt.value || '').trim() : '';
+            if (!n) {
+                if (typeof mostrarAlerta === 'function') mostrarAlerta('No se encontró la novedad.', 'Conserjería');
+                return;
+            }
+            if (!texto) {
+                if (typeof mostrarAlerta === 'function') mostrarAlerta('Indique el texto de la novedad.', 'Editar novedad');
+                return;
+            }
+            var payload = {
+                texto: texto,
+                categoria: (cat && cat.value) || n.categoria || 'General',
+                notaInterna: ni ? String(ni.value || '').trim() : ''
+            };
+            try {
+                var sdb = await obtenerDbConserjeriaOperativa();
+                await sdb.collection('novedades').doc(String(n.correlativo)).update(payload);
+                n.texto = payload.texto;
+                n.categoria = payload.categoria;
+                n.catClave = categoriaNovedadGestion(payload.categoria) || n.catClave;
+                n.notaInterna = payload.notaInterna;
+                cerrarOverlayGestion('modalEditarNovedadGestion');
+                pintarTablasModuloConserjeria();
+                if (typeof mostrarAlerta === 'function') mostrarAlerta('Novedad actualizada en Conserjería WM.', 'Conserjería');
+            } catch (e) {
+                console.warn('[conserjeria-modulo] Editar:', e);
+                if (typeof mostrarAlerta === 'function') mostrarAlerta('No se pudo guardar la novedad.', 'Error');
+            }
+        }
 
         function parseHuellasBienvenidaMapa(mapa) {
             var out = new Set();
@@ -41251,6 +41633,7 @@
                 'tituloPagosAseo': 'aseo',
                 'tituloNomina': 'nomina',
                 'tituloInsumos': 'insumos',
+                'tituloConserjeria': 'conserjeria',
                 'tituloPostventa': 'postventa'
             };
             
