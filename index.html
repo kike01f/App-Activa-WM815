@@ -4514,6 +4514,12 @@
                 </span>
                 <span>Ocupación</span>
             </button>
+            <button class="tab-button" data-tab="conserjeria">
+                <span>
+                    <svg class="menu-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>
+                </span>
+                <span>Conserjería</span>
+            </button>
             <button class="tab-button" data-tab="postventa">
                 <span>
                     <svg class="menu-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14l4-4h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 10H6.17L5 14.17V5h14v8z"/><path fill="currentColor" d="M7 9h10v2H7zm0-3h7v2H7z" opacity="0.7"/></svg>
@@ -4871,12 +4877,14 @@
                             </select>
                         </div>
                         <div class="form-group" style="margin-bottom: 0.5rem;">
-                            <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">¿Mudanza autorizada? *</label>
+                            <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Estado de autorización *</label>
                             <select id="mudanzaAutorizada" required style="padding: 0.5rem; font-size: 0.875rem;">
                                 <option value="">Seleccione...</option>
-                                <option value="si">Sí, autorizada</option>
+                                <option value="si">Autorizada</option>
+                                <option value="espera">En espera (falta documentación o acreditación del arrendador)</option>
                                 <option value="no">No autorizada</option>
                             </select>
+                            <small id="mudanzaAutorizadaHint" style="display: none; color: var(--gray-500); font-size: 0.72rem; margin-top: 0.2rem; line-height: 1.35;">Para una salida, use «En espera» si aún no llega la documentación o acreditación del arrendador. La mudanza no se considera autorizada hasta recibir esos antecedentes.</small>
                         </div>
                         <div class="form-group" style="margin-bottom: 0.5rem;">
                             <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Monto</label>
@@ -4895,6 +4903,7 @@
                     <!-- Campos adicionales para mudanzas de salida -->
                     <div id="camposSalida" style="display: none; margin-top: 1rem; padding: 1rem; background: rgba(245, 158, 11, 0.1); border-radius: 8px; border: 1px solid rgba(245, 158, 11, 0.3); transition: background-color 0.3s ease, border-color 0.3s ease;">
                         <h4 style="margin: 0 0 0.75rem 0; font-size: 0.9375rem; font-weight: 700; color: var(--text-primary); transition: color 0.3s ease;">Información para Comprobante de Salida</h4>
+                        <p style="margin: 0 0 0.75rem 0; font-size: 0.78rem; color: var(--gray-600); line-height: 1.4;">Si falta la documentación o acreditación del arrendador, deje el estado de autorización en <strong>En espera</strong>. La mudanza no queda autorizada hasta recibir esos antecedentes.</p>
                         <div class="form-row" style="gap: 0.5rem; margin-bottom: 0.5rem;">
                             <div class="form-group" style="margin-bottom: 0.5rem;">
                                 <label style="margin-bottom: 0.25rem; font-size: 0.875rem;">Tipo Check *</label>
@@ -4948,7 +4957,7 @@
                             <th>Depto</th>
                             <th>Tipo</th>
                             <th>Movimiento</th>
-                            <th>Autorizada</th>
+                            <th>Autorización</th>
                             <th>Cobro</th>
                             <th>Monto</th>
                             <th>Corredor</th>
@@ -6275,6 +6284,79 @@
                     </a>
                 </div>
             </section>
+        </div>
+
+        <div id="conserjeria" class="tab-content">
+            <div style="margin-bottom: 1.25rem; display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 1rem;">
+                <div>
+                    <h2 style="margin: 0; color: var(--gray-900); font-size: 1.5rem; font-weight: 700;">🛡️ Conserjería</h2>
+                    <p id="conserjeriaFuenteDatos" style="color: var(--gray-600); font-size: 0.875rem; margin: 0.5rem 0 0 0; max-width: 40rem; line-height: 1.45;">Conectado con Conserjería WM. Muestra novedades del mes (reclamos, incidencias, seguridad y aperturas) y visitas con multa por permanencia.</p>
+                </div>
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                    <button type="button" class="btn btn-primary" id="btnActualizarModuloConserjeria" style="padding: 0.5rem 0.9rem; font-size: 0.875rem;">Actualizar</button>
+                    <a href="conserjeria%20wm.html" target="_blank" rel="noopener" class="btn btn-secondary" style="padding: 0.5rem 0.9rem; font-size: 0.875rem; text-decoration: none; display: inline-flex; align-items: center;">Abrir Conserjería WM</a>
+                </div>
+            </div>
+            <p id="conserjeriaMesTexto" style="margin: 0 0 1rem 0; font-size: 0.82rem; color: var(--gray-600);"></p>
+            <div id="conserjeriaKpis" class="resumen-ocupacion-map" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.85rem; margin-bottom: 1.25rem;">
+                <div class="resumen-item"><div class="valor" id="conserjeriaKpiReclamos" style="color: #be185d;">0</div><div class="etiqueta">Reclamos</div></div>
+                <div class="resumen-item"><div class="valor" id="conserjeriaKpiIncidencias" style="color: #d97706;">0</div><div class="etiqueta">Incidencias</div></div>
+                <div class="resumen-item"><div class="valor" id="conserjeriaKpiSeguridad" style="color: #dc2626;">0</div><div class="etiqueta">Seguridad</div></div>
+                <div class="resumen-item"><div class="valor" id="conserjeriaKpiAperturas" style="color: #059669;">0</div><div class="etiqueta">Aperturas</div></div>
+                <div class="resumen-item"><div class="valor" id="conserjeriaKpiVisitasMulta" style="color: #b45309;">0</div><div class="etiqueta">Visitas con multa</div></div>
+            </div>
+            <div class="form-section" style="margin-bottom: 1.25rem;">
+                <div style="display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin-bottom: 0.75rem;">
+                    <input type="text" id="conserjeriaFiltroTexto" class="form-input" placeholder="Buscar texto, conserje, unidad o visitante…" style="flex: 1 1 16rem; min-width: 12rem; padding: 0.5rem 0.75rem; font-size: 0.875rem;">
+                    <select id="conserjeriaFiltroCategoria" class="form-input" style="width: 12rem; padding: 0.5rem 0.75rem; font-size: 0.875rem;">
+                        <option value="">Todas las categorías</option>
+                        <option value="reclamos">Reclamos</option>
+                        <option value="incidencias">Incidencias</option>
+                        <option value="seguridad">Seguridad</option>
+                        <option value="aperturas">Aperturas</option>
+                    </select>
+                </div>
+                <h3 style="margin: 0 0 0.65rem 0; font-size: 1.05rem; font-weight: 700;">Novedades del mes</h3>
+                <div style="overflow-x: auto;">
+                    <table id="tablaConserjeriaNovedades">
+                        <thead>
+                            <tr>
+                                <th>#</th>
+                                <th>Fecha</th>
+                                <th>Hora</th>
+                                <th>Categoría</th>
+                                <th>Conserje</th>
+                                <th>Descripción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyConserjeriaNovedades">
+                            <tr><td colspan="6" class="empty-state"><p>Cargando novedades…</p></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+            <div class="form-section">
+                <h3 style="margin: 0 0 0.35rem 0; font-size: 1.05rem; font-weight: 700;">Visitas con multa</h3>
+                <p style="margin: 0 0 0.75rem 0; font-size: 0.78rem; color: var(--gray-600); line-height: 1.4;">Misma regla de Conserjería WM: visita vehicular (no proveedor) que supera 5 horas más 15 minutos de gracia.</p>
+                <div style="overflow-x: auto;">
+                    <table id="tablaConserjeriaVisitasMulta">
+                        <thead>
+                            <tr>
+                                <th>Ingreso</th>
+                                <th>Salida</th>
+                                <th>Visitante</th>
+                                <th>Unidad</th>
+                                <th>Patente</th>
+                                <th>Permanencia</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody id="tbodyConserjeriaVisitasMulta">
+                            <tr><td colspan="7" class="empty-state"><p>Cargando visitas…</p></td></tr>
+                        </tbody>
+                    </table>
+                </div>
+            </div>
         </div>
 
         <!-- MÓDULO POSTVENTA: resumen → archivo → formulario → listado (misma API de IDs) -->
@@ -8318,6 +8400,8 @@
                         }
                     } else if (tabName === 'ocupacion') {
                         if (typeof cargarUnidadesOcupacion === 'function') cargarUnidadesOcupacion();
+                    } else if (tabName === 'conserjeria') {
+                        if (typeof window.cargarModuloConserjeriaGestion === 'function') window.cargarModuloConserjeriaGestion();
                     } else if (tabName === 'postventa') {
                         if (typeof window.cargarPostventa === 'function') window.cargarPostventa();
                     } else if (tabName === 'personalizacion') {
@@ -12635,6 +12719,440 @@
             return sdb.collection(col).doc('welcome');
         }
 
+        // ============================================
+        // MÓDULO CONSERJERÍA (novedades + visitas con multa)
+        // ============================================
+        window._moduloConserjeriaCache = window._moduloConserjeriaCache || { mes: '', novedades: [], visitas: [], error: '' };
+        window._moduloConserjeriaCargando = false;
+        window._moduloConserjeriaUiBound = false;
+
+        function escaparHtmlModuloConserjeria(s) {
+            return String(s == null ? '' : s)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        function categoriaNovedadGestion(cat) {
+            var s = String(cat || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\s+/g, '');
+            if (s.indexOf('reclamo') === 0) return 'reclamos';
+            if (s.indexOf('incident') === 0 || s.indexOf('incidencia') === 0) return 'incidencias';
+            if (s.indexOf('segur') === 0) return 'seguridad';
+            if (s.indexOf('apertur') === 0) return 'aperturas';
+            return '';
+        }
+
+        function etiquetaCategoriaNovedadGestion(clave) {
+            if (clave === 'reclamos') return 'Reclamos';
+            if (clave === 'incidencias') return 'Incidencias';
+            if (clave === 'seguridad') return 'Seguridad';
+            if (clave === 'aperturas') return 'Aperturas';
+            return clave || '—';
+        }
+
+        function estiloBadgeCategoriaNovedad(clave) {
+            var map = {
+                reclamos: { bg: 'rgba(190, 24, 93, 0.12)', fg: '#9d174d', bd: 'rgba(190, 24, 93, 0.28)' },
+                incidencias: { bg: 'rgba(217, 119, 6, 0.12)', fg: '#b45309', bd: 'rgba(217, 119, 6, 0.28)' },
+                seguridad: { bg: 'rgba(220, 38, 38, 0.12)', fg: '#b91c1c', bd: 'rgba(220, 38, 38, 0.28)' },
+                aperturas: { bg: 'rgba(5, 150, 105, 0.12)', fg: '#047857', bd: 'rgba(5, 150, 105, 0.28)' }
+            };
+            return map[clave] || { bg: 'rgba(100,116,139,0.12)', fg: '#475569', bd: 'rgba(100,116,139,0.25)' };
+        }
+
+        function mesDesdeFechaNovedadGestion(fecha) {
+            var s = String(fecha || '').trim();
+            var m1 = s.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})$/);
+            if (m1) return m1[3] + '-' + String(m1[2]).padStart(2, '0');
+            var m2 = s.match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+            if (m2) return m2[1] + '-' + String(m2[2]).padStart(2, '0');
+            return '';
+        }
+
+        function visitaAtMsGestion(atRaw) {
+            if (atRaw == null || atRaw === '') return NaN;
+            if (typeof atRaw === 'number') return atRaw < 1e12 ? atRaw * 1000 : atRaw;
+            if (atRaw instanceof Date) return atRaw.getTime();
+            try {
+                if (typeof atRaw.toDate === 'function') return atRaw.toDate().getTime();
+            } catch (eTd) {}
+            try {
+                if (typeof firebase !== 'undefined' && firebase.firestore && firebase.firestore.Timestamp && atRaw instanceof firebase.firestore.Timestamp) {
+                    return atRaw.toMillis();
+                }
+            } catch (eFb) {}
+            var d = new Date(atRaw);
+            return d.getTime();
+        }
+
+        function mesDesdeMsSantiagoGestion(ms) {
+            if (!isFinite(ms)) return '';
+            try {
+                var parts = new Intl.DateTimeFormat('en-CA', { timeZone: 'America/Santiago', year: 'numeric', month: '2-digit' }).formatToParts(new Date(ms));
+                var y = '', m = '';
+                parts.forEach(function (p) {
+                    if (p.type === 'year') y = p.value;
+                    if (p.type === 'month') m = p.value;
+                });
+                return y && m ? (y + '-' + m) : '';
+            } catch (e) {
+                var d = new Date(ms);
+                return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0');
+            }
+        }
+
+        function visitaEsProveedorGestion(v) {
+            return !!(v && (v.visitKind === 'proveedor' || v.proveedorId));
+        }
+
+        function visitaConMultaGestion(v) {
+            if (!v || !v.vehicular || visitaEsProveedorGestion(v)) return null;
+            var allowed = 5 * 60 * 60 * 1000;
+            var grace = 15 * 60 * 1000;
+            var fineThreshold = allowed + grace;
+            var t0 = visitaAtMsGestion(v.at);
+            if (!isFinite(t0)) return null;
+            if (!v.outAt) {
+                var elapsed = Date.now() - t0;
+                return elapsed > fineThreshold ? { elapsed: elapsed, abierta: true } : null;
+            }
+            var t1 = visitaAtMsGestion(v.outAt);
+            if (!isFinite(t1) || t1 < t0) return null;
+            var stay = t1 - t0;
+            return stay > fineThreshold ? { elapsed: stay, abierta: false } : null;
+        }
+
+        function visitaPerteneceAlMesGestion(v, mes) {
+            var t0 = visitaAtMsGestion(v.at);
+            var t1 = v && v.outAt ? visitaAtMsGestion(v.outAt) : Date.now();
+            if (!isFinite(t0)) return false;
+            if (!isFinite(t1)) t1 = t0;
+            return mesDesdeMsSantiagoGestion(t0) === mes || mesDesdeMsSantiagoGestion(t1) === mes;
+        }
+
+        function formatearPermanenciaMsGestion(ms) {
+            if (!isFinite(ms) || ms < 0) return '—';
+            var h = Math.floor(ms / 3600000);
+            var m = Math.floor((ms % 3600000) / 60000);
+            return h + ' h ' + String(m).padStart(2, '0') + ' min';
+        }
+
+        function textoFechaHoraIsoGestion(iso) {
+            if (!iso) return 'En edificio';
+            var ms = visitaAtMsGestion(iso);
+            if (!isFinite(ms)) return String(iso);
+            try {
+                return new Date(ms).toLocaleString('es-CL', {
+                    timeZone: 'America/Santiago',
+                    day: '2-digit',
+                    month: '2-digit',
+                    year: 'numeric',
+                    hour: '2-digit',
+                    minute: '2-digit'
+                });
+            } catch (e) {
+                return String(iso);
+            }
+        }
+
+        function rangoIsoMesConsultaGestion(mesAnio) {
+            var parts = String(mesAnio || '').split('-').map(Number);
+            var y = parts[0];
+            var m = parts[1];
+            if (!y || !m) return null;
+            return {
+                start: new Date(Date.UTC(y, m - 1, 1, 3, 0, 0)).toISOString(),
+                end: new Date(Date.UTC(y, m, 1, 3, 0, 0)).toISOString()
+            };
+        }
+
+        async function obtenerDbConserjeriaOperativa() {
+            var cfg = window.CG_GESTION_CONSERJERIA_SOURCE || {};
+            var app = obtenerAppWelcomeConserjeria();
+            try {
+                if (cfg.useAnonymousAuth && app.auth) {
+                    var authP = app.auth();
+                    if (authP && !authP.currentUser) await authP.signInAnonymously();
+                }
+            } catch (eA) {
+                console.warn('[conserjeria-modulo] Auth conserjeria2-1:', eA);
+            }
+            var sdb = app.firestore();
+            try { sdb.settings({ experimentalAutoDetectLongPolling: true, merge: true }); } catch (eS) {}
+            return sdb;
+        }
+
+        function resumenModuloConserjeriaDesdeCache() {
+            var cache = window._moduloConserjeriaCache || {};
+            var nov = Array.isArray(cache.novedades) ? cache.novedades : [];
+            var vis = Array.isArray(cache.visitas) ? cache.visitas : [];
+            var rec = 0, inc = 0, seg = 0, ape = 0;
+            nov.forEach(function (n) {
+                if (n.catClave === 'reclamos') rec++;
+                else if (n.catClave === 'incidencias') inc++;
+                else if (n.catClave === 'seguridad') seg++;
+                else if (n.catClave === 'aperturas') ape++;
+            });
+            return {
+                mes: cache.mes || '',
+                reclamos: rec,
+                incidencias: inc,
+                seguridad: seg,
+                aperturas: ape,
+                totalNovedades: nov.length,
+                visitasMulta: vis.length
+            };
+        }
+
+        function bindUiModuloConserjeria() {
+            if (window._moduloConserjeriaUiBound) return;
+            window._moduloConserjeriaUiBound = true;
+            var btn = document.getElementById('btnActualizarModuloConserjeria');
+            if (btn) {
+                btn.addEventListener('click', function () {
+                    if (typeof window.cargarModuloConserjeriaGestion === 'function') {
+                        window.cargarModuloConserjeriaGestion({ forzar: true });
+                    }
+                });
+            }
+            var inp = document.getElementById('conserjeriaFiltroTexto');
+            var sel = document.getElementById('conserjeriaFiltroCategoria');
+            if (inp) inp.addEventListener('input', pintarTablasModuloConserjeria);
+            if (sel) sel.addEventListener('change', pintarTablasModuloConserjeria);
+        }
+
+        function pintarKpisModuloConserjeria() {
+            var r = resumenModuloConserjeriaDesdeCache();
+            var setTxt = function (id, val) {
+                var el = document.getElementById(id);
+                if (el) el.textContent = String(val);
+            };
+            setTxt('conserjeriaKpiReclamos', r.reclamos);
+            setTxt('conserjeriaKpiIncidencias', r.incidencias);
+            setTxt('conserjeriaKpiSeguridad', r.seguridad);
+            setTxt('conserjeriaKpiAperturas', r.aperturas);
+            setTxt('conserjeriaKpiVisitasMulta', r.visitasMulta);
+            var mesEl = document.getElementById('conserjeriaMesTexto');
+            if (mesEl) {
+                var nombre = (typeof obtenerNombreMes === 'function' && r.mes) ? obtenerNombreMes(r.mes) : (r.mes || '');
+                mesEl.textContent = nombre ? ('Periodo en consulta: ' + nombre + '.') : '';
+            }
+        }
+
+        function pintarTablasModuloConserjeria() {
+            var cache = window._moduloConserjeriaCache || {};
+            var q = '';
+            var cat = '';
+            var inp = document.getElementById('conserjeriaFiltroTexto');
+            var sel = document.getElementById('conserjeriaFiltroCategoria');
+            if (inp) q = String(inp.value || '').trim().toLowerCase();
+            if (sel) cat = String(sel.value || '').trim();
+            var nov = (cache.novedades || []).filter(function (n) {
+                if (cat && n.catClave !== cat) return false;
+                if (!q) return true;
+                var blob = [n.texto, n.conserje, n.categoria, n.fecha, n.hora].join(' ').toLowerCase();
+                return blob.indexOf(q) !== -1;
+            });
+            var vis = (cache.visitas || []).filter(function (v) {
+                if (!q) return true;
+                var blob = [v.visitor, v.deptLabel, v.plate, v.parkingCode].join(' ').toLowerCase();
+                return blob.indexOf(q) !== -1;
+            });
+            var tbN = document.getElementById('tbodyConserjeriaNovedades');
+            if (tbN) {
+                if (cache.error && !nov.length) {
+                    tbN.innerHTML = '<tr><td colspan="6" class="empty-state"><p>' + escaparHtmlModuloConserjeria(cache.error) + '</p></td></tr>';
+                } else if (!nov.length) {
+                    tbN.innerHTML = '<tr><td colspan="6" class="empty-state"><p>No hay novedades de reclamos, incidencias, seguridad o aperturas en este mes.</p></td></tr>';
+                } else {
+                    tbN.innerHTML = nov.map(function (n) {
+                        var st = estiloBadgeCategoriaNovedad(n.catClave);
+                        var badge = '<span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:999px;font-size:0.72rem;font-weight:700;background:' + st.bg + ';color:' + st.fg + ';border:1px solid ' + st.bd + ';">' + escaparHtmlModuloConserjeria(etiquetaCategoriaNovedadGestion(n.catClave)) + '</span>';
+                        return '<tr>' +
+                            '<td>' + escaparHtmlModuloConserjeria(n.libro || '—') + '</td>' +
+                            '<td>' + escaparHtmlModuloConserjeria(n.fecha || '—') + '</td>' +
+                            '<td>' + escaparHtmlModuloConserjeria(n.hora || '—') + '</td>' +
+                            '<td>' + badge + '</td>' +
+                            '<td>' + escaparHtmlModuloConserjeria(n.conserje || '—') + '</td>' +
+                            '<td style="max-width:28rem;white-space:pre-wrap;line-height:1.4;">' + escaparHtmlModuloConserjeria(n.texto || '') + '</td>' +
+                            '</tr>';
+                    }).join('');
+                }
+            }
+            var tbV = document.getElementById('tbodyConserjeriaVisitasMulta');
+            if (tbV) {
+                if (cache.error && !vis.length && !(cache.novedades || []).length) {
+                    tbV.innerHTML = '<tr><td colspan="7" class="empty-state"><p>' + escaparHtmlModuloConserjeria(cache.error) + '</p></td></tr>';
+                } else if (!vis.length) {
+                    tbV.innerHTML = '<tr><td colspan="7" class="empty-state"><p>No hay visitas con multa en este mes.</p></td></tr>';
+                } else {
+                    tbV.innerHTML = vis.map(function (v) {
+                        var estado = v.abierta
+                            ? '<span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:999px;font-size:0.72rem;font-weight:700;background:rgba(220,38,38,0.12);color:#b91c1c;border:1px solid rgba(220,38,38,0.28);">En edificio · multa</span>'
+                            : '<span style="display:inline-block;padding:0.15rem 0.5rem;border-radius:999px;font-size:0.72rem;font-weight:700;background:rgba(180,83,9,0.12);color:#92400e;border:1px solid rgba(180,83,9,0.28);">Cerrada · multa</span>';
+                        return '<tr>' +
+                            '<td>' + escaparHtmlModuloConserjeria(textoFechaHoraIsoGestion(v.at)) + '</td>' +
+                            '<td>' + escaparHtmlModuloConserjeria(v.outAt ? textoFechaHoraIsoGestion(v.outAt) : 'En edificio') + '</td>' +
+                            '<td>' + escaparHtmlModuloConserjeria(v.visitor || '—') + '</td>' +
+                            '<td>' + escaparHtmlModuloConserjeria(v.deptLabel || '—') + '</td>' +
+                            '<td>' + escaparHtmlModuloConserjeria(v.plate || '—') + '</td>' +
+                            '<td>' + escaparHtmlModuloConserjeria(formatearPermanenciaMsGestion(v.elapsed)) + '</td>' +
+                            '<td>' + estado + '</td>' +
+                            '</tr>';
+                    }).join('');
+                }
+            }
+            pintarKpisModuloConserjeria();
+        }
+
+        async function cargarDatosCrudosModuloConserjeria(mes) {
+            var sdb = await obtenerDbConserjeriaOperativa();
+            var novedades = [];
+            var visitas = [];
+            try {
+                var snapN = await sdb.collection('novedades').orderBy('correlativo', 'desc').limit(1000).get();
+                var todasMes = [];
+                snapN.forEach(function (doc) {
+                    var d = doc.data() || {};
+                    d._id = doc.id;
+                    if (d.turnoSep || d.tipo === 'resumen_diario') return;
+                    if (mesDesdeFechaNovedadGestion(d.fecha) !== mes) return;
+                    todasMes.push(d);
+                });
+                todasMes.sort(function (a, b) {
+                    return (Number(a.correlativo) || 0) - (Number(b.correlativo) || 0);
+                });
+                var libroPorCorr = {};
+                var nLibro = 0;
+                todasMes.forEach(function (d) {
+                    if (d.minimizada) return;
+                    nLibro += 1;
+                    libroPorCorr[d.correlativo] = nLibro;
+                });
+                novedades = todasMes.filter(function (d) {
+                    return !!categoriaNovedadGestion(d.categoria);
+                }).map(function (d) {
+                    return {
+                        id: d._id,
+                        correlativo: d.correlativo,
+                        libro: libroPorCorr[d.correlativo] != null ? ('#' + libroPorCorr[d.correlativo]) : '—',
+                        fecha: d.fecha || '',
+                        hora: d.hora || '',
+                        conserje: d.conserje || '',
+                        texto: d.texto || '',
+                        categoria: d.categoria || '',
+                        catClave: categoriaNovedadGestion(d.categoria)
+                    };
+                }).reverse();
+            } catch (eN) {
+                console.warn('[conserjeria-modulo] Novedades:', eN);
+                throw eN;
+            }
+            try {
+                var rango = rangoIsoMesConsultaGestion(mes);
+                var vistos = {};
+                var agregarVisita = function (doc) {
+                    if (!doc) return;
+                    var d = doc.data() || {};
+                    var id = doc.id;
+                    if (vistos[id]) return;
+                    vistos[id] = true;
+                    d._id = id;
+                    if (!visitaPerteneceAlMesGestion(d, mes)) return;
+                    var multa = visitaConMultaGestion(d);
+                    if (!multa) return;
+                    visitas.push({
+                        id: id,
+                        at: d.at || '',
+                        outAt: d.outAt || '',
+                        visitor: d.visitor || '',
+                        deptLabel: d.deptLabel || '',
+                        plate: d.plate || '',
+                        parkingCode: d.parkingCode || '',
+                        elapsed: multa.elapsed,
+                        abierta: multa.abierta
+                    });
+                };
+                if (rango) {
+                    try {
+                        var snapV = await sdb.collection('visitas')
+                            .where('at', '>=', rango.start)
+                            .where('at', '<', rango.end)
+                            .orderBy('at', 'desc')
+                            .limit(600)
+                            .get();
+                        snapV.forEach(agregarVisita);
+                    } catch (eQ) {
+                        console.warn('[conserjeria-modulo] Query visitas por mes, fallback reciente:', eQ);
+                        var snapF = await sdb.collection('visitas').orderBy('at', 'desc').limit(800).get();
+                        snapF.forEach(agregarVisita);
+                    }
+                } else {
+                    var snapF2 = await sdb.collection('visitas').orderBy('at', 'desc').limit(800).get();
+                    snapF2.forEach(agregarVisita);
+                }
+                try {
+                    var snapOpen = await sdb.collection('visitas').where('vehicular', '==', true).orderBy('at', 'desc').limit(200).get();
+                    snapOpen.forEach(agregarVisita);
+                } catch (eO) {
+                    /* índice opcional: las visitas del mes ya cubren el caso habitual */
+                }
+                visitas.sort(function (a, b) {
+                    return visitaAtMsGestion(b.at) - visitaAtMsGestion(a.at);
+                });
+            } catch (eV) {
+                console.warn('[conserjeria-modulo] Visitas:', eV);
+                throw eV;
+            }
+            return { novedades: novedades, visitas: visitas };
+        }
+
+        window.cargarModuloConserjeriaGestion = async function (opts) {
+            opts = opts || {};
+            bindUiModuloConserjeria();
+            var mes = (typeof obtenerMesPeriodoVista === 'function') ? obtenerMesPeriodoVista() : '';
+            var cache = window._moduloConserjeriaCache || {};
+            if (!opts.forzar && cache.mes === mes && (cache.novedades || cache.visitas) && !cache.error) {
+                pintarTablasModuloConserjeria();
+                return cache;
+            }
+            if (window._moduloConserjeriaCargando && !opts.forzar) return cache;
+            window._moduloConserjeriaCargando = true;
+            var tbN = document.getElementById('tbodyConserjeriaNovedades');
+            var tbV = document.getElementById('tbodyConserjeriaVisitasMulta');
+            if (tbN) tbN.innerHTML = '<tr><td colspan="6" class="empty-state"><p>Cargando novedades…</p></td></tr>';
+            if (tbV) tbV.innerHTML = '<tr><td colspan="7" class="empty-state"><p>Cargando visitas…</p></td></tr>';
+            try {
+                var datos = await cargarDatosCrudosModuloConserjeria(mes);
+                window._moduloConserjeriaCache = {
+                    mes: mes,
+                    novedades: datos.novedades || [],
+                    visitas: datos.visitas || [],
+                    error: ''
+                };
+                pintarTablasModuloConserjeria();
+            } catch (e) {
+                var msg = (e && e.message) ? e.message : 'No se pudo leer Conserjería WM.';
+                window._moduloConserjeriaCache = {
+                    mes: mes,
+                    novedades: (cache.novedades || []),
+                    visitas: (cache.visitas || []),
+                    error: 'Sin conexión con Conserjería WM: ' + msg
+                };
+                pintarTablasModuloConserjeria();
+            } finally {
+                window._moduloConserjeriaCargando = false;
+            }
+            return window._moduloConserjeriaCache;
+        };
+
+        window.precargarResumenModuloConserjeria = function () {
+            if (typeof window.cargarModuloConserjeriaGestion === 'function') {
+                window.cargarModuloConserjeriaGestion().catch(function () {});
+            }
+        };
+
         function parseHuellasBienvenidaMapa(mapa) {
             var out = new Set();
             if (!mapa || typeof mapa !== 'object' || Array.isArray(mapa)) return out;
@@ -14621,12 +15139,41 @@
         window.editandoMoroso = null;
         window.editandoCaja = null;
 
+        function mudanzaEstaEnEspera(m) {
+            if (!m || mudanzaEstaCancelada(m)) return false;
+            const v = String(m.autorizada == null ? '' : m.autorizada).toLowerCase();
+            return v === 'espera' || v === 'en-espera' || v === 'pendiente' || v === 'en espera';
+        }
+
         function mudanzaEstaAutorizada(m) {
             if (!m) return false;
             if (mudanzaEstaCancelada(m)) return false;
+            if (mudanzaEstaEnEspera(m)) return false;
             if (m.autorizada === 'si' || m.autorizada === true) return true;
             if (m.autorizada === 'no' || m.autorizada === false) return false;
             return !!m.selloAutorizado;
+        }
+
+        function mudanzaValorAutorizadaForm(m) {
+            if (mudanzaEstaEnEspera(m)) return 'espera';
+            if (mudanzaEstaAutorizada(m)) return 'si';
+            return 'no';
+        }
+
+        function textoEstadoAutorizacionMudanza(m) {
+            if (mudanzaEstaCancelada(m)) return 'Cancelada';
+            if (mudanzaEstaEnEspera(m)) return 'En espera de documentación del arrendador';
+            if (mudanzaEstaAutorizada(m)) return 'Autorizada';
+            return 'No autorizada';
+        }
+
+        function htmlBadgeAutorizacionMudanza(m) {
+            if (mudanzaEstaCancelada(m)) return '<span class="badge badge-danger">Cancelada</span>';
+            if (mudanzaEstaEnEspera(m)) {
+                return '<span class="badge badge-warning" title="Falta documentación o acreditación del arrendador">En espera</span>';
+            }
+            if (mudanzaEstaAutorizada(m)) return '<span class="badge badge-success">Autorizada</span>';
+            return '<span class="badge badge-danger">No autorizada</span>';
         }
 
         function mudanzaEstaCancelada(m) {
@@ -14692,6 +15239,9 @@
             const selloAutorizado = document.getElementById('mudanzaSelloAutorizado');
             
             if (!camposSalida || !tipoCheck || !tieneGastosComunes || !grupoMontoGastosComunes || !gastosComunes || !salvoconducto) return;
+
+            const hintAut = document.getElementById('mudanzaAutorizadaHint');
+            if (hintAut) hintAut.style.display = movimientoValue === 'salida' ? 'block' : 'none';
             
             if (movimientoValue === 'salida') {
                 camposSalida.style.display = 'block';
@@ -14755,7 +15305,7 @@
             document.getElementById('mudanzaTipo').value = mudanza.tipo || '';
             document.getElementById('mudanzaMovimiento').value = mudanza.movimiento || '';
             document.getElementById('mudanzaCobro').value = mudanza.aplicaCobro || 'no';
-            document.getElementById('mudanzaAutorizada').value = mudanzaEstaAutorizada(mudanza) ? 'si' : 'no';
+            document.getElementById('mudanzaAutorizada').value = mudanzaValorAutorizadaForm(mudanza);
             document.getElementById('mudanzaMonto').value = mudanza.aplicaCobro === 'si' ? formatearMoneda(20000) : '$0';
             document.getElementById('mudanzaCorredor').value = mudanza.corredor || '';
             document.getElementById('mudanzaObservaciones').value = (mudanza.comentarios || mudanza.observaciones || '');
@@ -14944,7 +15494,6 @@
                 const tipoTexto = m.tipo === 'propietario' ? 'Propietario' : m.tipo === 'arrendatario' ? 'Arrendatario' : '-';
                 const movimientoTexto = m.movimiento === 'ingreso' ? 'Ingreso' : m.movimiento === 'salida' ? 'Salida' : '-';
                 const cancelada = mudanzaEstaCancelada(m);
-                const autorizada = mudanzaEstaAutorizada(m);
                 const mesArchivado = window.mesEnConsulta && !window.mesReabierto;
                 return `
                     <tr${cancelada ? ' style="opacity: 0.78;"' : ''}>
@@ -14953,9 +15502,7 @@
                         <td>${m.departamento}</td>
                         <td><span class="badge badge-info">${tipoTexto}</span></td>
                         <td><span class="badge ${m.movimiento === 'ingreso' ? 'badge-success' : 'badge-warning'}">${movimientoTexto}</span></td>
-                        <td>${cancelada
-                            ? '<span class="badge badge-danger">Cancelada</span>'
-                            : `<span class="badge ${autorizada ? 'badge-success' : 'badge-danger'}">${autorizada ? 'Sí' : 'No'}</span>`}</td>
+                        <td>${htmlBadgeAutorizacionMudanza(m)}</td>
                         <td><span class="badge ${(!cancelada && m.aplicaCobro === 'si') ? 'badge-success' : 'badge-secondary'}">${cancelada ? 'Anulado' : (m.aplicaCobro === 'si' ? 'Sí' : 'No')}</span></td>
                         <td>${formatearMoneda(cancelada ? 0 : m.monto)}</td>
                         <td>${m.corredor || '-'}</td>
@@ -15009,16 +15556,17 @@
             const movimientoTexto = esIngreso ? 'Ingreso' : esSalida ? 'Salida' : (mudanza.movimiento || 'Mudanza');
             const tipoTexto = mudanza.tipo === 'propietario' ? 'Propietario' : mudanza.tipo === 'arrendatario' ? 'Arrendatario' : '-';
             const autorizada = mudanzaEstaAutorizada(mudanza);
+            const enEspera = typeof mudanzaEstaEnEspera === 'function' && mudanzaEstaEnEspera(mudanza);
             const servicio = valorServicioMudanza(mudanza);
             const fechaStr = mudanza.fecha
                 ? (typeof formatearFechaParaCorreo === 'function' ? formatearFechaParaCorreo(mudanza.fecha) : mudanza.fecha)
                 : '-';
             const titulo = esIngreso ? 'Confirmación de mudanza de ingreso' : esSalida ? 'Confirmación de mudanza de salida' : 'Confirmación de mudanza';
-            const colorAcento = autorizada ? '#74BD20' : '#dc2626';
-            const estadoBg = autorizada ? '#e8f5e9' : '#fee2e2';
-            const estadoBorder = autorizada ? '#c8e6c9' : '#fca5a5';
-            const estadoColor = autorizada ? '#166534' : '#991b1b';
-            const estadoTexto = autorizada ? 'AUTORIZADA' : 'NO AUTORIZADA';
+            const colorAcento = autorizada ? '#74BD20' : (enEspera ? '#d97706' : '#dc2626');
+            const estadoBg = autorizada ? '#e8f5e9' : (enEspera ? '#fff8e1' : '#fee2e2');
+            const estadoBorder = autorizada ? '#c8e6c9' : (enEspera ? '#fde68a' : '#fca5a5');
+            const estadoColor = autorizada ? '#166534' : (enEspera ? '#92400e' : '#991b1b');
+            const estadoTexto = autorizada ? 'AUTORIZADA' : (enEspera ? 'EN ESPERA' : 'NO AUTORIZADA');
             const montoBg = servicio.aplica ? '#e8f5e9' : '#f5f5f5';
             const montoColor = servicio.aplica ? '#2e7d32' : '#616161';
             const montoBorder = servicio.aplica ? '#c8e6c9' : '#e0e0e0';
@@ -15026,10 +15574,14 @@
             let parrafoPrincipal = '';
             if (esIngreso && autorizada) {
                 parrafoPrincipal = 'Confirmamos que su <strong>mudanza de ingreso</strong> se encuentra <strong>autorizada</strong> por la administración para la fecha indicada.';
+            } else if (esIngreso && enEspera) {
+                parrafoPrincipal = 'Informamos que su <strong>mudanza de ingreso</strong> quedó registrada y se encuentra <strong>en espera de documentación o acreditación del arrendador</strong>.';
             } else if (esIngreso && !autorizada) {
                 parrafoPrincipal = 'Informamos que su <strong>mudanza de ingreso</strong> quedó registrada, pero <strong>aún no se encuentra autorizada</strong>.';
             } else if (esSalida && autorizada) {
                 parrafoPrincipal = 'Confirmamos que su <strong>mudanza de salida</strong> se encuentra <strong>autorizada</strong> por la administración para la fecha indicada.';
+            } else if (esSalida && enEspera) {
+                parrafoPrincipal = 'Informamos que su <strong>mudanza de salida</strong> quedó registrada y se encuentra <strong>en espera de la documentación o acreditación del arrendador</strong>. Hasta recibir esos antecedentes, la administración no autoriza su ejecución.';
             } else if (esSalida && !autorizada) {
                 parrafoPrincipal = 'Informamos que su <strong>mudanza de salida</strong> quedó registrada, pero <strong>aún no se encuentra autorizada</strong>.';
             } else {
@@ -15146,7 +15698,9 @@
               <table role="presentation" cellpadding="0" cellspacing="0" border="0" width="100%" style="background-color: #fff8e1; border: 1px solid #ffecb3; border-radius: 8px;">
                 <tr>
                   <td style="padding: 12px 14px;">
-                    <p style="margin: 0; font-size: 14px; color: #333333; line-height: 1.5;">Hasta no contar con la autorización de la administración, esta mudanza no puede ejecutarse.</p>
+                    <p style="margin: 0; font-size: 14px; color: #333333; line-height: 1.5;">${enEspera
+                        ? 'Esta mudanza permanece en espera mientras falta la documentación o acreditación del arrendador. No puede ejecutarse hasta regularizar esos antecedentes y contar con la autorización de la administración.'
+                        : 'Hasta no contar con la autorización de la administración, esta mudanza no puede ejecutarse.'}</p>
                   </td>
                 </tr>
               </table>
@@ -15307,8 +15861,9 @@
 
                 const esIngreso = mudanza.movimiento === 'ingreso';
                 const autorizada = mudanzaEstaAutorizada(mudanza);
+                const enEspera = typeof mudanzaEstaEnEspera === 'function' && mudanzaEstaEnEspera(mudanza);
                 const movimientoAsunto = esIngreso ? 'ingreso' : (mudanza.movimiento === 'salida' ? 'salida' : 'mudanza');
-                const estadoAsunto = autorizada ? 'autorizada' : 'no autorizada';
+                const estadoAsunto = autorizada ? 'autorizada' : (enEspera ? 'en espera de documentación del arrendador' : 'no autorizada');
                 const mapPlant = await obtenerPlantillasCorreoModulosMap();
                 const bloque = obtenerBloquePlantillaModulo(mapPlant, 'confirmacionMudanza');
                 const ctx = {
@@ -28411,8 +28966,9 @@
             'pagos-aseo': { nombre: 'Pagos Aseo', icono: '🧹', tab: 'pagos-aseo' },
             'nomina': { nombre: 'Nómina Mensual', icono: '💼', tab: 'nomina' },
             'lecturas-agua': { nombre: 'Lecturas Agua Caliente', icono: '💧', tab: 'lecturasAgua' },
-            'ocupacion': { nombre: 'Ocupación', icono: '🏢', tab: 'ocupacion' },
-            'postventa': { nombre: 'Postventa', icono: '📋', tab: 'postventa' }
+                'ocupacion': { nombre: 'Ocupación', icono: '🏢', tab: 'ocupacion' },
+                'conserjeria': { nombre: 'Conserjería', icono: '🛡️', tab: 'conserjeria' },
+                'postventa': { nombre: 'Postventa', icono: '📋', tab: 'postventa' }
         };
 
         /** Pestaña asociada a cada tarjeta del panel de control (clic → ir al módulo). */
@@ -28433,6 +28989,7 @@
                 'Lecturas Agua Caliente': 'lecturasAgua',
                 'Última Nómina': 'nomina',
                 'Postventa': 'postventa',
+                'Conserjería': 'conserjeria',
                 'Balance Neto': 'dashboard'
             };
             return map[title] || null;
@@ -28510,6 +29067,18 @@
                         }
                     }
                 }
+
+                try {
+                    if (modulosVisibles && !modulosVisibles.includes('conserjeria')) {
+                        var marcaAlta = '';
+                        try { marcaAlta = localStorage.getItem(lsKey('modulo_conserjeria_alta')) || ''; } catch (eM) {}
+                        if (marcaAlta !== '1') {
+                            modulosVisibles.push('conserjeria');
+                            try { localStorage.setItem(lsKey('modulo_conserjeria_alta'), '1'); } catch (eS) {}
+                            await guardarModulosVisibles(modulosVisibles, configuracionExplicita);
+                        }
+                    }
+                } catch (eAlta) {}
                 
                 return modulosVisibles;
             } catch (error) {
@@ -31824,6 +32393,7 @@
                                         <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-secondary); transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;">Depto</th>
                                         <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-secondary); transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;">Tipo</th>
                                         <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-secondary); transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;">Movimiento</th>
+                                        <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-secondary); transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;">Autorización</th>
                                         <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-secondary); transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;">Cobro</th>
                                         <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-secondary); transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;">Monto</th>
                                         <th style="padding: 0.5rem; text-align: left; font-weight: 600; font-size: 0.75rem; border: 1px solid var(--border-color); background: var(--bg-tertiary); color: var(--text-secondary); transition: background-color 0.3s ease, border-color 0.3s ease, color 0.3s ease;">Corredor</th>
@@ -31863,6 +32433,13 @@
                                 }
                             }
                             
+                            const estadoAutTxt = typeof textoEstadoAutorizacionMudanza === 'function' ? textoEstadoAutorizacionMudanza(m) : '-';
+                            const enEsperaFila = typeof mudanzaEstaEnEspera === 'function' && mudanzaEstaEnEspera(m);
+                            const autorizadaFila = typeof mudanzaEstaAutorizada === 'function' && mudanzaEstaAutorizada(m);
+                            const badgeAut = canceladaFila
+                                ? 'background: #dc2626; color: white;'
+                                : (autorizadaFila ? 'background: #10b981; color: white;' : (enEsperaFila ? 'background: #d97706; color: white;' : 'background: #dc2626; color: white;'));
+                            
                             html += `
                                 <tr>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.fecha ? formatearFechaParaCorreo(m.fecha) : '-'}</td>
@@ -31870,6 +32447,7 @@
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.departamento || '-'}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;"><span style="${badgeTipo}">${tipoTexto}</span></td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;"><span style="${badgeMov} padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; display: inline-block;">${canceladaFila ? movimientoTexto + ' · cancelada' : movimientoTexto}</span></td>
+                                    <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;"><span style="${badgeAut} padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; display: inline-block;">${estadoAutTxt}</span></td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;"><span style="${badgeCobro} padding: 0.2rem 0.5rem; border-radius: 4px; font-size: 0.7rem; display: inline-block;">${mudanzaConCobroVigente(m) ? 'Sí' : (canceladaFila ? 'Anulado' : 'No')}</span></td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${formatearMoneda(mudanzaConCobroVigente(m) ? (m.monto || 0) : 0)}</td>
                                     <td style="padding: 0.5rem; font-size: 0.75rem; border: 1px solid #e5e7eb;">${m.corredor || '-'}</td>
@@ -33477,13 +34055,16 @@
                 const tipoTexto = m.tipo === 'propietario' ? 'Propietario' : m.tipo === 'arrendatario' ? 'Arrendatario' : '-';
                 const movimientoTexto = m.movimiento === 'ingreso' ? 'Ingreso' : m.movimiento === 'salida' ? 'Salida' : '-';
                 const cancelada = typeof mudanzaEstaCancelada === 'function' && mudanzaEstaCancelada(m);
+                const estadoAut = cancelada
+                    ? 'Cancelada'
+                    : (typeof textoEstadoAutorizacionMudanza === 'function' ? textoEstadoAutorizacionMudanza(m) : 'Vigente');
                 datos.push([
                     m.fecha ? formatearFechaParaCorreo(m.fecha) : '-',
                     m.nombre || '-',
                     m.departamento || '-',
                     tipoTexto,
                     movimientoTexto,
-                    cancelada ? 'Cancelada' : 'Vigente',
+                    estadoAut,
                     mudanzaConCobroVigente(m) ? 'Sí' : (cancelada && m.aplicaCobro === 'si' ? 'Anulado' : 'No'),
                     formatearMoneda(mudanzaConCobroVigente(m) ? (parseFloat(m.monto) || 0) : 0),
                     m.corredor || '-',
@@ -37614,6 +38195,7 @@
                 'agua': '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M12 2.69l5.66 5.66a8 8 0 1 1-11.31 0z"/><path fill="currentColor" d="M12 2L2 12l10 10 10-10L12 2zm0 2.83L19.17 12 12 19.17 4.83 12 12 4.83z" opacity="0.3"/><path fill="currentColor" d="M12 6c-3.31 0-6 2.69-6 6s2.69 6 6 6 6-2.69 6-6-2.69-6-6-6zm0 10c-2.21 0-4-1.79-4-4s1.79-4 4-4 4 1.79 4 4-1.79 4-4 4z"/><circle fill="currentColor" cx="12" cy="12" r="2" opacity="0.6"/></svg>',
                 'personalizacion': '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z"/></svg>',
                 'ocupacion': '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>',
+                'conserjeria': '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M12 1L3 5v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V5l-9-4zm0 10.99h7c-.53 4.12-3.28 7.79-7 8.94V12H5V6.3l7-3.11v8.8z"/></svg>',
                 'postventa': '<svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path fill="currentColor" d="M19 3H5c-1.1 0-2 .9-2 2v14l4-4h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm0 10H6.17L5 14.17V5h14v8z"/><path fill="currentColor" d="M7 9h10v2H7zm0-3h7v2H7z" opacity="0.7"/></svg>'
             };
             
@@ -38571,6 +39153,29 @@
                         gradient: 'linear-gradient(135deg, rgba(59, 130, 246, 0.22) 0%, rgba(37, 99, 235, 0.08) 100%)',
                         semaforo: 'azul'
                     });
+                }
+            }
+
+            if (modulosVisibles.includes('conserjeria')) {
+                const rCons = (typeof resumenModuloConserjeriaDesdeCache === 'function') ? resumenModuloConserjeriaDesdeCache() : {};
+                const totalNov = (rCons && rCons.totalNovedades != null) ? rCons.totalNovedades : null;
+                const visM = (rCons && rCons.visitasMulta != null) ? rCons.visitasMulta : 0;
+                const hayMulta = visM > 0;
+                stats.push({
+                    title: 'Conserjería',
+                    value: totalNov != null ? totalNov : '—',
+                    subtitle: hayMulta
+                        ? (visM === 1 ? '1 visita con multa' : visM + ' visitas con multa')
+                        : 'Novedades e incidencias del mes',
+                    icon: 'conserjeria',
+                    iconClass: hayMulta ? 'warning' : 'info',
+                    gradient: hayMulta
+                        ? 'linear-gradient(135deg, rgba(245, 158, 11, 0.15) 0%, rgba(245, 158, 11, 0.05) 100%)'
+                        : 'linear-gradient(135deg, rgba(59, 130, 246, 0.18) 0%, rgba(37, 99, 235, 0.06) 100%)',
+                    semaforo: hayMulta ? 'amarillo' : 'azul'
+                });
+                if (typeof window.precargarResumenModuloConserjeria === 'function' && (!rCons || !rCons.mes)) {
+                    window.precargarResumenModuloConserjeria();
                 }
             }
 
@@ -40429,6 +41034,9 @@
                 if (typeof cargarPagosAseo === 'function') cargarPagosAseo();
                 if (typeof cargarRegistrosEspaciosPendientes === 'function') cargarRegistrosEspaciosPendientes();
                 if (typeof cargarInsumos === 'function') cargarInsumos();
+                if (typeof window.cargarModuloConserjeriaGestion === 'function' && document.querySelector('#conserjeria.tab-content.active')) {
+                    window.cargarModuloConserjeriaGestion();
+                }
             } catch (error) {
                 console.error('Error en cargarDatos:', error);
                 throw error;
@@ -40453,6 +41061,7 @@
                 'insumos': 'insumos',
                 'lecturasAgua': 'agua',
                 'ocupacion': 'ocupacion',
+                'conserjeria': 'conserjeria',
                 'postventa': 'postventa',
                 'personalizacion': 'personalizacion'
             };
