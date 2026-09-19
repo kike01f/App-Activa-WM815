@@ -5155,7 +5155,7 @@
                 <h2 id="tituloEspacios" style="margin: 0; color: var(--gray-900); font-size: 1.5rem; font-weight: 700; display: flex; align-items: center; gap: 0.75rem;">
                     <span style="display: inline-flex; align-items: center; width: 1.75rem; height: 1.75rem;"></span> Espacios Comunes
                 </h2>
-                <p style="color: var(--gray-600); font-size: 0.875rem; margin: 0.5rem 0 0 0;">Registro de uso de espacios comunes</p>
+                <p style="color: var(--gray-600); font-size: 0.875rem; margin: 0.5rem 0 0 0;">Registro de uso de espacios comunes. Cada registro se publica en <strong>Reservas</strong> de Conserjería WM (horario del día: 10:00 a 22:00).</p>
             </div>
             <div class="form-section" style="margin-bottom: 1rem;">
                 <h3 style="margin: 0 0 0.75rem 0; font-size: 1rem; font-weight: 700;">Uso de Espacios Comunes</h3>
@@ -12883,6 +12883,105 @@
             return sdb;
         }
 
+        function idReservaDesdeEspacioGestion(espacio) {
+            var raw = String((espacio && espacio.id) || '').replace(/[^a-zA-Z0-9_-]/g, '');
+            return raw ? ('gestion-espacio-' + raw) : '';
+        }
+
+        function isoSantiagoDesdeFechaHoraGestion(fechaYmd, hhmm) {
+            var f = String(fechaYmd || '').trim();
+            var hm = String(hhmm || '10:00').trim();
+            if (!/^\d{4}-\d{2}-\d{2}$/.test(f)) return '';
+            if (!/^\d{1,2}:\d{2}$/.test(hm)) hm = '10:00';
+            var parts = hm.split(':');
+            var hh = String(Math.min(23, Math.max(0, parseInt(parts[0], 10) || 0))).padStart(2, '0');
+            var mm = String(Math.min(59, Math.max(0, parseInt(parts[1], 10) || 0))).padStart(2, '0');
+            var local = new Date(f + 'T' + hh + ':' + mm + ':00');
+            if (isNaN(local.getTime())) return '';
+            return local.toISOString();
+        }
+
+        function payloadReservaDesdeEspacioGestion(espacio) {
+            var e = espacio || {};
+            var start = isoSantiagoDesdeFechaHoraGestion(e.fecha, '10:00');
+            var end = isoSantiagoDesdeFechaHoraGestion(e.fecha, '22:00');
+            var notas = [];
+            if (e.nombre) notas.push('Residente: ' + e.nombre);
+            if (e.folio) notas.push('Folio gestión: ' + e.folio);
+            if (e.aplicaAseo === 'si') notas.push('Aseo: $15.000');
+            if (e.aplicaCobroEspacio === 'si') notas.push('Uso: $' + (parseFloat(e.montoCobroEspacio) || 0));
+            notas.push('Origen: módulo Espacios de Gestión WM.');
+            return {
+                space: String(e.espacio || '').trim(),
+                deptId: String(e.departamento || '').trim(),
+                start: start,
+                end: end,
+                note: notas.join(' · '),
+                registradoPor: 'Gestión WM',
+                origenGestion: true,
+                gestionEspacioId: e.id || '',
+                gestionFolio: e.folio || ''
+            };
+        }
+
+        async function asegurarEspacioEnListaReservasConserjeria(sdb, spaceName) {
+            var t = String(spaceName || '').trim();
+            if (!t || !sdb) return;
+            var ref = sdb.collection('pcsh_settings').doc('global');
+            var snap = await ref.get();
+            var data = snap && snap.exists ? (snap.data() || {}) : {};
+            var key = 'pcsh_demo_v1_reserva_spaces';
+            var list = [];
+            try {
+                var raw = data.mirror && data.mirror[key];
+                list = raw ? JSON.parse(String(raw)) : [];
+                if (!Array.isArray(list)) list = [];
+            } catch (eP) {
+                list = [];
+            }
+            if (!list.length) {
+                list = ['Salón multipropósito', 'Quincho / parrilla', 'Sala reuniones', 'Terraza o piscina'];
+            }
+            if (list.indexOf(t) !== -1) return;
+            list.push(t);
+            var patch = {};
+            patch['mirror.' + key] = JSON.stringify(list);
+            patch.updatedAt = firebase.firestore.FieldValue.serverTimestamp();
+            if (snap && snap.exists) await ref.update(patch);
+            else await ref.set({ mirror: { [key]: JSON.stringify(list) }, updatedAt: patch.updatedAt }, { merge: true });
+        }
+
+        async function sincronizarEspacioAReservaConserjeria(espacio, accion) {
+            var docId = idReservaDesdeEspacioGestion(espacio);
+            if (!docId) return { ok: false, error: 'Sin identificador de espacio' };
+            var sdb = await obtenerDbConserjeriaOperativa();
+            var ref = sdb.collection('reservas').doc(docId);
+            if (accion === 'eliminar') {
+                await ref.delete();
+                return { ok: true, id: docId, eliminado: true };
+            }
+            var payload = payloadReservaDesdeEspacioGestion(espacio);
+            if (!payload.space || !payload.deptId || !payload.start || !payload.end) {
+                return { ok: false, error: 'Faltan espacio, unidad o fecha para publicar la reserva' };
+            }
+            await ref.set(payload, { merge: true });
+            try { await asegurarEspacioEnListaReservasConserjeria(sdb, payload.space); } catch (eL) {
+                console.warn('[espacios] Lista de espacios Conserjería:', eL);
+            }
+            return { ok: true, id: docId };
+        }
+
+        async function marcarEspacioSincronizadoReserva(lista, espacio, reservaId) {
+            if (!espacio || !reservaId || !Array.isArray(lista)) return;
+            var idx = lista.findIndex(function (x) { return x && x.id === espacio.id; });
+            if (idx === -1) return;
+            lista[idx].reservaConserjeriaId = reservaId;
+            lista[idx].reservaConserjeriaSyncAt = new Date().toISOString();
+            await guardarDatosMes('espacios', lista);
+        }
+
+        window.sincronizarEspacioAReservaConserjeria = sincronizarEspacioAReservaConserjeria;
+
         function resumenModuloConserjeriaDesdeCache() {
             var cache = window._moduloConserjeriaCache || {};
             var nov = Array.isArray(cache.novedades) ? cache.novedades : [];
@@ -17646,6 +17745,16 @@
                         const total = (espacioData.aplicaAseo === 'si' ? 15000 : 0) + (espacioData.aplicaCobroEspacio === 'si' ? (parseFloat(espacioData.montoCobroEspacio) || 0) : 0);
                         window.registrarMovimiento('actualizar', 'espacios', `Espacio actualizado: ${espacioData.espacio} - Depto ${espacioData.departamento} - ${espacioData.nombre}${total ? ' - ' + formatearMoneda(total) : ''}`);
                     }
+                    try {
+                        const syncUp = await sincronizarEspacioAReservaConserjeria(espacios[index], 'actualizar');
+                        if (syncUp && syncUp.ok) {
+                            await marcarEspacioSincronizadoReserva(espacios, espacios[index], syncUp.id);
+                        } else {
+                            console.warn('[espacios] Reserva Conserjería no publicada:', syncUp && syncUp.error);
+                        }
+                    } catch (eSyncUp) {
+                        console.warn('[espacios] Reserva Conserjería no publicada:', eSyncUp);
+                    }
                     mostrarAlerta('Evento actualizado exitosamente.', 'Actualizado');
                     cancelarEdicionEspacio();
                 }
@@ -17659,6 +17768,16 @@
                 if (typeof window.registrarMovimiento === 'function') {
                     const total = (espacio.monto || 0) + (parseFloat(espacio.montoCobroEspacio) || 0);
                     window.registrarMovimiento('crear', 'espacios', `Uso de espacio: ${espacio.espacio} - Depto ${espacio.departamento} - ${espacio.nombre}${total ? ' - ' + formatearMoneda(total) : ''}`);
+                }
+                try {
+                    const syncNew = await sincronizarEspacioAReservaConserjeria(espacio, 'crear');
+                    if (syncNew && syncNew.ok) {
+                        await marcarEspacioSincronizadoReserva(espacios, espacio, syncNew.id);
+                    } else {
+                        console.warn('[espacios] Reserva Conserjería no publicada:', syncNew && syncNew.error);
+                    }
+                } catch (eSyncNew) {
+                    console.warn('[espacios] Reserva Conserjería no publicada:', eSyncNew);
                 }
                 mostrarAlerta('Evento registrado exitosamente.', 'Registrado');
                 
@@ -17694,6 +17813,31 @@
             }
 
             espacios.sort((a, b) => compararRegistrosMasRecientePrimero(a, b));
+
+            (function publicarReservasEspaciosPendientes() {
+                var pend = espacios.filter(function (e) { return e && e.id && !e.reservaConserjeriaId; });
+                if (!pend.length) return;
+                Promise.all(pend.map(function (e) {
+                    return sincronizarEspacioAReservaConserjeria(e, 'actualizar').then(function (r) {
+                        if (r && r.ok) e.reservaConserjeriaId = r.id;
+                        return r;
+                    }).catch(function (err) {
+                        console.warn('[espacios] Reserva pendiente:', err);
+                    });
+                })).then(function () {
+                    var hay = espacios.some(function (e) { return e && e.reservaConserjeriaId && !e.reservaConserjeriaSyncAt; });
+                    if (hay) {
+                        espacios.forEach(function (e) {
+                            if (e && e.reservaConserjeriaId && !e.reservaConserjeriaSyncAt) {
+                                e.reservaConserjeriaSyncAt = new Date().toISOString();
+                            }
+                        });
+                        return guardarDatosMes('espacios', espacios);
+                    }
+                }).catch(function (eB) {
+                    console.warn('[espacios] Backfill reservas:', eB);
+                });
+            })();
 
             tbody.innerHTML = espacios.map(e => {
                 const montoAseo = parseFloat(e.monto) || 0;
@@ -17739,8 +17883,15 @@
                 const eliminado = espacios.find(e => e.id === id);
                 const filtradas = espacios.filter(e => e.id !== id);
                 await guardarDatosMes('espacios', filtradas);
-                if (eliminado && typeof window.registrarMovimiento === 'function') {
-                    window.registrarMovimiento('eliminar', 'espacios', `Uso de espacio eliminado: ${eliminado.espacio} - Depto ${eliminado.departamento} - ${eliminado.nombre}`);
+                if (eliminado) {
+                    try {
+                        await sincronizarEspacioAReservaConserjeria(eliminado, 'eliminar');
+                    } catch (eDelRes) {
+                        console.warn('[espacios] No se pudo quitar la reserva en Conserjería WM:', eDelRes);
+                    }
+                    if (typeof window.registrarMovimiento === 'function') {
+                        window.registrarMovimiento('eliminar', 'espacios', `Uso de espacio eliminado: ${eliminado.espacio} - Depto ${eliminado.departamento} - ${eliminado.nombre}`);
+                    }
                 }
                 await cargarEspacios();
             }
