@@ -5227,12 +5227,12 @@
     <div class="card">
       <div class="card-h"><h3 style="margin:0"><i class="fa-solid fa-warehouse" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Control de bodega</h3></div>
       <div class="card-b">
-        <p class="page-desc" style="margin:0 0 0.75rem;">Desde conserjería solo se registran salidas. Cada salida queda con el conserje que autoriza y el auxiliar que solicita el material. Las entradas y el mínimo se controlan en Gestión.</p>
+        <p class="page-desc" style="margin:0 0 0.75rem;">Desde conserjería solo se registran salidas. Cada salida queda con el conserje que autoriza y el auxiliar que solicita el material.</p>
         <div id="pcshBodegaResumen" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:0.75rem;">
           <input type="search" id="pcshBodegaBuscar" placeholder="Buscar producto" style="min-width:180px;padding:8px;border-radius:8px;background:var(--gray-100);color:var(--text-main);border:1px solid var(--border-color);">
-          <label style="display:flex;align-items:center;gap:6px;margin:0;font-size:0.85rem;"><input type="checkbox" id="pcshBodegaSoloFaltantes"> Solo bajo el mínimo</label>
           <button type="button" class="btn btn-secondary" id="pcshBodegaRefrescar">Actualizar</button>
+          <button type="button" class="btn btn-primary" id="pcshBodegaVerSalidas">Registro de salidas</button>
         </div>
         <div style="overflow-x:auto;">
           <table style="width:100%;border-collapse:collapse;">
@@ -5240,15 +5240,12 @@
               <tr>
                 <th style="text-align:left;padding:0.55rem;text-transform:none;white-space:nowrap;">Producto</th>
                 <th style="text-align:center;padding:0.55rem;text-transform:none;white-space:nowrap;">Existencia</th>
-                <th style="text-align:center;padding:0.55rem;text-transform:none;white-space:nowrap;">Mínimo</th>
-                <th style="text-align:center;padding:0.55rem;text-transform:none;white-space:nowrap;">A pedir</th>
                 <th style="text-align:center;padding:0.55rem;text-transform:none;white-space:nowrap;">Salida</th>
               </tr>
             </thead>
             <tbody id="pcshBodegaBody"></tbody>
           </table>
         </div>
-        <div id="pcshBodegaMovs" style="margin-top:0.9rem;"></div>
       </div>
     </div>
     <div id="pcshBodegaSalidaModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);z-index:10000;align-items:center;justify-content:center;padding:1rem;">
@@ -5277,6 +5274,22 @@
             <button type="button" class="btn btn-primary" id="pcshBodegaSalidaConfirmar">Registrar salida</button>
           </div>
         </div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tabBodegaSalidas" class="pcsh-fabrica-panel" style="display:none;">
+    <div class="card">
+      <div class="card-h" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.5rem;">
+        <h3 style="margin:0"><i class="fa-solid fa-clipboard-list" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Registro de salidas</h3>
+        <button type="button" class="btn btn-secondary" id="pcshBodegaVolver">Volver a bodega</button>
+      </div>
+      <div class="card-b">
+        <p class="page-desc" style="margin:0 0 0.75rem;">Salidas de bodega con el conserje que autorizó y el auxiliar que solicitó el material.</p>
+        <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:0.75rem;">
+          <input type="search" id="pcshBodegaSalidasBuscar" placeholder="Buscar producto, conserje o auxiliar" style="min-width:220px;flex:1;padding:8px;border-radius:8px;background:var(--gray-100);color:var(--text-main);border:1px solid var(--border-color);">
+        </div>
+        <div id="pcshBodegaSalidasHost"></div>
       </div>
     </div>
   </div>
@@ -13446,12 +13459,6 @@ function pcshBodegaNormalizar(p) {
   };
 }
 
-function pcshBodegaAPedir(p) {
-  var min = parseInt(p && p.minimo, 10) || 0;
-  var ex = parseInt(p && p.existencia, 10) || 0;
-  return min > ex ? (min - ex) : 0;
-}
-
 function pcshBodegaFusionar(preferidos, respaldo) {
   var porNombre = {};
   (respaldo || []).forEach(function (p) {
@@ -13545,7 +13552,7 @@ async function pcshBodegaCargar() {
   var localDb = pcshBodegaDb();
   var body = document.getElementById('pcshBodegaBody');
   if (!localDb) {
-    if (body) body.innerHTML = '<tr><td colspan="5" style="padding:1rem;">La bodega necesita la conexión a la nube.</td></tr>';
+    if (body) body.innerHTML = '<tr><td colspan="3" style="padding:1rem;">La bodega necesita la conexión a la nube.</td></tr>';
     return;
   }
   var snap = await localDb.collection('pcsh_settings').doc('inventarioBodega').get();
@@ -13577,40 +13584,29 @@ async function pcshBodegaCargar() {
 function pcshBodegaPintar() {
   var body = document.getElementById('pcshBodegaBody');
   var resumen = document.getElementById('pcshBodegaResumen');
-  var movsHost = document.getElementById('pcshBodegaMovs');
   if (!body) return;
   var q = ((document.getElementById('pcshBodegaBuscar') || {}).value || '').trim().toLowerCase();
-  var solo = !!((document.getElementById('pcshBodegaSoloFaltantes') || {}).checked);
   var lista = pcshBodegaState.productos.slice().sort(function (a, b) {
-    var pa = pcshBodegaAPedir(a) > 0 ? 0 : 1;
-    var pb = pcshBodegaAPedir(b) > 0 ? 0 : 1;
-    if (pa !== pb) return pa - pb;
     return a.nombre.localeCompare(b.nombre);
   });
-  var bajo = pcshBodegaState.productos.filter(function (p) { return pcshBodegaAPedir(p) > 0; }).length;
   var unidades = pcshBodegaState.productos.reduce(function (acc, p) { return acc + (parseInt(p.existencia, 10) || 0); }, 0);
   if (resumen) {
     resumen.innerHTML =
       '<span style="padding:0.3rem 0.65rem;border-radius:999px;background:color-mix(in srgb, var(--blue-500) 22%, var(--gray-100));font-size:0.78rem;font-weight:700;">' + pcshBodegaState.productos.length + ' productos</span>' +
-      '<span style="padding:0.3rem 0.65rem;border-radius:999px;border:1px solid var(--border-color);font-size:0.78rem;font-weight:700;">' + unidades + ' en existencia</span>' +
-      '<span style="padding:0.3rem 0.65rem;border-radius:999px;background:' + (bajo ? 'color-mix(in srgb, var(--warning) 24%, var(--gray-100))' : 'color-mix(in srgb, var(--blue-500) 22%, var(--gray-100))') + ';font-size:0.78rem;font-weight:700;">' + bajo + ' bajo el mínimo</span>';
+      '<span style="padding:0.3rem 0.65rem;border-radius:999px;border:1px solid var(--border-color);font-size:0.78rem;font-weight:700;">' + unidades + ' en existencia</span>';
   }
   var visibles = lista.filter(function (p) {
-    if (solo && pcshBodegaAPedir(p) <= 0) return false;
     if (q && p.nombre.toLowerCase().indexOf(q) === -1) return false;
     return true;
   });
   if (!visibles.length) {
-    body.innerHTML = '<tr><td colspan="5" style="padding:1rem;color:var(--text-secondary);">No hay productos para mostrar.</td></tr>';
+    body.innerHTML = '<tr><td colspan="3" style="padding:1rem;color:var(--text-secondary);">No hay productos para mostrar.</td></tr>';
   } else {
     body.innerHTML = visibles.map(function (p) {
-      var pedir = pcshBodegaAPedir(p);
       var puedeSalir = (parseInt(p.existencia, 10) || 0) > 0;
-      return '<tr style="' + (pedir > 0 ? 'background:color-mix(in srgb, var(--warning) 12%, transparent);' : '') + '">' +
+      return '<tr>' +
         '<td style="padding:0.55rem;font-weight:700;">' + escapeHtml(p.nombre) + ' <span style="font-weight:500;color:var(--text-secondary);">' + escapeHtml(p.unidad || 'un') + '</span></td>' +
         '<td style="padding:0.55rem;text-align:center;font-weight:700;">' + p.existencia + '</td>' +
-        '<td style="padding:0.55rem;text-align:center;">' + (parseInt(p.minimo, 10) || 0) + '</td>' +
-        '<td style="padding:0.55rem;text-align:center;font-weight:700;">' + (pedir > 0 ? pedir : '—') + '</td>' +
         '<td style="padding:0.45rem;text-align:center;white-space:nowrap;">' +
           (puedeSalir
             ? '<button type="button" class="btn btn-primary" data-bodega-accion="salida" data-bodega-id="' + pcshEscapeAttr(p.id) + '" style="padding:0.25rem 0.55rem;">Salida</button>'
@@ -13618,31 +13614,49 @@ function pcshBodegaPintar() {
         '</td></tr>';
     }).join('');
   }
-  var salidas = (pcshBodegaState.movimientos || []).filter(function (m) { return m && m.tipo === 'salida'; }).slice(-30).reverse();
-  if (movsHost) {
-    movsHost.innerHTML = salidas.length
-      ? ('<h4 style="margin:0 0 0.45rem;font-size:0.9rem;">Registro de salidas</h4>' +
-        '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>' +
-        '<th style="text-align:left;text-transform:none;white-space:nowrap;">Fecha</th>' +
-        '<th style="text-align:left;text-transform:none;white-space:nowrap;">Producto</th>' +
-        '<th style="text-align:center;text-transform:none;white-space:nowrap;">Cantidad</th>' +
-        '<th style="text-align:left;text-transform:none;white-space:nowrap;">Conserje</th>' +
-        '<th style="text-align:left;text-transform:none;white-space:nowrap;">Auxiliar</th>' +
-        '<th style="text-align:center;text-transform:none;white-space:nowrap;">Queda</th>' +
-        '</tr></thead><tbody>' +
-        salidas.map(function (m) {
-          var cuando = '';
-          try { cuando = new Date(m.fecha).toLocaleString('es-CL'); } catch (e) { cuando = ''; }
-          return '<tr><td style="text-align:left;white-space:nowrap;">' + escapeHtml(cuando) + '</td>' +
-            '<td style="text-align:left;">' + escapeHtml(m.nombre || '') + '</td>' +
-            '<td>' + (m.cantidad || 0) + '</td>' +
-            '<td style="text-align:left;">' + escapeHtml(m.conserje || m.origen || '—') + '</td>' +
-            '<td style="text-align:left;">' + escapeHtml(m.auxiliar || '—') + '</td>' +
-            '<td>' + (m.existencia != null ? m.existencia : '—') + '</td></tr>';
-        }).join('') +
-        '</tbody></table></div>')
-      : '<p class="page-desc" style="margin:0.75rem 0 0;">Aún no hay salidas registradas.</p>';
+  var btnSalidas = document.getElementById('pcshBodegaVerSalidas');
+  if (btnSalidas) {
+    var totalSalidas = (pcshBodegaState.movimientos || []).filter(function (m) { return m && m.tipo === 'salida'; }).length;
+    btnSalidas.textContent = totalSalidas ? ('Registro de salidas (' + totalSalidas + ')') : 'Registro de salidas';
   }
+  var paginaSalidas = document.getElementById('tabBodegaSalidas');
+  if (paginaSalidas && paginaSalidas.style.display !== 'none') pcshBodegaPintarSalidas();
+}
+
+function pcshBodegaPintarSalidas() {
+  var host = document.getElementById('pcshBodegaSalidasHost');
+  if (!host) return;
+  var q = ((document.getElementById('pcshBodegaSalidasBuscar') || {}).value || '').trim().toLowerCase();
+  var salidas = (pcshBodegaState.movimientos || []).filter(function (m) { return m && m.tipo === 'salida'; }).slice().reverse();
+  if (q) {
+    salidas = salidas.filter(function (m) {
+      var texto = ((m.nombre || '') + ' ' + (m.conserje || '') + ' ' + (m.auxiliar || '') + ' ' + (m.origen || '')).toLowerCase();
+      return texto.indexOf(q) !== -1;
+    });
+  }
+  if (!salidas.length) {
+    host.innerHTML = '<p class="page-desc" style="margin:0;">Aún no hay salidas registradas.</p>';
+    return;
+  }
+  host.innerHTML = '<div style="overflow-x:auto;"><table style="width:100%;border-collapse:collapse;"><thead><tr>' +
+    '<th style="text-align:left;text-transform:none;white-space:nowrap;">Fecha</th>' +
+    '<th style="text-align:left;text-transform:none;white-space:nowrap;">Producto</th>' +
+    '<th style="text-align:center;text-transform:none;white-space:nowrap;">Cantidad</th>' +
+    '<th style="text-align:left;text-transform:none;white-space:nowrap;">Conserje</th>' +
+    '<th style="text-align:left;text-transform:none;white-space:nowrap;">Auxiliar</th>' +
+    '<th style="text-align:center;text-transform:none;white-space:nowrap;">Queda</th>' +
+    '</tr></thead><tbody>' +
+    salidas.map(function (m) {
+      var cuando = '';
+      try { cuando = new Date(m.fecha).toLocaleString('es-CL'); } catch (e) { cuando = ''; }
+      return '<tr><td style="text-align:left;white-space:nowrap;">' + escapeHtml(cuando) + '</td>' +
+        '<td style="text-align:left;">' + escapeHtml(m.nombre || '') + '</td>' +
+        '<td>' + (m.cantidad || 0) + '</td>' +
+        '<td style="text-align:left;">' + escapeHtml(m.conserje || m.origen || '—') + '</td>' +
+        '<td style="text-align:left;">' + escapeHtml(m.auxiliar || '—') + '</td>' +
+        '<td>' + (m.existencia != null ? m.existencia : '—') + '</td></tr>';
+    }).join('') +
+    '</tbody></table></div>';
 }
 
 function pcshBodegaNombresAuxiliares() {
@@ -13766,8 +13780,10 @@ function pcshBodegaAbrir() {
     pcshBodegaUiLista = true;
     var body = document.getElementById('pcshBodegaBody');
     var buscar = document.getElementById('pcshBodegaBuscar');
-    var solo = document.getElementById('pcshBodegaSoloFaltantes');
     var refrescar = document.getElementById('pcshBodegaRefrescar');
+    var verSalidas = document.getElementById('pcshBodegaVerSalidas');
+    var volver = document.getElementById('pcshBodegaVolver');
+    var buscarSalidas = document.getElementById('pcshBodegaSalidasBuscar');
     var cancelar = document.getElementById('pcshBodegaSalidaCancelar');
     var confirmar = document.getElementById('pcshBodegaSalidaConfirmar');
     var selAux = document.getElementById('pcshBodegaSalidaAuxiliar');
@@ -13793,8 +13809,10 @@ function pcshBodegaAbrir() {
       });
     }
     if (buscar) buscar.addEventListener('input', pcshBodegaPintar);
-    if (solo) solo.addEventListener('change', pcshBodegaPintar);
     if (refrescar) refrescar.addEventListener('click', function () { pcshBodegaCargar(); });
+    if (verSalidas) verSalidas.addEventListener('click', function () { showTab('tabBodegaSalidas'); });
+    if (volver) volver.addEventListener('click', function () { showTab('tabBodega'); });
+    if (buscarSalidas) buscarSalidas.addEventListener('input', pcshBodegaPintarSalidas);
   }
   pcshBodegaCargar();
 }
@@ -13823,6 +13841,7 @@ function showTab(tab) {
   const tabR = document.getElementById('tabReservas');
   const tabA = document.getElementById('tabAusencia');
   const tabBodega = document.getElementById('tabBodega');
+  const tabBodegaSalidas = document.getElementById('tabBodegaSalidas');
   const tabP = document.getElementById('tabPersonal');
   const bN = document.getElementById('tabNovedadesBtn');
   const bV = document.getElementById('tabVisitasBtn');
@@ -13857,6 +13876,7 @@ function showTab(tab) {
   if (tabR) tabR.style.display = tab === 'tabReservas' ? '' : 'none';
   if (tabA) tabA.style.display = tab === 'tabAusencia' ? '' : 'none';
   if (tabBodega) tabBodega.style.display = tab === 'tabBodega' ? '' : 'none';
+  if (tabBodegaSalidas) tabBodegaSalidas.style.display = tab === 'tabBodegaSalidas' ? '' : 'none';
   tabP.style.display = tab === 'tabPersonal' ? '' : 'none';
   bN.classList.toggle('active', tab === 'tabNovedades');
   if (bV) bV.classList.toggle('active', tab === 'tabVisitas');
@@ -13865,7 +13885,7 @@ function showTab(tab) {
   if (bEnc) bEnc.classList.toggle('active', tab === 'tabEncomiendas');
   if (bR) bR.classList.toggle('active', tab === 'tabReservas');
   if (bA) bA.classList.toggle('active', tab === 'tabAusencia');
-  if (bBodega) bBodega.classList.toggle('active', tab === 'tabBodega');
+  if (bBodega) bBodega.classList.toggle('active', tab === 'tabBodega' || tab === 'tabBodegaSalidas');
   bP.classList.toggle('active', tab === 'tabPersonal');
   bN.setAttribute('aria-current', tab === 'tabNovedades' ? 'page' : 'false');
   if (bV) bV.setAttribute('aria-current', tab === 'tabVisitas' ? 'page' : 'false');
@@ -13874,7 +13894,7 @@ function showTab(tab) {
   if (bEnc) bEnc.setAttribute('aria-current', tab === 'tabEncomiendas' ? 'page' : 'false');
   if (bR) bR.setAttribute('aria-current', tab === 'tabReservas' ? 'page' : 'false');
   if (bA) bA.setAttribute('aria-current', tab === 'tabAusencia' ? 'page' : 'false');
-  if (bBodega) bBodega.setAttribute('aria-current', tab === 'tabBodega' ? 'page' : 'false');
+  if (bBodega) bBodega.setAttribute('aria-current', (tab === 'tabBodega' || tab === 'tabBodegaSalidas') ? 'page' : 'false');
   bP.setAttribute('aria-current', tab === 'tabPersonal' ? 'page' : 'false');
   var mainAppEl = document.getElementById('mainApp');
   if (mainAppEl) mainAppEl.classList.toggle('pcsh-main--vlcom', tab === 'tabResidentes');
@@ -13942,6 +13962,11 @@ function showTab(tab) {
     pcshApplyModulePageTitle('fa-warehouse', 'Bodega');
     pd.textContent = '';
     if (typeof pcshBodegaAbrir === 'function') pcshBodegaAbrir();
+  } else if (tab === 'tabBodegaSalidas') {
+    pcshApplyModulePageTitle('fa-clipboard-list', 'Registro de salidas');
+    pd.textContent = '';
+    if (typeof pcshBodegaAbrir === 'function') pcshBodegaAbrir();
+    if (typeof pcshBodegaPintarSalidas === 'function') pcshBodegaPintarSalidas();
   } else if (tab === 'tabPersonal') {
     pcshApplyModulePageTitle('fa-user-shield', 'Administración');
     pd.textContent = '';
