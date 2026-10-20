@@ -1590,6 +1590,28 @@
       border-left: 4px solid #14b8a6;
       background: linear-gradient(145deg, rgba(13, 148, 136, 0.12) 0%, var(--gray-100) 55%);
     }
+    .pcsh-fabrica-panel .tl-cat.tl-cat-chk-apertura {
+      background: #0369a1; color: #f0f9ff; font-weight: 800; letter-spacing: 0.02em;
+    }
+    .pcsh-fabrica-panel .tl-cat.tl-cat-chk-cierre {
+      background: #b45309; color: #fffbeb; font-weight: 800; letter-spacing: 0.02em;
+    }
+    .pcsh-fabrica-panel .tl-card.tl-card-chk-apertura {
+      background: rgba(14, 165, 233, 0.18);
+      border-color: rgba(56, 189, 248, 0.65);
+      border-left: 4px solid #38bdf8;
+    }
+    .pcsh-fabrica-panel .tl-card.tl-card-chk-cierre {
+      background: rgba(245, 158, 11, 0.2);
+      border-color: rgba(251, 191, 36, 0.7);
+      border-left: 4px solid #fbbf24;
+    }
+    #tabPersonal #tablaNovedadesGestion tr.pcsh-nov-chk-apertura td {
+      background: rgba(14, 165, 233, 0.16);
+    }
+    #tabPersonal #tablaNovedadesGestion tr.pcsh-nov-chk-cierre td {
+      background: rgba(245, 158, 11, 0.18);
+    }
     .pcsh-fabrica-panel .tl-turno-ribbon {
       display: inline-block; font-size: 0.62rem; font-weight: 800; letter-spacing: 0.1em; text-transform: uppercase;
       color: #ccfbf1; background: linear-gradient(90deg, #0f766e 0%, #0d9488 100%); padding: 0.2rem 0.5rem; border-radius: 6px; margin-bottom: 0.35rem;
@@ -16557,11 +16579,12 @@ function renderNovedades() {
       : (esDest
         ? '<span class="tl-dest-badge" title="Novedad destacada"><i class="fa-solid fa-star" aria-hidden="true"></i> Destacada</span>'
         : '');
-    var catLabel = typeof pcshCategoriaLabelCatalogo === 'function' ? pcshCategoriaLabelCatalogo(n.categoria, n.esAdmin) : (n.esAdmin ? 'Administrativa' : (n.categoria || 'General'));
+    var marcaChk = pcshChecklistMarcaNovedad(n);
+    var catLabel = marcaChk ? marcaChk.etiqueta : (typeof pcshCategoriaLabelCatalogo === 'function' ? pcshCategoriaLabelCatalogo(n.categoria, n.esAdmin) : (n.esAdmin ? 'Administrativa' : (n.categoria || 'General')));
     var badgeClass = categoriaBadgeClass(n.categoria, n.esAdmin);
-    var badgeHtml = typeof pcshCategoriaBadgeHtml === 'function' ? pcshCategoriaBadgeHtml(n.categoria, n.esAdmin, catLabel) : ('<span class="tl-cat ' + badgeClass + '">' + escapeHtml(catLabel) + '</span>');
-    var cardStyle = typeof pcshCategoriaCardStyle === 'function' ? pcshCategoriaCardStyle(n.categoria, n.esAdmin) : '';
-    var cardClass = (cardStyle ? 'tl-card-nov-default' : categoriaCardClass(n.categoria, n.esAdmin)) + (esDest ? ' tl-card-destacada' : '');
+    var badgeHtml = marcaChk ? pcshChecklistBadgeHtml(marcaChk) : (typeof pcshCategoriaBadgeHtml === 'function' ? pcshCategoriaBadgeHtml(n.categoria, n.esAdmin, catLabel) : ('<span class="tl-cat ' + badgeClass + '">' + escapeHtml(catLabel) + '</span>'));
+    var cardStyle = marcaChk ? '' : (typeof pcshCategoriaCardStyle === 'function' ? pcshCategoriaCardStyle(n.categoria, n.esAdmin) : '');
+    var cardClass = (marcaChk ? ('tl-card-' + marcaChk.clase) : (cardStyle ? 'tl-card-nov-default' : categoriaCardClass(n.categoria, n.esAdmin))) + (esDest ? ' tl-card-destacada' : '');
     var numStr = numeros[n.correlativo] != null ? String(numeros[n.correlativo]) : '';
     var meta = '#' + escapeHtml(numStr) +
       ' · ' + escapeHtml(normalizarFecha(n.fecha)) + ' · ' + escapeHtml(n.hora) + ' · ' + escapeHtml(n.conserje) +
@@ -16710,11 +16733,15 @@ function renderNovedadesGestion() {
     var nn = notas.filter(function (x) { return x.novedadCorrelativo === n.correlativo; });
     var tr2 = document.createElement('tr');
     if (n.esAdmin) tr2.className = 'novedad-admin';
+    var marcaChkG = pcshChecklistMarcaNovedad(n);
+    if (marcaChkG) tr2.classList.add('pcsh-nov-' + marcaChkG.clase);
     var catCell = n.esAdmin
       ? '<span class="tl-cat tl-cat-default">Admin</span>'
-      : (typeof pcshCategoriaBadgeHtml === 'function'
-        ? pcshCategoriaBadgeHtml(n.categoria, false)
-        : '<span class="tl-cat ' + categoriaBadgeClass(n.categoria, false) + '">' + escapeHtml(n.categoria || 'General') + '</span>') +
+      : (marcaChkG
+        ? pcshChecklistBadgeHtml(marcaChkG)
+        : (typeof pcshCategoriaBadgeHtml === 'function'
+          ? pcshCategoriaBadgeHtml(n.categoria, false)
+          : '<span class="tl-cat ' + categoriaBadgeClass(n.categoria, false) + '">' + escapeHtml(n.categoria || 'General') + '</span>')) +
         (typeof pcshHtmlEstadoReclamoGestion === 'function' ? pcshHtmlEstadoReclamoGestion(n) : '');
     var btnEdit =
       '<button type="button" class="btn btn-secondary btn-sm pcsh-nov-act-btn" data-edit-gestion="' +
@@ -17445,6 +17472,24 @@ function pcshChecklistTablaHtml(filas) {
   });
   return html + '</tbody></table>';
 }
+function pcshChecklistMarcaNovedad(n) {
+  if (!n || n.turnoSep) return null;
+  var tipo = n.checklistTipo === 'cierre' || n.checklistTipo === 'apertura' ? n.checklistTipo : '';
+  var texto = String(n.texto || '');
+  if (!tipo && /^CHECKLIST DE CIERRE/i.test(texto)) tipo = 'cierre';
+  if (!tipo && /^CHECKLIST DE APERTURA/i.test(texto)) tipo = 'apertura';
+  if (!tipo && n.tipo === 'checklist_turno') tipo = /CIERRE/i.test(texto) ? 'cierre' : 'apertura';
+  if (tipo !== 'cierre' && tipo !== 'apertura') return null;
+  return {
+    tipo: tipo,
+    etiqueta: tipo === 'cierre' ? 'Checklist de cierre' : 'Checklist de apertura',
+    clase: tipo === 'cierre' ? 'chk-cierre' : 'chk-apertura'
+  };
+}
+function pcshChecklistBadgeHtml(marca) {
+  if (!marca) return '';
+  return '<span class="tl-cat tl-cat-' + marca.clase + '">' + escapeHtml(marca.etiqueta) + '</span>';
+}
 function pcshNovedadCuerpoHtml(n) {
   var filas = n && Array.isArray(n.checklistFilas) && n.checklistFilas.length ? n.checklistFilas : pcshChecklistParsearTexto(n && n.texto);
   if (filas && filas.length && (n.tipo === 'checklist_turno' || /^CHECKLIST DE (CIERRE|APERTURA)/.test(String(n.texto || '')))) {
@@ -17478,7 +17523,7 @@ async function pcshChecklistRegistrarNovedad(row) {
     conserje: row.conserje || '',
     texto: pcshChecklistTextoNovedad(row),
     checklistFilas: pcshChecklistFilasDeRow(row),
-    categoria: 'General',
+    categoria: row.tipo === 'cierre' ? 'Checklist de cierre' : 'Checklist de apertura',
     tipo: 'checklist_turno',
     checklistTipo: row.tipo,
     checklistTurnoId: row.turnoId || '',
