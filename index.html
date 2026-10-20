@@ -5292,7 +5292,8 @@
     <div class="card">
       <div class="card-h"><h3 style="margin:0"><i class="fa-solid fa-warehouse" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Control de bodega</h3></div>
       <div class="card-b">
-        <p class="page-desc" style="margin:0 0 0.75rem;">Desde conserjería solo se registran salidas. Cada salida queda con el conserje que autoriza y el auxiliar que solicita el material.</p>
+        <p class="page-desc" style="margin:0 0 0.75rem;">Desde conserjería solo se registran salidas. Autoriza el conserje del turno abierto y el auxiliar indica quién solicita el material.</p>
+        <p id="pcshBodegaAvisoTurno" class="page-desc" style="display:none;margin:0 0 0.75rem;color:#fbbf24;"></p>
         <div id="pcshBodegaResumen" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:0.75rem;">
           <input type="search" id="pcshBodegaBuscar" placeholder="Buscar producto" style="min-width:180px;padding:8px;border-radius:8px;background:var(--gray-100);color:var(--text-main);border:1px solid var(--border-color);">
@@ -5324,7 +5325,7 @@
           </div>
           <div class="form-group">
             <label for="pcshBodegaSalidaConserje">Conserje que autoriza</label>
-            <select id="pcshBodegaSalidaConserje" style="width:100%;padding:8px;border-radius:8px;background:var(--gray-100);color:var(--text-main);border:1px solid var(--border-color);"></select>
+            <input type="text" id="pcshBodegaSalidaConserje" readonly tabindex="-1" aria-readonly="true" style="width:100%;padding:8px;border-radius:8px;background:var(--gray-100);color:var(--text-main);border:1px solid var(--border-color);cursor:default;">
           </div>
           <div class="form-group">
             <label for="pcshBodegaSalidaAuxiliar">Auxiliar que solicita</label>
@@ -13751,10 +13752,21 @@ async function pcshBodegaCargar() {
   pcshBodegaPintar();
 }
 
+function pcshBodegaConserjeTurno() {
+  var activo = (typeof conserjeActivo !== 'undefined' && conserjeActivo) ? String(conserjeActivo).trim() : '';
+  return activo;
+}
+
 function pcshBodegaPintar() {
   var body = document.getElementById('pcshBodegaBody');
   var resumen = document.getElementById('pcshBodegaResumen');
   if (!body) return;
+  var turno = pcshBodegaConserjeTurno();
+  var aviso = document.getElementById('pcshBodegaAvisoTurno');
+  if (aviso) {
+    aviso.style.display = turno ? 'none' : 'block';
+    aviso.textContent = turno ? '' : 'No hay conserje en turno. Abra el turno para registrar salidas de bodega.';
+  }
   var q = ((document.getElementById('pcshBodegaBuscar') || {}).value || '').trim().toLowerCase();
   var lista = pcshBodegaState.productos.slice().sort(function (a, b) {
     return a.nombre.localeCompare(b.nombre);
@@ -13774,14 +13786,16 @@ function pcshBodegaPintar() {
   } else {
     body.innerHTML = visibles.map(function (p) {
       var puedeSalir = (parseInt(p.existencia, 10) || 0) > 0;
+      var accion = '<span style="color:var(--text-secondary);font-size:0.75rem;">Sin stock</span>';
+      if (puedeSalir && !turno) {
+        accion = '<button type="button" class="btn btn-secondary" data-bodega-accion="sin-turno" style="padding:0.25rem 0.55rem;opacity:0.75;">Sin turno</button>';
+      } else if (puedeSalir) {
+        accion = '<button type="button" class="btn btn-primary" data-bodega-accion="salida" data-bodega-id="' + pcshEscapeAttr(p.id) + '" style="padding:0.25rem 0.55rem;">Salida</button>';
+      }
       return '<tr>' +
         '<td style="padding:0.55rem;font-weight:700;">' + escapeHtml(p.nombre) + ' <span style="font-weight:500;color:var(--text-secondary);">' + escapeHtml(p.unidad || 'un') + '</span></td>' +
         '<td style="padding:0.55rem;text-align:center;font-weight:700;">' + p.existencia + '</td>' +
-        '<td style="padding:0.45rem;text-align:center;white-space:nowrap;">' +
-          (puedeSalir
-            ? '<button type="button" class="btn btn-primary" data-bodega-accion="salida" data-bodega-id="' + pcshEscapeAttr(p.id) + '" style="padding:0.25rem 0.55rem;">Salida</button>'
-            : '<span style="color:var(--text-secondary);font-size:0.75rem;">Sin stock</span>') +
-        '</td></tr>';
+        '<td style="padding:0.45rem;text-align:center;white-space:nowrap;">' + accion + '</td></tr>';
     }).join('');
   }
   var btnSalidas = document.getElementById('pcshBodegaVerSalidas');
@@ -13853,6 +13867,11 @@ function pcshBodegaCerrarSalida() {
 function pcshBodegaAbrirSalida(id) {
   var producto = pcshBodegaState.productos.find(function (p) { return String(p.id) === String(id); });
   if (!producto) return;
+  var activo = pcshBodegaConserjeTurno();
+  if (!activo) {
+    showMsg('No hay conserje en turno. Abra el turno para registrar salidas de bodega.', 'error');
+    return;
+  }
   if ((parseInt(producto.existencia, 10) || 0) <= 0) {
     showMsg('No hay existencia de ' + producto.nombre + '.', 'error');
     return;
@@ -13867,13 +13886,8 @@ function pcshBodegaAbrirSalida(id) {
   }
   var selCon = document.getElementById('pcshBodegaSalidaConserje');
   if (selCon) {
-    var nombres = (typeof conserjes !== 'undefined' && Array.isArray(conserjes) ? conserjes : []).slice();
-    var activo = (typeof conserjeActivo !== 'undefined' && conserjeActivo) ? String(conserjeActivo).trim() : '';
-    if (activo && nombres.indexOf(activo) < 0) nombres.unshift(activo);
-    selCon.innerHTML = '<option value="">Seleccione conserje</option>' + nombres.map(function (n) {
-      return '<option value="' + pcshEscapeAttr(n) + '">' + escapeHtml(n) + '</option>';
-    }).join('');
-    if (activo) selCon.value = activo;
+    selCon.value = activo;
+    selCon.readOnly = true;
   }
   var auxiliares = pcshBodegaNombresAuxiliares();
   var selAux = document.getElementById('pcshBodegaSalidaAuxiliar');
@@ -13899,7 +13913,7 @@ async function pcshBodegaConfirmarSalida() {
     return;
   }
   var cantidad = parseInt((document.getElementById('pcshBodegaSalidaCantidad') || {}).value, 10);
-  var conserje = String((document.getElementById('pcshBodegaSalidaConserje') || {}).value || '').trim();
+  var conserje = pcshBodegaConserjeTurno();
   var auxiliarSel = String((document.getElementById('pcshBodegaSalidaAuxiliar') || {}).value || '').trim();
   var auxiliarOtro = String((document.getElementById('pcshBodegaSalidaAuxiliarOtro') || {}).value || '').trim().replace(/\s+/g, ' ');
   var auxiliar = auxiliarSel === '__otro' ? auxiliarOtro : auxiliarSel;
@@ -13912,7 +13926,7 @@ async function pcshBodegaConfirmarSalida() {
     return;
   }
   if (!conserje) {
-    showMsg('Seleccione el conserje que autoriza la salida.', 'error');
+    showMsg('No hay conserje en turno. Abra el turno para registrar la salida.', 'error');
     return;
   }
   if (!auxiliar) {
@@ -13961,7 +13975,12 @@ function pcshBodegaAbrir() {
     if (body) {
       body.addEventListener('click', function (ev) {
         var btn = ev.target && ev.target.closest ? ev.target.closest('[data-bodega-accion]') : null;
-        if (!btn || btn.getAttribute('data-bodega-accion') !== 'salida') return;
+        if (!btn) return;
+        if (btn.getAttribute('data-bodega-accion') === 'sin-turno') {
+          showMsg('No hay conserje en turno. Abra el turno para registrar salidas de bodega.', 'error');
+          return;
+        }
+        if (btn.getAttribute('data-bodega-accion') !== 'salida') return;
         pcshBodegaAbrirSalida(btn.getAttribute('data-bodega-id'));
       });
     }
@@ -16369,6 +16388,11 @@ function updateTurnoUiState() {
     }
   }
   if (typeof pcshApplyFestiveAmbienceToDom === 'function') pcshApplyFestiveAmbienceToDom();
+  if (!conserjeActivo && typeof pcshBodegaCerrarSalida === 'function') pcshBodegaCerrarSalida();
+  var tabBodegaAbierta = document.getElementById('tabBodega');
+  if (tabBodegaAbierta && tabBodegaAbierta.style.display !== 'none' && typeof pcshBodegaPintar === 'function') {
+    pcshBodegaPintar();
+  }
 }
 
 function renderConserjeSelect(list) {
