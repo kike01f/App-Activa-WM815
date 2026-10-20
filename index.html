@@ -5292,7 +5292,7 @@
     <div class="card">
       <div class="card-h"><h3 style="margin:0"><i class="fa-solid fa-warehouse" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Control de bodega</h3></div>
       <div class="card-b">
-        <p class="page-desc" style="margin:0 0 0.75rem;">Por persona: si quien solicita ya retiró ese producto y sigue en sus días, solo esa persona ve la alerta. Uso común: mientras haya un envase en uso, nadie retira otro sin justificación.</p>
+        <p class="page-desc" style="margin:0 0 0.75rem;">Por persona: cada producto tiene sus días. El plazo corre desde el último retiro de ese empleado. Uso común es aparte: mientras haya un envase en uso, nadie retira otro sin justificación.</p>
         <p id="pcshBodegaAvisoTurno" class="page-desc" style="display:none;margin:0 0 0.75rem;color:#fbbf24;"></p>
         <div id="pcshBodegaResumen" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:0.75rem;">
@@ -13635,6 +13635,17 @@ function pcshBodegaDiasUso(p) {
   return Math.min(3660, n);
 }
 
+function pcshBodegaDiasPersona(p) {
+  if (!p) return 0;
+  if (p.diasPorPersona != null && p.diasPorPersona !== '') {
+    var n = parseInt(p.diasPorPersona, 10);
+    if (!isFinite(n) || n < 0) return 0;
+    return Math.min(3660, n);
+  }
+  if (pcshBodegaIndividualActivo(p)) return pcshBodegaDiasUso(p);
+  return 0;
+}
+
 function pcshBodegaFechaCorta(ms) {
   try { return new Date(ms).toLocaleDateString('es-CL'); } catch (e) { return ''; }
 }
@@ -13677,7 +13688,7 @@ function pcshBodegaUsoVigente(producto, ahora) {
 
 function pcshBodegaUsosIndividuales(producto, ahora) {
   if (!pcshBodegaIndividualActivo(producto)) return [];
-  var dias = pcshBodegaDiasUso(producto);
+  var dias = pcshBodegaDiasPersona(producto);
   if (!dias || !producto) return [];
   var porPersona = {};
   pcshBodegaSalidasDe(producto).forEach(function (m) {
@@ -13735,7 +13746,7 @@ function pcshBodegaPintarAvisoUso() {
   if (usoAviso) {
     if (!uso) usoAviso.textContent = '';
     else if (uso.tipo === 'persona') {
-      usoAviso.textContent = uso.persona + ' ya retiró este producto. Su control por persona sigue hasta el ' + pcshBodegaFechaCorta(uso.hasta) + '. Otro retiro de ' + uso.persona + ' necesita justificación.';
+      usoAviso.textContent = uso.persona + ' ya retiró este producto. Su plazo de ' + uso.dias + ' días sigue hasta el ' + pcshBodegaFechaCorta(uso.hasta) + '. Otro retiro de ' + uso.persona + ' necesita justificación.';
     } else {
       usoAviso.textContent = 'Uso común: hay un envase en uso hasta el ' + pcshBodegaFechaCorta(uso.hasta) + (uso.persona ? ', retirado por ' + uso.persona : '') + '. Nadie retira otro sin justificación.';
     }
@@ -13757,6 +13768,7 @@ function pcshBodegaNormalizar(p) {
     existencia: existencia,
     minimo: minimo,
     tiempoUsoDias: pcshBodegaDiasUso(p),
+    diasPorPersona: pcshBodegaDiasPersona(p),
     plazoActivo: pcshBodegaPlazoActivo(p),
     individualActivo: pcshBodegaIndividualActivo(p),
     unidad: String((p && p.unidad) || 'un').trim().toLowerCase() || 'un'
@@ -13772,9 +13784,11 @@ function pcshBodegaFusionar(preferidos, respaldo) {
       var clave = n.nombre.toLowerCase();
       var previo = porNombre[clave];
       var traeDias = p && p.tiempoUsoDias != null && p.tiempoUsoDias !== '';
+      var traeDiasPersona = p && p.diasPorPersona != null && p.diasPorPersona !== '';
       var traePlazo = p && p.plazoActivo != null && p.plazoActivo !== '';
       var traeIndividual = p && p.individualActivo != null && p.individualActivo !== '';
       if (preferido && previo && !traeDias && previo.tiempoUsoDias > 0) n.tiempoUsoDias = previo.tiempoUsoDias;
+      if (preferido && previo && !traeDiasPersona && previo.diasPorPersona > 0) n.diasPorPersona = previo.diasPorPersona;
       if (preferido && previo && !traePlazo && previo.plazoActivo) n.plazoActivo = true;
       if (preferido && previo && !traeIndividual && previo.individualActivo) n.individualActivo = true;
       porNombre[clave] = n;
@@ -13950,6 +13964,8 @@ function pcshBodegaPintar() {
         lineas.push('Por persona: ' + personas.slice(0, 2).map(function (u) {
           return u.persona + ' hasta ' + pcshBodegaFechaCorta(u.hasta);
         }).join(', '));
+      } else if (pcshBodegaIndividualActivo(p) && pcshBodegaDiasPersona(p) > 0) {
+        lineas.push('Por persona: ' + pcshBodegaDiasPersona(p) + ' días');
       }
       var usoTxt = lineas.length
         ? '<div style="font-size:0.72rem;font-weight:700;color:#fbbf24;">' + escapeHtml(lineas.join(' · ')) + '</div>'
@@ -14104,7 +14120,7 @@ async function pcshBodegaConfirmarSalida() {
   var justificacion = String((document.getElementById('pcshBodegaSalidaJustificacion') || {}).value || '').trim().replace(/\s+/g, ' ');
   if (uso && justificacion.length < 8) {
     showMsg(uso.tipo === 'persona'
-      ? (auxiliar + ' ya retiró este producto. Su control por persona sigue hasta el ' + pcshBodegaFechaCorta(uso.hasta) + '. Escriba la justificación.')
+      ? (auxiliar + ' ya retiró este producto. Su plazo de ' + uso.dias + ' días sigue hasta el ' + pcshBodegaFechaCorta(uso.hasta) + '. Escriba la justificación.')
       : ('Uso común: hay un envase en uso hasta el ' + pcshBodegaFechaCorta(uso.hasta) + '. Escriba la justificación.'), 'error');
     return;
   }
