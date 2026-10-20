@@ -1474,6 +1474,22 @@
       margin: 0 0 0.75rem; padding: 0.65rem 0.75rem; border-radius: 10px;
       border: 1px solid rgba(245,158,11,0.45); background: rgba(245,158,11,0.12); font-size: 0.8rem; line-height: 1.45;
     }
+    .pcsh-chk-tarjetas {
+      display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem 0.65rem;
+    }
+    .pcsh-chk-tarjetas label { margin: 0; }
+    .pcsh-chk-nov-tabla {
+      width: 100%; max-width: 22rem; border-collapse: collapse; margin: 0.3rem 0 0.15rem;
+      font-size: 0.72rem; line-height: 1.25;
+    }
+    .pcsh-chk-nov-tabla th, .pcsh-chk-nov-tabla td {
+      padding: 0.16rem 0.35rem; text-align: left; border-bottom: 1px solid rgba(148, 163, 184, 0.28);
+    }
+    .pcsh-chk-nov-tabla th {
+      font-size: 0.64rem; font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; opacity: 0.7;
+    }
+    .pcsh-chk-nov-tabla td:nth-child(2) { text-align: right; font-weight: 700; white-space: nowrap; }
+    .pcsh-chk-nov-est { margin: 0.15rem 0 0; font-size: 0.7rem; opacity: 0.8; }
     .pcsh-chk-err { display: none; margin: 0 0 0.55rem; font-size: 0.8rem; color: #fecaca; font-weight: 700; }
     .pcsh-chk-err.is-on { display: block; }
     .pcsh-chk-modal .modal-buttons { position: sticky; bottom: 0; padding-top: 0.55rem; background: linear-gradient(transparent, var(--gray-100) 28%); }
@@ -5678,6 +5694,23 @@
         <input type="number" id="pcshChkRadios" min="0" step="1" inputmode="numeric" required>
         <label for="pcshChkRadiosObs">Observaciones</label>
         <textarea id="pcshChkRadiosObs" maxlength="400" placeholder="Opcional"></textarea>
+      </section>
+      <section class="pcsh-chk-sec">
+        <h4>E. Tarjetas en inventario</h4>
+        <div class="pcsh-chk-tarjetas">
+          <label for="pcshChkTarSuper">Tarjetas de supermercado
+            <input type="number" id="pcshChkTarSuper" min="0" step="1" inputmode="numeric" required>
+          </label>
+          <label for="pcshChkTarInvitado">Tarjetas de invitado
+            <input type="number" id="pcshChkTarInvitado" min="0" step="1" inputmode="numeric" required>
+          </label>
+          <label for="pcshChkTarEmergencia">Tarjeta de emergencia
+            <input type="number" id="pcshChkTarEmergencia" min="0" step="1" inputmode="numeric" required>
+          </label>
+          <label for="pcshChkTarZona8">Tarjeta zona 8
+            <input type="number" id="pcshChkTarZona8" min="0" step="1" inputmode="numeric" required>
+          </label>
+        </div>
       </section>
       <p class="pcsh-chk-err" id="pcshChkErr" role="alert"></p>
       <div class="modal-buttons">
@@ -13570,6 +13603,11 @@ async function pcshBodegaCargar() {
     usarAdmin = !usarAdmin;
   }
   pcshBodegaState.productos = pcshBodegaFusionar(preferidos, respaldo);
+  ['Tarjetas de supermercado', 'Tarjetas de invitado', 'Tarjeta de emergencia', 'Tarjeta zona 8'].forEach(function (nombre) {
+    var clave = pcshBodegaNombre(nombre).toLowerCase();
+    var ya = pcshBodegaState.productos.some(function (p) { return p.nombre.toLowerCase() === clave; });
+    if (!ya) pcshBodegaState.productos.push(pcshBodegaNormalizar({ nombre: nombre, existencia: 0, minimo: 0, unidad: 'un' }));
+  });
   pcshBodegaState.movimientos = (((usarAdmin ? admin.movimientos : local.movimientos) || [])).slice(-200);
   pcshBodegaState.ms = Math.max(tAdmin, tLocal);
   var localNombres = ((local.productos || []).map(function (p) { return pcshBodegaNombre(p && p.nombre).toLowerCase(); }).filter(Boolean).sort().join('|'));
@@ -16541,7 +16579,7 @@ function renderNovedades() {
     var card3 = document.createElement('div');
     card3.className = 'tl-card ' + cardClass;
     if (cardStyle) card3.setAttribute('style', cardStyle);
-    card3.innerHTML = '<div class="tl-meta">' + meta + '</div><p>' + escapeHtml(n.texto).replace(/\n/g, '<br>') + '</p>' + notaInternaHtml + reclamoObsHtml + '<div class="tl-actions">' + notasHtml + ' ' + btnNota + ' ' + btnEdit + ' ' + btnDest + '</div>';
+    card3.innerHTML = '<div class="tl-meta">' + meta + '</div>' + pcshNovedadCuerpoHtml(n) + notaInternaHtml + reclamoObsHtml + '<div class="tl-actions">' + notasHtml + ' ' + btnNota + ' ' + btnEdit + ' ' + btnDest + '</div>';
     item3.appendChild(card3);
     tlHost.appendChild(item3);
     if (fillPdf) {
@@ -16694,7 +16732,7 @@ function renderNovedadesGestion() {
       '</td><td>' +
       escapeHtml(n.conserje) +
       '</td><td style="text-align:left;">' +
-      escapeHtml(n.texto).replace(/\n/g, '<br>') +
+      pcshNovedadCuerpoHtml(n) +
       '</td><td style="vertical-align:middle">' +
       (nn.length
         ? '<span style="margin-right:0.35rem">' +
@@ -17117,6 +17155,10 @@ function pcshChecklistArmarAlertas(row, prev) {
       mouse: Number(row.mouseCant) - Number(prev.mouseCant),
       encSistema: Number(row.encSistema) - Number(prev.encSistema),
       encCf: Number(row.encCf) - Number(prev.encCf),
+      tarSuper: pcshChecklistDelta(row.tarSuperCant, prev.tarSuperCant),
+      tarInvitado: pcshChecklistDelta(row.tarInvitadoCant, prev.tarInvitadoCant),
+      tarEmergencia: pcshChecklistDelta(row.tarEmergenciaCant, prev.tarEmergenciaCant),
+      tarZona8: pcshChecklistDelta(row.tarZona8Cant, prev.tarZona8Cant),
       anteriorId: prev.id || '',
       anteriorTurnoId: prev.turnoId || '',
       anteriorConserje: prev.conserje || '',
@@ -17136,6 +17178,14 @@ function pcshChecklistArmarAlertas(row, prev) {
         mensaje: 'Cantidad de mouse diferente al turno anterior (' + (variaciones.mouse > 0 ? '+' : '') + variaciones.mouse + ')'
       });
     }
+    pcshChecklistTarjetas().forEach(function (t) {
+      if (variaciones[t.key] == null || variaciones[t.key] === 0) return;
+      alertas.push({
+        codigo: t.key + '_vs_anterior',
+        nivel: 'roja',
+        mensaje: t.nombre + ' diferente al turno anterior (' + (variaciones[t.key] > 0 ? '+' : '') + variaciones[t.key] + ')'
+      });
+    });
   }
   return { alertas: alertas, variacionesAnterior: variaciones };
 }
@@ -17149,8 +17199,25 @@ function pcshChecklistLeerFormulario() {
     encSistema: pcshChecklistEntero(document.getElementById('pcshChkEncSis').value),
     encObs: (document.getElementById('pcshChkEncObs').value || '').trim(),
     radiosCant: pcshChecklistEntero(document.getElementById('pcshChkRadios').value),
-    radiosObs: (document.getElementById('pcshChkRadiosObs').value || '').trim()
+    radiosObs: (document.getElementById('pcshChkRadiosObs').value || '').trim(),
+    tarSuperCant: pcshChecklistEntero(document.getElementById('pcshChkTarSuper').value),
+    tarInvitadoCant: pcshChecklistEntero(document.getElementById('pcshChkTarInvitado').value),
+    tarEmergenciaCant: pcshChecklistEntero(document.getElementById('pcshChkTarEmergencia').value),
+    tarZona8Cant: pcshChecklistEntero(document.getElementById('pcshChkTarZona8').value)
   };
+}
+function pcshChecklistTarjetas() {
+  return [
+    { key: 'tarSuper', campo: 'tarSuperCant', nombre: 'Tarjetas de supermercado', corto: 'T. supermercado' },
+    { key: 'tarInvitado', campo: 'tarInvitadoCant', nombre: 'Tarjetas de invitado', corto: 'T. invitado' },
+    { key: 'tarEmergencia', campo: 'tarEmergenciaCant', nombre: 'Tarjeta de emergencia', corto: 'T. emergencia' },
+    { key: 'tarZona8', campo: 'tarZona8Cant', nombre: 'Tarjeta zona 8', corto: 'T. zona 8' }
+  ];
+}
+function pcshChecklistDelta(actual, anterior) {
+  if (anterior == null || anterior === '') return null;
+  if (actual == null || actual === '') return null;
+  return Number(actual) - Number(anterior);
 }
 function pcshChecklistValidar(vals, tipo) {
   if (vals.llavesCompletas !== 'si' && vals.llavesCompletas !== 'no') {
@@ -17161,7 +17228,7 @@ function pcshChecklistValidar(vals, tipo) {
   if (vals.llavesCompletas === 'no' && !vals.llavesObs) {
     return 'Si las llaves no están completas, indique qué llave falta.';
   }
-  if (vals.mouseCant == null || vals.encCf == null || vals.encSistema == null || vals.radiosCant == null) {
+  if (vals.mouseCant == null || vals.encCf == null || vals.encSistema == null || vals.radiosCant == null || vals.tarSuperCant == null || vals.tarInvitadoCant == null || vals.tarEmergenciaCant == null || vals.tarZona8Cant == null) {
     return tipo === 'cierre'
       ? 'Para cerrar el turno debe completar todo el checklist de cierre.'
       : 'Para abrir el turno debe completar todo el checklist de apertura.';
@@ -17228,6 +17295,10 @@ function pcshChecklistRellenar(row) {
   document.getElementById('pcshChkEncObs').value = (row && row.encObs) || '';
   document.getElementById('pcshChkRadios').value = row && row.radiosCant != null ? row.radiosCant : '';
   document.getElementById('pcshChkRadiosObs').value = (row && row.radiosObs) || '';
+  document.getElementById('pcshChkTarSuper').value = row && row.tarSuperCant != null ? row.tarSuperCant : '';
+  document.getElementById('pcshChkTarInvitado').value = row && row.tarInvitadoCant != null ? row.tarInvitadoCant : '';
+  document.getElementById('pcshChkTarEmergencia').value = row && row.tarEmergenciaCant != null ? row.tarEmergenciaCant : '';
+  document.getElementById('pcshChkTarZona8').value = row && row.tarZona8Cant != null ? row.tarZona8Cant : '';
   pcshChecklistPintarLlaves();
   pcshChecklistPintarDiff();
 }
@@ -17253,6 +17324,11 @@ function pcshChecklistPintarVariaciones(prev) {
     var dm = vals.mouseCant - Number(prev.mouseCant);
     bits.push('Mouse: ' + (dm === 0 ? 'sin variación' : (dm > 0 ? '+' : '') + dm));
   }
+  pcshChecklistTarjetas().forEach(function (t) {
+    var d = pcshChecklistDelta(vals[t.campo], prev[t.campo]);
+    if (d == null || d === 0) return;
+    bits.push(t.corto + ': ' + (d > 0 ? '+' : '') + d);
+  });
   var hay = bits.some(function (b) { return b.indexOf('sin variación') < 0; });
   if (!hay) {
     box.hidden = true;
@@ -17264,7 +17340,7 @@ function pcshChecklistPintarVariaciones(prev) {
 }
 function pcshChecklistSetSoloLectura(on) {
   _pcshChkSoloLectura = !!on;
-  ['pcshChkLlavesObs', 'pcshChkMouse', 'pcshChkMouseObs', 'pcshChkEncCf', 'pcshChkEncSis', 'pcshChkEncObs', 'pcshChkRadios', 'pcshChkRadiosObs'].forEach(function (id) {
+  ['pcshChkLlavesObs', 'pcshChkMouse', 'pcshChkMouseObs', 'pcshChkEncCf', 'pcshChkEncSis', 'pcshChkEncObs', 'pcshChkRadios', 'pcshChkRadiosObs', 'pcshChkTarSuper', 'pcshChkTarInvitado', 'pcshChkTarEmergencia', 'pcshChkTarZona8'].forEach(function (id) {
     var el = document.getElementById(id);
     if (el) el.disabled = !!on;
   });
@@ -17312,51 +17388,81 @@ function pcshChecklistLineaObs(txt) {
   var s = String(txt || '').trim();
   return s ? s : 'Sin observaciones.';
 }
+function pcshChecklistObsCorta(txt) {
+  var s = String(txt || '').trim();
+  if (!s || s === 'Sin observaciones.') return '';
+  return s;
+}
+function pcshChecklistFilasDeRow(row) {
+  if (!row) return [];
+  var filas = [
+    { item: 'Llaves', valor: row.llavesCompletas === 'no' ? 'No' : 'Sí', obs: pcshChecklistObsCorta(row.llavesObs) },
+    { item: 'Mouse', valor: row.mouseCant != null ? String(row.mouseCant) : '—', obs: pcshChecklistObsCorta(row.mouseObs) },
+    { item: 'Encomiendas', valor: 'CF ' + (row.encCf != null ? row.encCf : '—') + ' · Sis ' + (row.encSistema != null ? row.encSistema : '—'), obs: pcshChecklistObsCorta(row.encObs) },
+    { item: 'Radios', valor: row.radiosCant != null ? String(row.radiosCant) : '—', obs: pcshChecklistObsCorta(row.radiosObs) }
+  ];
+  pcshChecklistTarjetas().forEach(function (t) {
+    if (row[t.campo] == null || row[t.campo] === '') return;
+    filas.push({ item: t.corto, valor: String(row[t.campo]), obs: '' });
+  });
+  return filas;
+}
+function pcshChecklistParsearTexto(texto) {
+  var t = String(texto || '').replace(/\r/g, '');
+  if (!/^CHECKLIST DE (CIERRE|APERTURA)/.test(t)) return null;
+  var filas = [];
+  function obsDe(marca) {
+    var m = t.match(new RegExp(marca + '[\\s\\S]*?Observaciones:\\s*([^\\n]+)', 'i'));
+    if (!m) return '';
+    var s = m[1].trim();
+    return (!s || s === 'Sin observaciones.') ? '' : s;
+  }
+  var ll = t.match(/Completas:\s*(Sí|Si|No)/i) || t.match(/^Llaves:\s*(Sí|Si|No)/im);
+  if (ll) filas.push({ item: 'Llaves', valor: /^no/i.test(ll[1]) ? 'No' : 'Sí', obs: obsDe('Llaves') });
+  function cant(item, re, obsMarca) {
+    var m = t.match(re);
+    if (m) filas.push({ item: item, valor: m[1].trim(), obs: obsMarca ? obsDe(obsMarca) : '' });
+  }
+  cant('Mouse', /Mouse de conserjería[\s\S]*?Cantidad:\s*(\d+)/i, 'Mouse');
+  if (!filas.some(function (f) { return f.item === 'Mouse'; })) cant('Mouse', /^Mouse:\s*(\d+)/im, 'Mouse');
+  var enc = t.match(/Comunidad Feliz:\s*(\d+)[\s\S]*?Sistema de Conserjería:\s*(\d+)/i);
+  if (enc) filas.push({ item: 'Encomiendas', valor: 'CF ' + enc[1] + ' · Sis ' + enc[2], obs: obsDe('Encomiendas') });
+  else cant('Encomiendas', /^Encomiendas:\s*(.+)$/im);
+  cant('Radios', /\nRadios\n[\s\S]*?Cantidad:\s*(\d+)/i, 'Radios');
+  if (!filas.some(function (f) { return f.item === 'Radios'; })) cant('Radios', /^Radios:\s*(\d+)/im);
+  cant('T. supermercado', /^T\. supermercado:\s*(\d+)/im);
+  cant('T. invitado', /^T\. invitado:\s*(\d+)/im);
+  cant('T. emergencia', /^T\. emergencia:\s*(\d+)/im);
+  cant('T. zona 8', /^T\. zona 8:\s*(\d+)/im);
+  return filas.length ? filas : null;
+}
+function pcshChecklistTablaHtml(filas) {
+  if (!filas || !filas.length) return '';
+  var conObs = filas.some(function (f) { return f.obs; });
+  var html = '<table class="pcsh-chk-nov-tabla"><thead><tr><th>Ítem</th><th>Dato</th>' + (conObs ? '<th>Nota</th>' : '') + '</tr></thead><tbody>';
+  filas.forEach(function (f) {
+    html += '<tr><td>' + escapeHtml(f.item) + '</td><td>' + escapeHtml(f.valor) + '</td>' + (conObs ? '<td>' + escapeHtml(f.obs || '') + '</td>' : '') + '</tr>';
+  });
+  return html + '</tbody></table>';
+}
+function pcshNovedadCuerpoHtml(n) {
+  var filas = n && Array.isArray(n.checklistFilas) && n.checklistFilas.length ? n.checklistFilas : pcshChecklistParsearTexto(n && n.texto);
+  if (filas && filas.length && (n.tipo === 'checklist_turno' || /^CHECKLIST DE (CIERRE|APERTURA)/.test(String(n.texto || '')))) {
+    var tipo = n.checklistTipo === 'cierre' || /CIERRE/.test(String(n.texto || '')) ? 'Cierre' : 'Apertura';
+    var est = String(n.texto || '').match(/Estado:\s*(.+)/);
+    return pcshChecklistTablaHtml(filas) + (est ? '<p class="pcsh-chk-nov-est">' + escapeHtml(tipo + ' · ' + est[1].trim()) + '</p>' : '');
+  }
+  return '<p>' + escapeHtml(n.texto || '').replace(/\n/g, '<br>') + '</p>';
+}
 function pcshChecklistTextoNovedad(row) {
   if (!row) return '';
   var tipoTit = row.tipo === 'cierre' ? 'CIERRE' : 'APERTURA';
-  var llaves = row.llavesCompletas === 'no' ? 'No' : 'Sí';
-  var diff = Number(row.encDiff) || 0;
-  var lines = [
-    'CHECKLIST DE ' + tipoTit + ' DE TURNO',
-    '',
-    'Conserje: ' + (row.conserje || '—'),
-    'Fecha: ' + (row.fecha || '—'),
-    'Hora: ' + (row.hora || '—'),
-    '',
-    'Llaves de tableros',
-    '• Completas: ' + llaves,
-    '• Observaciones: ' + pcshChecklistLineaObs(row.llavesObs),
-    '',
-    'Mouse de conserjería',
-    '• Cantidad: ' + (row.mouseCant != null ? row.mouseCant : '—'),
-    '• Observaciones: ' + pcshChecklistLineaObs(row.mouseObs),
-    '',
-    'Encomiendas',
-    '• Comunidad Feliz: ' + (row.encCf != null ? row.encCf : '—'),
-    '• Sistema de Conserjería: ' + (row.encSistema != null ? row.encSistema : '—'),
-    '• Diferencia (informativa): ' + diff + '  (Comunidad Feliz − Sistema)'
-  ];
-  lines.push('Las encomiendas no generan incidencia: cada turno puede entregar distintas cantidades.');
-  lines.push('• Observaciones: ' + pcshChecklistLineaObs(row.encObs));
-  lines.push('');
-  lines.push('Radios');
-  lines.push('• Cantidad: ' + (row.radiosCant != null ? row.radiosCant : '—'));
-  lines.push('• Observaciones: ' + pcshChecklistLineaObs(row.radiosObs));
-  var v = row.variacionesAnterior;
-  if (v) {
-    var bits = [
-      'Radios: ' + (Number(v.radios) === 0 ? 'sin variación' : ((Number(v.radios) > 0 ? '+' : '') + v.radios)),
-      'Mouse: ' + (Number(v.mouse) === 0 ? 'sin variación' : ((Number(v.mouse) > 0 ? '+' : '') + v.mouse))
-    ];
-    if (bits.some(function (b) { return b.indexOf('sin variación') < 0; })) {
-      lines.push('');
-      lines.push('⚠️ Variaciones respecto al turno anterior (llaves / inventario)');
-      bits.forEach(function (b) { lines.push('• ' + b); });
-    }
-  }
+  var filas = pcshChecklistFilasDeRow(row);
+  var lines = ['CHECKLIST DE ' + tipoTit + ' DE TURNO', 'Conserje: ' + (row.conserje || '—'), 'Fecha: ' + (row.fecha || '—'), 'Hora: ' + (row.hora || '—')];
+  filas.forEach(function (f) {
+    lines.push(f.item + ': ' + f.valor + (f.obs ? ' (' + f.obs + ')' : ''));
+  });
   var est = row.estado === 'incidencia' ? 'Incidencia' : (row.estado === 'observaciones' ? 'Con observaciones' : 'Todo correcto');
-  lines.push('');
   lines.push('Estado: ' + est);
   return lines.join('\n');
 }
@@ -17371,6 +17477,7 @@ async function pcshChecklistRegistrarNovedad(row) {
     mes: row.mes || (typeof pcshMesCalendarioChile === 'function' ? pcshMesCalendarioChile() : ''),
     conserje: row.conserje || '',
     texto: pcshChecklistTextoNovedad(row),
+    checklistFilas: pcshChecklistFilasDeRow(row),
     categoria: 'General',
     tipo: 'checklist_turno',
     checklistTipo: row.tipo,
@@ -17419,6 +17526,10 @@ async function pcshChecklistGuardarYContinuar() {
         encObs: vals.encObs,
         radiosCant: vals.radiosCant,
         radiosObs: vals.radiosObs,
+        tarSuperCant: vals.tarSuperCant,
+        tarInvitadoCant: vals.tarInvitadoCant,
+        tarEmergenciaCant: vals.tarEmergenciaCant,
+        tarZona8Cant: vals.tarZona8Cant,
         cerrado: true,
         historialEdiciones: []
       };
@@ -17456,7 +17567,7 @@ function pcshChecklistBindUi() {
     pcshChecklistPintarLlaves();
     pcshChecklistActualizarConfirm();
   };
-  ['pcshChkLlavesObs', 'pcshChkMouse', 'pcshChkMouseObs', 'pcshChkEncCf', 'pcshChkEncSis', 'pcshChkEncObs', 'pcshChkRadios', 'pcshChkRadiosObs'].forEach(function (id) {
+  ['pcshChkLlavesObs', 'pcshChkMouse', 'pcshChkMouseObs', 'pcshChkEncCf', 'pcshChkEncSis', 'pcshChkEncObs', 'pcshChkRadios', 'pcshChkRadiosObs', 'pcshChkTarSuper', 'pcshChkTarInvitado', 'pcshChkTarEmergencia', 'pcshChkTarZona8'].forEach(function (id) {
     var el = document.getElementById(id);
     if (!el) return;
     el.addEventListener('input', function () {
