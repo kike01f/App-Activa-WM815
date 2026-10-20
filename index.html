@@ -5734,6 +5734,17 @@
           </label>
         </div>
       </section>
+      <section class="pcsh-chk-sec">
+        <h4>F. Controles</h4>
+        <div class="pcsh-chk-tarjetas">
+          <label for="pcshChkTv">Control de TV
+            <input type="number" id="pcshChkTv" min="0" step="1" inputmode="numeric" required>
+          </label>
+          <label for="pcshChkAc">Controles de aire acondicionado
+            <input type="number" id="pcshChkAc" min="0" step="1" inputmode="numeric" required>
+          </label>
+        </div>
+      </section>
       <p class="pcsh-chk-err" id="pcshChkErr" role="alert"></p>
       <div class="modal-buttons">
         <button type="button" class="btn btn-secondary" id="pcshChkCancel">Cancelar</button>
@@ -17186,6 +17197,8 @@ function pcshChecklistArmarAlertas(row, prev) {
       tarInvitado: pcshChecklistDelta(row.tarInvitadoCant, prev.tarInvitadoCant),
       tarEmergencia: pcshChecklistDelta(row.tarEmergenciaCant, prev.tarEmergenciaCant),
       tarZona8: pcshChecklistDelta(row.tarZona8Cant, prev.tarZona8Cant),
+      tv: pcshChecklistDelta(row.tvCant, prev.tvCant),
+      ac: pcshChecklistDelta(row.acCant, prev.acCant),
       anteriorId: prev.id || '',
       anteriorTurnoId: prev.turnoId || '',
       anteriorConserje: prev.conserje || '',
@@ -17205,7 +17218,7 @@ function pcshChecklistArmarAlertas(row, prev) {
         mensaje: 'Cantidad de mouse diferente al turno anterior (' + (variaciones.mouse > 0 ? '+' : '') + variaciones.mouse + ')'
       });
     }
-    pcshChecklistTarjetas().forEach(function (t) {
+    pcshChecklistTarjetas().concat(pcshChecklistControles()).forEach(function (t) {
       if (variaciones[t.key] == null || variaciones[t.key] === 0) return;
       alertas.push({
         codigo: t.key + '_vs_anterior',
@@ -17230,7 +17243,9 @@ function pcshChecklistLeerFormulario() {
     tarSuperCant: pcshChecklistEntero(document.getElementById('pcshChkTarSuper').value),
     tarInvitadoCant: pcshChecklistEntero(document.getElementById('pcshChkTarInvitado').value),
     tarEmergenciaCant: pcshChecklistEntero(document.getElementById('pcshChkTarEmergencia').value),
-    tarZona8Cant: pcshChecklistEntero(document.getElementById('pcshChkTarZona8').value)
+    tarZona8Cant: pcshChecklistEntero(document.getElementById('pcshChkTarZona8').value),
+    tvCant: pcshChecklistEntero(document.getElementById('pcshChkTv').value),
+    acCant: pcshChecklistEntero(document.getElementById('pcshChkAc').value)
   };
 }
 function pcshChecklistTarjetas() {
@@ -17239,6 +17254,12 @@ function pcshChecklistTarjetas() {
     { key: 'tarInvitado', campo: 'tarInvitadoCant', nombre: 'Tarjetas de invitado', corto: 'T. invitado' },
     { key: 'tarEmergencia', campo: 'tarEmergenciaCant', nombre: 'Tarjeta de emergencia', corto: 'T. emergencia' },
     { key: 'tarZona8', campo: 'tarZona8Cant', nombre: 'Tarjeta zona 8', corto: 'T. zona 8' }
+  ];
+}
+function pcshChecklistControles() {
+  return [
+    { key: 'tv', campo: 'tvCant', nombre: 'Control de TV', corto: 'Control TV' },
+    { key: 'ac', campo: 'acCant', nombre: 'Controles de aire acondicionado', corto: 'Controles AC' }
   ];
 }
 function pcshChecklistDelta(actual, anterior) {
@@ -17255,7 +17276,7 @@ function pcshChecklistValidar(vals, tipo) {
   if (vals.llavesCompletas === 'no' && !vals.llavesObs) {
     return 'Si las llaves no están completas, indique qué llave falta.';
   }
-  if (vals.mouseCant == null || vals.encCf == null || vals.encSistema == null || vals.radiosCant == null || vals.tarSuperCant == null || vals.tarInvitadoCant == null || vals.tarEmergenciaCant == null || vals.tarZona8Cant == null) {
+  if (vals.mouseCant == null || vals.encCf == null || vals.encSistema == null || vals.radiosCant == null || vals.tarSuperCant == null || vals.tarInvitadoCant == null || vals.tarEmergenciaCant == null || vals.tarZona8Cant == null || vals.tvCant == null || vals.acCant == null) {
     return tipo === 'cierre'
       ? 'Para cerrar el turno debe completar todo el checklist de cierre.'
       : 'Para abrir el turno debe completar todo el checklist de apertura.';
@@ -17326,6 +17347,8 @@ function pcshChecklistRellenar(row) {
   document.getElementById('pcshChkTarInvitado').value = row && row.tarInvitadoCant != null ? row.tarInvitadoCant : '';
   document.getElementById('pcshChkTarEmergencia').value = row && row.tarEmergenciaCant != null ? row.tarEmergenciaCant : '';
   document.getElementById('pcshChkTarZona8').value = row && row.tarZona8Cant != null ? row.tarZona8Cant : '';
+  document.getElementById('pcshChkTv').value = row && row.tvCant != null ? row.tvCant : '';
+  document.getElementById('pcshChkAc').value = row && row.acCant != null ? row.acCant : '';
   pcshChecklistPintarLlaves();
   pcshChecklistPintarDiff();
 }
@@ -17351,7 +17374,7 @@ function pcshChecklistPintarVariaciones(prev) {
     var dm = vals.mouseCant - Number(prev.mouseCant);
     bits.push('Mouse: ' + (dm === 0 ? 'sin variación' : (dm > 0 ? '+' : '') + dm));
   }
-  pcshChecklistTarjetas().forEach(function (t) {
+  pcshChecklistTarjetas().concat(pcshChecklistControles()).forEach(function (t) {
     var d = pcshChecklistDelta(vals[t.campo], prev[t.campo]);
     if (d == null || d === 0) return;
     bits.push(t.corto + ': ' + (d > 0 ? '+' : '') + d);
@@ -17367,7 +17390,7 @@ function pcshChecklistPintarVariaciones(prev) {
 }
 function pcshChecklistSetSoloLectura(on) {
   _pcshChkSoloLectura = !!on;
-  ['pcshChkLlavesObs', 'pcshChkMouse', 'pcshChkMouseObs', 'pcshChkEncCf', 'pcshChkEncSis', 'pcshChkEncObs', 'pcshChkRadios', 'pcshChkRadiosObs', 'pcshChkTarSuper', 'pcshChkTarInvitado', 'pcshChkTarEmergencia', 'pcshChkTarZona8'].forEach(function (id) {
+  ['pcshChkLlavesObs', 'pcshChkMouse', 'pcshChkMouseObs', 'pcshChkEncCf', 'pcshChkEncSis', 'pcshChkEncObs', 'pcshChkRadios', 'pcshChkRadiosObs', 'pcshChkTarSuper', 'pcshChkTarInvitado', 'pcshChkTarEmergencia', 'pcshChkTarZona8', 'pcshChkTv', 'pcshChkAc'].forEach(function (id) {
     var el = document.getElementById(id);
     if (el) el.disabled = !!on;
   });
@@ -17428,7 +17451,7 @@ function pcshChecklistFilasDeRow(row) {
     { item: 'Encomiendas', valor: 'CF ' + (row.encCf != null ? row.encCf : '—') + ' · Sis ' + (row.encSistema != null ? row.encSistema : '—'), obs: pcshChecklistObsCorta(row.encObs) },
     { item: 'Radios', valor: row.radiosCant != null ? String(row.radiosCant) : '—', obs: pcshChecklistObsCorta(row.radiosObs) }
   ];
-  pcshChecklistTarjetas().forEach(function (t) {
+  pcshChecklistTarjetas().concat(pcshChecklistControles()).forEach(function (t) {
     if (row[t.campo] == null || row[t.campo] === '') return;
     filas.push({ item: t.corto, valor: String(row[t.campo]), obs: '' });
   });
@@ -17461,6 +17484,8 @@ function pcshChecklistParsearTexto(texto) {
   cant('T. invitado', /^T\. invitado:\s*(\d+)/im);
   cant('T. emergencia', /^T\. emergencia:\s*(\d+)/im);
   cant('T. zona 8', /^T\. zona 8:\s*(\d+)/im);
+  cant('Control TV', /^Control TV:\s*(\d+)/im);
+  cant('Controles AC', /^Controles AC:\s*(\d+)/im);
   return filas.length ? filas : null;
 }
 function pcshChecklistTablaHtml(filas) {
@@ -17575,6 +17600,8 @@ async function pcshChecklistGuardarYContinuar() {
         tarInvitadoCant: vals.tarInvitadoCant,
         tarEmergenciaCant: vals.tarEmergenciaCant,
         tarZona8Cant: vals.tarZona8Cant,
+        tvCant: vals.tvCant,
+        acCant: vals.acCant,
         cerrado: true,
         historialEdiciones: []
       };
@@ -17612,7 +17639,7 @@ function pcshChecklistBindUi() {
     pcshChecklistPintarLlaves();
     pcshChecklistActualizarConfirm();
   };
-  ['pcshChkLlavesObs', 'pcshChkMouse', 'pcshChkMouseObs', 'pcshChkEncCf', 'pcshChkEncSis', 'pcshChkEncObs', 'pcshChkRadios', 'pcshChkRadiosObs', 'pcshChkTarSuper', 'pcshChkTarInvitado', 'pcshChkTarEmergencia', 'pcshChkTarZona8'].forEach(function (id) {
+  ['pcshChkLlavesObs', 'pcshChkMouse', 'pcshChkMouseObs', 'pcshChkEncCf', 'pcshChkEncSis', 'pcshChkEncObs', 'pcshChkRadios', 'pcshChkRadiosObs', 'pcshChkTarSuper', 'pcshChkTarInvitado', 'pcshChkTarEmergencia', 'pcshChkTarZona8', 'pcshChkTv', 'pcshChkAc'].forEach(function (id) {
     var el = document.getElementById(id);
     if (!el) return;
     el.addEventListener('input', function () {
