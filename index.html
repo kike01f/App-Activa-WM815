@@ -1454,7 +1454,7 @@
     }
     .pcsh-chk-sec h4 { margin: 0 0 0.5rem; font-size: 0.82rem; font-weight: 800; }
     .pcsh-chk-sec label { display: block; font-size: 0.78rem; font-weight: 700; margin: 0 0 0.28rem; }
-    .pcsh-chk-sec input[type="number"], .pcsh-chk-sec textarea {
+    .pcsh-chk-sec input[type="number"], .pcsh-chk-sec input[type="text"], .pcsh-chk-sec textarea {
       width: 100%; box-sizing: border-box; border-radius: 8px; padding: 0.55rem 0.65rem;
       border: 1px solid var(--border-color); background: var(--gray-100); color: var(--text-main);
       font-family: inherit; font-size: 1rem;
@@ -1478,8 +1478,12 @@
       display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem 0.65rem;
     }
     .pcsh-chk-tarjetas label { margin: 0; }
+    .pcsh-chk-tarjetas input[type="text"] { margin-top: 0.28rem; font-size: 0.82rem; padding: 0.4rem 0.5rem; }
+    @media (max-width: 520px) {
+      .pcsh-chk-tarjetas { grid-template-columns: 1fr; }
+    }
     .pcsh-chk-nov-tabla {
-      width: 100%; max-width: 22rem; border-collapse: collapse; margin: 0.3rem 0 0.15rem;
+      width: 100%; max-width: 28rem; border-collapse: collapse; margin: 0.3rem 0 0.15rem;
       font-size: 0.72rem; line-height: 1.25;
     }
     .pcsh-chk-nov-tabla th, .pcsh-chk-nov-tabla td {
@@ -1493,6 +1497,7 @@
     .pcsh-chk-err { display: none; margin: 0 0 0.55rem; font-size: 0.8rem; color: #fecaca; font-weight: 700; }
     .pcsh-chk-err.is-on { display: block; }
     .pcsh-chk-modal .modal-buttons { position: sticky; bottom: 0; padding-top: 0.55rem; background: linear-gradient(transparent, var(--gray-100) 28%); }
+    .pcsh-chk-modal .pcsh-chk-sec:last-of-type { margin-bottom: 3.2rem; }
     .pcsh-chk-modal .btn[disabled] { opacity: 0.45; cursor: not-allowed; }
     .pcsh-fabrica-panel .card-b { padding: 0.5rem 0.65rem; }
     .pcsh-fabrica-panel .form-group { margin-bottom: 0.4rem; }
@@ -5722,15 +5727,19 @@
         <div class="pcsh-chk-tarjetas">
           <label for="pcshChkTarSuper">Tarjetas de supermercado
             <input type="number" id="pcshChkTarSuper" min="0" step="1" inputmode="numeric" required>
+            <input type="text" id="pcshChkTarSuperObs" maxlength="80" placeholder="Quién la tiene">
           </label>
           <label for="pcshChkTarInvitado">Tarjetas de invitado
             <input type="number" id="pcshChkTarInvitado" min="0" step="1" inputmode="numeric" required>
+            <input type="text" id="pcshChkTarInvitadoObs" maxlength="80" placeholder="Quién la tiene">
           </label>
           <label for="pcshChkTarEmergencia">Tarjeta de emergencia
             <input type="number" id="pcshChkTarEmergencia" min="0" step="1" inputmode="numeric" required>
+            <input type="text" id="pcshChkTarEmergenciaObs" maxlength="80" placeholder="Quién la tiene">
           </label>
           <label for="pcshChkTarZona8">Tarjeta zona 8
             <input type="number" id="pcshChkTarZona8" min="0" step="1" inputmode="numeric" required>
+            <input type="text" id="pcshChkTarZona8Obs" maxlength="80" placeholder="Quién la tiene">
           </label>
         </div>
       </section>
@@ -5739,9 +5748,11 @@
         <div class="pcsh-chk-tarjetas">
           <label for="pcshChkTv">Control de TV
             <input type="number" id="pcshChkTv" min="0" step="1" inputmode="numeric" required>
+            <input type="text" id="pcshChkTvObs" maxlength="80" placeholder="Quién lo tiene">
           </label>
           <label for="pcshChkAc">Controles de aire acondicionado
             <input type="number" id="pcshChkAc" min="0" step="1" inputmode="numeric" required>
+            <input type="text" id="pcshChkAcObs" maxlength="80" placeholder="Quién los tiene">
           </label>
         </div>
       </section>
@@ -17244,22 +17255,28 @@ function pcshChecklistLeerFormulario() {
     tarInvitadoCant: pcshChecklistEntero(document.getElementById('pcshChkTarInvitado').value),
     tarEmergenciaCant: pcshChecklistEntero(document.getElementById('pcshChkTarEmergencia').value),
     tarZona8Cant: pcshChecklistEntero(document.getElementById('pcshChkTarZona8').value),
+    tarSuperObs: (document.getElementById('pcshChkTarSuperObs').value || '').trim(),
+    tarInvitadoObs: (document.getElementById('pcshChkTarInvitadoObs').value || '').trim(),
+    tarEmergenciaObs: (document.getElementById('pcshChkTarEmergenciaObs').value || '').trim(),
+    tarZona8Obs: (document.getElementById('pcshChkTarZona8Obs').value || '').trim(),
     tvCant: pcshChecklistEntero(document.getElementById('pcshChkTv').value),
-    acCant: pcshChecklistEntero(document.getElementById('pcshChkAc').value)
+    acCant: pcshChecklistEntero(document.getElementById('pcshChkAc').value),
+    tvObs: (document.getElementById('pcshChkTvObs').value || '').trim(),
+    acObs: (document.getElementById('pcshChkAcObs').value || '').trim()
   };
 }
 function pcshChecklistTarjetas() {
   return [
-    { key: 'tarSuper', campo: 'tarSuperCant', nombre: 'Tarjetas de supermercado', corto: 'T. supermercado' },
-    { key: 'tarInvitado', campo: 'tarInvitadoCant', nombre: 'Tarjetas de invitado', corto: 'T. invitado' },
-    { key: 'tarEmergencia', campo: 'tarEmergenciaCant', nombre: 'Tarjeta de emergencia', corto: 'T. emergencia' },
-    { key: 'tarZona8', campo: 'tarZona8Cant', nombre: 'Tarjeta zona 8', corto: 'T. zona 8' }
+    { key: 'tarSuper', campo: 'tarSuperCant', obs: 'tarSuperObs', nombre: 'Tarjetas de supermercado', corto: 'T. supermercado' },
+    { key: 'tarInvitado', campo: 'tarInvitadoCant', obs: 'tarInvitadoObs', nombre: 'Tarjetas de invitado', corto: 'T. invitado' },
+    { key: 'tarEmergencia', campo: 'tarEmergenciaCant', obs: 'tarEmergenciaObs', nombre: 'Tarjeta de emergencia', corto: 'T. emergencia' },
+    { key: 'tarZona8', campo: 'tarZona8Cant', obs: 'tarZona8Obs', nombre: 'Tarjeta zona 8', corto: 'T. zona 8' }
   ];
 }
 function pcshChecklistControles() {
   return [
-    { key: 'tv', campo: 'tvCant', nombre: 'Control de TV', corto: 'Control TV' },
-    { key: 'ac', campo: 'acCant', nombre: 'Controles de aire acondicionado', corto: 'Controles AC' }
+    { key: 'tv', campo: 'tvCant', obs: 'tvObs', nombre: 'Control de TV', corto: 'Control TV' },
+    { key: 'ac', campo: 'acCant', obs: 'acObs', nombre: 'Controles de aire acondicionado', corto: 'Controles AC' }
   ];
 }
 function pcshChecklistDelta(actual, anterior) {
@@ -17347,8 +17364,14 @@ function pcshChecklistRellenar(row) {
   document.getElementById('pcshChkTarInvitado').value = row && row.tarInvitadoCant != null ? row.tarInvitadoCant : '';
   document.getElementById('pcshChkTarEmergencia').value = row && row.tarEmergenciaCant != null ? row.tarEmergenciaCant : '';
   document.getElementById('pcshChkTarZona8').value = row && row.tarZona8Cant != null ? row.tarZona8Cant : '';
+  document.getElementById('pcshChkTarSuperObs').value = (row && row.tarSuperObs) || '';
+  document.getElementById('pcshChkTarInvitadoObs').value = (row && row.tarInvitadoObs) || '';
+  document.getElementById('pcshChkTarEmergenciaObs').value = (row && row.tarEmergenciaObs) || '';
+  document.getElementById('pcshChkTarZona8Obs').value = (row && row.tarZona8Obs) || '';
   document.getElementById('pcshChkTv').value = row && row.tvCant != null ? row.tvCant : '';
   document.getElementById('pcshChkAc').value = row && row.acCant != null ? row.acCant : '';
+  document.getElementById('pcshChkTvObs').value = (row && row.tvObs) || '';
+  document.getElementById('pcshChkAcObs').value = (row && row.acObs) || '';
   pcshChecklistPintarLlaves();
   pcshChecklistPintarDiff();
 }
@@ -17390,7 +17413,7 @@ function pcshChecklistPintarVariaciones(prev) {
 }
 function pcshChecklistSetSoloLectura(on) {
   _pcshChkSoloLectura = !!on;
-  ['pcshChkLlavesObs', 'pcshChkMouse', 'pcshChkMouseObs', 'pcshChkEncCf', 'pcshChkEncSis', 'pcshChkEncObs', 'pcshChkRadios', 'pcshChkRadiosObs', 'pcshChkTarSuper', 'pcshChkTarInvitado', 'pcshChkTarEmergencia', 'pcshChkTarZona8', 'pcshChkTv', 'pcshChkAc'].forEach(function (id) {
+  ['pcshChkLlavesObs', 'pcshChkMouse', 'pcshChkMouseObs', 'pcshChkEncCf', 'pcshChkEncSis', 'pcshChkEncObs', 'pcshChkRadios', 'pcshChkRadiosObs', 'pcshChkTarSuper', 'pcshChkTarInvitado', 'pcshChkTarEmergencia', 'pcshChkTarZona8', 'pcshChkTarSuperObs', 'pcshChkTarInvitadoObs', 'pcshChkTarEmergenciaObs', 'pcshChkTarZona8Obs', 'pcshChkTv', 'pcshChkAc', 'pcshChkTvObs', 'pcshChkAcObs'].forEach(function (id) {
     var el = document.getElementById(id);
     if (el) el.disabled = !!on;
   });
@@ -17453,7 +17476,7 @@ function pcshChecklistFilasDeRow(row) {
   ];
   pcshChecklistTarjetas().concat(pcshChecklistControles()).forEach(function (t) {
     if (row[t.campo] == null || row[t.campo] === '') return;
-    filas.push({ item: t.corto, valor: String(row[t.campo]), obs: '' });
+    filas.push({ item: t.corto, valor: String(row[t.campo]), obs: pcshChecklistObsCorta(row[t.obs]) });
   });
   return filas;
 }
@@ -17480,12 +17503,18 @@ function pcshChecklistParsearTexto(texto) {
   else cant('Encomiendas', /^Encomiendas:\s*(.+)$/im);
   cant('Radios', /\nRadios\n[\s\S]*?Cantidad:\s*(\d+)/i, 'Radios');
   if (!filas.some(function (f) { return f.item === 'Radios'; })) cant('Radios', /^Radios:\s*(\d+)/im);
-  cant('T. supermercado', /^T\. supermercado:\s*(\d+)/im);
-  cant('T. invitado', /^T\. invitado:\s*(\d+)/im);
-  cant('T. emergencia', /^T\. emergencia:\s*(\d+)/im);
-  cant('T. zona 8', /^T\. zona 8:\s*(\d+)/im);
-  cant('Control TV', /^Control TV:\s*(\d+)/im);
-  cant('Controles AC', /^Controles AC:\s*(\d+)/im);
+  function cantQuien(item, re) {
+    var m = t.match(re);
+    if (!m) return;
+    var quien = m[2] ? m[2].trim() : '';
+    filas.push({ item: item, valor: m[1].trim(), obs: quien });
+  }
+  cantQuien('T. supermercado', /^T\. supermercado:\s*(\d+)(?:\s*\(([^)]*)\))?/im);
+  cantQuien('T. invitado', /^T\. invitado:\s*(\d+)(?:\s*\(([^)]*)\))?/im);
+  cantQuien('T. emergencia', /^T\. emergencia:\s*(\d+)(?:\s*\(([^)]*)\))?/im);
+  cantQuien('T. zona 8', /^T\. zona 8:\s*(\d+)(?:\s*\(([^)]*)\))?/im);
+  cantQuien('Control TV', /^Control TV:\s*(\d+)(?:\s*\(([^)]*)\))?/im);
+  cantQuien('Controles AC', /^Controles AC:\s*(\d+)(?:\s*\(([^)]*)\))?/im);
   return filas.length ? filas : null;
 }
 function pcshChecklistTablaHtml(filas) {
@@ -17600,8 +17629,14 @@ async function pcshChecklistGuardarYContinuar() {
         tarInvitadoCant: vals.tarInvitadoCant,
         tarEmergenciaCant: vals.tarEmergenciaCant,
         tarZona8Cant: vals.tarZona8Cant,
+        tarSuperObs: vals.tarSuperObs,
+        tarInvitadoObs: vals.tarInvitadoObs,
+        tarEmergenciaObs: vals.tarEmergenciaObs,
+        tarZona8Obs: vals.tarZona8Obs,
         tvCant: vals.tvCant,
         acCant: vals.acCant,
+        tvObs: vals.tvObs,
+        acObs: vals.acObs,
         cerrado: true,
         historialEdiciones: []
       };
@@ -17639,7 +17674,7 @@ function pcshChecklistBindUi() {
     pcshChecklistPintarLlaves();
     pcshChecklistActualizarConfirm();
   };
-  ['pcshChkLlavesObs', 'pcshChkMouse', 'pcshChkMouseObs', 'pcshChkEncCf', 'pcshChkEncSis', 'pcshChkEncObs', 'pcshChkRadios', 'pcshChkRadiosObs', 'pcshChkTarSuper', 'pcshChkTarInvitado', 'pcshChkTarEmergencia', 'pcshChkTarZona8', 'pcshChkTv', 'pcshChkAc'].forEach(function (id) {
+  ['pcshChkLlavesObs', 'pcshChkMouse', 'pcshChkMouseObs', 'pcshChkEncCf', 'pcshChkEncSis', 'pcshChkEncObs', 'pcshChkRadios', 'pcshChkRadiosObs', 'pcshChkTarSuper', 'pcshChkTarInvitado', 'pcshChkTarEmergencia', 'pcshChkTarZona8', 'pcshChkTarSuperObs', 'pcshChkTarInvitadoObs', 'pcshChkTarEmergenciaObs', 'pcshChkTarZona8Obs', 'pcshChkTv', 'pcshChkAc', 'pcshChkTvObs', 'pcshChkAcObs'].forEach(function (id) {
     var el = document.getElementById(id);
     if (!el) return;
     el.addEventListener('input', function () {
