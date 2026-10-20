@@ -5298,6 +5298,7 @@
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:0.75rem;">
           <input type="search" id="pcshBodegaBuscar" placeholder="Buscar producto" style="min-width:180px;padding:8px;border-radius:8px;background:var(--gray-100);color:var(--text-main);border:1px solid var(--border-color);">
           <button type="button" class="btn btn-secondary" id="pcshBodegaRefrescar">Actualizar</button>
+          <button type="button" class="btn btn-primary" id="pcshBodegaArmarPedido"><i class="fa-solid fa-cart-shopping" aria-hidden="true" style="margin-right:0.35rem;"></i>Armado de pedido</button>
           <button type="button" class="btn btn-primary" id="pcshBodegaVerSalidas">Registro de salidas</button>
         </div>
         <div style="overflow-x:auto;">
@@ -5361,6 +5362,38 @@
           <input type="search" id="pcshBodegaSalidasBuscar" placeholder="Buscar producto, conserje o auxiliar" style="min-width:220px;flex:1;padding:8px;border-radius:8px;background:var(--gray-100);color:var(--text-main);border:1px solid var(--border-color);">
         </div>
         <div id="pcshBodegaSalidasHost"></div>
+      </div>
+    </div>
+  </div>
+
+  <div id="tabBodegaPedido" class="pcsh-fabrica-panel" style="display:none;">
+    <div class="card">
+      <div class="card-h" style="display:flex;flex-wrap:wrap;align-items:center;justify-content:space-between;gap:0.5rem;">
+        <h3 style="margin:0"><i class="fa-solid fa-cart-shopping" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Armado de pedido</h3>
+        <button type="button" class="btn btn-secondary" id="pcshBodegaPedidoVolver">Volver a bodega</button>
+      </div>
+      <div class="card-b">
+        <p class="page-desc" style="margin:0 0 0.75rem;">Agregue varios productos al carrito para la misma persona y regístrelos juntos. Si un producto aún está dentro de su plazo, queda marcado y pide justificación.</p>
+        <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:0.65rem;margin-bottom:0.75rem;">
+          <div class="form-group" style="margin:0;">
+            <label for="pcshBodegaPedidoConserje">Conserje que autoriza</label>
+            <input type="text" id="pcshBodegaPedidoConserje" readonly tabindex="-1" aria-readonly="true" style="width:100%;padding:8px;border-radius:8px;background:var(--gray-100);color:var(--text-main);border:1px solid var(--border-color);cursor:default;">
+          </div>
+          <div class="form-group" style="margin:0;">
+            <label for="pcshBodegaPedidoAuxiliar">Auxiliar que solicita</label>
+            <select id="pcshBodegaPedidoAuxiliar" style="width:100%;padding:8px;border-radius:8px;background:var(--gray-100);color:var(--text-main);border:1px solid var(--border-color);"></select>
+          </div>
+          <div class="form-group" id="pcshBodegaPedidoAuxiliarOtroWrap" style="display:none;margin:0;">
+            <label for="pcshBodegaPedidoAuxiliarOtro">Nombre del auxiliar</label>
+            <input type="text" id="pcshBodegaPedidoAuxiliarOtro" maxlength="80" placeholder="Nombre y apellido" style="width:100%;padding:8px;border-radius:8px;background:var(--gray-100);color:var(--text-main);border:1px solid var(--border-color);">
+          </div>
+        </div>
+        <input type="search" id="pcshBodegaPedidoBuscar" placeholder="Buscar producto para agregar" style="width:100%;padding:8px;border-radius:8px;background:var(--gray-100);color:var(--text-main);border:1px solid var(--border-color);margin-bottom:0.75rem;">
+        <div id="pcshBodegaPedidoCatalogo" style="max-height:280px;overflow:auto;border:1px solid var(--border-color);border-radius:10px;padding:0 0.65rem;"></div>
+        <div id="pcshBodegaPedidoCarrito" style="margin-top:0.9rem;"></div>
+        <div style="display:flex;justify-content:flex-end;margin-top:0.75rem;">
+          <button type="button" class="btn btn-primary" id="pcshBodegaPedidoConfirmar"><i class="fa-solid fa-cart-shopping" aria-hidden="true" style="margin-right:0.35rem;"></i>Registrar pedido</button>
+        </div>
       </div>
     </div>
   </div>
@@ -13866,13 +13899,16 @@ function pcshBodegaEscuchar() {
     if (remoto <= (Number(pcshBodegaState.ms) || 0)) return;
     var panel = document.getElementById('tabBodega');
     var paginaSalidas = document.getElementById('tabBodegaSalidas');
+    var paginaPedido = document.getElementById('tabBodegaPedido');
     if (panel && document.activeElement && panel.contains(document.activeElement)) return;
     if (paginaSalidas && document.activeElement && paginaSalidas.contains(document.activeElement)) return;
+    if (paginaPedido && document.activeElement && paginaPedido.contains(document.activeElement)) return;
     pcshBodegaState.productos = (data.productos || []).map(pcshBodegaNormalizar).filter(function (p) { return p.nombre; });
     pcshBodegaState.movimientos = (data.movimientos || []).slice(-200);
     pcshBodegaState.ms = remoto;
     if (panel && panel.style.display !== 'none') pcshBodegaPintar();
     else if (paginaSalidas && paginaSalidas.style.display !== 'none') pcshBodegaPintarSalidas();
+    else if (paginaPedido && paginaPedido.style.display !== 'none' && typeof pcshBodegaPintarPedido === 'function') pcshBodegaPintarPedido();
   }, function (err) {
     console.warn('[bodega] escucha', err);
   });
@@ -13914,6 +13950,10 @@ async function pcshBodegaCargar() {
   }
   pcshBodegaEscuchar();
   pcshBodegaPintar();
+  var paginaPedidoCarga = document.getElementById('tabBodegaPedido');
+  if (paginaPedidoCarga && paginaPedidoCarga.style.display !== 'none' && typeof pcshBodegaPintarPedido === 'function') {
+    pcshBodegaPintarPedido();
+  }
 }
 
 function pcshBodegaConserjeTurno() {
@@ -13981,6 +14021,7 @@ function pcshBodegaPintar() {
     var totalSalidas = (pcshBodegaState.movimientos || []).filter(function (m) { return m && m.tipo === 'salida'; }).length;
     btnSalidas.textContent = totalSalidas ? ('Registro de salidas (' + totalSalidas + ')') : 'Registro de salidas';
   }
+  pcshBodegaActualizarBotonPedido();
   var paginaSalidas = document.getElementById('tabBodegaSalidas');
   if (paginaSalidas && paginaSalidas.style.display !== 'none') pcshBodegaPintarSalidas();
 }
@@ -14151,6 +14192,244 @@ async function pcshBodegaConfirmarSalida() {
   }
 }
 
+
+var pcshBodegaCarrito = [];
+
+function pcshBodegaPedidoAuxiliar() {
+  var sel = String((document.getElementById('pcshBodegaPedidoAuxiliar') || {}).value || '').trim();
+  if (sel === '__otro') {
+    return String((document.getElementById('pcshBodegaPedidoAuxiliarOtro') || {}).value || '').trim().replace(/\s+/g, ' ');
+  }
+  return sel;
+}
+
+function pcshBodegaTextoAlerta(uso) {
+  if (!uso) return '';
+  if (uso.tipo === 'persona') {
+    return uso.persona + ' ya retiró este producto. Su plazo de ' + uso.dias + ' días sigue hasta el ' + pcshBodegaFechaCorta(uso.hasta) + '. Otro retiro necesita justificación.';
+  }
+  return 'Uso común: hay un envase en uso hasta el ' + pcshBodegaFechaCorta(uso.hasta) + (uso.persona ? ', retirado por ' + uso.persona : '') + '. Nadie retira otro sin justificación.';
+}
+
+function pcshBodegaCarritoDe(id) {
+  var i;
+  for (i = 0; i < pcshBodegaCarrito.length; i++) {
+    if (String(pcshBodegaCarrito[i].id) === String(id)) return pcshBodegaCarrito[i];
+  }
+  return null;
+}
+
+function pcshBodegaActualizarBotonPedido() {
+  var btn = document.getElementById('pcshBodegaArmarPedido');
+  if (!btn) return;
+  var n = pcshBodegaCarrito.length;
+  btn.innerHTML = '<i class="fa-solid fa-cart-shopping" aria-hidden="true" style="margin-right:0.35rem;"></i>Armado de pedido' + (n ? ' (' + n + ')' : '');
+}
+
+function pcshBodegaPedidoLlenarPersonas() {
+  var conserje = document.getElementById('pcshBodegaPedidoConserje');
+  if (conserje) conserje.value = pcshBodegaConserjeTurno() || 'Sin turno';
+  var sel = document.getElementById('pcshBodegaPedidoAuxiliar');
+  if (!sel) return;
+  var actual = sel.value;
+  var auxiliares = pcshBodegaNombresAuxiliares();
+  sel.innerHTML = '<option value="">Seleccione auxiliar</option>' + auxiliares.map(function (n) {
+    return '<option value="' + pcshEscapeAttr(n) + '">' + escapeHtml(n) + '</option>';
+  }).join('') + '<option value="__otro">Otro auxiliar</option>';
+  if (actual === '__otro' || auxiliares.indexOf(actual) !== -1) sel.value = actual;
+  var wrap = document.getElementById('pcshBodegaPedidoAuxiliarOtroWrap');
+  if (wrap) wrap.style.display = sel.value === '__otro' ? '' : 'none';
+}
+
+function pcshBodegaPintarPedidoCatalogo() {
+  var host = document.getElementById('pcshBodegaPedidoCatalogo');
+  if (!host) return;
+  var q = String((document.getElementById('pcshBodegaPedidoBuscar') || {}).value || '').trim().toLowerCase();
+  var auxiliar = pcshBodegaPedidoAuxiliar();
+  var lista = (pcshBodegaState.productos || []).filter(function (p) {
+    if ((parseInt(p.existencia, 10) || 0) <= 0) return false;
+    if (q && String(p.nombre || '').toLowerCase().indexOf(q) === -1) return false;
+    return true;
+  }).sort(function (a, b) { return a.nombre.localeCompare(b.nombre, 'es'); });
+  if (!lista.length) {
+    host.innerHTML = '<p class="page-desc" style="margin:0.7rem 0;">No hay productos con existencia para agregar.</p>';
+    return;
+  }
+  host.innerHTML = lista.map(function (p) {
+    var enCarrito = pcshBodegaCarritoDe(p.id);
+    var uso = pcshBodegaAlertaRetiro(p, auxiliar);
+    var aviso = '';
+    if (uso) {
+      aviso = '<div style="margin-top:0.15rem;font-size:0.72rem;font-weight:700;color:#fbbf24;">' + escapeHtml(pcshBodegaTextoAlerta(uso)) + '</div>';
+    } else if (!auxiliar && pcshBodegaIndividualActivo(p) && pcshBodegaDiasPersona(p) > 0) {
+      aviso = '<div style="margin-top:0.15rem;font-size:0.72rem;color:var(--text-secondary);">Por persona: se revisa al elegir el auxiliar.</div>';
+    }
+    var accion = enCarrito
+      ? '<span style="font-size:0.75rem;font-weight:700;color:var(--text-secondary);white-space:nowrap;">En el carrito × ' + enCarrito.cantidad + '</span>'
+      : '<button type="button" class="btn btn-primary" data-pedido-accion="agregar" data-pedido-id="' + pcshEscapeAttr(p.id) + '" aria-label="Agregar ' + pcshEscapeAttr(p.nombre) + '" style="padding:0.3rem 0.6rem;white-space:nowrap;"><i class="fa-solid fa-plus" aria-hidden="true"></i></button>';
+    return '<div style="display:flex;align-items:center;gap:0.65rem;padding:0.55rem 0;border-bottom:1px solid var(--border-color);">' +
+      '<div style="flex:1;min-width:0;"><div style="font-weight:700;">' + escapeHtml(p.nombre) + ' <span style="font-weight:500;color:var(--text-secondary);">' + escapeHtml(p.unidad || 'un') + '</span></div>' +
+      '<div style="font-size:0.75rem;color:var(--text-secondary);">Hay ' + (parseInt(p.existencia, 10) || 0) + '</div>' + aviso + '</div>' +
+      accion + '</div>';
+  }).join('');
+}
+
+function pcshBodegaPintarPedidoCarrito() {
+  var host = document.getElementById('pcshBodegaPedidoCarrito');
+  if (!host) return;
+  var auxiliar = pcshBodegaPedidoAuxiliar();
+  var confirmar = document.getElementById('pcshBodegaPedidoConfirmar');
+  if (confirmar) {
+    confirmar.innerHTML = '<i class="fa-solid fa-cart-shopping" aria-hidden="true" style="margin-right:0.35rem;"></i>Registrar pedido' + (pcshBodegaCarrito.length ? ' (' + pcshBodegaCarrito.length + ')' : '');
+  }
+  if (!pcshBodegaCarrito.length) {
+    host.innerHTML = '<h4 style="margin:0 0 0.45rem;font-size:0.95rem;"><i class="fa-solid fa-cart-shopping" aria-hidden="true" style="margin-right:0.35rem;"></i>Carrito</h4><p class="page-desc" style="margin:0;">El carrito está vacío. Agregue los productos que se retiran juntos.</p>';
+    pcshBodegaActualizarBotonPedido();
+    return;
+  }
+  var html = '<h4 style="margin:0 0 0.45rem;font-size:0.95rem;"><i class="fa-solid fa-cart-shopping" aria-hidden="true" style="margin-right:0.35rem;"></i>Carrito (' + pcshBodegaCarrito.length + ')</h4>';
+  html += pcshBodegaCarrito.map(function (item) {
+    var p = (pcshBodegaState.productos || []).find(function (x) { return String(x.id) === String(item.id); });
+    if (!p) return '';
+    var uso = pcshBodegaAlertaRetiro(p, auxiliar);
+    var aviso = '';
+    if (uso) {
+      aviso = '<div style="margin-top:0.45rem;padding:0.5rem 0.6rem;border-radius:8px;background:rgba(251,191,36,0.14);">' +
+        '<p style="margin:0 0 0.4rem;color:#fbbf24;font-size:0.8rem;line-height:1.4;"><i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> ' + escapeHtml(pcshBodegaTextoAlerta(uso)) + '</p>' +
+        '<label style="display:block;font-size:0.75rem;margin-bottom:0.25rem;">Justificación</label>' +
+        '<textarea data-pedido-just="' + pcshEscapeAttr(p.id) + '" maxlength="240" rows="2" placeholder="Por qué se retira de nuevo antes de que termine el plazo" style="width:100%;padding:8px;border-radius:8px;background:var(--gray-100);color:var(--text-main);border:1px solid var(--border-color);">' + escapeHtml(item.justificacion || '') + '</textarea></div>';
+    }
+    return '<div style="padding:0.65rem 0;border-bottom:1px solid var(--border-color);' + (uso ? 'border-left:3px solid #fbbf24;padding-left:0.6rem;' : '') + '">' +
+      '<div style="display:flex;align-items:center;gap:0.5rem;flex-wrap:wrap;">' +
+      '<div style="flex:1;min-width:8rem;font-weight:700;">' + escapeHtml(p.nombre) + '</div>' +
+      '<div style="display:inline-flex;align-items:center;gap:0.35rem;">' +
+      '<button type="button" class="btn btn-secondary" data-pedido-accion="menos" data-pedido-id="' + pcshEscapeAttr(p.id) + '" style="padding:0.25rem 0.5rem;" aria-label="Quitar una">−</button>' +
+      '<strong style="min-width:1.4rem;text-align:center;">' + item.cantidad + '</strong>' +
+      '<button type="button" class="btn btn-secondary" data-pedido-accion="mas" data-pedido-id="' + pcshEscapeAttr(p.id) + '" style="padding:0.25rem 0.5rem;" aria-label="Agregar una">+</button>' +
+      '</div>' +
+      '<button type="button" class="btn btn-danger" data-pedido-accion="quitar" data-pedido-id="' + pcshEscapeAttr(p.id) + '" style="padding:0.25rem 0.5rem;">Quitar</button>' +
+      '</div>' + aviso + '</div>';
+  }).join('');
+  host.innerHTML = html;
+  pcshBodegaActualizarBotonPedido();
+}
+
+function pcshBodegaPintarPedido() {
+  pcshBodegaPedidoLlenarPersonas();
+  pcshBodegaPintarPedidoCatalogo();
+  pcshBodegaPintarPedidoCarrito();
+}
+
+function pcshBodegaCarritoAgregar(id) {
+  var p = (pcshBodegaState.productos || []).find(function (x) { return String(x.id) === String(id); });
+  if (!p) return;
+  var hay = parseInt(p.existencia, 10) || 0;
+  if (hay <= 0) {
+    showMsg('No hay existencia de ' + p.nombre + '.', 'error');
+    return;
+  }
+  var item = pcshBodegaCarritoDe(p.id);
+  if (!item) pcshBodegaCarrito.push({ id: String(p.id), cantidad: 1, justificacion: '' });
+  else if (item.cantidad < hay) item.cantidad += 1;
+  else {
+    showMsg('No hay más existencia de ' + p.nombre + '.', 'error');
+    return;
+  }
+  pcshBodegaPintarPedidoCatalogo();
+  pcshBodegaPintarPedidoCarrito();
+}
+
+function pcshBodegaCarritoCantidad(id, delta) {
+  var item = pcshBodegaCarritoDe(id);
+  var p = (pcshBodegaState.productos || []).find(function (x) { return String(x.id) === String(id); });
+  if (!item || !p) return;
+  var hay = parseInt(p.existencia, 10) || 0;
+  var siguiente = item.cantidad + delta;
+  if (siguiente <= 0) {
+    pcshBodegaCarrito = pcshBodegaCarrito.filter(function (it) { return String(it.id) !== String(id); });
+  } else if (siguiente > hay) {
+    showMsg('No hay más existencia de ' + p.nombre + '.', 'error');
+    return;
+  } else {
+    item.cantidad = siguiente;
+  }
+  pcshBodegaPintarPedidoCatalogo();
+  pcshBodegaPintarPedidoCarrito();
+}
+
+async function pcshBodegaConfirmarPedido() {
+  if (window._pcshBodegaPedidoGuardando) return;
+  if (!pcshBodegaCarrito.length) {
+    showMsg('Agregue al menos un producto al carrito.', 'error');
+    return;
+  }
+  var conserje = pcshBodegaConserjeTurno();
+  var auxiliar = pcshBodegaPedidoAuxiliar();
+  if (!conserje) {
+    showMsg('No hay conserje en turno. Abra el turno para registrar la salida.', 'error');
+    return;
+  }
+  if (!auxiliar) {
+    showMsg('Indique el auxiliar que solicita el material.', 'error');
+    return;
+  }
+  var planes = [];
+  var i;
+  for (i = 0; i < pcshBodegaCarrito.length; i++) {
+    var item = pcshBodegaCarrito[i];
+    var producto = (pcshBodegaState.productos || []).find(function (x) { return String(x.id) === String(item.id); });
+    if (!producto) {
+      showMsg('Un producto del carrito ya no está en la bodega.', 'error');
+      return;
+    }
+    var cantidad = parseInt(item.cantidad, 10) || 0;
+    if (cantidad <= 0 || cantidad > (parseInt(producto.existencia, 10) || 0)) {
+      showMsg('Revise la cantidad de ' + producto.nombre + '.', 'error');
+      return;
+    }
+    var uso = pcshBodegaAlertaRetiro(producto, auxiliar);
+    var justificacion = String(item.justificacion || '').trim().replace(/\s+/g, ' ');
+    if (uso && justificacion.length < 8) {
+      showMsg(producto.nombre + ': ' + pcshBodegaTextoAlerta(uso), 'error');
+      return;
+    }
+    planes.push({ producto: producto, cantidad: cantidad, uso: uso, justificacion: justificacion });
+  }
+  window._pcshBodegaPedidoGuardando = true;
+  var antes = planes.map(function (pl) { return { producto: pl.producto, existencia: pl.producto.existencia }; });
+  var movAntes = (pcshBodegaState.movimientos || []).length;
+  try {
+    planes.forEach(function (pl) {
+      pl.producto.existencia -= pl.cantidad;
+      pcshBodegaState.movimientos.push({
+        id: pcshBodegaId(),
+        productoId: pl.producto.id,
+        nombre: pl.producto.nombre,
+        tipo: 'salida',
+        cantidad: pl.cantidad,
+        existencia: pl.producto.existencia,
+        conserje: conserje,
+        auxiliar: auxiliar,
+        justificacion: pl.uso ? pl.justificacion : '',
+        nota: 'Salida autorizada por ' + conserje + '. Solicita ' + auxiliar + '.' + (pl.uso ? ' Justificación: ' + pl.justificacion : ''),
+        origen: 'conserjeria',
+        fecha: new Date().toISOString()
+      });
+    });
+    await pcshBodegaGuardar(true);
+    pcshBodegaCarrito = [];
+    showMsg('Pedido registrado. ' + planes.length + ' retiro' + (planes.length === 1 ? '' : 's') + ' de ' + auxiliar + '.', 'success');
+    pcshBodegaPintar();
+    pcshBodegaPintarPedido();
+  } catch (e) {
+    antes.forEach(function (a) { a.producto.existencia = a.existencia; });
+    pcshBodegaState.movimientos = (pcshBodegaState.movimientos || []).slice(0, movAntes);
+    showMsg('No se pudo guardar el pedido de bodega.', 'error');
+  } finally {
+    window._pcshBodegaPedidoGuardando = false;
+  }
+}
+
 function pcshBodegaAbrir() {
   if (!pcshBodegaUiLista) {
     pcshBodegaUiLista = true;
@@ -14199,6 +14478,52 @@ function pcshBodegaAbrir() {
     if (buscar) buscar.addEventListener('input', pcshBodegaPintar);
     if (refrescar) refrescar.addEventListener('click', function () { pcshBodegaCargar(); });
     if (verSalidas) verSalidas.addEventListener('click', function () { showTab('tabBodegaSalidas'); });
+    var armarPedido = document.getElementById('pcshBodegaArmarPedido');
+    if (armarPedido) armarPedido.addEventListener('click', function () { showTab('tabBodegaPedido'); });
+    var volverPedido = document.getElementById('pcshBodegaPedidoVolver');
+    if (volverPedido) volverPedido.addEventListener('click', function () { showTab('tabBodega'); });
+    var buscarPedido = document.getElementById('pcshBodegaPedidoBuscar');
+    if (buscarPedido) buscarPedido.addEventListener('input', pcshBodegaPintarPedidoCatalogo);
+    var auxPedido = document.getElementById('pcshBodegaPedidoAuxiliar');
+    if (auxPedido) {
+      auxPedido.addEventListener('change', function () {
+        var wrapPedido = document.getElementById('pcshBodegaPedidoAuxiliarOtroWrap');
+        if (wrapPedido) wrapPedido.style.display = auxPedido.value === '__otro' ? '' : 'none';
+        pcshBodegaPintarPedidoCatalogo();
+        pcshBodegaPintarPedidoCarrito();
+      });
+    }
+    var otroPedido = document.getElementById('pcshBodegaPedidoAuxiliarOtro');
+    if (otroPedido) {
+      otroPedido.addEventListener('input', function () {
+        pcshBodegaPintarPedidoCatalogo();
+        pcshBodegaPintarPedidoCarrito();
+      });
+    }
+    var catalogoPedido = document.getElementById('pcshBodegaPedidoCatalogo');
+    var carritoPedido = document.getElementById('pcshBodegaPedidoCarrito');
+    function pcshBodegaPedidoClick(ev) {
+      var btn = ev.target && ev.target.closest ? ev.target.closest('[data-pedido-accion]') : null;
+      if (!btn) return;
+      var accion = btn.getAttribute('data-pedido-accion');
+      var id = btn.getAttribute('data-pedido-id');
+      if (accion === 'agregar' || accion === 'mas') pcshBodegaCarritoAgregar(id);
+      else if (accion === 'menos') pcshBodegaCarritoCantidad(id, -1);
+      else if (accion === 'quitar') pcshBodegaCarritoCantidad(id, -9999);
+    }
+    if (catalogoPedido) catalogoPedido.addEventListener('click', pcshBodegaPedidoClick);
+    if (carritoPedido) {
+      carritoPedido.addEventListener('click', pcshBodegaPedidoClick);
+      carritoPedido.addEventListener('input', function (ev) {
+        var campo = ev.target;
+        var idJust = campo && campo.getAttribute ? campo.getAttribute('data-pedido-just') : '';
+        if (!idJust) return;
+        var itemJust = pcshBodegaCarritoDe(idJust);
+        if (itemJust) itemJust.justificacion = campo.value;
+      });
+    }
+    var confirmarPedido = document.getElementById('pcshBodegaPedidoConfirmar');
+    if (confirmarPedido) confirmarPedido.addEventListener('click', function () { pcshBodegaConfirmarPedido(); });
     if (volver) volver.addEventListener('click', function () { showTab('tabBodega'); });
     if (buscarSalidas) buscarSalidas.addEventListener('input', pcshBodegaPintarSalidas);
   }
@@ -14230,6 +14555,7 @@ function showTab(tab) {
   const tabA = document.getElementById('tabAusencia');
   const tabBodega = document.getElementById('tabBodega');
   const tabBodegaSalidas = document.getElementById('tabBodegaSalidas');
+  const tabBodegaPedido = document.getElementById('tabBodegaPedido');
   const tabP = document.getElementById('tabPersonal');
   const bN = document.getElementById('tabNovedadesBtn');
   const bV = document.getElementById('tabVisitasBtn');
@@ -14265,6 +14591,7 @@ function showTab(tab) {
   if (tabA) tabA.style.display = tab === 'tabAusencia' ? '' : 'none';
   if (tabBodega) tabBodega.style.display = tab === 'tabBodega' ? '' : 'none';
   if (tabBodegaSalidas) tabBodegaSalidas.style.display = tab === 'tabBodegaSalidas' ? '' : 'none';
+  if (tabBodegaPedido) tabBodegaPedido.style.display = tab === 'tabBodegaPedido' ? '' : 'none';
   tabP.style.display = tab === 'tabPersonal' ? '' : 'none';
   bN.classList.toggle('active', tab === 'tabNovedades');
   if (bV) bV.classList.toggle('active', tab === 'tabVisitas');
@@ -14273,7 +14600,7 @@ function showTab(tab) {
   if (bEnc) bEnc.classList.toggle('active', tab === 'tabEncomiendas');
   if (bR) bR.classList.toggle('active', tab === 'tabReservas');
   if (bA) bA.classList.toggle('active', tab === 'tabAusencia');
-  if (bBodega) bBodega.classList.toggle('active', tab === 'tabBodega' || tab === 'tabBodegaSalidas');
+  if (bBodega) bBodega.classList.toggle('active', tab === 'tabBodega' || tab === 'tabBodegaSalidas' || tab === 'tabBodegaPedido');
   bP.classList.toggle('active', tab === 'tabPersonal');
   bN.setAttribute('aria-current', tab === 'tabNovedades' ? 'page' : 'false');
   if (bV) bV.setAttribute('aria-current', tab === 'tabVisitas' ? 'page' : 'false');
@@ -14282,7 +14609,7 @@ function showTab(tab) {
   if (bEnc) bEnc.setAttribute('aria-current', tab === 'tabEncomiendas' ? 'page' : 'false');
   if (bR) bR.setAttribute('aria-current', tab === 'tabReservas' ? 'page' : 'false');
   if (bA) bA.setAttribute('aria-current', tab === 'tabAusencia' ? 'page' : 'false');
-  if (bBodega) bBodega.setAttribute('aria-current', (tab === 'tabBodega' || tab === 'tabBodegaSalidas') ? 'page' : 'false');
+  if (bBodega) bBodega.setAttribute('aria-current', (tab === 'tabBodega' || tab === 'tabBodegaSalidas' || tab === 'tabBodegaPedido') ? 'page' : 'false');
   bP.setAttribute('aria-current', tab === 'tabPersonal' ? 'page' : 'false');
   var mainAppEl = document.getElementById('mainApp');
   if (mainAppEl) mainAppEl.classList.toggle('pcsh-main--vlcom', tab === 'tabResidentes');
@@ -14355,6 +14682,11 @@ function showTab(tab) {
     pd.textContent = '';
     if (typeof pcshBodegaAbrir === 'function') pcshBodegaAbrir();
     if (typeof pcshBodegaPintarSalidas === 'function') pcshBodegaPintarSalidas();
+  } else if (tab === 'tabBodegaPedido') {
+    pcshApplyModulePageTitle('fa-cart-shopping', 'Armado de pedido');
+    pd.textContent = '';
+    if (typeof pcshBodegaAbrir === 'function') pcshBodegaAbrir();
+    if (typeof pcshBodegaPintarPedido === 'function') pcshBodegaPintarPedido();
   } else if (tab === 'tabPersonal') {
     pcshApplyModulePageTitle('fa-user-shield', 'Administración');
     pd.textContent = '';
