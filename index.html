@@ -5292,7 +5292,7 @@
     <div class="card">
       <div class="card-h"><h3 style="margin:0"><i class="fa-solid fa-warehouse" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Control de bodega</h3></div>
       <div class="card-b">
-        <p class="page-desc" style="margin:0 0 0.75rem;">Desde conserjería solo se registran salidas. Autoriza el conserje del turno abierto y el auxiliar indica quién solicita el material.</p>
+        <p class="page-desc" style="margin:0 0 0.75rem;">Cada salida queda a nombre de quien la solicita, con fecha y cantidad. Si el producto es de uso común y aún hay un envase en uso, un retiro nuevo pide justificación.</p>
         <p id="pcshBodegaAvisoTurno" class="page-desc" style="display:none;margin:0 0 0.75rem;color:#fbbf24;"></p>
         <div id="pcshBodegaResumen" style="display:flex;gap:0.5rem;flex-wrap:wrap;margin-bottom:0.75rem;"></div>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:0.75rem;">
@@ -5331,14 +5331,14 @@
             <label for="pcshBodegaSalidaAuxiliar">Auxiliar que solicita</label>
             <select id="pcshBodegaSalidaAuxiliar" style="width:100%;padding:8px;border-radius:8px;background:var(--gray-100);color:var(--text-main);border:1px solid var(--border-color);"></select>
           </div>
+          <div class="form-group" id="pcshBodegaSalidaAuxiliarOtroWrap" style="display:none;">
+            <label for="pcshBodegaSalidaAuxiliarOtro">Nombre del auxiliar</label>
+            <input type="text" id="pcshBodegaSalidaAuxiliarOtro" maxlength="80" placeholder="Nombre y apellido" style="width:100%;padding:8px;border-radius:8px;background:var(--gray-100);color:var(--text-main);border:1px solid var(--border-color);">
+          </div>
           <div class="form-group" id="pcshBodegaSalidaUsoWrap" style="display:none;">
             <p id="pcshBodegaSalidaUsoAviso" style="margin:0 0 0.45rem;color:#fbbf24;font-size:0.86rem;line-height:1.4;"></p>
             <label for="pcshBodegaSalidaJustificacion">Justificación del nuevo retiro</label>
             <textarea id="pcshBodegaSalidaJustificacion" maxlength="240" rows="3" placeholder="Por qué se retira de nuevo antes de que termine el tiempo de uso" style="width:100%;padding:8px;border-radius:8px;background:var(--gray-100);color:var(--text-main);border:1px solid var(--border-color);"></textarea>
-          </div>
-          <div class="form-group" id="pcshBodegaSalidaAuxiliarOtroWrap" style="display:none;">
-            <label for="pcshBodegaSalidaAuxiliarOtro">Nombre del auxiliar</label>
-            <input type="text" id="pcshBodegaSalidaAuxiliarOtro" maxlength="80" placeholder="Nombre y apellido" style="width:100%;padding:8px;border-radius:8px;background:var(--gray-100);color:var(--text-main);border:1px solid var(--border-color);">
           </div>
           <div style="display:flex;gap:8px;justify-content:flex-end;margin-top:0.5rem;">
             <button type="button" class="btn btn-secondary" id="pcshBodegaSalidaCancelar">Cancelar</button>
@@ -5356,7 +5356,7 @@
         <button type="button" class="btn btn-secondary" id="pcshBodegaVolver">Volver a bodega</button>
       </div>
       <div class="card-b">
-        <p class="page-desc" style="margin:0 0 0.75rem;">Salidas de bodega con el conserje que autorizó y el auxiliar que solicitó el material.</p>
+        <p class="page-desc" style="margin:0 0 0.75rem;">Cada retiro es un registro propio: quién lo solicitó, cuándo y cuántas unidades se entregaron.</p>
         <div style="display:flex;gap:8px;flex-wrap:wrap;align-items:center;margin-bottom:0.75rem;">
           <input type="search" id="pcshBodegaSalidasBuscar" placeholder="Buscar producto, conserje o auxiliar" style="min-width:220px;flex:1;padding:8px;border-radius:8px;background:var(--gray-100);color:var(--text-main);border:1px solid var(--border-color);">
         </div>
@@ -13615,6 +13615,13 @@ function pcshBodegaNombre(texto) {
   }).join(' ');
 }
 
+function pcshBodegaPlazoActivo(p) {
+  if (!p) return false;
+  if (p.plazoActivo === false || p.plazoActivo === 0 || p.plazoActivo === '0' || p.plazoActivo === 'false') return false;
+  if (p.plazoActivo === true || p.plazoActivo === 1 || p.plazoActivo === '1' || p.plazoActivo === 'true') return true;
+  return pcshBodegaDiasUso(p) > 0;
+}
+
 function pcshBodegaDiasUso(p) {
   var n = parseInt(p && p.tiempoUsoDias, 10);
   if (!isFinite(n) || n < 0) return 0;
@@ -13626,24 +13633,58 @@ function pcshBodegaFechaCorta(ms) {
 }
 
 function pcshBodegaUsoVigente(producto, ahora) {
+  if (!pcshBodegaPlazoActivo(producto)) return null;
   var dias = pcshBodegaDiasUso(producto);
   if (!dias || !producto) return null;
   var nombre = String(producto.nombre || '').toLowerCase();
   var id = String(producto.id || '');
-  var ultima = 0;
+  var ultima = null;
   (pcshBodegaState.movimientos || []).forEach(function (m) {
     if (!m || m.tipo !== 'salida') return;
     var mismoId = id && m.productoId != null && String(m.productoId) === id;
     var mismoNombre = nombre && String(m.nombre || '').toLowerCase() === nombre;
     if (!mismoId && !mismoNombre) return;
     var t = Date.parse(m.fecha);
-    if (!isFinite(t) || t <= ultima) return;
-    ultima = t;
+    if (!isFinite(t)) return;
+    if (!ultima || t >= ultima.desde) {
+      ultima = {
+        desde: t,
+        persona: String(m.auxiliar || '').trim().replace(/\s+/g, ' '),
+        cantidad: parseInt(m.cantidad, 10) || 0
+      };
+    }
   });
   if (!ultima) return null;
-  var hasta = ultima + dias * 86400000;
+  var hasta = ultima.desde + dias * 86400000;
   if ((ahora || Date.now()) >= hasta) return null;
-  return { desde: ultima, hasta: hasta, dias: dias };
+  return { persona: ultima.persona, desde: ultima.desde, hasta: hasta, dias: dias, cantidad: ultima.cantidad };
+}
+
+function pcshBodegaAuxiliarElegido() {
+  var sel = String((document.getElementById('pcshBodegaSalidaAuxiliar') || {}).value || '').trim();
+  if (sel === '__otro') {
+    return String((document.getElementById('pcshBodegaSalidaAuxiliarOtro') || {}).value || '').trim().replace(/\s+/g, ' ');
+  }
+  return sel;
+}
+
+function pcshBodegaPintarAvisoUso() {
+  var producto = (pcshBodegaState.productos || []).find(function (p) {
+    return String(p.id) === String(window._pcshBodegaSalidaId || '');
+  });
+  var uso = producto ? pcshBodegaUsoVigente(producto) : null;
+  var usoWrap = document.getElementById('pcshBodegaSalidaUsoWrap');
+  var usoAviso = document.getElementById('pcshBodegaSalidaUsoAviso');
+  if (usoWrap) usoWrap.style.display = uso ? '' : 'none';
+  if (usoAviso) {
+    usoAviso.textContent = uso
+      ? ('Hay un envase en uso hasta el ' + pcshBodegaFechaCorta(uso.hasta) + (uso.persona ? ', retirado por ' + uso.persona : '') + '. Mientras siga disponible, un retiro nuevo necesita justificación.')
+      : '';
+  }
+  if (!uso) {
+    var just = document.getElementById('pcshBodegaSalidaJustificacion');
+    if (just) just.value = '';
+  }
 }
 
 function pcshBodegaNormalizar(p) {
@@ -13657,6 +13698,7 @@ function pcshBodegaNormalizar(p) {
     existencia: existencia,
     minimo: minimo,
     tiempoUsoDias: pcshBodegaDiasUso(p),
+    plazoActivo: pcshBodegaPlazoActivo(p),
     unidad: String((p && p.unidad) || 'un').trim().toLowerCase() || 'un'
   };
 }
@@ -13670,7 +13712,9 @@ function pcshBodegaFusionar(preferidos, respaldo) {
       var clave = n.nombre.toLowerCase();
       var previo = porNombre[clave];
       var traeDias = p && p.tiempoUsoDias != null && p.tiempoUsoDias !== '';
+      var traePlazo = p && p.plazoActivo != null && p.plazoActivo !== '';
       if (preferido && previo && !traeDias && previo.tiempoUsoDias > 0) n.tiempoUsoDias = previo.tiempoUsoDias;
+      if (preferido && previo && !traePlazo && previo.plazoActivo) n.plazoActivo = true;
       porNombre[clave] = n;
     });
   }
@@ -13834,7 +13878,9 @@ function pcshBodegaPintar() {
         accion = '<button type="button" class="btn btn-primary" data-bodega-accion="salida" data-bodega-id="' + pcshEscapeAttr(p.id) + '" style="padding:0.25rem 0.55rem;">Salida</button>';
       }
       var uso = pcshBodegaUsoVigente(p);
-      var usoTxt = uso ? '<div style="font-size:0.72rem;font-weight:700;color:#fbbf24;">En uso hasta ' + escapeHtml(pcshBodegaFechaCorta(uso.hasta)) + '</div>' : '';
+      var usoTxt = uso
+        ? '<div style="font-size:0.72rem;font-weight:700;color:#fbbf24;">En uso hasta ' + escapeHtml(pcshBodegaFechaCorta(uso.hasta)) + (uso.persona ? ' · ' + escapeHtml(uso.persona) : '') + '</div>'
+        : '';
       return '<tr>' +
         '<td style="padding:0.55rem;font-weight:700;">' + escapeHtml(p.nombre) + ' <span style="font-weight:500;color:var(--text-secondary);">' + escapeHtml(p.unidad || 'un') + '</span>' + usoTxt + '</td>' +
         '<td style="padding:0.55rem;text-align:center;font-weight:700;">' + p.existencia + '</td>' +
@@ -13870,7 +13916,7 @@ function pcshBodegaPintarSalidas() {
     '<th style="text-align:left;text-transform:none;white-space:nowrap;">Producto</th>' +
     '<th style="text-align:center;text-transform:none;white-space:nowrap;">Cantidad</th>' +
     '<th style="text-align:left;text-transform:none;white-space:nowrap;">Conserje</th>' +
-    '<th style="text-align:left;text-transform:none;white-space:nowrap;">Auxiliar</th>' +
+    '<th style="text-align:left;text-transform:none;white-space:nowrap;">Quién solicita</th>' +
     '<th style="text-align:left;text-transform:none;white-space:nowrap;">Justificación</th>' +
     '<th style="text-align:center;text-transform:none;white-space:nowrap;">Queda</th>' +
     '</tr></thead><tbody>' +
@@ -13947,17 +13993,9 @@ function pcshBodegaAbrirSalida(id) {
     selAux.value = '';
   }
   if (otroWrap) otroWrap.style.display = 'none';
-  var uso = pcshBodegaUsoVigente(producto);
-  var usoWrap = document.getElementById('pcshBodegaSalidaUsoWrap');
-  var usoAviso = document.getElementById('pcshBodegaSalidaUsoAviso');
   var just = document.getElementById('pcshBodegaSalidaJustificacion');
   if (just) just.value = '';
-  if (usoWrap) usoWrap.style.display = uso ? '' : 'none';
-  if (usoAviso) {
-    usoAviso.textContent = uso
-      ? ('En uso hasta el ' + pcshBodegaFechaCorta(uso.hasta) + ' (' + uso.dias + ' días desde el último retiro). Para retirar de nuevo escriba la justificación.')
-      : '';
-  }
+  pcshBodegaPintarAvisoUso();
   var modal = document.getElementById('pcshBodegaSalidaModal');
   if (modal) modal.style.display = 'flex';
 }
@@ -13992,7 +14030,7 @@ async function pcshBodegaConfirmarSalida() {
   var uso = pcshBodegaUsoVigente(producto);
   var justificacion = String((document.getElementById('pcshBodegaSalidaJustificacion') || {}).value || '').trim().replace(/\s+/g, ' ');
   if (uso && justificacion.length < 8) {
-    showMsg('Este producto sigue en uso hasta el ' + pcshBodegaFechaCorta(uso.hasta) + '. Escriba la justificación del nuevo retiro.', 'error');
+    showMsg('Hay un envase en uso hasta el ' + pcshBodegaFechaCorta(uso.hasta) + '. Escriba la justificación del nuevo retiro.', 'error');
     return;
   }
   producto.existencia -= cantidad;
@@ -14051,6 +14089,13 @@ function pcshBodegaAbrir() {
       selAux.addEventListener('change', function () {
         var wrap = document.getElementById('pcshBodegaSalidaAuxiliarOtroWrap');
         if (wrap) wrap.style.display = selAux.value === '__otro' ? '' : 'none';
+        if (typeof pcshBodegaPintarAvisoUso === 'function') pcshBodegaPintarAvisoUso();
+      });
+    }
+    var otroAux = document.getElementById('pcshBodegaSalidaAuxiliarOtro');
+    if (otroAux) {
+      otroAux.addEventListener('input', function () {
+        if (typeof pcshBodegaPintarAvisoUso === 'function') pcshBodegaPintarAvisoUso();
       });
     }
     if (cancelar) cancelar.addEventListener('click', pcshBodegaCerrarSalida);
