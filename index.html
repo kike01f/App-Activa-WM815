@@ -9498,15 +9498,19 @@ function pcshVisRefreshVehSemaforoDom(wrap) {
   var st = v ? pcshVehTrafficPhaseForVisit(v) : pcshVehTrafficPhase(iso);
   if (!st) return;
   var ph = st.phase;
+  var msAt = pcshVisitAtToMs(iso);
+  var dur = wrap.querySelector('.pcsh-vis-live-dur');
+  if (wrap.getAttribute('data-phase') === ph) {
+    if (dur) dur.textContent = pcshVisChronoFmtDentro(msAt);
+    return;
+  }
   wrap.className = 'pcsh-vis-veh-semaforo pcsh-vis-phase--' + ph;
   wrap.setAttribute('data-at', iso);
-  var msAt = pcshVisitAtToMs(iso);
   var t0Attr = isFinite(msAt) ? String(msAt) : '';
   wrap.setAttribute('data-t0-ms', t0Attr);
   wrap.setAttribute('data-phase', ph);
   var lbl = wrap.querySelector('.pcsh-vis-semaforo-lbl');
   if (lbl) lbl.textContent = pcshVisSemaforoLabel(ph);
-  var dur = wrap.querySelector('.pcsh-vis-live-dur');
   if (dur) {
     dur.setAttribute('data-at', iso);
     dur.setAttribute('data-t0-ms', t0Attr);
@@ -9514,11 +9518,15 @@ function pcshVisRefreshVehSemaforoDom(wrap) {
   }
   var slot = wrap.querySelector('.pcsh-vis-multa-slot');
   if (slot) {
-    if (v) slot.innerHTML = pcshVisBuildMultaFineSlotHtml(v);
-    else slot.innerHTML = '';
+    var slotHtml = v ? pcshVisBuildMultaFineSlotHtml(v) : '';
+    if (slot.getAttribute('data-parte-html') !== slotHtml) {
+      slot.innerHTML = slotHtml;
+      slot.setAttribute('data-parte-html', slotHtml);
+    }
   }
 }
 function pcshVisUpdateLiveDurations() {
+  if (document.hidden) return;
   function tickEl(el) {
     var t0s = el.getAttribute('data-t0-ms');
     if (t0s !== null && String(t0s).trim() !== '') {
@@ -9628,15 +9636,23 @@ function pcshVisTrafficAlertsTick() {
   }
 }
 function pcshVisRefreshParteAnchors() {
-  document.querySelectorAll('.pcsh-vis-parte-anchor[data-visit-id]').forEach(function (el) {
+  if (typeof visitasList === 'undefined' || !visitasList) return;
+  var nodes = document.querySelectorAll('.pcsh-vis-parte-anchor[data-visit-id]');
+  if (!nodes.length) return;
+  var byId = Object.create(null);
+  var i;
+  for (i = 0; i < visitasList.length; i++) {
+    if (visitasList[i] && visitasList[i].id != null) byId[String(visitasList[i].id)] = visitasList[i];
+  }
+  nodes.forEach(function (el) {
     var id = el.getAttribute('data-visit-id');
-    if (!id || typeof visitasList === 'undefined') return;
-    var v = visitasList.find(function (x) { return x.id === id; });
-    if (!v || !v.vehicular) {
-      el.innerHTML = '';
-      return;
-    }
-    el.innerHTML = pcshVisBuildMultaFineSlotHtml(v);
+    if (!id) return;
+    var v = byId[String(id)];
+    var html = v && v.vehicular ? pcshVisBuildMultaFineSlotHtml(v) : '';
+    if (!html && !el.firstChild) return;
+    if (el.getAttribute('data-parte-html') === html) return;
+    el.innerHTML = html;
+    el.setAttribute('data-parte-html', html);
   });
 }
 /** Clave y valor guardado de patente: sin espacios, siempre mayúsculas. */
@@ -14272,18 +14288,24 @@ function pcshNumeroLibroParaMulta(n, incluirSiFalta) {
   return numeros[cor] != null ? numeros[cor] : null;
 }
 
+var _pcshTurnoActualCache = null;
 function esNovedadDelTurnoActual(n) {
   if (!n || n.esAdmin || n.turnoSep) return false;
-  const ord = reorganizarNovedadesConCierres(novedades.slice());
-  var idx = -1, cierre = -1;
-  for (var i = 0; i < ord.length; i++) {
-    if (ord[i].turnoSep) { cierre = i; break; }
+  if (!_pcshTurnoActualCache || _pcshTurnoActualCache.src !== novedades) {
+    var ord = reorganizarNovedadesConCierres((novedades || []).slice());
+    var cierre = -1;
+    var pos = {};
+    var i;
+    for (i = 0; i < ord.length; i++) {
+      if (cierre === -1 && ord[i] && ord[i].turnoSep) cierre = i;
+      if (ord[i] && ord[i].correlativo != null) pos[ord[i].correlativo] = i;
+    }
+    _pcshTurnoActualCache = { src: novedades, cierre: cierre, pos: pos };
   }
-  for (var j = 0; j < ord.length; j++) {
-    if (ord[j].correlativo === n.correlativo) { idx = j; break; }
-  }
-  if (cierre === -1) return true;
-  return idx > cierre;
+  if (_pcshTurnoActualCache.cierre === -1) return true;
+  var idx = _pcshTurnoActualCache.pos[n.correlativo];
+  if (idx == null) idx = -1;
+  return idx > _pcshTurnoActualCache.cierre;
 }
 
 /** Bitácora: acciones permitidas solo si la novedad pertenece al turno abierto (posterior al último cierre). En turnos cerrados, el conserje no edita aquí. */
@@ -16216,7 +16238,10 @@ function listenConserjes(cb) {
   });
 }
 function listenNovedades(cb) {
+  var listaLista = false;
   db.collection('novedades').orderBy('correlativo', 'desc').onSnapshot(function (snap) {
+    var changes = typeof snap.docChanges === 'function' ? snap.docChanges() : null;
+    if (listaLista && changes && changes.length === 0) return;
     var list = [];
     snap.forEach(function (doc) {
       var d = doc.data() || {};
@@ -16226,6 +16251,7 @@ function listenNovedades(cb) {
       }
       list.push(d);
     });
+    listaLista = true;
     cb(list);
   }, function (err) {
     console.warn('[pcsh] listener novedades:', err);
@@ -24890,12 +24916,25 @@ if (typeof pcshInitCatalogoNovedadesSync === 'function') {
 if (typeof pcshInitWm815FirestoreListener === 'function') {
   pcshInitWm815FirestoreListener();
 }
+var _pcshOccludedAt = 0;
 document.addEventListener(
   'visibilitychange',
   function () {
-    if (document.visibilityState !== 'visible') return;
-    if (typeof pcshRecoverFirestoreNetwork === 'function') pcshRecoverFirestoreNetwork();
-    if (typeof pcshSyncDeptModulesOnForeground === 'function') pcshSyncDeptModulesOnForeground();
+    if (document.visibilityState !== 'visible') {
+      _pcshOccludedAt = Date.now();
+      return;
+    }
+    var away = _pcshOccludedAt ? Date.now() - _pcshOccludedAt : 0;
+    _pcshOccludedAt = 0;
+    if (away < 45000) return;
+    clearTimeout(window._pcshForegroundResumeT);
+    window._pcshForegroundResumeT = setTimeout(function () {
+      if (document.hidden) return;
+      if (typeof pcshRecoverFirestoreNetwork === 'function') pcshRecoverFirestoreNetwork();
+      if (!_pcshWm815FsUnsub && typeof pcshSyncDeptModulesOnForeground === 'function') {
+        pcshSyncDeptModulesOnForeground();
+      }
+    }, 700);
   },
   false
 );
