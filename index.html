@@ -8994,7 +8994,7 @@ function pcshVisBuildMultaComprobanteDocument(v, st) {
     ' sobre el máximo permitido (5 h + 15 min de gracia)</td></tr>' +
     (v.multaNovedadCorrelativo
       ? '<tr><th>Novedad / Gestión</th><td>Libro de novedades <strong>#' +
-        escapeHtml(String(v.multaNovedadCorrelativo)) +
+        escapeHtml(String((typeof pcshNumeroLibroParaMulta === 'function' ? pcshNumeroLibroParaMulta({ correlativo: v.multaNovedadCorrelativo }, true) : null) || v.multaNovedadCorrelativo)) +
         '</strong> · notificada al módulo de Multas</td></tr>'
       : '') +
     '</tbody></table>' +
@@ -14245,6 +14245,32 @@ function pcshNumeroVisibleLibroNovedad(n) {
   });
   return numeros[n.correlativo] != null ? numeros[n.correlativo] : null;
 }
+/** Número # del libro, aunque la novedad todavía no esté en la lista local. */
+function pcshNumeroLibroParaMulta(n, incluirSiFalta) {
+  if (!n || n.correlativo == null || typeof reorganizarNovedadesConCierres !== 'function') return null;
+  var cor = Number(n.correlativo);
+  if (!isFinite(cor)) return null;
+  var base = (typeof novedades !== 'undefined' && Array.isArray(novedades)) ? novedades.slice() : [];
+  var ya = false;
+  var i;
+  for (i = 0; i < base.length; i++) {
+    if (base[i] && Number(base[i].correlativo) === cor) { ya = true; break; }
+  }
+  if (!ya) {
+    if (!incluirSiFalta) return null;
+    base.push(n);
+  }
+  var reorganizadas = reorganizarNovedadesConCierres(base);
+  var numeros = {};
+  var num = reorganizadas.filter(function (x) {
+    return x && !x.turnoSep && x.tipo !== 'resumen_diario' && !x.minimizada;
+  }).length;
+  reorganizadas.forEach(function (x) {
+    if (!x || x.minimizada || x.turnoSep || x.tipo === 'resumen_diario') return;
+    numeros[Number(x.correlativo)] = num--;
+  });
+  return numeros[cor] != null ? numeros[cor] : null;
+}
 
 function esNovedadDelTurnoActual(n) {
   if (!n || n.esAdmin || n.turnoSep) return false;
@@ -14717,6 +14743,7 @@ async function pcshPublicarMultaDesdeNovedad(n) {
       console.warn('[multa-novedad] sin fecha válida, no se notifica a Gestión. correlativo=', cor);
       return;
     }
+    var numLibro = typeof pcshNumeroLibroParaMulta === 'function' ? pcshNumeroLibroParaMulta(n, true) : null;
     var payload = {
       correlativo: cor,
       fecha: n.fecha || '',
@@ -14736,11 +14763,17 @@ async function pcshPublicarMultaDesdeNovedad(n) {
       huella: pcshHuellaNovedadMulta(n),
       updatedAt: now
     };
+    if (numLibro != null) payload.numeroLibro = Number(numLibro);
     var prev = await ref.get();
     if (prev.exists) {
       var old = prev.data() || {};
       if (old.eliminadaEnGestion) return;
-      if (old.huella === payload.huella && old.activa) return;
+      if (old.huella === payload.huella && old.activa) {
+        if (payload.numeroLibro != null && Number(old.numeroLibro) !== Number(payload.numeroLibro)) {
+          await ref.set({ numeroLibro: payload.numeroLibro, updatedAt: now }, { merge: true });
+        }
+        return;
+      }
     } else {
       payload.publishedAt = now;
     }
