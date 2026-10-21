@@ -1934,6 +1934,10 @@
     #tabVisitas .pcsh-vis-hist-stay-wrap { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.4rem; }
     #tabVisitas .pcsh-vis-hist-stay { font-weight: 600; color: var(--text-main); }
     #tabVisitas .card.cg-card-accent--visit .card-h { border-bottom-color: rgba(96, 165, 250, 0.35); }
+    #tabVisitas .pcsh-vis-hist-card .card-h { flex-direction: column; align-items: stretch; }
+    #tabVisitas .pcsh-vis-hist-card .card-h h3 { flex: none; width: 100%; }
+    #tabVisitas .pcsh-vis-filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 0.45rem; width: 100%; }
+    #tabVisitas .pcsh-vis-filtros #flt-vis-q { flex: 1 1 14rem; min-width: 10rem; max-width: 100%; }
     #tabVisitas .cg-vis-reg-stack {
       display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 22rem), 1fr)); gap: 0.5rem; align-items: start;
     }
@@ -3220,10 +3224,10 @@
       </div>
     </div>
     <div id="vis-sub-hist" class="cg-vis-sub-page" role="tabpanel" aria-labelledby="visNavHist" hidden>
-      <div class="card cg-card-accent--visit">
+      <div class="card cg-card-accent--visit pcsh-vis-hist-card">
         <div class="card-h">
           <h3><i class="fa-solid fa-table-list" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Listado</h3>
-          <div class="toolbar" style="flex:1;justify-content:flex-end;flex-wrap:wrap;gap:0.5rem">
+          <div class="toolbar pcsh-vis-filtros">
             <select id="flt-vis-scope" style="min-width:10.5rem;padding:0.45rem;border-radius:8px;background:var(--input-bg);color:var(--text-main);border:1px solid var(--input-border);" title="Filtrar listado">
               <option value="all" selected>Todas las visitas</option>
               <option value="open">Solo dentro del edificio</option>
@@ -3231,10 +3235,33 @@
               <option value="prov">Solo proveedores</option>
               <option value="veh">Solo vehiculares</option>
             </select>
+            <input type="date" id="flt-vis-dia" aria-label="Día de ingreso" title="Día de ingreso" style="padding:0.45rem;border-radius:8px;background:var(--input-bg);color:var(--text-main);border:1px solid var(--input-border);" />
+            <select id="flt-vis-mes" aria-label="Mes de ingreso" title="Mes de ingreso" style="min-width:8.5rem;padding:0.45rem;border-radius:8px;background:var(--input-bg);color:var(--text-main);border:1px solid var(--input-border);">
+              <option value="">Todos los meses</option>
+              <option value="1">Enero</option>
+              <option value="2">Febrero</option>
+              <option value="3">Marzo</option>
+              <option value="4">Abril</option>
+              <option value="5">Mayo</option>
+              <option value="6">Junio</option>
+              <option value="7">Julio</option>
+              <option value="8">Agosto</option>
+              <option value="9">Septiembre</option>
+              <option value="10">Octubre</option>
+              <option value="11">Noviembre</option>
+              <option value="12">Diciembre</option>
+            </select>
+            <select id="flt-vis-anio" aria-label="Año de ingreso" title="Año de ingreso" style="min-width:7.2rem;padding:0.45rem;border-radius:8px;background:var(--input-bg);color:var(--text-main);border:1px solid var(--input-border);">
+              <option value="">Todos los años</option>
+            </select>
+            <label for="flt-vis-multa" style="display:inline-flex;align-items:center;gap:0.35rem;font-size:0.82rem;font-weight:650;white-space:nowrap;cursor:pointer;">
+              <input type="checkbox" id="flt-vis-multa"> Con multa
+            </label>
+            <button type="button" class="btn btn-secondary btn-sm" id="flt-vis-limpiar">Limpiar</button>
             <input type="search" id="flt-vis-q" placeholder="Buscar nombre, RUT, empresa, patente, depto…" style="min-width:12rem;flex:1;max-width:100%;padding:0.45rem;border-radius:8px;background:var(--input-bg);color:var(--text-main);border:1px solid var(--input-border);" />
           </div>
         </div>
-        <div class="card-b"><div class="cg-vis-hist-wrap"><div id="tbl-vis-wrap"></div></div></div>
+        <div class="card-b"><p id="flt-vis-cuenta" class="page-desc" style="margin:0 0 0.45rem;font-size:0.78rem;"></p><div class="cg-vis-hist-wrap"><div id="tbl-vis-wrap"></div></div></div>
       </div>
     </div>
   </div>
@@ -10098,11 +10125,85 @@ function visitasShowBothPanels() {
   setVisitaSubPage('reg');
   renderVisitasModule();
 }
+function pcshVisPartesIngreso(v) {
+  var ms = pcshVisitAtToMs(v && v.at);
+  if (!isFinite(ms)) return null;
+  return pcshZonedParts(ms);
+}
+function pcshVisitaTieneMulta(v) {
+  if (v && v.multaNovedadCorrelativo) return true;
+  return typeof pcshVehStateForMultaParte === 'function' && !!pcshVehStateForMultaParte(v);
+}
+function pcshVisAsegurarAniosFiltro() {
+  var sel = document.getElementById('flt-vis-anio');
+  if (!sel) return;
+  var actual = sel.value;
+  var years = {};
+  var hoy = pcshZonedParts(Date.now());
+  if (hoy && hoy.year) years[hoy.year] = true;
+  (visitasList || []).forEach(function (v) {
+    var p = pcshVisPartesIngreso(v);
+    if (p && p.year) years[p.year] = true;
+  });
+  var lista = Object.keys(years).map(function (n) { return parseInt(n, 10); }).filter(function (n) { return n > 1900; }).sort(function (a, b) { return b - a; });
+  var html = '<option value="">Todos los años</option>' + lista.map(function (y) {
+    return '<option value="' + y + '">' + y + '</option>';
+  }).join('');
+  if (sel.getAttribute('data-opts') !== html) {
+    sel.innerHTML = html;
+    sel.setAttribute('data-opts', html);
+    if (actual && lista.indexOf(parseInt(actual, 10)) !== -1) sel.value = actual;
+  }
+}
+function pcshVisSincronizarFechaFiltro(origen) {
+  var dia = document.getElementById('flt-vis-dia');
+  var mes = document.getElementById('flt-vis-mes');
+  var anio = document.getElementById('flt-vis-anio');
+  if (!dia || !mes || !anio) return;
+  if (origen === 'dia' && dia.value) {
+    var p = dia.value.split('-');
+    if (p.length === 3) {
+      if (!anio.querySelector('option[value="' + p[0] + '"]')) {
+        var opt = document.createElement('option');
+        opt.value = p[0];
+        opt.textContent = p[0];
+        anio.appendChild(opt);
+      }
+      anio.value = p[0];
+      mes.value = String(parseInt(p[1], 10));
+    }
+  } else if (origen === 'periodo' && dia.value) {
+    var pd = dia.value.split('-');
+    var yOk = !anio.value || pd[0] === anio.value;
+    var mOk = !mes.value || parseInt(pd[1], 10) === parseInt(mes.value, 10);
+    if (!yOk || !mOk) dia.value = '';
+  }
+}
+function pcshVisLimpiarFiltros() {
+  var qEl = document.getElementById('flt-vis-q');
+  var scopeEl = document.getElementById('flt-vis-scope');
+  var dia = document.getElementById('flt-vis-dia');
+  var mes = document.getElementById('flt-vis-mes');
+  var anio = document.getElementById('flt-vis-anio');
+  var multa = document.getElementById('flt-vis-multa');
+  if (qEl) qEl.value = '';
+  if (scopeEl) scopeEl.value = 'all';
+  if (dia) dia.value = '';
+  if (mes) mes.value = '';
+  if (anio) anio.value = '';
+  if (multa) multa.checked = false;
+  renderVisitasModule();
+}
 function renderVisitasModule() {
   var allVis = visitasList.slice();
+  pcshVisAsegurarAniosFiltro();
   var q = ((document.getElementById('flt-vis-q') || {}).value || '').toLowerCase().trim();
   var scopeEl = document.getElementById('flt-vis-scope');
   var scope = scopeEl ? scopeEl.value : 'all';
+  var diaVal = String((document.getElementById('flt-vis-dia') || {}).value || '');
+  var mesVal = parseInt((document.getElementById('flt-vis-mes') || {}).value, 10) || 0;
+  var anioVal = parseInt((document.getElementById('flt-vis-anio') || {}).value, 10) || 0;
+  var soloMulta = !!((document.getElementById('flt-vis-multa') || {}).checked);
   var todayD = getSantiagoTime();
   var histWrap = document.getElementById('tbl-vis-wrap');
   var openListEl = document.getElementById('vis-open-list');
@@ -10168,11 +10269,31 @@ function renderVisitasModule() {
     else if (scope === 'today') rows = rows.filter(function (v) { return isSameDayVis(v.at, todayD); });
     else if (scope === 'prov') rows = rows.filter(function (v) { return visitIsProveedor(v); });
     else if (scope === 'veh') rows = rows.filter(function (v) { return v.vehicular; });
+    if (diaVal) {
+      var partesDia = diaVal.split('-');
+      var diaY = parseInt(partesDia[0], 10);
+      var diaM = parseInt(partesDia[1], 10);
+      var diaD = parseInt(partesDia[2], 10);
+      rows = rows.filter(function (v) {
+        var p = pcshVisPartesIngreso(v);
+        return p && p.year === diaY && p.month === diaM && p.day === diaD;
+      });
+    } else {
+      if (anioVal) rows = rows.filter(function (v) { var p = pcshVisPartesIngreso(v); return p && p.year === anioVal; });
+      if (mesVal) rows = rows.filter(function (v) { var p = pcshVisPartesIngreso(v); return p && p.month === mesVal; });
+    }
+    if (soloMulta) rows = rows.filter(pcshVisitaTieneMulta);
     if (q) {
       rows = rows.filter(function (v) {
         var blob = (v.visitor + ' ' + (v.visitorRut || '') + ' ' + (v.plate || '') + ' ' + (v.parkingCode || '') + ' ' + (v.deptLabel || '') + ' ' + (v.proveedorEmpresa || '') + ' ' + (v.proveedorTipoServicio || '') + ' ' + (v.proveedorId || '') + ' ' + (v.notas || '') + ' ' + (v.registradoPor || '') + ' ' + (v.salidaRegistradoPor || '')).toLowerCase();
         return blob.indexOf(q) >= 0;
       });
+    }
+    var cuentaVis = document.getElementById('flt-vis-cuenta');
+    if (cuentaVis) {
+      cuentaVis.textContent = rows.length
+        ? (rows.length + (rows.length === 1 ? ' visita' : ' visitas'))
+        : 'Sin visitas con este filtro';
     }
     var html = '<table class="pcsh-data-table"><thead><tr><th>Ingreso</th><th>Unidad</th><th>Fecha ingreso</th><th>Vehíc.</th><th>Tiempo / estado</th><th>Salida</th><th>Conserje ingreso</th><th>Conserje salida</th><th>Notas</th><th>Acciones</th></tr></thead><tbody>';
     if (!rows.length) {
@@ -11112,10 +11233,29 @@ function initVisitasUi() {
   }
   var fltQ = document.getElementById('flt-vis-q');
   var fltScope = document.getElementById('flt-vis-scope');
+  var fltDia = document.getElementById('flt-vis-dia');
+  var fltMes = document.getElementById('flt-vis-mes');
+  var fltAnio = document.getElementById('flt-vis-anio');
+  var fltMulta = document.getElementById('flt-vis-multa');
+  var fltLimpiar = document.getElementById('flt-vis-limpiar');
   var tblVis = document.getElementById('tbl-vis-wrap');
   var visOpen = document.getElementById('vis-open-list');
   if (fltQ) fltQ.addEventListener('input', renderVisitasModule);
   if (fltScope) fltScope.addEventListener('change', renderVisitasModule);
+  if (fltDia) fltDia.addEventListener('change', function () {
+    pcshVisSincronizarFechaFiltro('dia');
+    renderVisitasModule();
+  });
+  if (fltMes) fltMes.addEventListener('change', function () {
+    pcshVisSincronizarFechaFiltro('periodo');
+    renderVisitasModule();
+  });
+  if (fltAnio) fltAnio.addEventListener('change', function () {
+    pcshVisSincronizarFechaFiltro('periodo');
+    renderVisitasModule();
+  });
+  if (fltMulta) fltMulta.addEventListener('change', renderVisitasModule);
+  if (fltLimpiar) fltLimpiar.addEventListener('click', pcshVisLimpiarFiltros);
   if (tblVis) {
     tblVis.addEventListener('click', function (e) {
       var n = e.target.closest('.pcsh-vis-notas-btn');
