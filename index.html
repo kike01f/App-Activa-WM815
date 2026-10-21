@@ -7310,18 +7310,21 @@ var PCSH_TZ_SANTIAGO = 'America/Santiago';
 /**
  * Partes de calendario/reloj para un instante UTC en Chile (no usar getDate() del navegador).
  */
+var pcshZonedFmt = null;
 function pcshZonedParts(ms) {
-  var fmt = new Intl.DateTimeFormat('en-US', {
-    timeZone: PCSH_TZ_SANTIAGO,
-    year: 'numeric',
-    month: 'numeric',
-    day: 'numeric',
-    hour: 'numeric',
-    minute: 'numeric',
-    second: 'numeric',
-    hour12: false
-  });
-  var parts = fmt.formatToParts(new Date(ms));
+  if (!pcshZonedFmt) {
+    pcshZonedFmt = new Intl.DateTimeFormat('en-US', {
+      timeZone: PCSH_TZ_SANTIAGO,
+      year: 'numeric',
+      month: 'numeric',
+      day: 'numeric',
+      hour: 'numeric',
+      minute: 'numeric',
+      second: 'numeric',
+      hour12: false
+    });
+  }
+  var parts = pcshZonedFmt.formatToParts(new Date(ms));
   var y;
   var mo;
   var d;
@@ -10195,6 +10198,8 @@ function pcshVisLimpiarFiltros() {
   renderVisitasModule();
 }
 var pcshVisConsulta = { key: '', estado: '', rows: [], truncado: false };
+var pcshVisHistPag = { clave: '', page: 0 };
+var PCSH_VIS_HIST_POR_PAGINA = 40;
 function pcshVisPad2(n) {
   n = parseInt(n, 10);
   return (n < 10 ? '0' : '') + n;
@@ -10255,6 +10260,10 @@ function pcshVisPedirHistorico(diaVal, mesVal, anioVal) {
   var clave = pcshVisClaveConsulta(diaVal, mesVal, anioVal);
   if (!clave) return;
   if (pcshVisConsulta.key === clave && pcshVisConsulta.estado) return;
+  if (anioVal && !mesVal && !diaVal) {
+    pcshVisConsulta = { key: clave, estado: 'elige-mes', rows: [], truncado: false };
+    return;
+  }
   var rangos = pcshVisRangosConsulta(diaVal, mesVal, anioVal);
   pcshVisConsulta = { key: clave, estado: 'cargando', rows: [], truncado: false };
   if (!rangos.length || typeof db === 'undefined' || !db) {
@@ -10381,6 +10390,8 @@ function renderVisitasModule() {
           if (v && v.id && !vistos[v.id]) rows.push(v);
         });
         histTruncado = !!pcshVisConsulta.truncado;
+      } else if (pcshVisConsulta.key === claveVis && pcshVisConsulta.estado === 'elige-mes') {
+        rows = [];
       } else if (pcshVisConsulta.key === claveVis && pcshVisConsulta.estado === 'error') {
         rows = allVis.slice();
         histError = true;
@@ -10405,9 +10416,14 @@ function renderVisitasModule() {
         var p = pcshVisPartesIngreso(v);
         return p && p.year === diaY && p.month === diaM && p.day === diaD;
       });
-    } else {
-      if (anioVal) rows = rows.filter(function (v) { var p = pcshVisPartesIngreso(v); return p && p.year === anioVal; });
-      if (mesVal) rows = rows.filter(function (v) { var p = pcshVisPartesIngreso(v); return p && p.month === mesVal; });
+    } else if (anioVal || mesVal) {
+      rows = rows.filter(function (v) {
+        var p = pcshVisPartesIngreso(v);
+        if (!p) return false;
+        if (anioVal && p.year !== anioVal) return false;
+        if (mesVal && p.month !== mesVal) return false;
+        return true;
+      });
     }
     if (soloMulta) rows = rows.filter(pcshVisitaTieneMulta);
     if (q) {
@@ -10420,6 +10436,8 @@ function renderVisitasModule() {
     if (cuentaVis) {
       if (histCargando) {
         cuentaVis.textContent = 'Buscando visitas de ese período…';
+      } else if (pcshVisConsulta.key === claveVis && pcshVisConsulta.estado === 'elige-mes') {
+        cuentaVis.textContent = 'Elija un mes de ' + anioVal + ' para ver sus visitas.';
       } else if (!rows.length) {
         cuentaVis.textContent = histError
           ? 'No se pudo cargar el período. Se muestran solo las visitas recientes.'
@@ -10443,13 +10461,24 @@ function renderVisitasModule() {
         cuentaVis.textContent = txtCuenta;
       }
     }
+    var pagClave = [claveVis, scope, q, soloMulta ? 1 : 0].join('|');
+    if (pcshVisHistPag.clave !== pagClave) {
+      pcshVisHistPag.clave = pagClave;
+      pcshVisHistPag.page = 0;
+    }
+    var porPagina = PCSH_VIS_HIST_POR_PAGINA;
+    var totalPaginas = Math.max(1, Math.ceil(rows.length / porPagina));
+    if (pcshVisHistPag.page > totalPaginas - 1) pcshVisHistPag.page = totalPaginas - 1;
+    if (pcshVisHistPag.page < 0) pcshVisHistPag.page = 0;
+    var desdePag = pcshVisHistPag.page * porPagina;
+    var filasPagina = rows.slice(desdePag, desdePag + porPagina);
     var html = '<table class="pcsh-data-table"><thead><tr><th>Ingreso</th><th>Unidad</th><th>Fecha ingreso</th><th>Vehíc.</th><th>Tiempo / estado</th><th>Salida</th><th>Conserje ingreso</th><th>Conserje salida</th><th>Notas</th><th>Acciones</th></tr></thead><tbody>';
-    if (!rows.length) {
+    if (!filasPagina.length) {
       html += '<tr><td colspan="10" style="text-align:center;color:#888;padding:1rem">' +
-        (histCargando ? 'Buscando visitas de ese período…' : 'Sin resultados.') +
+        (histCargando ? 'Buscando visitas de ese período…' : (pcshVisConsulta.key === claveVis && pcshVisConsulta.estado === 'elige-mes' ? 'Seleccione un mes.' : 'Sin resultados.')) +
         '</td></tr>';
     } else {
-      rows.forEach(function (v) {
+      filasPagina.forEach(function (v) {
         var isP = visitIsProveedor(v);
         var tipo = isP ? '<span class="badge-vis-proveedor">Prov.</span> ' : '<span class="badge-vis-persona">Pers.</span> ';
         var nameCell = tipo + escapeHtml(v.visitor || '—') + (v.visitorRut ? '<div style="font-size:calc(0.7rem * var(--cg-table-fs));opacity:0.85">' + (v.docExtranjero ? 'DNI/Pas. ' : 'RUT ') + escapeHtml(v.visitorRut) + '</div>' : '') + (isP && v.proveedorEmpresa ? '<div style="font-size:calc(0.68rem * var(--cg-table-fs));opacity:0.8">' + escapeHtml(v.proveedorEmpresa) + '</div>' : '');
@@ -10534,6 +10563,15 @@ function renderVisitasModule() {
       });
     }
     html += '</tbody></table>';
+    if (rows.length > porPagina) {
+      var hastaPag = Math.min(rows.length, desdePag + filasPagina.length);
+      html += '<div class="pcsh-vis-hist-pag" style="display:flex;flex-wrap:wrap;gap:0.45rem;align-items:center;justify-content:flex-end;margin-top:0.55rem;">' +
+        '<span style="font-size:0.78rem;margin-right:auto;">' + (desdePag + 1) + '–' + hastaPag + ' de ' + rows.length + '</span>' +
+        '<button type="button" class="btn btn-secondary btn-sm pcsh-vis-pag" data-dir="-1"' + (pcshVisHistPag.page <= 0 ? ' disabled' : '') + '>Anterior</button>' +
+        '<span style="font-size:0.78rem;">Página ' + (pcshVisHistPag.page + 1) + ' de ' + totalPaginas + '</span>' +
+        '<button type="button" class="btn btn-secondary btn-sm pcsh-vis-pag" data-dir="1"' + (pcshVisHistPag.page >= totalPaginas - 1 ? ' disabled' : '') + '>Siguiente</button>' +
+        '</div>';
+    }
     histWrap.innerHTML = html;
   }
   try {
@@ -11408,6 +11446,15 @@ function initVisitasUi() {
   if (fltLimpiar) fltLimpiar.addEventListener('click', pcshVisLimpiarFiltros);
   if (tblVis) {
     tblVis.addEventListener('click', function (e) {
+      var pag = e.target.closest('.pcsh-vis-pag');
+      if (pag) {
+        if (pag.disabled) return;
+        pcshVisHistPag.page += parseInt(pag.getAttribute('data-dir'), 10) || 0;
+        renderVisitasModule();
+        var cuentaEl = document.getElementById('flt-vis-cuenta');
+        if (cuentaEl && cuentaEl.scrollIntoView) cuentaEl.scrollIntoView({ block: 'nearest' });
+        return;
+      }
       var n = e.target.closest('.pcsh-vis-notas-btn');
       if (n) {
         pcshOpenVisitaNotasModal(n.getAttribute('data-id'));
