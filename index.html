@@ -7019,6 +7019,12 @@ function pcshTabNovedadesVisible() {
   return tab.style.display !== 'none';
 }
 
+function pcshPanelVisible(id) {
+  var tab = document.getElementById(id);
+  if (!tab) return false;
+  return tab.style.display !== 'none';
+}
+
 function pcshAdminNovedadesVisible() {
   var tab = document.getElementById('tabPersonal');
   var pane = document.getElementById('pcshAdminPaneNovedades');
@@ -14919,6 +14925,7 @@ function showTab(tab) {
     return;
   }
   if (tab !== 'tabAusencia') pcshAbsenceAlertStop();
+  if (tab !== 'tabNovedades') pcshArrancarModulosSecundarios();
   tabN.style.display = tab === 'tabNovedades' ? '' : 'none';
   if (tabV) tabV.style.display = tab === 'tabVisitas' ? '' : 'none';
   if (tabPr) tabPr.style.display = tab === 'tabProveedores' ? '' : 'none';
@@ -14961,6 +14968,7 @@ function showTab(tab) {
     pd.textContent = '';
     if (typeof pcshEnsureConserjeriaDeptDataSynced === 'function') pcshEnsureConserjeriaDeptDataSynced();
     initVisitasUi();
+    if (typeof pcshRefreshVisitasProveedorSelects === 'function') pcshRefreshVisitasProveedorSelects();
     renderVisitasModule();
     if (!window.__pcshVisTimer) {
       window.__pcshVisTimer = setInterval(function () {
@@ -22540,41 +22548,48 @@ function pcshRenderDashboard() {
 
 window.pcshRenderDashboard = pcshRenderDashboard;
 
-listenVisitas(function (list) {
-  visitasList = list;
-  renderVisitasModule();
-  if (typeof pcshRenderDashboard === 'function') pcshRenderDashboard();
-  if (typeof pcshVisRevisarMultasEstacionamientoPendientes === 'function') {
-    clearTimeout(window.__pcshVisMultaNovScanT);
-    window.__pcshVisMultaNovScanT = setTimeout(function () {
-      pcshVisRevisarMultasEstacionamientoPendientes();
-    }, 700);
+function pcshArrancarModulosSecundarios() {
+  if (window.__pcshSecundariosListos) return;
+  window.__pcshSecundariosListos = true;
+  listenVisitas(function (list) {
+    visitasList = list;
+    if (pcshPanelVisible('tabVisitas')) renderVisitasModule();
+    if (typeof pcshRenderDashboard === 'function') pcshRenderDashboard();
+    if (typeof pcshVisRevisarMultasEstacionamientoPendientes === 'function') {
+      clearTimeout(window.__pcshVisMultaNovScanT);
+      window.__pcshVisMultaNovScanT = setTimeout(function () {
+        pcshVisRevisarMultasEstacionamientoPendientes();
+      }, 700);
+    }
+  });
+  setTimeout(function () {
+    listenProveedores(function (list) {
+      proveedoresList = list;
+      if (pcshPanelVisible('tabProveedores')) pcshRenderProveedores();
+      if (pcshPanelVisible('tabVisitas')) pcshRefreshVisitasProveedorSelects();
+    });
+    listenReservas(function (list) {
+      reservasList = list;
+      if (pcshPanelVisible('tabReservas')) renderReservasModule();
+      if (typeof pcshRenderDashboard === 'function') pcshRenderDashboard();
+    });
+    listenEncomiendas(function (list) {
+      encomiendasList = list;
+      if (pcshPanelVisible('tabEncomiendas')) renderEncomiendasModule();
+      if (typeof pcshRenderDashboard === 'function') pcshRenderDashboard();
+    });
+  }, 250);
+  if (!window.__pcshVisLiveTick) {
+    window.__pcshVisLiveTick = setInterval(function () {
+      try {
+        pcshVisUpdateLiveDurations();
+      } catch (eTick) {}
+    }, 1000);
   }
-});
-setTimeout(function () {
-  listenProveedores(function (list) {
-    proveedoresList = list;
-    pcshRenderProveedores();
-    pcshRefreshVisitasProveedorSelects();
-  });
-  listenReservas(function (list) {
-    reservasList = list;
-    renderReservasModule();
-    if (typeof pcshRenderDashboard === 'function') pcshRenderDashboard();
-  });
-  listenEncomiendas(function (list) {
-    encomiendasList = list;
-    renderEncomiendasModule();
-    if (typeof pcshRenderDashboard === 'function') pcshRenderDashboard();
-  });
-}, 400);
-
-if (!window.__pcshVisLiveTick) {
-  window.__pcshVisLiveTick = setInterval(function () {
-    try {
-      pcshVisUpdateLiveDurations();
-    } catch (eTick) {}
-  }, 1000);
+}
+setTimeout(pcshArrancarModulosSecundarios, 800);
+if (window.requestIdleCallback) {
+  requestIdleCallback(function () { pcshArrancarModulosSecundarios(); }, { timeout: 1500 });
 }
 
 try {
