@@ -10194,6 +10194,99 @@ function pcshVisLimpiarFiltros() {
   if (multa) multa.checked = false;
   renderVisitasModule();
 }
+var pcshVisConsulta = { key: '', estado: '', rows: [], truncado: false };
+function pcshVisPad2(n) {
+  n = parseInt(n, 10);
+  return (n < 10 ? '0' : '') + n;
+}
+function pcshVisIsoMedianoche(y, m, d) {
+  var local = y + '-' + pcshVisPad2(m) + '-' + pcshVisPad2(d) + 'T00:00:00';
+  var dt = pcshInstantFromSantiagoDatetimeLocal(local, Date.now());
+  if (!dt || isNaN(dt.getTime())) return '';
+  return dt.toISOString();
+}
+function pcshVisDiaSiguiente(y, m, d) {
+  var dt = new Date(Date.UTC(y, m - 1, d));
+  dt.setUTCDate(dt.getUTCDate() + 1);
+  return { y: dt.getUTCFullYear(), m: dt.getUTCMonth() + 1, d: dt.getUTCDate() };
+}
+function pcshVisClaveConsulta(diaVal, mesVal, anioVal) {
+  if (!diaVal && !mesVal && !anioVal) return '';
+  return [diaVal || '', mesVal || 0, anioVal || 0].join('|');
+}
+function pcshVisRangosConsulta(diaVal, mesVal, anioVal) {
+  var rangos = [];
+  if (diaVal) {
+    var p = String(diaVal).split('-');
+    var y = parseInt(p[0], 10);
+    var m = parseInt(p[1], 10);
+    var d = parseInt(p[2], 10);
+    if (!y || !m || !d) return rangos;
+    var nx = pcshVisDiaSiguiente(y, m, d);
+    rangos.push({ start: pcshVisIsoMedianoche(y, m, d), end: pcshVisIsoMedianoche(nx.y, nx.m, nx.d) });
+    return rangos.filter(function (r) { return r.start && r.end; });
+  }
+  var years = [];
+  if (anioVal) years = [anioVal];
+  else {
+    var hoy = pcshZonedParts(Date.now());
+    var y0 = hoy && hoy.year ? hoy.year : new Date().getFullYear();
+    years = [y0, y0 - 1, y0 - 2];
+  }
+  years.forEach(function (y) {
+    if (mesVal) {
+      var m2 = mesVal === 12 ? 1 : mesVal + 1;
+      var y2 = mesVal === 12 ? y + 1 : y;
+      rangos.push({ start: pcshVisIsoMedianoche(y, mesVal, 1), end: pcshVisIsoMedianoche(y2, m2, 1) });
+    } else {
+      rangos.push({ start: pcshVisIsoMedianoche(y, 1, 1), end: pcshVisIsoMedianoche(y + 1, 1, 1) });
+    }
+  });
+  return rangos.filter(function (r) { return r.start && r.end; });
+}
+function pcshVisDocNormalizar(doc) {
+  var o = doc.data();
+  o.id = doc.id;
+  if (o.at != null && o.at !== '') o.at = pcshVisitAtToIso(o.at);
+  if (o.outAt != null && o.outAt !== '') o.outAt = pcshVisitAtToIso(o.outAt);
+  return o;
+}
+function pcshVisPedirHistorico(diaVal, mesVal, anioVal) {
+  var clave = pcshVisClaveConsulta(diaVal, mesVal, anioVal);
+  if (!clave) return;
+  if (pcshVisConsulta.key === clave && pcshVisConsulta.estado) return;
+  var rangos = pcshVisRangosConsulta(diaVal, mesVal, anioVal);
+  pcshVisConsulta = { key: clave, estado: 'cargando', rows: [], truncado: false };
+  if (!rangos.length || typeof db === 'undefined' || !db) {
+    pcshVisConsulta.estado = 'error';
+    return;
+  }
+  var limite = anioVal && !mesVal && !diaVal ? 8000 : 2500;
+  Promise.all(
+    rangos.map(function (r) {
+      return db.collection('visitas').orderBy('at').startAt(r.start).endBefore(r.end).limit(limite).get();
+    })
+  )
+    .then(function (snaps) {
+      if (pcshVisConsulta.key !== clave) return;
+      var rows = [];
+      var truncado = false;
+      snaps.forEach(function (snap) {
+        if (snap.size >= limite) truncado = true;
+        snap.forEach(function (doc) {
+          rows.push(pcshVisDocNormalizar(doc));
+        });
+      });
+      pcshVisConsulta = { key: clave, estado: 'listo', rows: rows, truncado: truncado };
+      renderVisitasModule();
+    })
+    .catch(function (err) {
+      console.warn('[pcsh] visitas historico', err);
+      if (pcshVisConsulta.key !== clave) return;
+      pcshVisConsulta = { key: clave, estado: 'error', rows: [], truncado: false };
+      renderVisitasModule();
+    });
+}
 function renderVisitasModule() {
   var allVis = visitasList.slice();
   pcshVisAsegurarAniosFiltro();
@@ -10264,7 +10357,41 @@ function renderVisitasModule() {
     }
   }
   if (histWrap) {
-    var rows = allVis.slice().sort(function (a, b) { return pcshVisitAtToMs(b.at) - pcshVisitAtToMs(a.at); });
+    var claveVis = pcshVisClaveConsulta(diaVal, mesVal, anioVal);
+    var histCargando = false;
+    var histError = false;
+    var histTruncado = false;
+    var rows;
+    if (!claveVis && pcshVisConsulta.key) pcshVisConsulta = { key: '', estado: '', rows: [], truncado: false };
+    if (claveVis) {
+      pcshVisPedirHistorico(diaVal, mesVal, anioVal);
+      if (pcshVisConsulta.key === claveVis && pcshVisConsulta.estado === 'listo') {
+        var livePorId = {};
+        allVis.forEach(function (v) { if (v && v.id) livePorId[v.id] = v; });
+        var vistos = {};
+        rows = pcshVisConsulta.rows.map(function (v) {
+          if (v && v.id && livePorId[v.id]) {
+            vistos[v.id] = true;
+            return livePorId[v.id];
+          }
+          if (v && v.id) vistos[v.id] = true;
+          return v;
+        });
+        allVis.forEach(function (v) {
+          if (v && v.id && !vistos[v.id]) rows.push(v);
+        });
+        histTruncado = !!pcshVisConsulta.truncado;
+      } else if (pcshVisConsulta.key === claveVis && pcshVisConsulta.estado === 'error') {
+        rows = allVis.slice();
+        histError = true;
+      } else {
+        rows = [];
+        histCargando = true;
+      }
+    } else {
+      rows = allVis.slice();
+    }
+    rows.sort(function (a, b) { return pcshVisitAtToMs(b.at) - pcshVisitAtToMs(a.at); });
     if (scope === 'open') rows = rows.filter(function (v) { return !v.outAt && !visitIsPeatonal(v); });
     else if (scope === 'today') rows = rows.filter(function (v) { return isSameDayVis(v.at, todayD); });
     else if (scope === 'prov') rows = rows.filter(function (v) { return visitIsProveedor(v); });
@@ -10291,13 +10418,36 @@ function renderVisitasModule() {
     }
     var cuentaVis = document.getElementById('flt-vis-cuenta');
     if (cuentaVis) {
-      cuentaVis.textContent = rows.length
-        ? (rows.length + (rows.length === 1 ? ' visita' : ' visitas'))
-        : 'Sin visitas con este filtro';
+      if (histCargando) {
+        cuentaVis.textContent = 'Buscando visitas de ese período…';
+      } else if (!rows.length) {
+        cuentaVis.textContent = histError
+          ? 'No se pudo cargar el período. Se muestran solo las visitas recientes.'
+          : 'Sin visitas con este filtro';
+      } else {
+        var txtCuenta = rows.length + (rows.length === 1 ? ' visita' : ' visitas');
+        if (!claveVis && scope === 'all' && !q && !soloMulta) {
+          var oldestMs = null;
+          rows.forEach(function (v) {
+            var msOld = pcshVisitAtToMs(v.at);
+            if (isFinite(msOld) && (oldestMs == null || msOld < oldestMs)) oldestMs = msOld;
+          });
+          txtCuenta = rows.length + ' visitas recientes';
+          if (oldestMs != null) txtCuenta += ' (desde ' + fmtVisDate(new Date(oldestMs).toISOString()) + ')';
+          txtCuenta += '. Elija mes y año para ver meses anteriores.';
+        } else if (histTruncado) {
+          txtCuenta += '. Hay más visitas en ese período; acote por mes.';
+        } else if (histError) {
+          txtCuenta += ' (solo las ya cargadas: no se pudo leer el historial completo)';
+        }
+        cuentaVis.textContent = txtCuenta;
+      }
     }
     var html = '<table class="pcsh-data-table"><thead><tr><th>Ingreso</th><th>Unidad</th><th>Fecha ingreso</th><th>Vehíc.</th><th>Tiempo / estado</th><th>Salida</th><th>Conserje ingreso</th><th>Conserje salida</th><th>Notas</th><th>Acciones</th></tr></thead><tbody>';
     if (!rows.length) {
-      html += '<tr><td colspan="10" style="text-align:center;color:#888;padding:1rem">Sin resultados.</td></tr>';
+      html += '<tr><td colspan="10" style="text-align:center;color:#888;padding:1rem">' +
+        (histCargando ? 'Buscando visitas de ese período…' : 'Sin resultados.') +
+        '</td></tr>';
     } else {
       rows.forEach(function (v) {
         var isP = visitIsProveedor(v);
