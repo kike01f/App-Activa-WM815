@@ -1605,6 +1605,16 @@
     .pcsh-fabrica-panel .tl-reclamo-est.es-en_gestion { background: rgba(139, 92, 246, 0.3); color: #c4b5fd; }
     .pcsh-fabrica-panel .tl-reclamo-est.es-resuelto { background: rgba(34, 197, 94, 0.28); color: #86efac; }
     .pcsh-fabrica-panel .tl-reclamo-est.es-no_procede { background: rgba(148, 163, 184, 0.3); color: #cbd5e1; }
+    .pcsh-fabrica-panel .tl-reclamo-est.es-pendiente_tratamiento { background: rgba(245, 158, 11, 0.3); color: #fcd34d; }
+    .pcsh-fabrica-panel .tl-reclamo-est.es-pendiente_antecedentes { background: rgba(234, 179, 8, 0.3); color: #fde68a; }
+    .pcsh-fabrica-panel .tl-reclamo-est.es-gestionada { background: rgba(34, 197, 94, 0.28); color: #86efac; }
+    .pcsh-fabrica-panel .tl-reclamo-est.es-rechazada { background: rgba(220, 38, 38, 0.28); color: #fecaca; }
+    .pcsh-fabrica-panel .tl-reclamo-est.es-cerrada { background: rgba(148, 163, 184, 0.3); color: #cbd5e1; }
+    .pcsh-fabrica-panel .tl-reclamo-est.es-anulada { background: rgba(5, 150, 105, 0.32); color: #6ee7b7; }
+    .pcsh-fabrica-panel .tl-card-nov-multa.tl-card-nov-multa-anulada {
+      opacity: 0.78;
+      border-left-color: #059669;
+    }
     .pcsh-fabrica-panel .tl-reclamo-obs {
       margin: 0.4rem 0 0; padding: 0.4rem 0.55rem; border-radius: 8px; font-size: 0.75rem; line-height: 1.4;
       background: rgba(244, 63, 94, 0.12); border: 1px solid rgba(244, 63, 94, 0.28); color: #fecdd3;
@@ -15699,6 +15709,101 @@ async function pcshPublicarMultaDesdeNovedad(n) {
     console.warn('[multa-novedad] No se pudo publicar hacia Gestión:', ePub);
   }
 }
+function pcshEtiquetaEstadoMultaGestion(est) {
+  var e = String(est || '').toLowerCase();
+  if (e === 'anulada') return 'Anulada';
+  if (e === 'en_revision') return 'En revisión';
+  if (e === 'pendiente_antecedentes') return 'Pendiente de antecedentes';
+  if (e === 'gestionada') return 'Gestionada';
+  if (e === 'rechazada') return 'Rechazada / No procede';
+  if (e === 'cerrada') return 'Cerrada';
+  if (e === 'pendiente_tratamiento' || e === 'pendiente') return 'Pendiente de tratamiento';
+  return 'Pendiente de tratamiento';
+}
+function pcshMultaGestionDeNovedad(n) {
+  var cor = Number(n && n.correlativo);
+  if (!isFinite(cor)) return null;
+  return (window._pcshMultasGestion && window._pcshMultasGestion[cor]) || null;
+}
+function pcshMultaGestionEstaAnulada(d) {
+  if (!d) return false;
+  if (d.anulada === true || d.anulada === 'si' || d.anulada === 'sí') return true;
+  return String(d.estadoGestion || '').toLowerCase() === 'anulada';
+}
+function pcshHtmlEstadoMultaGestion(n) {
+  if (!n || (typeof pcshEsCategoriaMulta === 'function' && !pcshEsCategoriaMulta(n.categoria))) return '';
+  var d = pcshMultaGestionDeNovedad(n);
+  var est = 'pendiente_tratamiento';
+  if (d) {
+    if (pcshMultaGestionEstaAnulada(d)) est = 'anulada';
+    else if (d.estadoGestion) est = String(d.estadoGestion);
+  }
+  var label = pcshEtiquetaEstadoMultaGestion(est);
+  return '<span class="tl-reclamo-est es-' + est.replace(/[^a-z0-9_]/g, '') + '" title="Estado de Administración">Adm: ' + escapeHtml(label) + '</span>';
+}
+function pcshHtmlObsMultaGestion(n) {
+  if (!n || (typeof pcshEsCategoriaMulta === 'function' && !pcshEsCategoriaMulta(n.categoria))) return '';
+  var d = pcshMultaGestionDeNovedad(n);
+  if (!d) return '';
+  var parts = [];
+  if (pcshMultaGestionEstaAnulada(d)) parts.push('Esta multa fue anulada por Administración y no se incluye en el reporte de comité.');
+  if (d.folio) parts.push('Folio: ' + String(d.folio));
+  if (d.monto != null && d.monto !== '' && Number(d.monto) > 0) {
+    parts.push('Monto: ' + String(d.monto) + (d.tipoUnidad ? ' ' + d.tipoUnidad : ''));
+  }
+  if (String(d.observacionAdmin || '').trim()) parts.push(String(d.observacionAdmin).trim());
+  if (!parts.length) return '';
+  return '<div class="tl-reclamo-obs"><strong>Administración:</strong> ' + escapeHtml(parts.join(' · ')).replace(/\n/g, '<br>') + '</div>';
+}
+function pcshMultaAlertaHuella(d) {
+  if (!d) return '';
+  return [d.estadoGestion || '', d.anulada ? '1' : '0', d.revisadoAt || d.alertaConserjeriaAt || d.updatedAt || '', String(d.observacionAdmin || '').trim(), d.folio || '', d.monto != null ? String(d.monto) : ''].join('|');
+}
+function listenMultasGestion() {
+  if (!db || typeof db.collection !== 'function') return;
+  if (window._pcshMultasUnsub) {
+    try { window._pcshMultasUnsub(); } catch (eUn) {}
+    window._pcshMultasUnsub = null;
+  }
+  window._pcshMultasGestion = window._pcshMultasGestion || {};
+  window._pcshMultasUnsub = db.collection('multas_desde_novedad').onSnapshot(
+    function (snap) {
+      var prev = window._pcshMultasGestion || {};
+      var map = {};
+      var cambios = [];
+      snap.forEach(function (doc) {
+        var d = doc.data() || {};
+        var cor = Number(d.correlativo != null ? d.correlativo : doc.id);
+        if (!isFinite(cor)) return;
+        var anul = typeof pcshMultaGestionEstaAnulada === 'function' && pcshMultaGestionEstaAnulada(d);
+        if (d.activa === false && !anul && !d.eliminadaEnGestion && String(d.estadoGestion || '') === '') return;
+        map[cor] = d;
+        var old = prev[cor];
+        var fpNew = pcshMultaAlertaHuella(d);
+        var fpOld = old ? pcshMultaAlertaHuella(old) : '';
+        if (window._pcshMultasSnapReady && fpNew && fpNew !== fpOld && (d.estadoGestion || anul || d.observacionAdmin)) {
+          cambios.push(d);
+        }
+      });
+      window._pcshMultasGestion = map;
+      window._pcshMultasSnapReady = true;
+      if (typeof pcshProgramarUiNovedades === 'function') pcshProgramarUiNovedades({ dash: false });
+      else if (typeof renderNovedades === 'function') renderNovedades();
+      if (cambios.length && typeof showMsg === 'function') {
+        var c0 = cambios[0];
+        var lab = pcshEtiquetaEstadoMultaGestion(pcshMultaGestionEstaAnulada(c0) ? 'anulada' : c0.estadoGestion);
+        var nro = c0.novedadLibro != null ? c0.novedadLibro : c0.correlativo;
+        showMsg(
+          'Administración actualizó la multa #' + nro + (lab ? ' · ' + lab : '') + (cambios.length > 1 ? ' y ' + (cambios.length - 1) + ' más.' : '.'),
+          'info'
+        );
+      }
+    },
+    function (err) {
+      console.warn('[pcsh] multas_desde_novedad:', err);
+    }
+  );
+}
 function pcshEsCategoriaReclamo(cat) {
   var s = pcshNormCatMulta(cat);
   return s === 'reclamos' || s === 'reclamo' || s.indexOf('reclamo') === 0;
@@ -17638,14 +17743,20 @@ function renderNovedades() {
     var badgeHtml = marcaChk ? pcshChecklistBadgeHtml(marcaChk) : (typeof pcshCategoriaBadgeHtml === 'function' ? pcshCategoriaBadgeHtml(n.categoria, n.esAdmin, catLabel) : ('<span class="tl-cat ' + badgeClass + '">' + escapeHtml(catLabel) + '</span>'));
     var cardStyle = marcaChk ? '' : (typeof pcshCategoriaCardStyle === 'function' ? pcshCategoriaCardStyle(n.categoria, n.esAdmin) : '');
     var cardClass = (marcaChk ? ('tl-card-' + marcaChk.clase) : (cardStyle ? 'tl-card-nov-default' : categoriaCardClass(n.categoria, n.esAdmin))) + (esDest ? ' tl-card-destacada' : '');
+    var dMultaAdm = typeof pcshMultaGestionDeNovedad === 'function' ? pcshMultaGestionDeNovedad(n) : null;
+    if (dMultaAdm && typeof pcshMultaGestionEstaAnulada === 'function' && pcshMultaGestionEstaAnulada(dMultaAdm)) {
+      cardClass += ' tl-card-nov-multa-anulada';
+    }
     var numStr = numeros[n.correlativo] != null ? String(numeros[n.correlativo]) : '';
     var meta = '#' + escapeHtml(numStr) +
       ' · ' + escapeHtml(normalizarFecha(n.fecha)) + ' · ' + escapeHtml(n.hora) + ' · ' + escapeHtml(n.conserje) +
       ' ' + badgeHtml +
       (typeof pcshHtmlEstadoReclamoGestion === 'function' ? pcshHtmlEstadoReclamoGestion(n) : '') +
+      (typeof pcshHtmlEstadoMultaGestion === 'function' ? pcshHtmlEstadoMultaGestion(n) : '') +
       (esDest ? ' <span class="tl-dest-badge"><i class="fa-solid fa-star" aria-hidden="true"></i> Destacada</span>' : '');
     var notaInternaHtml = (n.notaInterna && String(n.notaInterna).trim()) ? '<div class="tl-nov-note"><strong>Nota:</strong> ' + escapeHtml(String(n.notaInterna)).replace(/\n/g, '<br>') + '</div>' : '';
-    var reclamoObsHtml = typeof pcshHtmlObsReclamoGestion === 'function' ? pcshHtmlObsReclamoGestion(n) : '';
+    var reclamoObsHtml = (typeof pcshHtmlObsReclamoGestion === 'function' ? pcshHtmlObsReclamoGestion(n) : '') +
+      (typeof pcshHtmlObsMultaGestion === 'function' ? pcshHtmlObsMultaGestion(n) : '');
     var item3 = document.createElement('div');
     item3.className = 'tl-item' + (esDest ? ' tl-destacada' : '');
     item3.setAttribute('data-num', numStr);
@@ -17795,7 +17906,8 @@ function renderNovedadesGestion() {
         : (typeof pcshCategoriaBadgeHtml === 'function'
           ? pcshCategoriaBadgeHtml(n.categoria, false)
           : '<span class="tl-cat ' + categoriaBadgeClass(n.categoria, false) + '">' + escapeHtml(n.categoria || 'General') + '</span>')) +
-        (typeof pcshHtmlEstadoReclamoGestion === 'function' ? pcshHtmlEstadoReclamoGestion(n) : '');
+        (typeof pcshHtmlEstadoReclamoGestion === 'function' ? pcshHtmlEstadoReclamoGestion(n) : '') +
+        (typeof pcshHtmlEstadoMultaGestion === 'function' ? pcshHtmlEstadoMultaGestion(n) : '');
     var btnEdit =
       '<button type="button" class="btn btn-secondary btn-sm pcsh-nov-act-btn" data-edit-gestion="' +
       n.correlativo +
@@ -20587,6 +20699,7 @@ listenNovedades(function (ns) {
   if (typeof pcshBackfillReclamosDesdeNovedades === 'function') pcshBackfillReclamosDesdeNovedades();
 });
 if (typeof listenReclamosGestion === 'function') listenReclamosGestion();
+if (typeof listenMultasGestion === 'function') listenMultasGestion();
 if (typeof listenNovedadesDestacadas === 'function') listenNovedadesDestacadas();
 if (!window._pcshNovDestClickBound) {
   window._pcshNovDestClickBound = true;
