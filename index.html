@@ -14649,33 +14649,61 @@ function pcshBodegaAppAdministracion() {
   }
 }
 
+function pcshLeerValorFirestore(v) {
+  if (!v || typeof v !== 'object') return null;
+  if (Object.prototype.hasOwnProperty.call(v, 'stringValue')) return v.stringValue;
+  if (Object.prototype.hasOwnProperty.call(v, 'integerValue')) return Number(v.integerValue);
+  if (Object.prototype.hasOwnProperty.call(v, 'doubleValue')) return Number(v.doubleValue);
+  if (Object.prototype.hasOwnProperty.call(v, 'booleanValue')) return !!v.booleanValue;
+  if (Object.prototype.hasOwnProperty.call(v, 'nullValue')) return null;
+  if (Object.prototype.hasOwnProperty.call(v, 'timestampValue')) return v.timestampValue;
+  if (v.arrayValue) return (v.arrayValue.values || []).map(pcshLeerValorFirestore);
+  if (v.mapValue) {
+    var o = {};
+    var f = v.mapValue.fields || {};
+    Object.keys(f).forEach(function (k) { o[k] = pcshLeerValorFirestore(f[k]); });
+    return o;
+  }
+  return null;
+}
+
 async function pcshBodegaLeerAdministracion() {
   try {
-    var app = pcshBodegaAppAdministracion();
-    if (!app) return null;
-    var snap = await app.firestore().collection('comunidad').doc('inventario-productos').get();
-    if (!snap.exists) return null;
-    return snap.data() || null;
+    if (typeof pcshIdTokenCorreoGestion !== 'function') return null;
+    var token = await pcshIdTokenCorreoGestion();
+    if (!token) return null;
+    var res = await fetch('https://firestore.googleapis.com/v1/projects/administracion-41391/databases/(default)/documents/comunidad/inventario-productos', {
+      headers: { Authorization: 'Bearer ' + token }
+    });
+    if (!res.ok) return null;
+    var json = await res.json();
+    if (!json || !json.fields) return null;
+    return pcshLeerValorFirestore({ mapValue: { fields: json.fields } });
   } catch (e) {
-    console.warn('[bodega] lectura gestión', e);
     return null;
   }
 }
 
 async function pcshBodegaEspejoAdministracion(payload) {
   try {
-    var app = pcshBodegaAppAdministracion();
-    if (!app) return;
-    await app.firestore().collection('comunidad').doc('inventario-productos').set({
-      productos: payload.productos,
-      movimientos: payload.movimientos,
-      stockActualizadoMs: payload.stockActualizadoMs,
-      origen: 'conserjeria',
-      actualizado: firebase.firestore.FieldValue.serverTimestamp()
+    if (typeof pcshIdTokenCorreoGestion !== 'function' || typeof pcshValorFirestore !== 'function') return;
+    var token = await pcshIdTokenCorreoGestion();
+    if (!token) return;
+    var fields = {
+      productos: pcshValorFirestore(payload.productos || []),
+      movimientos: pcshValorFirestore(payload.movimientos || []),
+      stockActualizadoMs: pcshValorFirestore(Number(payload.stockActualizadoMs) || 0),
+      origen: { stringValue: 'conserjeria' },
+      actualizado: { timestampValue: new Date().toISOString() }
+    };
+    var url = 'https://firestore.googleapis.com/v1/projects/administracion-41391/databases/(default)/documents/comunidad/inventario-productos'
+      + '?updateMask.fieldPaths=productos&updateMask.fieldPaths=movimientos&updateMask.fieldPaths=stockActualizadoMs&updateMask.fieldPaths=origen&updateMask.fieldPaths=actualizado';
+    await fetch(url, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json', Authorization: 'Bearer ' + token },
+      body: JSON.stringify({ fields: fields })
     });
-  } catch (e) {
-    console.warn('[bodega] espejo gestión', e);
-  }
+  } catch (e) {}
 }
 
 async function pcshBodegaGuardar(renovarMarca) {
