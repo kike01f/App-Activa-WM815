@@ -8331,9 +8331,13 @@ function pcshVisitasCommitIngreso(form, rec, veh, vex) {
   }
   db.collection('visitas')
     .add(rec)
-    .then(function () {
+    .then(function (ref) {
       clearVisitParkingFieldError(form);
       showMsg('Ingreso registrado.', 'success');
+      if (rec.visitKind !== 'proveedor') {
+        rec.id = ref && ref.id ? ref.id : '';
+        pcshVisNotificarIngresoParticular(rec);
+      }
       form.reset();
       visitFormToggleTipo(form);
       if (veh) veh.checked = false;
@@ -10073,9 +10077,7 @@ function pcshVisAvisarCorreoFase(v, fase, primeraVista) {
   var ahora = Date.now();
   if (v.correoAvisoReintento && v.correoAvisoReintento[fase] && ahora < v.correoAvisoReintento[fase]) return;
   v.correoAviso[fase] = 'enviando';
-  var dep = typeof pcshEncDeptResolveByNumber === 'function' ? pcshEncDeptResolveByNumber(v.deptLabel) : null;
-  var inf = dep && typeof pcshEncResidentEmailsAllForDept === 'function' ? pcshEncResidentEmailsAllForDept(dep.id) : { email: '' };
-  var mail = String((inf && inf.email) || '').trim();
+  var mail = typeof pcshCorreosAvisoVisitaUnidad === 'function' ? pcshCorreosAvisoVisitaUnidad(v.deptLabel) : '';
   var depto = typeof pcshVisitDeptLabelDisplay === 'function' ? pcshVisitDeptLabelDisplay(v.deptLabel) : v.deptLabel || '';
   var asuntos = {
     warn: 'Visita vehicular: quedan 30 minutos — Depto ' + depto,
@@ -21626,10 +21628,7 @@ function pcshEncOccupantChoices(deptId) {
   var unitUse = pu.unitUse;
   return pu.residents
     .filter(function (r) {
-      var t = String(r.type || '').toLowerCase();
-      if (t === 'visita autorizada' || t === 'visita') return false;
-      if (unitUse === 'Arriendo' && t === 'propietario') return false;
-      return true;
+      return pcshResidenteRecibeAvisoVisita(r, unitUse);
     })
     .map(function (r) {
       return {
@@ -21652,26 +21651,18 @@ function pcshEncResidentEmailsAllForDept(deptId) {
   if (!pu) return { email: '', fuente: '' };
   var emails = [];
   (pu.residents || []).forEach(function (r) {
+    if (!pcshResidenteRecibeAvisoVisita(r, pu.unitUse)) return;
     var em = String(r.email || '').trim();
     if (em && emails.indexOf(em) < 0) emails.push(em);
   });
+  var fuente = pu.unitUse === 'Arriendo' ? 'arrendatarios de la unidad' : 'propietario y familiares';
   return {
     email: emails.join(','),
-    fuente: emails.length ? 'integrantes de la unidad' : ''
+    fuente: emails.length ? fuente : ''
   };
 }
 function pcshEncEmailsForNotify(e) {
   e = e || {};
-  var rid = String(e.destinatarioResidentId || '').trim();
-  if (rid) {
-    var pu = pcshEncGetPortalUnit(e.deptId);
-    var r = (pu && pu.residents ? pu.residents : []).find(function (x) {
-      return String(x.id) === rid;
-    });
-    if (r && String(r.email || '').trim()) {
-      return { email: String(r.email).trim(), fuente: 'destinatario seleccionado' };
-    }
-  }
   return pcshEncResidentEmailsAllForDept(e.deptId);
 }
 function pcshEncDestinatarioDisplay(e) {
@@ -21762,10 +21753,10 @@ function pcshHtmlAvisoOperativo(opts) {
     .map(function (f) {
       return (
         '<tr>' +
-        '<td style="padding:9px 14px;border-bottom:1px solid #e4eadc;font-family:Arial,sans-serif;font-size:13px;color:#5c6b4a;width:42%;">' +
+        '<td style="padding:9px 14px;border-bottom:1px solid #e5e5e5;font-family:Arial,sans-serif;font-size:13px;color:#666666;width:42%;">' +
         escapeHtml(f.k) +
         '</td>' +
-        '<td style="padding:9px 14px;border-bottom:1px solid #e4eadc;font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">' +
+        '<td style="padding:9px 14px;border-bottom:1px solid #e5e5e5;font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">' +
         escapeHtml(f.v || '—') +
         '</td></tr>'
       );
@@ -21774,16 +21765,16 @@ function pcshHtmlAvisoOperativo(opts) {
   return (
     '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' +
     escapeHtml(opts.titulo || 'Aviso WM 815') +
-    '</title></head><body style="margin:0;padding:0;background:#f3f6ef;">' +
-    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f6ef;"><tr><td align="center" style="padding:24px 12px;">' +
+    '</title></head><body style="margin:0;padding:0;background:#ffffff;">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#ffffff;"><tr><td align="center" style="padding:24px 12px;">' +
     '<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:560px;max-width:560px;background:#ffffff;border-radius:14px;">' +
     '<tr><td align="center" style="padding:22px 24px 10px;"><img src="https://img.mailinblue.com/8323725/images/content_library/original/685f21fb4a1b4fde403defaf.jpeg" width="230" alt="WM 815" style="display:block;margin:0 auto;border:0;width:230px;height:auto;"></td></tr>' +
     '<tr><td style="height:5px;background:' +
     tono +
     ';font-size:0;line-height:0;">&nbsp;</td></tr>' +
     '<tr><td style="padding:22px 32px 6px;font-family:Arial,sans-serif;text-align:center;">' +
-    '<p style="margin:0 0 8px;font-size:11px;letter-spacing:.12em;color:#6a8f32;text-transform:uppercase;">Correo automático</p>' +
-    '<h1 style="margin:0;font-size:22px;line-height:1.3;color:#243018;font-weight:700;">' +
+    '<p style="margin:0 0 8px;font-size:11px;letter-spacing:.12em;color:#666666;text-transform:uppercase;">Correo automático</p>' +
+    '<h1 style="margin:0;font-size:22px;line-height:1.3;color:#1a1a1a;font-weight:700;">' +
     escapeHtml(opts.titulo || 'Aviso') +
     '</h1></td></tr>' +
     '<tr><td style="padding:12px 32px 4px;font-family:Arial,sans-serif;font-size:15px;line-height:1.55;color:#1a1a1a;">' +
@@ -21793,14 +21784,14 @@ function pcshHtmlAvisoOperativo(opts) {
     escapeHtml(opts.mensaje || '') +
     '</p></td></tr>' +
     (filas
-      ? '<tr><td style="padding:0 32px 18px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7faf3;border-radius:10px;">' +
+      ? '<tr><td style="padding:0 32px 18px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f7f7;border-radius:10px;">' +
         filas +
         '</table></td></tr>'
       : '') +
-    '<tr><td style="padding:0 32px 22px;font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#3d4a32;">' +
+    '<tr><td style="padding:0 32px 22px;font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#333333;">' +
     escapeHtml(opts.cierre || 'Ante cualquier consulta, comuníquese con conserjería.') +
     '</td></tr>' +
-    '<tr><td style="padding:14px 32px;background:#f4f7ef;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;color:#3d4a32;">Nota: este es un correo automático del Sistema de Gestión. No es necesario responder.</td></tr>' +
+    '<tr><td style="padding:14px 32px;background:#f7f7f7;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;color:#333333;">Nota: este es un correo automático del Sistema de Gestión. No es necesario responder.</td></tr>' +
     '<tr><td style="padding:18px 28px 20px;background:#3b3f44;font-family:Arial,sans-serif;text-align:center;">' +
     '<p style="margin:0 0 4px;color:#ffffff;font-size:16px;font-weight:700;">Conserjería 24/7</p>' +
     '<p style="margin:0;color:#d5d8d0;font-size:12px;line-height:1.5;">Sistema de Gestión · Edificio WM 815<br>Cuidemos el medio ambiente: no imprima este correo si no es necesario.</p>' +
@@ -21820,14 +21811,12 @@ function pcshHtmlCorreoEncomienda(e, kind) {
   ];
   if (llegada) {
     filas.push({ k: 'Recepción', v: typeof fmtVisDate === 'function' ? fmtVisDate(e.receivedAt) : e.receivedAt || '—' });
-    filas.push({ k: 'Registrada por', v: (e.registradoPor || e.receivedByName || '').trim() || 'Conserjería' });
   } else {
     filas.push({ k: 'Quién retira', v: (e.retiradoPor && String(e.retiradoPor).trim()) || '—' });
     filas.push({ k: 'Fecha y hora de retiro', v: typeof fmtVisDate === 'function' ? fmtVisDate(e.entregadoAt || new Date().toISOString()) : e.entregadoAt || '—' });
-    filas.push({ k: 'Retiro registrado por', v: (e.retiroRegistradoPor || '').trim() || 'Conserjería' });
   }
   return pcshHtmlAvisoOperativo({
-    tono: llegada ? '#74bd20' : '#3d6b14',
+    tono: '#3b3f44',
     titulo: llegada ? 'Llegó una encomienda' : 'Encomienda retirada',
     saludo: saludo,
     mensaje: llegada
@@ -21863,6 +21852,82 @@ function pcshHtmlCorreoVisita(v, fase) {
     cierre: fase === 'fine' ? 'Ante cualquier consulta, comuníquese con conserjería o administración.' : 'Ante cualquier consulta, comuníquese con conserjería.'
   });
 }
+function pcshResidenteRecibeAvisoVisita(r, unitUse) {
+  var t = String((r && r.type) || '').trim().toLowerCase();
+  if (!t || t.indexOf('visita') !== -1) return false;
+  if (unitUse === 'Arriendo') return t.indexOf('arrendatario') !== -1;
+  return t.indexOf('propietario') !== -1 || t.indexOf('familiar') !== -1;
+}
+function pcshCorreosAvisoVisitaUnidad(deptLabelOrId) {
+  var dep = null;
+  if (typeof pcshEncDeptResolveByNumber === 'function') dep = pcshEncDeptResolveByNumber(deptLabelOrId);
+  if (!dep && typeof pcshEncDeptById === 'function') dep = pcshEncDeptById(deptLabelOrId);
+  if (!dep || typeof pcshEncGetPortalUnit !== 'function') return '';
+  var pu = pcshEncGetPortalUnit(dep.id);
+  if (!pu) return '';
+  var emails = [];
+  (pu.residents || []).forEach(function (r) {
+    if (!pcshResidenteRecibeAvisoVisita(r, pu.unitUse)) return;
+    var em = String((r && r.email) || '').trim();
+    if (em && emails.indexOf(em) < 0) emails.push(em);
+  });
+  return emails.join(',');
+}
+function pcshHtmlCorreoIngresoVisita(v) {
+  v = v || {};
+  var depto = typeof pcshVisitDeptLabelDisplay === 'function' ? pcshVisitDeptLabelDisplay(v.deptLabel) : v.deptLabel || '—';
+  var ingreso = typeof fmtVisDate === 'function' ? fmtVisDate(v.at) : v.at || '—';
+  var filas = [
+    { k: 'Unidad', v: depto || '—' },
+    { k: 'Visitante', v: v.visitor || '—' },
+    { k: 'Ingreso', v: ingreso }
+  ];
+  if (v.vehicular && v.plate) filas.push({ k: 'Patente', v: v.plate });
+  return pcshHtmlAvisoOperativo({
+    tono: '#3b3f44',
+    titulo: 'Ingreso de visita',
+    saludo: 'Estimado/a residente de la unidad ' + (depto || '—') + ':',
+    mensaje: 'Se registró el ingreso de una visita particular a su unidad.',
+    filas: filas,
+    cierre: 'Ante cualquier consulta, comuníquese con conserjería.'
+  });
+}
+function pcshTextoCorreoIngresoVisita(v) {
+  v = v || {};
+  var depto = typeof pcshVisitDeptLabelDisplay === 'function' ? pcshVisitDeptLabelDisplay(v.deptLabel) : v.deptLabel || '—';
+  var ingreso = typeof fmtVisDate === 'function' ? fmtVisDate(v.at) : v.at || '—';
+  var texto =
+    'Estimado/a residente de la unidad ' + (depto || '—') + ':\n\n' +
+    'Se registró el ingreso de una visita particular a su unidad.\n\n' +
+    'Unidad: ' + (depto || '—') + '\n' +
+    'Visitante: ' + (v.visitor || '—') + '\n' +
+    'Ingreso: ' + ingreso;
+  if (v.vehicular && v.plate) texto += '\nPatente: ' + v.plate;
+  return texto + '\n\nAnte cualquier consulta, comuníquese con conserjería.';
+}
+function pcshVisNotificarIngresoParticular(v) {
+  if (!v || v.visitKind === 'proveedor') return;
+  var mail = pcshCorreosAvisoVisitaUnidad(v.deptLabel);
+  var depto = typeof pcshVisitDeptLabelDisplay === 'function' ? pcshVisitDeptLabelDisplay(v.deptLabel) : v.deptLabel || '';
+  if (!mail) {
+    showMsg('Ingreso registrado. La unidad no tiene correos de aviso (se excluyen visitas frecuentes).', 'warn');
+    return;
+  }
+  if (typeof pcshEnviarCorreoPorGestion !== 'function') return;
+  pcshEnviarCorreoPorGestion({
+    to: mail,
+    cc: 'conserjeria.wm815@gmail.com',
+    asunto: 'Ingreso de visita — Depto ' + depto,
+    texto: pcshTextoCorreoIngresoVisita(v),
+    html: pcshHtmlCorreoIngresoVisita(v),
+    origen: 'conserjeria-visita',
+    refId: String(v.id || ''),
+    fase: 'ingreso'
+  }).then(function (r) {
+    if (r && r.exito) showMsg('Aviso de ingreso enviado a la unidad.', 'success');
+    else showMsg('El ingreso quedó registrado. No se pudo enviar el aviso por correo.', 'warn');
+  });
+}
 async function pcshEncolarCorreoOperativoGestion(job) {
   var fs = window.pcshMainDb || (typeof db !== 'undefined' ? db : null);
   if (!fs || typeof fs.collection !== 'function' || typeof firebase === 'undefined') {
@@ -21879,7 +21944,7 @@ async function pcshEncolarCorreoOperativoGestion(job) {
     texto: job.texto,
     html: job.html || '',
     createdAt: new Date().toISOString(),
-    status: 'pending',
+    status: 'html',
     origen: job.origen || 'conserjeria-operativo',
     refId: job.refId || '',
     fase: job.fase || ''
@@ -21898,6 +21963,103 @@ async function pcshEncolarCorreoOperativoGestion(job) {
     });
   });
   return { encolado: true };
+}
+function pcshValorFirestore(v) {
+  if (v == null) return { nullValue: null };
+  if (typeof v === 'string') return { stringValue: v };
+  if (typeof v === 'boolean') return { booleanValue: v };
+  if (typeof v === 'number') return { doubleValue: v };
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(pcshValorFirestore) } };
+  if (typeof v === 'object') {
+    var fields = {};
+    Object.keys(v).forEach(function (k) { fields[k] = pcshValorFirestore(v[k]); });
+    return { mapValue: { fields: fields } };
+  }
+  return { stringValue: String(v) };
+}
+function pcshLeerSesionCorreoGestion() {
+  return new Promise(function (resolve) {
+    var cfg = window.__PCSH_GESTION_MAIL__ && window.__PCSH_GESTION_MAIL__.firebase;
+    var apiKey = cfg && cfg.apiKey;
+    if (!apiKey || !window.indexedDB) {
+      resolve(null);
+      return;
+    }
+    var req;
+    try { req = indexedDB.open('firebaseLocalStorageDb'); } catch (e) {
+      resolve(null);
+      return;
+    }
+    req.onerror = function () { resolve(null); };
+    req.onsuccess = function () {
+      try {
+        var base = req.result;
+        if (!base.objectStoreNames.contains('firebaseLocalStorage')) {
+          resolve(null);
+          return;
+        }
+        var tx = base.transaction('firebaseLocalStorage', 'readonly');
+        var all = tx.objectStore('firebaseLocalStorage').getAll();
+        all.onerror = function () { resolve(null); };
+        all.onsuccess = function () {
+          var rows = all.result || [];
+          var i, row, key, val;
+          for (i = 0; i < rows.length; i++) {
+            row = rows[i] || {};
+            key = String(row.fbase_key || '');
+            val = row.value || null;
+            if (key.indexOf(apiKey) >= 0 && val && val.stsTokenManager && (val.stsTokenManager.accessToken || val.stsTokenManager.refreshToken)) {
+              resolve(val);
+              return;
+            }
+          }
+          resolve(null);
+        };
+      } catch (e2) { resolve(null); }
+    };
+  });
+}
+async function pcshIdTokenCorreoGestion() {
+  var ses = await pcshLeerSesionCorreoGestion();
+  if (!ses || !ses.stsTokenManager) return '';
+  var access = ses.stsTokenManager.accessToken || '';
+  var exp = Number(ses.stsTokenManager.expirationTime) || 0;
+  if (access && exp > Date.now() + 60000) return access;
+  var refresh = ses.stsTokenManager.refreshToken || '';
+  var apiKey = window.__PCSH_GESTION_MAIL__.firebase.apiKey;
+  if (!refresh) return '';
+  var res = await fetch('https://securetoken.googleapis.com/v1/token?key=' + encodeURIComponent(apiKey), {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: 'grant_type=refresh_token&refresh_token=' + encodeURIComponent(refresh)
+  });
+  if (!res.ok) return '';
+  var json = await res.json();
+  return json.id_token || '';
+}
+async function pcshEscribirMailConSesion(mailData, idToken) {
+  var fields = {
+    to: pcshValorFirestore(mailData.to),
+    message: pcshValorFirestore(mailData.message),
+    createdBy: { stringValue: 'conserjeria-automatico' },
+    status: { stringValue: 'pending' },
+    tipo: { stringValue: 'HTML' },
+    origen: { stringValue: mailData.origen || 'conserjeria-operativo' },
+    createdAt: { timestampValue: new Date().toISOString() }
+  };
+  if (mailData.cc) fields.cc = pcshValorFirestore(mailData.cc);
+  var res = await fetch('https://firestore.googleapis.com/v1/projects/administracion-41391/databases/(default)/documents/mail', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: 'Bearer ' + idToken
+    },
+    body: JSON.stringify({ fields: fields })
+  });
+  if (!res.ok) throw new Error('mail ' + res.status);
+  var json = await res.json();
+  var name = String(json.name || '');
+  return name.split('/').pop();
 }
 async function pcshEnviarCorreoPorGestion(opts) {
   opts = opts || {};
@@ -21922,6 +22084,15 @@ async function pcshEnviarCorreoPorGestion(opts) {
     origen: opts.origen || 'conserjeria-operativo'
   };
   if (opts.cc) mailData.cc = opts.cc;
+  try {
+    var idToken = await pcshIdTokenCorreoGestion();
+    if (idToken) {
+      var docId = await pcshEscribirMailConSesion(mailData, idToken);
+      if (docId) return { exito: true, docId: docId, via: 'mail' };
+    }
+  } catch (eSes) {
+    console.warn('[correo] sesión de Gestión', eSes);
+  }
   try {
     if (typeof firebase === 'undefined' || !firebase.firestore) throw new Error('Firebase no cargado');
     var app = typeof pcshBodegaAppAdministracion === 'function' ? pcshBodegaAppAdministracion() : null;
@@ -21959,7 +22130,7 @@ function pcshEncEnviarAvisoAutomatico(e, kind) {
       ? 'Encomienda en conserjería — Depto ' + num
       : 'Confirmación retiro encomienda — Depto ' + num;
   if (!mail) {
-    showMsg('No hay correo del residente. El aviso automático no se envió.', 'warn');
+    showMsg('No hay correos de aviso en la unidad. En habitacional se avisa a propietario y familiares; en arriendo, solo a arrendatarios. Las visitas frecuentes no reciben el correo.', 'warn');
     return;
   }
   pcshEnviarCorreoPorGestion({
@@ -21994,8 +22165,6 @@ function pcshEncBodyText(e, kind) {
     resName && resName !== '—'
       ? 'Estimado/a ' + resName + ', residente del domicilio ' + depto + ':'
       : 'Estimado/a residente del domicilio ' + depto + ':';
-  var nomRecep = ((e.registradoPor || e.receivedByName || '').trim()) || conserjeNombreVis();
-  var nomRetiroConserje = ((e.retiroRegistradoPor || '').trim()) || conserjeNombreVis();
   var notifTs = new Date().toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'medium' });
   var sig =
     '\n\n—\nSistema de Gestión - Conserjería\nEdificio WM815\n\nNota: este es un correo automático del Sistema de Gestión. No es necesario responder.\n\nCuidemos el Medio Ambiente, por favor, no imprima este E-Mail si no es necesario.\n';
@@ -22013,9 +22182,6 @@ function pcshEncBodyText(e, kind) {
       '\n' +
       'Recepción en conserjería: ' +
       fmtVisDate(e.receivedAt) +
-      '\n' +
-      'Encomienda registrada por: ' +
-      nomRecep +
       '\n' +
       'Hora de notificación: ' +
       notifTs +
@@ -22039,9 +22205,6 @@ function pcshEncBodyText(e, kind) {
     '\n' +
     'Fecha y hora de retiro: ' +
     fmtVisDate(e.entregadoAt || new Date().toISOString()) +
-    '\n' +
-    'Retiro registrado por: ' +
-    nomRetiroConserje +
     '\n' +
     'Hora de notificación: ' +
     notifTs +
