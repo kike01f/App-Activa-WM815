@@ -7334,10 +7334,11 @@ function pcshZonedParts(ms) {
       year: 'numeric',
       month: 'numeric',
       day: 'numeric',
-      hour: 'numeric',
-      minute: 'numeric',
-      second: 'numeric',
-      hour12: false
+      hour: '2-digit',
+      minute: '2-digit',
+      second: '2-digit',
+      hour12: false,
+      hourCycle: 'h23'
     });
   }
   var parts = pcshZonedFmt.formatToParts(new Date(ms));
@@ -7347,16 +7348,34 @@ function pcshZonedParts(ms) {
   var h;
   var mi;
   var s;
+  var dayPeriod = '';
   var i;
   for (i = 0; i < parts.length; i++) {
     var p = parts[i];
     if (p.type === 'year') y = +p.value;
     else if (p.type === 'month') mo = +p.value;
     else if (p.type === 'day') d = +p.value;
-    else if (p.type === 'hour') h = +p.value;
-    else if (p.type === 'minute') mi = +p.value;
-    else if (p.type === 'second') s = +p.value;
+    else if (p.type === 'hour') h = parseInt(String(p.value).replace(/[^\d]/g, ''), 10);
+    else if (p.type === 'minute') mi = parseInt(String(p.value).replace(/[^\d]/g, ''), 10);
+    else if (p.type === 'second') s = parseInt(String(p.value).replace(/[^\d]/g, ''), 10);
+    else if (p.type === 'dayPeriod') dayPeriod = String(p.value || '');
   }
+  if (!isFinite(h)) h = 0;
+  if (!isFinite(mi)) mi = 0;
+  if (!isFinite(s)) s = 0;
+  if (h === 24) {
+    h = 0;
+    var nxt = new Date(Date.UTC(y, mo - 1, d + 1));
+    y = nxt.getUTCFullYear();
+    mo = nxt.getUTCMonth() + 1;
+    d = nxt.getUTCDate();
+  }
+  if (dayPeriod) {
+    var dp = dayPeriod.toLowerCase();
+    if ((dp.indexOf('p') === 0 || dp === 'pm') && h > 0 && h < 12) h += 12;
+    if ((dp.indexOf('a') === 0 || dp === 'am') && h === 12) h = 0;
+  }
+  if (h > 23) h = h % 24;
   return { year: y, month: mo, day: d, hour: h, minute: mi, second: s };
 }
 /** Normaliza `at` / `outAt` de Firestore o string a milisegundos UTC. */
@@ -7377,14 +7396,18 @@ function pcshVisitAtToMs(atRaw) {
   } catch (eTd) {}
   if (typeof atRaw === 'string') {
     var sAt = String(atRaw).trim();
+    if (/[zZ]$/.test(sAt) || /[+-]\d{2}:?\d{2}$/.test(sAt.replace(/\.\d+/, ''))) {
+      var tAbs = Date.parse(sAt);
+      if (isFinite(tAbs)) return tAbs;
+    }
     // ISO sin Z ni offset: no usar new Date() (interpretación = zona del navegador). Misma regla que el ingreso manual (Chile).
     if (
-      /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(:\d{2})?(\.\d+)?$/.test(sAt) &&
+      /^\d{4}-\d{2}-\d{2}[T ]\d{2}:\d{2}(:\d{2})?(\.\d+)?$/.test(sAt) &&
       !/Z$/i.test(sAt) &&
       !/[+-]\d{2}:?\d{2}$/.test(sAt)
     ) {
       var dCh = pcshInstantFromSantiagoDatetimeLocal(sAt, Date.now());
-      if (!isNaN(dCh.getTime())) return dCh.getTime();
+      if (dCh && !isNaN(dCh.getTime())) return dCh.getTime();
     }
     var mCl = sAt.match(/^(\d{1,2})[\/\-](\d{1,2})[\/\-](\d{4})(?:[ T](\d{1,2}):(\d{2})(?::(\d{2}))?)?/);
     if (mCl && typeof pcshInstantFromSantiagoDatetimeLocal === 'function') {
@@ -7434,30 +7457,53 @@ function pcshVisitAtToIso(raw) {
  * @param refMsOpt instante de referencia en ms (típicamente Date.now()); si se omite, se usa ahora.
  */
 function pcshInstantFromSantiagoDatetimeLocal(val, refMsOpt) {
-  var str = String(val || '').trim().replace(/\.\d+/, '').replace(/Z$/, '');
+  var original = String(val || '').trim();
+  if (!original) return new Date(NaN);
+  if (/[zZ]$/.test(original) || /[+-]\d{2}:?\d{2}$/.test(original.replace(/\.\d+$/, ''))) {
+    var abs = new Date(original);
+    if (!isNaN(abs.getTime())) return abs;
+  }
+  var str = original.replace(/\.\d+/, '').replace(/[zZ]$/, '');
   var ref = typeof refMsOpt === 'number' && isFinite(refMsOpt) ? refMsOpt : Date.now();
-  var m = str.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})(?::(\d{2}))?/);
-  if (!m) return new Date(str);
+  var m = str.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})(?::(\d{2}))?/);
+  if (!m) return new Date(NaN);
   var y = +m[1];
   var mo = +m[2];
   var d = +m[3];
   var h = +m[4];
   var mi = +m[5];
   var sec = m[6] != null && m[6] !== '' ? +m[6] : null;
+  if (h === 24) {
+    h = 0;
+    var nx = new Date(Date.UTC(y, mo - 1, d + 1));
+    y = nx.getUTCFullYear();
+    mo = nx.getUTCMonth() + 1;
+    d = nx.getUTCDate();
+  }
   if (sec != null && (sec < 0 || sec > 59)) sec = null;
   var lo = Date.UTC(y, mo - 1, d, 0, 0, 0) - 56 * 3600000;
   var hi = Date.UTC(y, mo - 1, d, 0, 0, 0) + 56 * 3600000;
-  var step = sec != null ? 1000 : 60000;
   var matches = [];
   var t;
-  for (t = lo; t <= hi; t += step) {
+  for (t = lo; t <= hi; t += 60000) {
     if (t < 0) continue;
     var p = pcshZonedParts(t);
     if (p.year !== y || p.month !== mo || p.day !== d || p.hour !== h || p.minute !== mi) continue;
-    if (sec != null && p.second !== sec) continue;
-    matches.push(t);
+    var inst = t - (p.second || 0) * 1000 + (sec != null ? sec * 1000 : 0);
+    if (matches.indexOf(inst) < 0) matches.push(inst);
   }
-  if (!matches.length) return new Date(str);
+  if (!matches.length) {
+    var cand = [3, 4];
+    var k;
+    for (k = 0; k < cand.length; k++) {
+      var guess = Date.UTC(y, mo - 1, d, h + cand[k], mi, sec || 0);
+      var gp = pcshZonedParts(guess);
+      if (gp.year === y && gp.month === mo && gp.day === d && gp.hour === h && gp.minute === mi) {
+        matches.push(guess);
+      }
+    }
+  }
+  if (!matches.length) return new Date(NaN);
   if (matches.length === 1) return new Date(matches[0]);
   var best = matches[0];
   var bestDiff = Math.abs(matches[0] - ref);
@@ -8919,14 +8965,34 @@ function fmtDurSince(iso) {
 var PCSH_VEH_MS_ALLOWED = 5 * 60 * 60 * 1000;
 var PCSH_VEH_MS_WARN_BEFORE_END = 30 * 60 * 1000;
 var PCSH_VEH_MS_GRACE = 15 * 60 * 1000;
+var PCSH_VEH_MS_FINE = PCSH_VEH_MS_ALLOWED + PCSH_VEH_MS_GRACE;
 var PCSH_APP_LOGO_URL = 'https://img.mailinblue.com/8323725/images/content_library/original/6844749040dd0f16c5341248.png';
+function pcshVehStayMs(vOrAt, outAtOpt) {
+  var atRaw = vOrAt && typeof vOrAt === 'object' && !(vOrAt instanceof Date) ? vOrAt.at : vOrAt;
+  var outRaw =
+    arguments.length > 1
+      ? outAtOpt
+      : vOrAt && typeof vOrAt === 'object' && !(vOrAt instanceof Date)
+        ? vOrAt.outAt
+        : null;
+  var t0 = pcshVisitAtToMs(atRaw);
+  if (!isFinite(t0) || t0 <= 0) return NaN;
+  var t1 = outRaw ? pcshVisitAtToMs(outRaw) : Date.now();
+  if (!isFinite(t1)) t1 = Date.now();
+  if (t1 < t0) return NaN;
+  return t1 - t0;
+}
+function pcshVehSuperaUmbralMulta(elapsedMs) {
+  return isFinite(elapsedMs) && elapsedMs >= PCSH_VEH_MS_FINE;
+}
 function pcshVehTrafficPhase(iso) {
   var t0 = pcshVisitAtToMs(iso);
-  if (!isFinite(t0)) return null;
+  if (!isFinite(t0) || t0 <= 0) return null;
   var elapsed = Date.now() - t0;
+  if (!isFinite(elapsed) || elapsed < 0) elapsed = 0;
   var allowed = PCSH_VEH_MS_ALLOWED;
   var yellowStart = allowed - PCSH_VEH_MS_WARN_BEFORE_END;
-  var fineStart = allowed + PCSH_VEH_MS_GRACE;
+  var fineStart = PCSH_VEH_MS_FINE;
   var phase;
   if (elapsed < yellowStart) phase = 'ok';
   else if (elapsed < allowed) phase = 'warn';
@@ -8970,17 +9036,14 @@ function pcshVehStateForMultaParte(v) {
   if (typeof visitIsProveedor === 'function' && visitIsProveedor(v)) return null;
   var allowed = PCSH_VEH_MS_ALLOWED;
   var warnBefore = PCSH_VEH_MS_WARN_BEFORE_END;
-  var fineThreshold = allowed + PCSH_VEH_MS_GRACE;
-  var t0 = pcshVisitAtToMs(v.at);
-  if (!isFinite(t0)) return null;
+  var fineThreshold = PCSH_VEH_MS_FINE;
+  var stay = pcshVehStayMs(v);
+  if (!pcshVehSuperaUmbralMulta(stay)) return null;
   if (!v.outAt) {
     var live = pcshVehTrafficPhase(v.at);
-    return live && live.phase === 'fine' ? live : null;
+    if (!live || live.phase !== 'fine' || !pcshVehSuperaUmbralMulta(live.elapsed)) return null;
+    return live;
   }
-  var t1 = pcshVisitAtToMs(v.outAt);
-  if (!isFinite(t1) || t1 < t0) return null;
-  var stay = t1 - t0;
-  if (stay <= fineThreshold) return null;
   return {
     phase: 'fine',
     elapsed: stay,
@@ -9328,8 +9391,11 @@ function pcshVisAsegurarNovedadMultaEstacionamiento(v, opts) {
         await pcshCorregirFechaNovedadMultaVisita(merged);
         return Number(merged.multaNovedadCorrelativo);
       }
+      var stayLive = typeof pcshVehStayMs === 'function' ? pcshVehStayMs(merged) : NaN;
+      if (typeof pcshVehSuperaUmbralMulta === 'function' && !pcshVehSuperaUmbralMulta(stayLive)) return null;
       var st2 = typeof pcshVehStateForMultaParte === 'function' ? pcshVehStateForMultaParte(merged) : st;
       if (!st2 || st2.phase !== 'fine') return null;
+      if (typeof pcshVehSuperaUmbralMulta === 'function' && !pcshVehSuperaUmbralMulta(st2.elapsed)) return null;
       var fhNov = pcshFechaHoraParaNovedadMultaVisita(merged);
       if (!fhNov || !fhNov.fecha) {
         console.warn('[visitas] multa sin fecha de ingreso/salida, no se crea novedad. visita=', vid);
@@ -9711,7 +9777,13 @@ function pcshVisTrafficAlertsTick() {
     snap[id] = ph;
     if (prev === 'ok' && ph === 'warn') pcshVisPlayTrafficAlert('warn');
     else if (prev === 'warn' && ph === 'grace') pcshVisPlayTrafficAlert('grace');
-    else if (ph === 'fine' && prev !== 'fine' && typeof pcshVisAsegurarNovedadMultaEstacionamiento === 'function') {
+    else if (
+      ph === 'fine' &&
+      prev !== 'fine' &&
+      typeof pcshVehStateForMultaParte === 'function' &&
+      pcshVehStateForMultaParte(v) &&
+      typeof pcshVisAsegurarNovedadMultaEstacionamiento === 'function'
+    ) {
       pcshVisAsegurarNovedadMultaEstacionamiento(v);
     }
   }
@@ -10036,7 +10108,7 @@ function bindOneVisitForm(form) {
     var fd = new FormData(form);
     var ing = (fd.get('visitIngreso') || 'persona').toString();
     var vehOk = form.querySelector('.pcsh-vis-veh') && form.querySelector('.pcsh-vis-veh').checked;
-    var atStr = localDatetimeValue(new Date());
+    var atNow = new Date();
     var pkDigits = vehOk ? pcshDigitsOnly(String(fd.get('parkingCodeNum') || ''), 6) : '';
     var pkCanon = vehOk && pkDigits ? 'EV-' + pkDigits : '';
     if (vehOk && pkCanon && visitParkingClashesActive(pkCanon, form)) {
@@ -10066,7 +10138,7 @@ function bindOneVisitForm(form) {
     }
     clearVisitParkingFieldError(form);
     var rec = {
-      at: pcshInstantFromSantiagoDatetimeLocal(String(atStr), Date.now()).toISOString(),
+      at: atNow.toISOString(),
       outAt: null,
       visitKind: ing === 'proveedor' ? 'proveedor' : 'persona',
       deptLabel: (fd.get('deptLabel') || '').toString(),
