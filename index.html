@@ -3111,6 +3111,12 @@
             <select id="conserje" name="conserje" required></select>
           </div>
           </div>
+          <div class="form-group" id="novedadUnidadWrap" hidden>
+            <label for="novedadUnidad">Unidad / departamento <span style="color:#dc2626">*</span></label>
+            <input type="text" id="novedadUnidad" name="unidad" inputmode="numeric" placeholder="Ej: 1914" autocomplete="off" list="novedadUnidadDatalist" maxlength="8">
+            <datalist id="novedadUnidadDatalist"></datalist>
+            <p class="page-desc" style="margin:0.35rem 0 0;font-size:0.78rem;line-height:1.35;">Obligatorio en reclamos y multas. Indique el número real de la unidad, no el correlativo de la novedad.</p>
+          </div>
           <div class="form-group">
             <label for="texto">Descripción</label>
             <textarea id="texto" name="text" rows="4" required placeholder="Detalle de la novedad…" autocomplete="off" autocapitalize="none" spellcheck="false" autocorrect="off"></textarea>
@@ -5999,6 +6005,11 @@
       <label for="pcshEditNovCat">Categoría</label>
       <select id="pcshEditNovCat"></select>
     </div>
+    <div class="form-group" id="pcshEditNovUnidadWrap" hidden>
+      <label for="pcshEditNovUnidad">Unidad / departamento <span style="color:#dc2626">*</span></label>
+      <input type="text" id="pcshEditNovUnidad" inputmode="numeric" placeholder="Ej: 1914" autocomplete="off" list="novedadUnidadDatalist" maxlength="8">
+      <p class="page-desc" style="margin:0.35rem 0 0;font-size:0.78rem;line-height:1.35;">Obligatorio en reclamos y multas para no crear el caso con una unidad incorrecta.</p>
+    </div>
     <div class="form-group">
       <label for="pcshEditNovConserje">Conserje / referencia</label>
       <select id="pcshEditNovConserje"></select>
@@ -6860,6 +6871,10 @@ function pcshApplyCatalogoNovedades(raw) {
   pcshFillSelectEtiquetasNovedad(document.getElementById('filtroCategoria'), { todas: true, admin: true });
   pcshFillSelectEtiquetasNovedad(document.getElementById('filtroCategoriaGestion'), { todas: true, admin: true });
   pcshFillSelectEtiquetasNovedad(document.getElementById('pcshEditNovCat'), {});
+  if (typeof pcshNovedadToggleUnidadCampo === 'function') {
+    pcshNovedadToggleUnidadCampo('novedadCategoria', 'novedadUnidadWrap', 'novedadUnidad');
+    pcshNovedadToggleUnidadCampo('pcshEditNovCat', 'pcshEditNovUnidadWrap', 'pcshEditNovUnidad');
+  }
   if (typeof pcshRenderDashboard === 'function') pcshRenderDashboard();
   if (typeof novedades !== 'undefined' && novedades && novedades.length) {
     window._pcshNovSkipAnim = true;
@@ -15670,6 +15685,11 @@ function abrirModalEditarNovedadAdmin(cor) {
     if (catSel) catSel.value = nov.categoria || 'General';
     if (hint) hint.textContent = 'Edite los campos y guarde. Válido también para novedades de turnos ya cerrados.';
   }
+  var editUnid = document.getElementById('pcshEditNovUnidad');
+  if (editUnid) editUnid.value = nov.depto ? String(nov.depto) : '';
+  if (typeof pcshNovedadToggleUnidadCampo === 'function') {
+    pcshNovedadToggleUnidadCampo('pcshEditNovCat', 'pcshEditNovUnidadWrap', 'pcshEditNovUnidad');
+  }
   document.getElementById('pcshEditNovCorrelativo').value = String(cor);
   document.getElementById('pcshEditNovTexto').value = nov.texto || '';
   document.getElementById('pcshEditNovNotaInt').value = (typeof pcshNotaInternaVisibleNovedad === 'function'
@@ -15712,17 +15732,30 @@ function pcshEsCategoriaMulta(cat) {
   var s = pcshNormCatMulta(cat);
   return s === 'multa' || s.indexOf('multa') === 0;
 }
-function pcshInferirDeptoTextoNovedad(texto) {
+function pcshInferirDeptoTextoNovedad(texto, meta) {
   var s = String(texto || '');
-  var re = /(?:dpto\.?|depto\.?|departamento|unidad|#)\s*(\d{2,4})\b/i;
+  s = s.replace(/\b\d{1,2}:\d{2}(?::\d{2})?\b/g, ' ');
+  s = s.replace(/\b\d{1,2}\s*[;hH]\s*\d{2}\b/g, ' ');
+  s = s.replace(/\b\d{1,2}\.?\d{3}\.?\d{3}-[\dkK]\b/g, ' ');
+  s = s.replace(/\+?56\s*9[\s-]?\d{4}[\s-]?\d{4}/g, ' ');
+  s = s.replace(/(?:novedad|libro|folio|reclamo|multa|correlativo|caso|aviso)\s*#?\s*\d{2,6}/gi, ' ');
+  s = s.replace(/#\s*\d{2,6}/g, ' ');
+  var re = /(?:dpto\.?|depto\.?|departamento|dept\.?|unidad)\s*(?:n[o°º.]?\s*|nro\.?\s*|num(?:ero)?\s*)?(\d{2,4}(?:-[a-zA-Z])?)\b/i;
   var m = s.match(re);
-  if (m) return m[1];
-  var m2 = s.match(/\b(\d{3,4})\b/);
-  return m2 ? m2[1] : '';
+  var depto = m ? String(m[1]) : '';
+  if (!depto) return '';
+  meta = meta || {};
+  var d = depto.replace(/\D/g, '');
+  var cand = [meta.numeroLibro, meta.novedadLibro, meta.correlativo];
+  var i;
+  for (i = 0; i < cand.length; i++) {
+    if (cand[i] != null && String(cand[i]) !== '' && isFinite(Number(cand[i])) && String(Number(cand[i])) === String(Number(d))) return '';
+  }
+  return depto;
 }
 function pcshHuellaNovedadMulta(n) {
   if (!n) return '';
-  return [n.correlativo, n.fecha, n.hora, n.categoria, n.texto, n.notaInterna, n.conserje].join('|');
+  return [n.correlativo, n.fecha, n.hora, n.categoria, n.texto, n.notaInterna, n.conserje, n.depto].join('|');
 }
 async function pcshPublicarMultaDesdeNovedad(n) {
   if (!n || n.turnoSep || n.tipo === 'resumen_diario' || typeof db === 'undefined' || !db) return;
@@ -15754,7 +15787,7 @@ async function pcshPublicarMultaDesdeNovedad(n) {
       texto: n.texto || '',
       categoria: n.categoria || 'Multa',
       notaInterna: n.notaInterna || '',
-      depto: n.depto || pcshInferirDeptoTextoNovedad(n.texto),
+      depto: pcshDeptoNovedadParaPublicar(n),
       patente: n.patente || '',
       parkingCode: n.parkingCode || '',
       visitaId: n.visitaId || '',
@@ -15885,9 +15918,102 @@ function pcshEsCategoriaReclamo(cat) {
   var s = pcshNormCatMulta(cat);
   return s === 'reclamos' || s === 'reclamo' || s.indexOf('reclamo') === 0;
 }
+function pcshCatRequiereUnidad(cat) {
+  return (typeof pcshEsCategoriaReclamo === 'function' && pcshEsCategoriaReclamo(cat))
+    || (typeof pcshEsCategoriaMulta === 'function' && pcshEsCategoriaMulta(cat));
+}
+function pcshListaUnidadesConocidasNovedad() {
+  var out = {};
+  function add(v) {
+    var n = String(v == null ? '' : v).trim().replace(/\s+/g, '');
+    if (!n) return;
+    out[n] = true;
+    var d = n.replace(/\D/g, '');
+    if (d) out[d] = true;
+  }
+  try {
+    if (typeof pcshGetDeptNumbersForConserjeria === 'function') {
+      (pcshGetDeptNumbersForConserjeria() || []).forEach(add);
+    }
+  } catch (eD) {}
+  try {
+    if (typeof pcshReadWm815UnitsArray === 'function') {
+      (pcshReadWm815UnitsArray() || []).forEach(function (u) {
+        add(u && (u.unitNumber != null ? u.unitNumber : (u.number != null ? u.number : u.depto)));
+      });
+    }
+  } catch (eW) {}
+  return out;
+}
+function pcshRellenarDatalistUnidadesNovedad() {
+  var dl = document.getElementById('novedadUnidadDatalist');
+  if (!dl) return;
+  var mapa = pcshListaUnidadesConocidasNovedad();
+  var nums = Object.keys(mapa).filter(function (k) { return /^\d{2,4}$/.test(k); }).sort(function (a, b) { return Number(a) - Number(b); });
+  if (nums.length > 500) nums = nums.slice(0, 500);
+  dl.innerHTML = nums.map(function (n) { return '<option value="' + n + '"></option>'; }).join('');
+}
+function pcshNormalizarUnidadNovedad(v) {
+  var s = String(v == null ? '' : v).trim().replace(/\s+/g, '');
+  s = s.replace(/^#/, '');
+  s = s.replace(/^(?:dpto|depto|departamento|unidad)\.?\s*/i, '');
+  return s;
+}
+function pcshValidarUnidadNovedad(v) {
+  var s = pcshNormalizarUnidadNovedad(v);
+  if (!/^\d{2,4}(?:-[A-Za-z])?$/.test(s)) {
+    return { ok: false, msg: 'Indique el número de la unidad (ej. 1914). Es obligatorio para reclamos y multas.' };
+  }
+  var mapa = pcshListaUnidadesConocidasNovedad();
+  var keys = Object.keys(mapa);
+  if (keys.length) {
+    var n = s.replace(/\D/g, '');
+    if (!mapa[s] && !mapa[n]) {
+      return { ok: false, msg: 'La unidad ' + s + ' no figura en ocupación. Revise el número antes de registrar.' };
+    }
+  }
+  return { ok: true, depto: s };
+}
+function pcshDeptoNovedadParaPublicar(n) {
+  var expl = pcshNormalizarUnidadNovedad(n && n.depto);
+  if (expl) return expl;
+  return (typeof pcshInferirDeptoTextoNovedad === 'function' ? (pcshInferirDeptoTextoNovedad(n && n.texto, n) || '') : '');
+}
+function pcshNovedadToggleUnidadCampo(selId, wrapId, inpId) {
+  var sel = document.getElementById(selId || 'novedadCategoria');
+  var wrap = document.getElementById(wrapId || 'novedadUnidadWrap');
+  var inp = document.getElementById(inpId || 'novedadUnidad');
+  var need = !!(sel && pcshCatRequiereUnidad(sel.value));
+  if (wrap) wrap.hidden = !need;
+  if (inp) {
+    if (need) inp.setAttribute('required', 'required');
+    else {
+      inp.removeAttribute('required');
+      if (selId === 'novedadCategoria' || !selId) inp.value = '';
+    }
+  }
+  if (need) pcshRellenarDatalistUnidadesNovedad();
+}
+(function pcshInitCampoUnidadNovedad() {
+  var cat = document.getElementById('novedadCategoria');
+  var editCat = document.getElementById('pcshEditNovCat');
+  if (cat && !cat._pcshUnidadBound) {
+    cat._pcshUnidadBound = true;
+    cat.addEventListener('change', function () {
+      pcshNovedadToggleUnidadCampo('novedadCategoria', 'novedadUnidadWrap', 'novedadUnidad');
+    });
+  }
+  if (editCat && !editCat._pcshUnidadBound) {
+    editCat._pcshUnidadBound = true;
+    editCat.addEventListener('change', function () {
+      pcshNovedadToggleUnidadCampo('pcshEditNovCat', 'pcshEditNovUnidadWrap', 'pcshEditNovUnidad');
+    });
+  }
+  pcshNovedadToggleUnidadCampo('novedadCategoria', 'novedadUnidadWrap', 'novedadUnidad');
+})();
 function pcshHuellaNovedadReclamo(n) {
   if (!n) return '';
-  return [n.correlativo, n.fecha, n.hora, n.categoria, n.texto, n.notaInterna, n.conserje].join('|');
+  return [n.correlativo, n.fecha, n.hora, n.categoria, n.texto, n.notaInterna, n.conserje, n.depto].join('|');
 }
 function pcshEtiquetaAdminGestion(valor) {
   return 'Admin';
@@ -15939,7 +16065,7 @@ async function pcshPublicarReclamoDesdeNovedad(n) {
       texto: n.texto || '',
       categoria: n.categoria || 'Reclamos',
       notaInterna: n.notaInterna || '',
-      depto: pcshInferirDeptoTextoNovedad(n.texto),
+      depto: pcshDeptoNovedadParaPublicar(n),
       relevante: !!(n.relevante || n.destacada),
       activa: true,
       huella: pcshHuellaNovedadReclamo(n),
@@ -17850,6 +17976,7 @@ function renderNovedades() {
     var numStr = numeros[n.correlativo] != null ? String(numeros[n.correlativo]) : '';
     var meta = '#' + escapeHtml(numStr) +
       ' · ' + escapeHtml(normalizarFecha(n.fecha)) + ' · ' + escapeHtml(n.hora) + ' · ' + escapeHtml(n.conserje) +
+      (n.depto ? ' · Unid. ' + escapeHtml(String(n.depto)) : '') +
       ' ' + badgeHtml +
       (typeof pcshHtmlEstadoReclamoGestion === 'function' ? pcshHtmlEstadoReclamoGestion(n) : '') +
       (typeof pcshHtmlEstadoMultaGestion === 'function' ? pcshHtmlEstadoMultaGestion(n) : '') +
@@ -18302,6 +18429,25 @@ document.getElementById('pcshEditNovGuardar').onclick = function () {
   if (!nov.esAdmin) {
     var cat = (document.getElementById('pcshEditNovCat') && document.getElementById('pcshEditNovCat').value) || 'General';
     payload.categoria = cat;
+    if (typeof pcshCatRequiereUnidad === 'function' && pcshCatRequiereUnidad(cat)) {
+      var chkEd = typeof pcshValidarUnidadNovedad === 'function'
+        ? pcshValidarUnidadNovedad(document.getElementById('pcshEditNovUnidad') && document.getElementById('pcshEditNovUnidad').value)
+        : { ok: false, msg: 'Indique el número de la unidad.' };
+      if (!chkEd.ok) {
+        showMsg(chkEd.msg, 'error');
+        return;
+      }
+      payload.depto = chkEd.depto;
+    }
+  } else if (typeof pcshCatRequiereUnidad === 'function' && pcshCatRequiereUnidad(nov.categoria)) {
+    var chkAd = typeof pcshValidarUnidadNovedad === 'function'
+      ? pcshValidarUnidadNovedad(document.getElementById('pcshEditNovUnidad') && document.getElementById('pcshEditNovUnidad').value)
+      : { ok: false, msg: 'Indique el número de la unidad.' };
+    if (!chkAd.ok) {
+      showMsg(chkAd.msg, 'error');
+      return;
+    }
+    payload.depto = chkAd.depto;
   }
   updateNovedad(cor, payload).then(function () {
     cerrarModalEditarNovedadAdmin();
@@ -18331,6 +18477,19 @@ document.getElementById('novedadForm').onsubmit = function (e) {
   var notaOptEl = document.getElementById('novedadNotaOpcional');
   var notaInt = notaOptEl && notaOptEl.value.trim() ? pcshNovFormatearTextoRegistro(notaOptEl.value) : '';
   if (!texto) return;
+  var deptoNov = '';
+  if (typeof pcshCatRequiereUnidad === 'function' && pcshCatRequiereUnidad(cat)) {
+    var chkUn = typeof pcshValidarUnidadNovedad === 'function'
+      ? pcshValidarUnidadNovedad(document.getElementById('novedadUnidad') && document.getElementById('novedadUnidad').value)
+      : { ok: false, msg: 'Indique el número de la unidad.' };
+    if (!chkUn.ok) {
+      showMsg(chkUn.msg, 'error');
+      var inpUn = document.getElementById('novedadUnidad');
+      if (inpUn) inpUn.focus();
+      return;
+    }
+    deptoNov = chkUn.depto;
+  }
   getCorrelativo().then(function (cor) {
     var nov = {
       correlativo: cor,
@@ -18341,7 +18500,8 @@ document.getElementById('novedadForm').onsubmit = function (e) {
       texto: texto,
       esAdmin: !!esModoAdmin() && !conserjeActivo,
       categoria: cat,
-      notaInterna: notaInt || undefined
+      notaInterna: notaInt || undefined,
+      depto: deptoNov || undefined
     };
     addNovedad(nov).then(function () { return setCorrelativo(cor + 1); }).then(function () {
       document.getElementById('novedadForm').reset();
@@ -18350,10 +18510,17 @@ document.getElementById('novedadForm').onsubmit = function (e) {
         if ([].some.call(sel.options, function (o) { return o.value === 'General'; })) sel.value = 'General';
         else if (sel.options.length) sel.selectedIndex = 0;
       }
+      if (typeof pcshNovedadToggleUnidadCampo === 'function') {
+        pcshNovedadToggleUnidadCampo('novedadCategoria', 'novedadUnidadWrap', 'novedadUnidad');
+      }
       renderConserjeSelect(conserjes);
-      showMsg(typeof pcshEsCategoriaMulta === 'function' && pcshEsCategoriaMulta(cat)
-        ? 'Novedad registrada y enviada al módulo de Multas de Gestión (pendiente de tratamiento).'
-        : 'Novedad registrada.', 'success');
+      var msgOk = 'Novedad registrada.';
+      if (typeof pcshEsCategoriaMulta === 'function' && pcshEsCategoriaMulta(cat)) {
+        msgOk = 'Novedad registrada y enviada al módulo de Multas de Gestión (unidad ' + deptoNov + ').';
+      } else if (typeof pcshEsCategoriaReclamo === 'function' && pcshEsCategoriaReclamo(cat)) {
+        msgOk = 'Novedad registrada y enviada al módulo de Reclamos de Gestión (unidad ' + deptoNov + ').';
+      }
+      showMsg(msgOk, 'success');
     });
   });
 };
