@@ -4661,11 +4661,6 @@
                     <button type="button" id="vlcomClearAllDataBtn" class="btn btn-danger" style="width: 100%; max-width: 280px; font-size: 0.9rem; padding: 8px 16px;"><i class="fa-solid fa-trash" aria-hidden="true"></i> Limpiar todos los registros</button>
                     <input type="file" id="importResidentsExcelFile" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel" style="display:none" aria-hidden="true" />
                 </div>
-                <p style="margin: 8px 0 0 0; font-size: 0.8rem; color: var(--secondary-text); max-width: 720px; line-height: 1.4;">
-                    Importación Excel: hojas <strong>Residentes Detallado</strong> o <strong>Residentes</strong>; fusión por email o RUT. Unidad inexistente se crea desde la fila.
-                    <strong>Al guardar unidades</strong> (registro o edición) se sincroniza automáticamente con <strong>gestion-wm</strong> vía el mismo documento Firestore. <strong>Enviar unidades a Gestión WM</strong> fuerza otro envío al documento <code style="font-size:0.75rem;">cgSites/…/kv/wm815_units</code> (proyecto <code style="font-size:0.75rem;">conserjeriawm2</code>), usado por Gestión para ocupación, mapa y autocompletado de residentes. <strong>Traer desde Gestión WM</strong> hace lo inverso (rescate); si está activo, puede sincronizar también <code style="font-size:0.75rem;">pcsh_wm815/state</code> en esta app.
-                    <strong style="color: var(--danger-color);">Limpiar todos los registros</strong> elimina unidades, residentes y residentes anteriores (irreversible).
-                </p>
             </section>
         </div>
 
@@ -4786,7 +4781,6 @@
                             <div id="pcshBienvenidaPendientesList" style="display:flex; flex-wrap:wrap; gap:0.3rem; max-height:160px; overflow:auto;"><span style="font-size:0.78rem;color:var(--secondary-text);">Cargando…</span></div>
                         </div>
                     </div>
-                    <p style="margin: 0.55rem 0 0 0; font-size: 0.72rem; color: var(--secondary-text);">Pulse un número para filtrar el mapa y abrir la unidad. Si hay un solo correo, se envía a esa persona; si hay varios, puede elegir uno o enviar a todos los de esa unidad. «Enviada» solo aparece si Gestión WM escribió el correo. Destinatarios: propietarios, arrendatarios y familiares. Copia (CC) a conserjería: conserjeria.wm815@gmail.com. Las visitas frecuentes/autorizadas quedan excluidas.</p>
                 </div>
                 <div style="margin-top: 15px; display: flex; justify-content: flex-end;">
                     <button type="button" class="btn btn-primary" onclick="downloadPdfUnidadesConArrendatario()" title="Solo unidades con propietario AssetPlan y arrendatarios agregados en las últimas 2 semanas" style="font-size: 0.8rem; padding: 6px 12px;">
@@ -8214,6 +8208,9 @@ function pcshVisitasResolverIdentificacion(rec, rutRaw, docExtranjero, onDone) {
 }
 
 function pcshVisitasCommitIngreso(form, rec, veh, vex) {
+  if (rec && rec.visitorRut && !rec.visitorRutKey) {
+    rec.visitorRutKey = pcshVisitIdentityKeyFromRecord(rec);
+  }
   db.collection('visitas')
     .add(rec)
     .then(function () {
@@ -8281,26 +8278,83 @@ function pcshVisitIdentityKeyFromRutField(value, docExtranjero) {
   return pcshRutNormalizeChileKey(value);
 }
 
+function pcshVisitIdentityKeysFromValue(value, docExtranjero) {
+  var raw = String(value == null ? '' : value).trim();
+  var keys = {};
+  function add(x) {
+    var s = String(x == null ? '' : x).trim().toLowerCase();
+    if (s) keys[s] = true;
+  }
+  add(raw);
+  add(raw.replace(/[.\s]/g, ''));
+  if (docExtranjero) return Object.keys(keys);
+  var ch = pcshRutNormalizeChileKey(raw);
+  if (ch) {
+    add(ch);
+    add(ch.replace(/-/g, ''));
+  }
+  if (typeof pcshRutFormatLive === 'function' && raw) add(pcshRutFormatLive(raw));
+  return Object.keys(keys);
+}
+
 function pcshVisitIdentityKeyFromRecord(v) {
   if (!v) return '';
+  if (v.visitorRutKey) return String(v.visitorRutKey).trim().toLowerCase();
   var r = v.visitorRut != null ? String(v.visitorRut) : '';
   if (v.docExtranjero === true) return String(r).trim().toLowerCase();
   var ch = pcshRutNormalizeChileKey(r);
-  if (ch) return ch;
+  if (ch) return ch.toLowerCase();
   return String(r).trim().toLowerCase();
 }
 
-/** Última visita en `visitasList` con el mismo identificador (por fecha `at`). */
+function pcshVisitIdentityKeysFromRecord(v) {
+  if (!v) return [];
+  var keys = {};
+  function addList(arr) {
+    (arr || []).forEach(function (k) { if (k) keys[String(k).toLowerCase()] = true; });
+  }
+  if (v.visitorRutKey) addList([v.visitorRutKey]);
+  addList(pcshVisitIdentityKeysFromValue(v.visitorRut, v.docExtranjero === true));
+  if (v.visitContactRut) addList(pcshVisitIdentityKeysFromValue(v.visitContactRut, v.contactDocExtranjero === true));
+  return Object.keys(keys);
+}
+
+function pcshVisPoolParaAutofill() {
+  var byId = {};
+  function add(v) {
+    if (!v) return;
+    var id = v.id ? String(v.id) : '';
+    var k = id || ('tmp_' + String(v.at || '') + '_' + String(v.visitorRut || ''));
+    var prev = byId[k];
+    if (!prev || pcshVisitAtToMs(v.at) >= pcshVisitAtToMs(prev.at)) byId[k] = v;
+  }
+  (visitasList || []).forEach(add);
+  if (pcshVisConsulta && Array.isArray(pcshVisConsulta.rows)) pcshVisConsulta.rows.forEach(add);
+  if (window._pcshVisAutofillExtra && Array.isArray(window._pcshVisAutofillExtra)) {
+    window._pcshVisAutofillExtra.forEach(add);
+  }
+  return Object.keys(byId).map(function (k) { return byId[k]; });
+}
+
+/** Última visita con el mismo identificador (por fecha `at`). */
 function pcshFindUltimaVisitaPorIdentidad(rutValue, docExtranjero) {
-  var key = pcshVisitIdentityKeyFromRutField(rutValue, docExtranjero);
-  if (!key) return null;
+  var want = pcshVisitIdentityKeysFromValue(rutValue, docExtranjero);
+  if (!want.length) return null;
+  var wantMap = {};
+  want.forEach(function (k) { wantMap[k] = true; });
   var best = null;
   var bestAt = -1;
+  var pool = pcshVisPoolParaAutofill();
   var j;
-  for (j = 0; j < visitasList.length; j++) {
-    var v = visitasList[j];
-    var vk = pcshVisitIdentityKeyFromRecord(v);
-    if (!vk || vk !== key) continue;
+  for (j = 0; j < pool.length; j++) {
+    var v = pool[j];
+    var recKeys = pcshVisitIdentityKeysFromRecord(v);
+    var hit = false;
+    var ki;
+    for (ki = 0; ki < recKeys.length; ki++) {
+      if (wantMap[recKeys[ki]]) { hit = true; break; }
+    }
+    if (!hit) continue;
     var at = pcshVisitAtToMs(v.at);
     if (!isNaN(at) && at > bestAt) {
       bestAt = at;
@@ -8308,6 +8362,77 @@ function pcshFindUltimaVisitaPorIdentidad(rutValue, docExtranjero) {
     }
   }
   return best;
+}
+
+function pcshVisitRutQueryVariants(rutValue, docExtranjero) {
+  var raw = String(rutValue == null ? '' : rutValue).trim();
+  var out = [];
+  var seen = {};
+  function add(x) {
+    var s = String(x == null ? '' : x).trim();
+    if (!s || seen[s]) return;
+    seen[s] = true;
+    out.push(s);
+  }
+  add(raw);
+  if (docExtranjero) {
+    add(raw.toUpperCase());
+    add(raw.toLowerCase());
+    return out.slice(0, 6);
+  }
+  var p = typeof pcshRutParseBodyDv === 'function' ? pcshRutParseBodyDv(raw) : null;
+  if (p) {
+    add(p.body + '-' + p.dv);
+    add(p.body + '-' + String(p.dv).toLowerCase());
+    add(p.body + p.dv);
+    if (typeof pcshRutFormatLive === 'function') add(pcshRutFormatLive(raw));
+  }
+  return out.slice(0, 6);
+}
+
+function pcshVisBuscarUltimaRemota(rutValue, docExtranjero) {
+  var local = pcshFindUltimaVisitaPorIdentidad(rutValue, docExtranjero);
+  if (local) return Promise.resolve(local);
+  if (typeof db === 'undefined' || !db || typeof db.collection !== 'function') return Promise.resolve(null);
+  var variants = pcshVisitRutQueryVariants(rutValue, docExtranjero);
+  var key = pcshVisitIdentityKeyFromRutField(rutValue, docExtranjero);
+  var qs = variants.map(function (val) {
+    return db.collection('visitas').where('visitorRut', '==', val).limit(20).get();
+  });
+  if (key) qs.push(db.collection('visitas').where('visitorRutKey', '==', key).limit(20).get());
+  return Promise.all(qs.map(function (p) { return p.catch(function () { return null; }); })).then(function (snaps) {
+    window._pcshVisAutofillExtra = window._pcshVisAutofillExtra || [];
+    snaps.forEach(function (snap) {
+      if (!snap || !snap.forEach) return;
+      snap.forEach(function (doc) {
+        var o = typeof pcshVisDocNormalizar === 'function' ? pcshVisDocNormalizar(doc) : Object.assign({ id: doc.id }, doc.data() || {});
+        window._pcshVisAutofillExtra.push(o);
+      });
+    });
+    return pcshFindUltimaVisitaPorIdentidad(rutValue, docExtranjero);
+  }).catch(function (err) {
+    console.warn('[pcsh] autofill visita remota', err);
+    return null;
+  });
+}
+
+function pcshVisDeptSelectSet(sel, wantRaw) {
+  if (!sel) return false;
+  var want = String(typeof pcshVisitDeptLabelDisplay === 'function' ? pcshVisitDeptLabelDisplay(wantRaw) : wantRaw || '').trim();
+  if (!want) return false;
+  var j;
+  for (j = 0; j < sel.options.length; j++) {
+    if (sel.options[j].value === want || String(sel.options[j].textContent || '').trim() === want) {
+      sel.value = sel.options[j].value;
+      return true;
+    }
+  }
+  var opt = document.createElement('option');
+  opt.value = want;
+  opt.textContent = want;
+  sel.appendChild(opt);
+  sel.value = want;
+  return true;
 }
 
 function pcshVisApplyRutForeignMode(inp, cb, isForeign) {
@@ -8324,12 +8449,8 @@ function pcshVisApplyRutForeignMode(inp, cb, isForeign) {
   }
 }
 
-function pcshVisTryAutofillFromUltimaVisita(form, rutInp, foreignCb) {
-  if (!form || !rutInp) return;
-  var foreign = foreignCb && foreignCb.checked;
-  var raw = rutInp.value;
-  var ult = pcshFindUltimaVisitaPorIdentidad(raw, foreign);
-  if (!ult) return;
+function pcshVisApplyUltimaVisitaAlForm(form, ult) {
+  if (!form || !ult) return false;
   var filled = false;
   var persRadio = form.querySelector('input[name="visitIngreso"][value="persona"]');
   var ing = persRadio ? persRadio.checked : true;
@@ -8361,12 +8482,7 @@ function pcshVisTryAutofillFromUltimaVisita(form, rutInp, foreignCb) {
   }
   var sel = form.querySelector('select[name="deptLabel"]');
   if (sel && ult.deptLabel && (!sel.value || sel.selectedIndex === 0)) {
-    var deptWant = String(pcshVisitDeptLabelDisplay(ult.deptLabel) || '').trim();
-    var hasOpt = Array.prototype.some.call(sel.options, function (o) { return o.value === deptWant; });
-    if (hasOpt) {
-      sel.value = deptWant;
-      filled = true;
-    }
+    if (pcshVisDeptSelectSet(sel, ult.deptLabel)) filled = true;
   }
   var veh = form.querySelector('.pcsh-vis-veh');
   var vex = form.querySelector('.pcsh-vis-veh-extra');
@@ -8402,7 +8518,29 @@ function pcshVisTryAutofillFromUltimaVisita(form, rutInp, foreignCb) {
       }
     }
   }
-  if (filled) showMsg('Última visita restaurada.', 'info');
+  return filled;
+}
+
+function pcshVisTryAutofillFromUltimaVisita(form, rutInp, foreignCb) {
+  if (!form || !rutInp) return;
+  var foreign = !!(foreignCb && foreignCb.checked);
+  var raw = rutInp.value;
+  if (!String(raw || '').trim()) return;
+  var ult = pcshFindUltimaVisitaPorIdentidad(raw, foreign);
+  function apply(v) {
+    if (!v) return;
+    if (pcshVisApplyUltimaVisitaAlForm(form, v)) showMsg('Última visita restaurada.', 'info');
+  }
+  if (ult) {
+    apply(ult);
+    return;
+  }
+  form._pcshVisAfReq = (form._pcshVisAfReq || 0) + 1;
+  var reqId = form._pcshVisAfReq;
+  pcshVisBuscarUltimaRemota(raw, foreign).then(function (v) {
+    if (form._pcshVisAfReq !== reqId) return;
+    apply(v);
+  });
 }
 
 function pcshVisBindRutField(form, rutInp, foreignCb) {
@@ -8437,6 +8575,13 @@ function pcshVisBindRutField(form, rutInp, foreignCb) {
       try {
         if (typeof pos === 'number') rutInp.setSelectionRange(fmt.length, fmt.length);
       } catch (e) {}
+    }
+    clearTimeout(rutInp._pcshAfT);
+    var pLive = typeof pcshRutParseBodyDv === 'function' ? pcshRutParseBodyDv(rutInp.value) : null;
+    if (pLive && pLive.body.length >= 6) {
+      rutInp._pcshAfT = setTimeout(function () {
+        pcshVisTryAutofillFromUltimaVisita(form, rutInp, foreignCb);
+      }, 280);
     }
   });
   rutInp.addEventListener('blur', function () {
@@ -8791,6 +8936,9 @@ function pcshVisTryApplyCarnetPayloadFromField(form, inp, silent) {
   inp._pcshCarnetApplying = true;
   pcshVisApplyCarnetToForm(data, form);
   inp._pcshCarnetApplying = false;
+  var rutInp = form.querySelector('input[name="visitorRut"]');
+  var foreignCb = form.querySelector('input[name="visitorDocExtranjero"]');
+  if (rutInp) pcshVisTryAutofillFromUltimaVisita(form, rutInp, foreignCb);
   if (!silent && data.nombre && data.rut) showMsg('✔ Carnet leído correctamente', 'success');
   return true;
 }
@@ -11465,17 +11613,23 @@ function listenProveedores(cb) {
 }
 
 function listenVisitas(cb) {
-  db.collection('visitas').orderBy('at', 'desc').limit(600).onSnapshot(function (snap) {
+  function emitSnap(snap) {
     var list = [];
     snap.forEach(function (doc) {
-      var o = doc.data();
-      o.id = doc.id;
-      if (o.at != null && o.at !== '') o.at = pcshVisitAtToIso(o.at);
-      if (o.outAt != null && o.outAt !== '') o.outAt = pcshVisitAtToIso(o.outAt);
+      var o = typeof pcshVisDocNormalizar === 'function' ? pcshVisDocNormalizar(doc) : Object.assign({ id: doc.id }, doc.data() || {});
       list.push(o);
     });
     cb(list);
-  });
+  }
+  db.collection('visitas').orderBy('at', 'desc').limit(1200).onSnapshot(
+    emitSnap,
+    function (err) {
+      console.warn('[pcsh] visitas listener', err);
+      db.collection('visitas').limit(1200).get().then(emitSnap).catch(function (e2) {
+        console.warn('[pcsh] visitas fallback', e2);
+      });
+    }
+  );
 }
 function mountVisitasForms() {
   var stack = document.getElementById('vis-reg-stack');
@@ -15063,6 +15217,7 @@ function showTab(tab) {
   } else if (tab === 'tabVisitas') {
     pcshApplyModulePageTitle('fa-user-clock', 'Visitas');
     pd.textContent = '';
+    if (typeof pcshArrancarModulosSecundarios === 'function') pcshArrancarModulosSecundarios();
     if (typeof pcshEnsureConserjeriaDeptDataSynced === 'function') pcshEnsureConserjeriaDeptDataSynced();
     initVisitasUi();
     if (typeof pcshRefreshVisitasProveedorSelects === 'function') pcshRefreshVisitasProveedorSelects();
@@ -15075,8 +15230,7 @@ function showTab(tab) {
     }
   } else if (tab === 'tabProveedores') {
     pcshApplyModulePageTitle('fa-truck', 'Proveedores');
-    pd.textContent =
-      'Registre empresas o contratistas que ingresan al edificio. Puede agregar varios contactos (nombre, teléfono y correo) por empresa. En Visitas puede asociar el ingreso al proveedor para trazabilidad.';
+    pd.textContent = '';
     if (typeof pcshInitProveedoresUi === 'function') pcshInitProveedoresUi();
     if (typeof pcshRenderProveedores === 'function') pcshRenderProveedores();
   } else if (tab === 'tabResidentes') {
@@ -15406,7 +15560,9 @@ function pcshCargarNovedadPorCorrelativo(cor) {
   if (!isFinite(cor) || !db || typeof db.collection !== 'function') {
     return Promise.resolve(null);
   }
-  var local = (novedades || []).filter(function (x) { return x && x.correlativo === cor; })[0];
+  var local = (typeof pcshNovPorCorrelativo === 'function')
+    ? pcshNovPorCorrelativo(cor)
+    : (novedades || []).filter(function (x) { return x && Number(x.correlativo) === cor; })[0];
   if (local) return Promise.resolve(local);
   return db.collection('novedades').doc(String(cor)).get().then(function (snap) {
     if (!snap.exists) return null;
@@ -15436,6 +15592,23 @@ function pcshLimpiarFiltrosParaVerDestacada() {
   if (fCor) fCor.value = '';
   var fCorG = document.getElementById('filtroCorrelativoGestion');
   if (fCorG) fCorG.value = '';
+  if (typeof syncFiltrosMainToGestion === 'function') syncFiltrosMainToGestion();
+}
+
+function pcshPrepararFiltroNovedadPorCorrelativo(cor) {
+  cor = parseInt(cor, 10);
+  if (!isFinite(cor)) return;
+  var fTipo = document.getElementById('filtroTipo');
+  var fCat = document.getElementById('filtroCategoria');
+  var fQ = document.getElementById('filtroNovedad');
+  var fCor = document.getElementById('filtroCorrelativo');
+  if (fTipo) fTipo.value = '';
+  if (fCat) fCat.value = '';
+  if (fQ) fQ.value = '';
+  if (fCor) fCor.value = String(cor);
+  var fCorG = document.getElementById('filtroCorrelativoGestion');
+  if (fCorG) fCorG.value = String(cor);
+  if (typeof syncFiltrosMainToGestion === 'function') syncFiltrosMainToGestion();
 }
 
 function pcshScrollANovedadDestacada(cor) {
@@ -15561,14 +15734,16 @@ function renderNovedadesDestacadasPanel() {
   if (emptyEl) emptyEl.hidden = true;
   listEl.hidden = false;
   listEl.innerHTML = dests.map(function (n) {
-    var numStr = numeros[n.correlativo] != null ? String(numeros[n.correlativo]) : String(n.correlativo);
+    var numLibro = numeros[n.correlativo] != null ? String(numeros[n.correlativo]) : '';
+    var corStr = String(n.correlativo);
+    var numStr = numLibro || corStr;
     var snip = String(n.texto || '').replace(/\s+/g, ' ').trim();
     if (snip.length > 140) snip = snip.slice(0, 137) + '…';
     var catLabel = typeof pcshCategoriaLabelCatalogo === 'function' ? pcshCategoriaLabelCatalogo(n.categoria, n.esAdmin) : (n.esAdmin ? 'Administrativa' : (n.categoria || 'General'));
     return (
       '<button type="button" class="cg-nov-dest-item" role="listitem" data-focus-nov="' +
-      n.correlativo +
-      '" title="Ir a la novedad #' + escapeHtml(numStr) + '">' +
+      escapeHtml(corStr) +
+      '" title="Ir a la novedad correlativo ' + escapeHtml(corStr) + (numLibro ? ' (#' + escapeHtml(numLibro) + ')' : '') + '">' +
       '<span class="cg-nov-dest-item-num">#' + escapeHtml(numStr) + '</span>' +
       '<span class="cg-nov-dest-item-body">' +
       '<span class="cg-nov-dest-item-meta">' +
@@ -15590,21 +15765,29 @@ function renderNovedadesDestacadasPanel() {
 function pcshFocusNovedadDestacada(cor) {
   cor = parseInt(cor, 10);
   if (!isFinite(cor)) return;
+  window._pcshFocusNovCor = cor;
   if (typeof showTab === 'function') showTab('tabNovedades');
 
   function pintarYSaltar() {
-    pcshLimpiarFiltrosParaVerDestacada();
+    if (typeof pcshPrepararFiltroNovedadPorCorrelativo === 'function') {
+      pcshPrepararFiltroNovedadPorCorrelativo(cor);
+    } else {
+      pcshLimpiarFiltrosParaVerDestacada();
+    }
     window._pcshNovSkipAnim = true;
     try {
       if (typeof renderNovedades === 'function') renderNovedades();
     } finally {
       window._pcshNovSkipAnim = false;
     }
+    if (typeof pcshAsegurarNovedadDeFiltroCorrelativo === 'function') {
+      pcshAsegurarNovedadDeFiltroCorrelativo();
+    }
     requestAnimationFrame(function () {
       if (pcshScrollANovedadDestacada(cor)) return;
       requestAnimationFrame(function () {
         if (!pcshScrollANovedadDestacada(cor)) {
-          showMsg('No se encontró la novedad en la bitácora visible.', 'error');
+          showMsg('No se encontró la novedad ' + cor + ' en la bitácora.', 'error');
         }
       });
     });
@@ -15614,13 +15797,13 @@ function pcshFocusNovedadDestacada(cor) {
     ? pcshNovPorCorrelativo(cor)
     : (novedades || []).filter(function (x) { return x && Number(x.correlativo) === cor; })[0];
   if (nov && !nov.minimizada) {
-    if (pcshScrollANovedadDestacada(cor)) return;
     pintarYSaltar();
     return;
   }
   showMsg('Buscando la novedad destacada…', 'info');
   pcshCargarNovedadPorCorrelativo(cor).then(function (n) {
     if (!n || n.minimizada) {
+      window._pcshFocusNovCor = 0;
       showMsg('Esa novedad ya no está disponible en la bitácora.', 'error');
       return;
     }
@@ -17791,7 +17974,9 @@ function pasaFiltros(n, f, numeros) {
     return true;
   }
   if (numBusca && f && f.correlativo) {
-    if (!pcshNovedadCoincideNumero(n, f.correlativo, numeros)) return false;
+    if (window._pcshFocusNovCor && Number(window._pcshFocusNovCor) === Number(f.correlativo)) {
+      if (Number(n.correlativo) !== Number(f.correlativo)) return false;
+    } else if (!pcshNovedadCoincideNumero(n, f.correlativo, numeros)) return false;
   } else if (f.texto) {
     var tt = f.texto;
     var corStr = String(n.correlativo != null ? n.correlativo : '');
@@ -17843,7 +18028,7 @@ function renderNovedades() {
     window._pcshNovFiltroSig = filtroSig;
     window._pcshNovRenderMax = PCSH_NOV_RENDER_MAX_DEFAULT;
   }
-  var hayBusquedaFina = !!(f && (f.correlativo || f.fechaDesde || f.fechaHasta || (f.texto && String(f.texto).trim())));
+  var hayBusquedaFina = !!(f && (f.correlativo || f.fechaDesde || f.fechaHasta || (f.texto && String(f.texto).trim()) || window._pcshFocusNovCor));
   var cap = hayBusquedaFina ? 400 : (window._pcshNovRenderMax || PCSH_NOV_RENDER_MAX_DEFAULT);
   var reorganizadas = reorganizarNovedadesConCierres(novedades.slice());
   var numeros = {};
@@ -17863,8 +18048,9 @@ function renderNovedades() {
     if (n.minimizada && !(f && f.correlativo)) return;
     if (!pasaFiltros(n, f, numeros)) return;
     coinciden++;
+    var forzarFocus = window._pcshFocusNovCor && Number(n.correlativo) === Number(window._pcshFocusNovCor);
     var forzarDest = novedadEstaDestacada(n) && !n.turnoSep && n.tipo !== 'resumen_diario';
-    if (forzarDest) {
+    if (forzarDest && !(f && f.tipo === 'destacada') && !forzarFocus) {
       var hayRango = !!(f && (f.fechaDesde || f.fechaHasta));
       if (!hayRango) {
         var mesVista = typeof pcshMesCalendarioChile === 'function' ? pcshMesCalendarioChile() : '';
@@ -17873,7 +18059,7 @@ function renderNovedades() {
         }
       }
     }
-    if (mostradas >= cap && !forzarDest && !n.turnoSep) {
+    if (mostradas >= cap && !forzarDest && !forzarFocus && !n.turnoSep) {
       cortada = true;
       return;
     }
@@ -18033,6 +18219,17 @@ function renderNovedades() {
   }
   updateTurnoUiState();
   if (typeof renderNovedadesDestacadasPanel === 'function') renderNovedadesDestacadasPanel();
+  if (window._pcshFocusNovCor && typeof pcshScrollANovedadDestacada === 'function') {
+    var corGo = Number(window._pcshFocusNovCor);
+    requestAnimationFrame(function () {
+      if (pcshScrollANovedadDestacada(corGo)) {
+        clearTimeout(window._pcshFocusNovClearT);
+        window._pcshFocusNovClearT = setTimeout(function () {
+          if (Number(window._pcshFocusNovCor) === corGo) window._pcshFocusNovCor = 0;
+        }, 4000);
+      }
+    });
+  }
 
   tlHost.querySelectorAll('.nota-badge').forEach(function (b) {
     b.onclick = function () { verNota(parseInt(b.getAttribute('data-c'), 10)); };
@@ -23746,17 +23943,7 @@ function pcshRefreshVisitasDeptSelects() {
   tab.querySelectorAll('select[name="deptLabel"]').forEach(function (sel) {
     var prev = sel.value;
     sel.innerHTML = opts;
-    if (prev) {
-      var ok = false;
-      var j;
-      for (j = 0; j < sel.options.length; j++) {
-        if (sel.options[j].value === prev) {
-          ok = true;
-          break;
-        }
-      }
-      if (ok) sel.value = prev;
-    }
+    if (prev) pcshVisDeptSelectSet(sel, prev);
   });
 }
 
