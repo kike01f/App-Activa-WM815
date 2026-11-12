@@ -19233,18 +19233,56 @@ function pcshChatStartPresenciaListenerConserjeria() {
   );
 }
 
+function pcshChatLastReadStorageKey() {
+  var who = '';
+  if (typeof pcshChatAutorActual === 'function') who = pcshChatAutorActual();
+  who = String(who || 'anon').toLowerCase().replace(/[^a-z0-9@._-]+/g, '_');
+  return 'pcsh_wm_chat_last_read_ts:' + who;
+}
+
+function pcshChatLecturaDocId() {
+  return pcshChatLastReadStorageKey().replace(/[^a-z0-9]+/gi, '_').slice(0, 80);
+}
+
 function pcshChatReadLastTs() {
-  try {
-    return parseInt(localStorage.getItem(PCSH_CHAT_LAST_READ_KEY) || '0', 10) || 0;
-  } catch (e) {
-    return 0;
+  var keys = [pcshChatLastReadStorageKey(), PCSH_CHAT_LAST_READ_KEY, 'pcsh_gestion_v1_chat_last_read_ts', 'pcsh_demo_v1_chat_last_read_ts'];
+  var best = 0;
+  var i;
+  for (i = 0; i < keys.length; i++) {
+    try {
+      var n = parseInt(localStorage.getItem(keys[i]) || '0', 10) || 0;
+      if (n > best) best = n;
+    } catch (eR) {}
   }
+  return best;
+}
+
+function pcshChatPersistLastReadNube(n) {
+  try {
+    if (typeof db === 'undefined' || !db) return;
+    db.collection('chat_lecturas').doc(pcshChatLecturaDocId()).set({ ts: n, at: Date.now() }, { merge: true }).catch(function () {});
+  } catch (eP) {}
+}
+
+function pcshChatHydrateLastReadNube(sdb) {
+  var xdb = sdb || (typeof db !== 'undefined' ? db : null);
+  if (!xdb) return Promise.resolve();
+  return xdb.collection('chat_lecturas').doc(pcshChatLecturaDocId()).get().then(function (doc) {
+    if (!doc || !doc.exists) return;
+    var ts = Number((doc.data() || {}).ts) || 0;
+    if (ts > pcshChatReadLastTs()) {
+      try { localStorage.setItem(pcshChatLastReadStorageKey(), String(ts)); } catch (eS) {}
+    }
+  }).catch(function () {});
 }
 
 function pcshChatWriteLastTs(ts) {
-  try {
-    localStorage.setItem(PCSH_CHAT_LAST_READ_KEY, String(ts));
-  } catch (e) {}
+  var n = Number(ts) || 0;
+  var prev = pcshChatReadLastTs();
+  if (n < prev) n = prev;
+  try { localStorage.setItem(pcshChatLastReadStorageKey(), String(n)); } catch (e) {}
+  try { localStorage.setItem(PCSH_CHAT_LAST_READ_KEY, String(n)); } catch (e2) {}
+  pcshChatPersistLastReadNube(n);
 }
 
 function pcshChatFormatDayLabel(ts) {
@@ -19266,12 +19304,57 @@ function pcshChatFormatTime(ts) {
 }
 
 function pcshChatMsgTimestamp(m) {
-  if (typeof m.timestamp === 'number' && !isNaN(m.timestamp)) return m.timestamp;
+  if (!m) return 0;
+  var t = m.timestamp;
+  if (t && typeof t.toMillis === 'function') {
+    var msT = t.toMillis();
+    if (isFinite(msT) && msT > 0) return msT;
+  }
+  if (t && typeof t.seconds === 'number') {
+    var msS = t.seconds * 1000 + Math.floor((t.nanoseconds || 0) / 1e6);
+    if (msS > 0) return msS;
+  }
+  if (typeof t === 'number' && isFinite(t) && t > 0) {
+    return t < 1e12 ? Math.round(t * 1000) : t;
+  }
+  if (typeof t === 'string' && t) {
+    var n = Number(t);
+    if (isFinite(n) && n > 0) return n < 1e12 ? Math.round(n * 1000) : n;
+    var pIso = Date.parse(t);
+    if (!isNaN(pIso)) return pIso;
+  }
   if (m.fecha && m.hora) {
     var parsed = Date.parse(String(m.fecha) + 'T' + String(m.hora));
     if (!isNaN(parsed)) return parsed;
   }
   return 0;
+}
+
+function pcshChatContarNoLeidos(rows) {
+  if (typeof chatVisible !== 'undefined' && chatVisible) return 0;
+  var lastRead = pcshChatReadLastTs();
+  var me = typeof pcshChatAutorActual === 'function' ? pcshChatAutorActual() : '';
+  var unread = 0;
+  (rows || []).forEach(function (r) {
+    var d = r && (r.d || r);
+    if (!d) return;
+    var tsm = pcshChatMsgTimestamp(d);
+    if (!tsm || tsm <= lastRead) return;
+    var author = d.autor || '';
+    if (!author || author === me) return;
+    unread += 1;
+  });
+  return unread;
+}
+
+function pcshChatSembrarLeidosSiVacio(rows) {
+  if (pcshChatReadLastTs()) return;
+  var maxTs = 0;
+  (rows || []).forEach(function (r) {
+    var t = pcshChatMsgTimestamp(r && (r.d || r));
+    if (t > maxTs) maxTs = t;
+  });
+  pcshChatWriteLastTs(maxTs || Date.now());
 }
 
 /** Solo URLs https para mostrar stickers ya enviados (evita javascript: y datos maliciosos). */
@@ -19965,16 +20048,7 @@ function pcshChatRenderMessages(snap) {
     box.appendChild(msgRow);
   });
 
-  var unread = 0;
-  if (!chatVisible) {
-    var lastRead = pcshChatReadLastTs();
-    all.forEach(function (r) {
-      var tsm = pcshChatMsgTimestamp(r.d);
-      var author = r.d.autor || '';
-      if (tsm > lastRead && author !== pcshChatAutorActual()) unread++;
-    });
-  }
-  pcshChatUpdateFabBadge(unread);
+  pcshChatUpdateFabBadge(pcshChatContarNoLeidos(all));
 
   box.scrollTop = box.scrollHeight;
 }
@@ -20058,32 +20132,46 @@ function setChatOpen(open) {
 }
 
 function initChat() {
+  if (window._pcshChatInited) return;
+  window._pcshChatInited = true;
   chatCollection = db.collection('chat');
   if (typeof pcshChatStartPresenciaListenerConserjeria === 'function') {
     pcshChatStartPresenciaListenerConserjeria();
   }
-  var chatPrimerSnapshot = true;
-  chatCollection.orderBy('timestamp', 'asc').limitToLast(150).onSnapshot(function (snap) {
-    if (!chatPrimerSnapshot) {
-      var prevIds = {};
-      chatLastSnapshotDocs.forEach(function (r) {
-        prevIds[r.id] = true;
-      });
+  window._pcshChatSeenIds = window._pcshChatSeenIds || {};
+  window._pcshChatBaselineReady = false;
+  function pcshChatSuscribirMensajes() {
+    chatCollection.orderBy('timestamp', 'asc').limitToLast(150).onSnapshot(function (snap) {
+      var seen = window._pcshChatSeenIds;
+      var baseline = !!window._pcshChatBaselineReady;
+      var nuevos = [];
       snap.forEach(function (doc) {
-        var id = doc.id;
-        if (prevIds[id]) return;
-        var d = doc.data();
+        if (!seen[doc.id]) {
+          seen[doc.id] = true;
+          if (baseline) nuevos.push(doc);
+        }
+      });
+      if (!baseline) {
+        var rows = [];
+        snap.forEach(function (doc) { rows.push({ id: doc.id, d: doc.data() }); });
+        if (typeof pcshChatSembrarLeidosSiVacio === 'function') pcshChatSembrarLeidosSiVacio(rows);
+        window._pcshChatBaselineReady = snap.size > 0 || !(snap.metadata && snap.metadata.fromCache);
+        pcshChatRenderMessages(snap);
+        return;
+      }
+      nuevos.forEach(function (doc) {
+        var d = doc.data() || {};
         var autor = d.autor || '';
         if (!autor || autor === pcshChatAutorActual()) return;
         pcshChatPlayIncomingSound();
         pcshChatVibrateIncoming();
       });
-    }
-    chatPrimerSnapshot = false;
-    pcshChatRenderMessages(snap);
-  }, function (err) {
-    console.warn('[pcsh] chat listener', err);
-  });
+      pcshChatRenderMessages(snap);
+    }, function (err) {
+      console.warn('[pcsh] chat listener', err);
+    });
+  }
+  Promise.resolve(pcshChatHydrateLastReadNube(db)).finally(pcshChatSuscribirMensajes);
 
   try {
     if (_pcshChatTypingUnsub) {
