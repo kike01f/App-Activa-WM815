@@ -22094,29 +22094,19 @@ async function pcshEnviarCorreoPorGestion(opts) {
     console.warn('[correo] sesión de Gestión', eSes);
   }
   try {
-    if (typeof firebase === 'undefined' || !firebase.firestore) throw new Error('Firebase no cargado');
-    var app = typeof pcshBodegaAppAdministracion === 'function' ? pcshBodegaAppAdministracion() : null;
-    if (!app) throw new Error('Sin proyecto de correo de Gestión');
-    mailData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
-    var docRef = await app.firestore().collection('mail').add(mailData);
-    return { exito: true, docId: docRef.id, via: 'mail' };
-  } catch (eDir) {
-    console.warn('[correo] escritura directa en mail de Gestión', eDir);
-    try {
-      await pcshEncolarCorreoOperativoGestion({
-        to: mailData.to,
-        cc: opts.cc || '',
-        asunto: asunto,
-        texto: texto,
-        html: html,
-        origen: opts.origen || 'conserjeria-operativo',
-        refId: opts.refId || '',
-        fase: opts.fase || ''
-      });
-      return { exito: true, via: 'cola' };
-    } catch (eCola) {
-      return { exito: false, error: (eCola && eCola.message) || String(eCola) };
-    }
+    await pcshEncolarCorreoOperativoGestion({
+      to: mailData.to,
+      cc: opts.cc || '',
+      asunto: asunto,
+      texto: texto,
+      html: html,
+      origen: opts.origen || 'conserjeria-operativo',
+      refId: opts.refId || '',
+      fase: opts.fase || ''
+    });
+    return { exito: true, via: 'cola' };
+  } catch (eCola) {
+    return { exito: false, error: (eCola && eCola.message) || String(eCola) };
   }
 }
 function pcshEncEnviarAvisoAutomatico(e, kind) {
