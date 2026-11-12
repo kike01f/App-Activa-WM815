@@ -2145,7 +2145,6 @@
     #tabEncomiendas .cg-vis-mail-check { display: inline-flex; margin-right: 0.25rem; color: #6ee7b7; font-size: 0.75rem; }
     #tabEncomiendas .cg-empty-table { text-align: center; color: var(--text-secondary); padding: 1rem !important; }
     .modal-content.modal-enc-lg { max-width: 720px; width: 92%; text-align: left; max-height: 90vh; overflow-y: auto; }
-    .modal-content.modal-enc-notify { max-width: 900px; width: 94%; text-align: left; max-height: 92vh; overflow-y: auto; }
     .cg-form-block { margin-bottom: 0.65rem; padding-bottom: 0.45rem; border-bottom: 1px solid var(--border-color); }
     .cg-form-block:last-of-type { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
     .cg-form-block-title { margin: 0 0 0.35rem; font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--secondary-text); }
@@ -2153,8 +2152,6 @@
     .cg-enc-pick-row { display: flex; gap: 0.5rem; align-items: flex-start; padding: 0.45rem 0.55rem; border-radius: 8px; border: 1px solid var(--border-color); cursor: pointer; background: var(--gray-100); }
     .cg-enc-pick-row--selected { border-color: color-mix(in srgb, var(--blue-500) 55%, var(--border-color)); box-shadow: 0 0 0 2px color-mix(in srgb, var(--blue-500) 15%, transparent); }
     .cg-enc-pick-meta { display: block; font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.15rem; }
-    .cg-plain-textarea { width: 100%; min-height: 160px; padding: 0.55rem; border-radius: 8px; border: 1px solid var(--gray-300); background: var(--gray-100); color: var(--gray-800); font-family: inherit; font-size: 0.88rem; }
-    .email-html-preview { border: 1px solid var(--border-color); border-radius: 8px; background: #fff; color: #111; padding: 0.5rem; max-height: 200px; overflow: auto; font-size: 0.8rem; }
     #mainApp .btn-danger { background: color-mix(in srgb, var(--danger) 92%, #450a0a) !important; color: #fff !important; border: 1px solid color-mix(in srgb, var(--danger) 55%, transparent) !important; }
     #mainApp .btn-danger:hover { filter: brightness(1.08); }
     /* Botones de acción compactos (tablas, toolbars, modales fuera de #mainApp) */
@@ -3343,6 +3340,11 @@
         <h4><i class="fa-solid fa-door-open" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Dentro del edificio ahora</h4>
         <p class="page-desc" style="margin:0 0 0.4rem;font-size:0.72rem;line-height:1.35;opacity:0.92">Visitas vehiculares: hasta <strong>5 h</strong> desde el ingreso; <strong>alerta</strong> (amarillo) en los últimos 30 min; <strong>15 min de gracia</strong> tras las 5 h; después, <strong>multa</strong> y parte informativo (no aplica a <strong>proveedores</strong> en auto: solo control de tiempo).</p>
         <div id="vis-open-list" aria-live="polite"></div>
+      </div>
+      <div class="cg-vis-open-card" id="vis-hoy-card">
+        <h4><i class="fa-solid fa-clipboard-check" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Ingresos de hoy</h4>
+        <p class="page-desc" style="margin:0 0 0.4rem;font-size:0.72rem;line-height:1.35;opacity:0.92">Incluye visitas particulares a pie. Esas no aparecen arriba porque no llevan salida.</p>
+        <div id="vis-hoy-list" aria-live="polite"></div>
       </div>
       <div class="card cg-card-accent--visit">
         <div class="card-h">
@@ -5938,9 +5940,6 @@
 <div id="modalEncomienda" class="modal" style="display:none;">
   <div class="modal-content modal-enc-lg" id="enc-modal-inner"></div>
 </div>
-<div id="modalEncNotify" class="modal" style="display:none;">
-  <div class="modal-content modal-enc-notify" id="enc-notify-inner"></div>
-</div>
 
 <div id="modalChecklistTurno" class="modal pcsh-chk-modal" style="display:none;" role="dialog" aria-modal="true" aria-labelledby="pcshChkTitle">
   <div class="modal-content">
@@ -8333,11 +8332,21 @@ function pcshVisitasCommitIngreso(form, rec, veh, vex) {
     .add(rec)
     .then(function (ref) {
       clearVisitParkingFieldError(form);
-      showMsg('Ingreso registrado.', 'success');
-      if (rec.visitKind !== 'proveedor') {
-        rec.id = ref && ref.id ? ref.id : '';
-        pcshVisNotificarIngresoParticular(rec);
+      rec.id = ref && ref.id ? ref.id : '';
+      if (rec.id) {
+        if (!window._pcshVisPendientes) window._pcshVisPendientes = {};
+        window._pcshVisPendientes[rec.id] = rec;
+        visitasList = [rec].concat((visitasList || []).filter(function (v) {
+          return !v || String(v.id) !== String(rec.id);
+        }));
+        if (typeof renderVisitasModule === 'function') renderVisitasModule();
       }
+      showMsg('Ingreso registrado' + (rec.visitor ? ': ' + rec.visitor : '') + '.', 'success');
+      try {
+        if (rec.visitKind !== 'proveedor' && typeof pcshVisNotificarIngresoParticular === 'function') {
+          pcshVisNotificarIngresoParticular(rec);
+        }
+      } catch (eMail) {}
       form.reset();
       visitFormToggleTipo(form);
       if (veh) veh.checked = false;
@@ -10103,7 +10112,6 @@ function pcshVisAvisarCorreoFase(v, fase, primeraVista) {
   }
   pcshEnviarCorreoPorGestion({
     to: mail,
-    cc: 'conserjeria.wm815@gmail.com',
     asunto: asuntos[fase],
     texto: pcshVisTextoCorreoFase(v, fase),
     html: pcshHtmlCorreoVisita(v, fase),
@@ -10786,7 +10794,7 @@ function renderVisitasModule() {
     var openVis = allVis.filter(function (v) { return !v.outAt && !visitIsPeatonal(v); })
       .sort(function (a, b) { return pcshVisitAtToMs(a.at) - pcshVisitAtToMs(b.at); });
     if (!openVis.length) {
-      openListEl.innerHTML = '<p class="page-desc" style="margin:0;font-size:0.85rem;color:var(--text-secondary)">Nadie dentro que requiera <strong>salida</strong>. Las visitas peatonales no llevan registro de salida.</p>';
+      openListEl.innerHTML = '<p class="page-desc" style="margin:0;font-size:0.85rem;color:var(--text-secondary)">Nadie dentro que requiera <strong>salida</strong>. Las visitas a pie quedan en <strong>Ingresos de hoy</strong>.</p>';
     } else {
       openListEl.innerHTML = '<ul class="cg-vis-open-list">' + openVis.map(function (v) {
         var isProv = visitIsProveedor(v);
@@ -10825,6 +10833,26 @@ function renderVisitasModule() {
           notasBtnOpen +
           editOpenBtn +
           '<button type="button" class="btn btn-secondary btn-sm pcsh-vis-out" data-id="' + escapeHtml(v.id) + '">Salida</button></li>';
+      }).join('') + '</ul>';
+    }
+  }
+  var hoyListEl = document.getElementById('vis-hoy-list');
+  if (hoyListEl) {
+    var hoyVis = allVis.filter(function (v) {
+      try { return isSameDayVis(v.at, todayD); } catch (eHoy) { return false; }
+    }).sort(function (a, b) { return pcshVisitAtToMs(b.at) - pcshVisitAtToMs(a.at); });
+    if (!hoyVis.length) {
+      hoyListEl.innerHTML = '<p class="page-desc" style="margin:0;font-size:0.85rem;color:var(--text-secondary)">Todavía no hay ingresos registrados hoy.</p>';
+    } else {
+      hoyListEl.innerHTML = '<ul class="cg-vis-open-list">' + hoyVis.map(function (v) {
+        var esPie = visitIsPeatonal(v);
+        var esProv = visitIsProveedor(v);
+        var badge = esProv
+          ? '<span class="badge-vis-proveedor">Proveedor</span>'
+          : (v.vehicular ? '<span class="badge-vis-persona">Vehicular</span>' : '<span class="badge-vis-persona">A pie</span>');
+        var nombreHoy = esProv ? (v.visitor || v.proveedorEmpresa || '—') : (v.visitor || '—');
+        var deptoHoy = pcshVisitDeptLabelDisplay(v.deptLabel) || '—';
+        return '<li>' + badge + '<div class="cg-vis-open-identity"><strong class="cg-vis-open-name">' + escapeHtml(nombreHoy) + '</strong></div><span class="cg-vis-open-meta">Depto ' + escapeHtml(deptoHoy) + ' · ' + escapeHtml(fmtVisDate(v.at)) + (esPie ? ' · sin salida' : '') + '</span></li>';
       }).join('') + '</ul>';
     }
   }
@@ -11825,23 +11853,50 @@ function listenProveedores(cb) {
 }
 
 function listenVisitas(cb) {
+  var unsub = null;
+  var reintento = null;
   function emitSnap(snap) {
     var list = [];
     snap.forEach(function (doc) {
       var o = typeof pcshVisDocNormalizar === 'function' ? pcshVisDocNormalizar(doc) : Object.assign({ id: doc.id }, doc.data() || {});
       list.push(o);
     });
+    list.sort(function (a, b) { return pcshVisitAtToMs(b.at) - pcshVisitAtToMs(a.at); });
+    var pend = window._pcshVisPendientes || {};
+    var ids = {};
+    list.forEach(function (v) {
+      if (!v || v.id == null || v.id === '') return;
+      ids[String(v.id)] = true;
+      delete pend[String(v.id)];
+    });
+    Object.keys(pend).forEach(function (id) {
+      if (!ids[id] && pend[id]) list.unshift(pend[id]);
+    });
     cb(list);
   }
-  db.collection('visitas').orderBy('at', 'desc').limit(1200).onSnapshot(
-    emitSnap,
-    function (err) {
-      console.warn('[pcsh] visitas listener', err);
-      db.collection('visitas').limit(1200).get().then(emitSnap).catch(function (e2) {
-        console.warn('[pcsh] visitas fallback', e2);
-      });
+  function start(ordered) {
+    if (typeof unsub === 'function') {
+      try { unsub(); } catch (eU) {}
+      unsub = null;
     }
-  );
+    var base = db.collection('visitas');
+    var q = base;
+    if (ordered && base && typeof base.orderBy === 'function') {
+      try { q = base.orderBy('at', 'desc'); } catch (eO) { q = base; }
+    }
+    if (!q || typeof q.onSnapshot !== 'function') q = base;
+    if (q && typeof q.limit === 'function') {
+      try { q = q.limit(1200); } catch (eL) {}
+    }
+    if (!q || typeof q.onSnapshot !== 'function') return;
+    unsub = q.onSnapshot(emitSnap, function (err) {
+      console.warn('[pcsh] visitas listener', err);
+      var sinIndice = !!(err && err.code === 'failed-precondition');
+      if (reintento) clearTimeout(reintento);
+      reintento = setTimeout(function () { start(sinIndice ? false : ordered); }, 1500);
+    });
+  }
+  start(true);
 }
 function mountVisitasForms() {
   var stack = document.getElementById('vis-reg-stack');
@@ -21699,65 +21754,6 @@ function pcshEncDestinatarioDisplay(e) {
   if (n) return n;
   return pcshEncDeptResidentDisplayName(e.deptId);
 }
-function pcshEncMailtoHrefPlain(toEmail, subject, bodyPlain) {
-  var MAX = 32000;
-  function encodeToField(raw) {
-    if (!raw) return '';
-    return String(raw)
-      .split(',')
-      .map(function (x) {
-        return String(x || '').trim();
-      })
-      .filter(Boolean)
-      .map(function (x) {
-        return encodeURIComponent(x);
-      })
-      .join(',');
-  }
-  function build(body) {
-    return (
-      'mailto:' +
-      encodeToField(toEmail) +
-      '?subject=' +
-      encodeURIComponent(subject) +
-      '&body=' +
-      encodeURIComponent(body)
-    );
-  }
-  var href = build(bodyPlain || '');
-  if (href.length <= MAX) return href;
-  var shortPlain = (bodyPlain || '').slice(0, 2800) + '\n\n[… mensaje truncado …]';
-  setTimeout(function () {
-    showMsg('Mensaje muy largo: parte del texto se acortó en el enlace mailto.', 'warn');
-  }, 100);
-  return build(shortPlain);
-}
-function pcshEncOpenMailtoHref(href) {
-  if (!href || typeof href !== 'string') return;
-  try {
-    var a = document.createElement('a');
-    a.href = href;
-    a.setAttribute('rel', 'noopener');
-    a.style.cssText = 'position:fixed;left:0;top:0;width:1px;height:1px;opacity:0.01;';
-    document.body.appendChild(a);
-    if (typeof a.click === 'function') a.click();
-    if (a.parentNode) a.parentNode.removeChild(a);
-  } catch (eA) {
-    try {
-      window.location.href = href;
-    } catch (eB) {}
-  }
-}
-function pcshEncPlainFromTextarea(taId, fallbackPlain) {
-  if (!taId) return fallbackPlain;
-  try {
-    var el = document.getElementById(taId);
-    if (el && 'value' in el && el.value != null && String(el.value).trim() !== '') {
-      return String(el.value);
-    }
-  } catch (e) {}
-  return fallbackPlain;
-}
 function encomiendaRegistroConserjeCellHtml(e) {
   var rec = ((e.registradoPor || e.receivedByName || '').trim()) || '—';
   var html =
@@ -21944,7 +21940,6 @@ function pcshVisNotificarIngresoParticular(v) {
   if (typeof pcshEnviarCorreoPorGestion !== 'function') return;
   pcshEnviarCorreoPorGestion({
     to: mail,
-    cc: 'conserjeria.wm815@gmail.com',
     asunto: 'Ingreso de visita — Depto ' + depto,
     texto: pcshTextoCorreoIngresoVisita(v),
     html: pcshHtmlCorreoIngresoVisita(v),
@@ -22153,7 +22148,6 @@ function pcshEncEnviarAvisoAutomatico(e, kind) {
   }
   pcshEnviarCorreoPorGestion({
     to: mail,
-    cc: 'conserjeria.wm815@gmail.com',
     asunto: subj,
     texto: pcshEncBodyText(e, kind),
     html: pcshHtmlCorreoEncomienda(e, kind),
@@ -22171,8 +22165,7 @@ function pcshEncEnviarAvisoAutomatico(e, kind) {
       });
       return;
     }
-    showMsg('No se pudo enviar el aviso automático. Puede abrirlo a mano.', 'warn');
-    openEncNotifyModal(e.id, kind);
+    showMsg('No se pudo reenviar el aviso.', 'warn');
   });
 }
 function pcshEncBodyText(e, kind) {
@@ -22375,10 +22368,6 @@ function bindEncomiendaDestinatarioForm(existingEnc) {
 }
 function pcshEncCloseMainModal() {
   var m = document.getElementById('modalEncomienda');
-  if (m) m.style.display = 'none';
-}
-function pcshEncCloseNotifyModal() {
-  var m = document.getElementById('modalEncNotify');
   if (m) m.style.display = 'none';
 }
 function openEncomiendaModal(id) {
@@ -22647,7 +22636,6 @@ function pcshEncApplyNotifyMark(id, kind, options) {
     .doc(id)
     .set(next)
     .then(function () {
-      if (options.closeModal) pcshEncCloseNotifyModal();
       if (options.toastMsg) showMsg(options.toastMsg, options.toastType || 'success');
       return true;
     })
@@ -22656,7 +22644,7 @@ function pcshEncApplyNotifyMark(id, kind, options) {
       return false;
     });
 }
-function openEncNotifyModal(id, kind) {
+function pcshEncReenviarCorreo(id, kind) {
   if (!puedeRegistrarComoConserje()) {
     showMsg('Debe abrir el turno (conserje activo) o iniciar sesión en Administración para gestionar encomiendas.', 'error');
     return;
@@ -22665,119 +22653,8 @@ function openEncNotifyModal(id, kind) {
     return x.id === id;
   });
   if (!e) return;
-  var inf = pcshEncEmailsForNotify(e);
-  var mail = inf.email;
-  var resNm = pcshEncDestinatarioDisplay(e);
-  var plain = pcshEncBodyText(e, kind);
-  var dep = pcshEncDeptById(e.deptId);
-  var num = dep ? dep.number : '';
-  var subj =
-    kind === 'llegada'
-      ? 'Encomienda en conserjería — Depto ' + num
-      : 'Confirmación retiro encomienda — Depto ' + num;
-  var taId = 'enc-mail-txt-' + id;
-  var modalTitle =
-    kind === 'llegada' ? 'Aviso al residente — llegada de encomienda' : 'Correo de confirmación de retiro';
-  var inner = document.getElementById('enc-notify-inner');
-  var modal = document.getElementById('modalEncNotify');
-  if (!inner || !modal) return;
-  var mailto = mail ? pcshEncMailtoHrefPlain(mail, subj, plain) : '';
-  inner.innerHTML =
-    '<div style="display:flex;justify-content:space-between;align-items:flex-start;gap:0.75rem;margin-bottom:0.75rem;">' +
-    '<h3 style="margin:0;font-size:1.05rem;">' +
-    escapeHtml(modalTitle) +
-    '</h3>' +
-    '<button type="button" class="btn btn-secondary btn-sm" id="encNotifyCloseX">Cerrar</button></div>' +
-    '<p class="page-desc">Paquete asociado a: <strong>' +
-    escapeHtml(resNm) +
-    '</strong></p>' +
-    '<p class="page-desc" style="margin-top:0">' +
-    (mail
-      ? 'Integrantes de la unidad con e-mail: <strong>' +
-        escapeHtml(mail.replace(/,/g, ', ')) +
-        '</strong>' +
-        (inf.fuente ? ' <span style="opacity:.85">(' + escapeHtml(inf.fuente) + ')</span>' : '') +
-        '.'
-      : '<strong>Sin dirección de correo disponible</strong> en las fichas importadas.') +
-    '</p>' +
-    '<p class="page-desc" style="margin-top:0;font-size:0.82rem">Sin servidor SMTP: envío desde su cliente. Si envía solo copiando, use <em>Marcar correo enviado</em>.</p>' +
-    '<p class="page-desc" style="margin:0.5rem 0 0.25rem;font-size:0.8rem;font-weight:600">Mensaje que se envía</p>' +
-    '<textarea id="' +
-    taId +
-    '" class="cg-plain-textarea">' +
-    escapeHtml(plain) +
-    '</textarea>' +
-    '<div class="toolbar" style="margin-top:0.75rem;flex-wrap:wrap;gap:0.5rem;display:flex;align-items:center;">' +
-    (mailto
-      ? '<button type="button" class="btn btn-primary btn-sm" id="encNotifyMailto" data-enc-id="' +
-        escapeHtml(id) +
-        '" data-enc-k="' +
-        (kind === 'llegada' ? 'llegada' : 'retiro') +
-        '"><i class="fa-solid fa-envelope"></i> Abrir correo</button>'
-      : '<span class="page-desc">Sin mail.</span>') +
-    '<button type="button" class="btn btn-secondary btn-sm" id="encNotifyCopyPlain">Copiar texto</button>' +
-    '<button type="button" class="btn btn-secondary btn-sm" style="margin-left:auto" id="encNotifyMark" data-enc-id="' +
-    escapeHtml(id) +
-    '" data-enc-k="' +
-    (kind === 'llegada' ? 'llegada' : 'retiro') +
-    '"><i class="fa-solid fa-check"></i> Marcar correo enviado</button></div>';
-  modal.style.display = 'flex';
-  document.getElementById('encNotifyCloseX').onclick = pcshEncCloseNotifyModal;
-  var btnM = document.getElementById('encNotifyMailto');
-  if (btnM) {
-    btnM.onclick = function () {
-      var kid = btnM.getAttribute('data-enc-k') === 'retiro' ? 'retiro' : 'llegada';
-      var e2 = encomiendasList.find(function (x) {
-        return x.id === id;
-      });
-      if (!e2) return;
-      var pl = pcshEncPlainFromTextarea(
-        taId,
-        pcshEncBodyText(e2, kid === 'retiro' ? 'retiro' : 'llegada')
-      );
-      var dep2 = pcshEncDeptById(e2.deptId);
-      var n2 = dep2 ? dep2.number : '';
-      var sj =
-        kid === 'llegada'
-          ? 'Encomienda en conserjería — Depto ' + n2
-          : 'Confirmación retiro encomienda — Depto ' + n2;
-      var inf2 = pcshEncEmailsForNotify(e2);
-      if (!String(inf2.email || '').trim()) {
-        showMsg('Sin dirección de correo disponible.', 'warn');
-        return;
-      }
-      var href = pcshEncMailtoHrefPlain(inf2.email, sj, pl);
-      pcshEncOpenMailtoHref(href);
-      pcshEncApplyNotifyMark(id, kid, {
-        closeModal: false,
-        toastMsg: 'Cliente de correo abierto; constancia en el listado',
-        toastType: 'success'
-      });
-    };
-  }
-  document.getElementById('encNotifyCopyPlain').onclick = function () {
-    var el = document.getElementById(taId);
-    var t = el && el.value ? el.value : plain;
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      navigator.clipboard.writeText(t).then(
-        function () {
-          showMsg('Texto copiado.', 'success');
-        },
-        function () {
-          showMsg('No se pudo copiar.', 'warn');
-        }
-      );
-    }
-  };
-  document.getElementById('encNotifyMark').onclick = function () {
-    var kid =
-      document.getElementById('encNotifyMark').getAttribute('data-enc-k') === 'retiro' ? 'retiro' : 'llegada';
-    pcshEncApplyNotifyMark(id, kid, {
-      closeModal: true,
-      toastMsg: 'Aviso por correo registrado en el listado',
-      toastType: 'success'
-    });
-  };
+  var tipo = kind === 'retiro' && e.entregadoAt ? 'retiro' : 'llegada';
+  pcshEncEnviarAvisoAutomatico(e, tipo);
 }
 function renderEncomiendasModule() {
   var stEl = document.getElementById('enc-module-stats');
@@ -22881,20 +22758,17 @@ function renderEncomiendasModule() {
       html +=
         '<td style="max-width:10rem;font-size:calc(0.908rem * 1.01 * var(--cg-table-fs))">' + retiraCell + '</td>';
       html += '<td>' + encomiendaRegistroConserjeCellHtml(e) + '</td><td>' + st + '</td><td style="white-space:nowrap">';
+      html +=
+        '<button type="button" class="btn btn-secondary btn-sm pcsh-enc-act" data-act="reenviar" data-id="' +
+        escapeHtml(e.id) +
+        '" data-param="' +
+        (pend ? 'llegada' : 'retiro') +
+        '">Reenviar correo</button> ';
       if (pend) {
-        html +=
-          '<button type="button" class="btn btn-primary btn-sm pcsh-enc-act" data-act="notify" data-id="' +
-          escapeHtml(e.id) +
-          '" data-param="llegada" title="Correo"><i class="fa-solid fa-envelope"></i></button> ';
         html +=
           '<button type="button" class="btn btn-secondary btn-sm pcsh-enc-act" data-act="entregar" data-id="' +
           escapeHtml(e.id) +
           '">Entregar</button> ';
-      } else {
-        html +=
-          '<button type="button" class="btn btn-secondary btn-sm pcsh-enc-act" data-act="notify" data-id="' +
-          escapeHtml(e.id) +
-          '" data-param="retiro" title="Reenviar aviso"><i class="fa-solid fa-envelope"></i></button> ';
       }
       html +=
         '<button type="button" class="btn btn-secondary btn-sm pcsh-enc-act" data-act="edit" data-id="' +
@@ -22927,7 +22801,7 @@ function initEncomiendasUi() {
       var act = b.getAttribute('data-act');
       var id = b.getAttribute('data-id');
       var param = b.getAttribute('data-param');
-      if (act === 'notify') openEncNotifyModal(id, param === 'retiro' ? 'retiro' : 'llegada');
+      if (act === 'reenviar') pcshEncReenviarCorreo(id, param === 'retiro' ? 'retiro' : 'llegada');
       else if (act === 'entregar') openEncEntregarModal(id);
       else if (act === 'edit') openEncomiendaModal(id);
       else if (act === 'del') {
@@ -23904,7 +23778,7 @@ function pcshArrancarModulosSecundarios() {
   window.__pcshSecundariosListos = true;
   listenVisitas(function (list) {
     visitasList = list;
-    if (pcshPanelVisible('tabVisitas')) renderVisitasModule();
+    renderVisitasModule();
     if (typeof pcshRenderDashboard === 'function') pcshRenderDashboard();
     if (typeof pcshVisRevisarMultasEstacionamientoPendientes === 'function') {
       clearTimeout(window.__pcshVisMultaNovScanT);
@@ -29635,7 +29509,7 @@ showTab('tabNovedades');
         }
 
         function pcshCorreoCcBienvenidaConserjeria() {
-            return 'conserjeria.wm815@gmail.com';
+            return '';
         }
 
         async function pcshEncolarCorreoBienvenidaGestion(job) {
@@ -29827,7 +29701,7 @@ showTab('tabNovedades');
                         'Se enviará el correo de bienvenida de la unidad <strong>' + pcshEscapeBienvenidaHtml(unidad) + '</strong> solo a:<br><br>' +
                         lineaDest(unico) +
                         notaReenvio +
-                        '<br><br>Copia (CC) a conserjería: <strong>conserjeria.wm815@gmail.com</strong>. Las visitas frecuentes quedan fuera.',
+                        '<br><br>Las visitas frecuentes quedan fuera.',
                         unico.estado === 'enviada' ? 'Reenviar a este correo' : 'Enviar a este correo'
                     ).then(function (ok) {
                         resolve(ok ? { correos: [unico.email], modo: 'uno' } : null);
@@ -30070,7 +29944,7 @@ showTab('tabNovedades');
             var ok = await pcshConfirmarBienvenida(
                 'Se enviará el correo de bienvenida a <strong>' + rec.correos.length + '</strong> direcciones de <strong>' + rec.unidadesConCorreo + '</strong> unidades, en copia oculta (CCO).<br><br>' +
                 'El destinatario visible será <strong>' + paraVisible + '</strong>. Ningún residente verá el correo de otro.<br>' +
-                'Copia (CC) a conserjería: <strong>conserjeria.wm815@gmail.com</strong>.<br><br>' +
+                '' +
                 'Incluye propietarios, arrendatarios y familiares. Las visitas frecuentes/autorizadas quedan fuera.<br>' +
                 'El envío se encola en el servicio de correo de Gestión WM.',
                 'Bienvenida masiva (CCO)'
@@ -33081,7 +32955,7 @@ showTab('tabNovedades');
                     <button type="button" class="btn btn-primary btn-enviar-bienvenida-unidad" style="margin-top: 10px; width: 100%; padding: 6px; font-size: 0.8rem;" title="Si hay un solo correo se envía a esa persona; si hay varios, puede elegir uno o enviar a todos los de esta unidad. Las visitas frecuentes no lo reciben.">
                         <i class="fa-solid fa-envelope" aria-hidden="true"></i> Enviar bienvenida
                     </button>
-                    <p style="margin: 4px 0 0 0; font-size: 0.7rem; color: var(--secondary-text);">Un correo o todos los de esta unidad. Excluye visitas autorizadas/frecuentes. Copia a conserjeria.wm815@gmail.com.</p>
+                    <p style="margin: 4px 0 0 0; font-size: 0.7rem; color: var(--secondary-text);">Un correo o todos los de esta unidad. Excluye visitas autorizadas/frecuentes.</p>
                     <button type="button" class="btn btn-info" style="margin-top: 8px; width: 100%; padding: 6px; font-size: 0.8rem;" onclick="transferUnitContent('${(unit.id || '').replace(/'/g, "\\'")}')" title="Trasladar la unidad a otra ocupada o vacía. En una ocupada solo se agregan los residentes.">
                         <i class="fa-solid fa-arrows-left-right" aria-hidden="true"></i> Trasladar unidad completa
                     </button>
