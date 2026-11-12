@@ -3005,6 +3005,123 @@
     }
     .pcsh-dbn-admin-table input[type="date"] { font: inherit; max-width: 10rem; }
     .pcsh-dbn-icon-sel { min-height: 4.5rem; }
+
+    /* Carga en miniatura: Arturito ordena fichas */
+    .modulo-carga {
+      position: fixed;
+      inset: 0;
+      z-index: 12000;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1.5rem;
+      background: color-mix(in srgb, #0f172a 74%, transparent);
+      backdrop-filter: blur(4px);
+      -webkit-backdrop-filter: blur(4px);
+      animation: miniOverlayIn 0.28s ease both;
+    }
+    .modulo-carga.is-out { animation: miniOverlayOut 0.28s ease forwards; }
+    @keyframes miniOverlayIn { from { opacity: 0; } to { opacity: 1; } }
+    @keyframes miniOverlayOut { to { opacity: 0; } }
+    .modulo-carga-card { width: min(16rem, 88vw); text-align: center; }
+    .mini-carga { position: relative; width: 9.6rem; height: 9.6rem; margin: 0 auto 0.85rem; }
+    .mini-carga::before {
+      content: '';
+      position: absolute;
+      inset: 0.2rem;
+      border-radius: 50%;
+      border: 1.5px dashed color-mix(in srgb, #74bd20 65%, transparent);
+      animation: miniAnillo 9s linear infinite;
+    }
+    @keyframes miniAnillo { to { transform: rotate(-360deg); } }
+    .mini-arturito {
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      z-index: 2;
+      width: 3.4rem;
+      height: 3.4rem;
+      margin: -1.7rem 0 0 -1.7rem;
+      display: grid;
+      place-items: center;
+      border-radius: 50%;
+      background: radial-gradient(circle at 50% 40%, rgba(143, 203, 26, 0.35), transparent 70%);
+      animation: miniFlota 1.6s ease-in-out infinite;
+    }
+    .mini-arturito svg { width: 3rem; height: 3rem; overflow: visible; filter: drop-shadow(0 6px 10px rgba(0, 0, 0, 0.35)); }
+    @keyframes miniFlota { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-4px); } }
+    .mini-ojo { transform-box: fill-box; transform-origin: center; animation: miniParpadeo 3.4s ease-in-out infinite; }
+    @keyframes miniParpadeo { 0%, 84%, 100% { transform: scaleY(1); } 90% { transform: scaleY(0.12); } }
+    .mini-antena { animation: miniAntena 0.9s ease-in-out infinite alternate; }
+    @keyframes miniAntena { from { opacity: 0.35; } to { opacity: 1; } }
+    .mini-ficha {
+      --tono: #7FBA02;
+      position: absolute;
+      left: 50%;
+      top: 50%;
+      width: 2rem;
+      height: 2.45rem;
+      margin: -1.22rem 0 0 -1rem;
+      border-radius: 6px;
+      background: linear-gradient(180deg, #ffffff, #e8eef5);
+      box-shadow: 0 8px 14px -6px rgba(0, 0, 0, 0.45);
+      animation: miniGira 2.8s linear infinite;
+    }
+    .mini-ficha::before {
+      content: '';
+      display: block;
+      height: 4px;
+      margin: 0.38rem 0.35rem 0;
+      border-radius: 99px;
+      background: var(--tono);
+    }
+    .mini-ficha::after {
+      content: '';
+      display: block;
+      width: 62%;
+      height: 3px;
+      margin: 0.32rem 0.35rem 0;
+      border-radius: 99px;
+      background: #cbd5e1;
+      box-shadow: 0 0.38rem 0 #cbd5e1, 0 0.76rem 0 #e2e8f0;
+    }
+    .mini-ficha--2 { --tono: #22d3ee; animation-delay: -0.93s; }
+    .mini-ficha--3 { --tono: #f59e0b; animation-delay: -1.86s; }
+    @keyframes miniGira {
+      0% { transform: rotate(0deg) translateX(3.35rem) rotate(0deg) scale(1); z-index: 2; }
+      25% { transform: rotate(90deg) translateX(3.35rem) rotate(-90deg) scale(0.72); z-index: 1; }
+      50% { transform: rotate(180deg) translateX(3.35rem) rotate(-180deg) scale(1); z-index: 2; }
+      75% { transform: rotate(270deg) translateX(3.35rem) rotate(-270deg) scale(1.08); z-index: 3; }
+      100% { transform: rotate(360deg) translateX(3.35rem) rotate(-360deg) scale(1); z-index: 2; }
+    }
+    .modulo-carga .carga-titulo { margin: 0; font-size: 1rem; font-weight: 700; color: #f8fafc; }
+    .modulo-carga .carga-sub { margin: 0.25rem 0 0; font-size: 0.85rem; font-weight: 600; color: #9fe04a; }
+    .carga-puntos i { font-style: normal; display: inline-block; animation: cargaPunto 1.2s ease-in-out infinite; }
+    .carga-puntos i:nth-child(2) { animation-delay: 0.15s; }
+    .carga-puntos i:nth-child(3) { animation-delay: 0.3s; }
+    @keyframes cargaPunto { 0%, 70%, 100% { transform: translateY(0); opacity: 0.4; } 35% { transform: translateY(-5px); opacity: 1; } }
+    .modulo-carga .carga-barra {
+      position: relative;
+      width: min(14rem, 70vw);
+      height: 5px;
+      margin: 0.8rem auto 0;
+      border-radius: 999px;
+      overflow: hidden;
+      background: rgba(255, 255, 255, 0.12);
+    }
+    .modulo-carga .carga-barra span {
+      position: absolute;
+      top: 0;
+      bottom: 0;
+      width: 40%;
+      border-radius: inherit;
+      background: linear-gradient(90deg, #9fe04a, #22d3ee);
+      animation: cargaBarra 1.3s cubic-bezier(0.4, 0, 0.2, 1) infinite;
+    }
+    @keyframes cargaBarra { from { left: -40%; } to { left: 100%; } }
+    @media (prefers-reduced-motion: reduce) {
+      .modulo-carga, .modulo-carga.is-out, .mini-carga::before, .mini-arturito, .mini-ojo, .mini-antena, .mini-ficha, .carga-puntos i, .modulo-carga .carga-barra span { animation: none !important; }
+    }
   </style>
 </head>
 <body>
@@ -7003,9 +7120,10 @@ function pcshEnsureVlcomFrameLoaded() {
         console.warn('[pcsh] Portal residentes (init):', err);
         __pcshVlcomEmbeddedStarted = false;
       });
-    } else {
-      afterVlcomInit();
+      return p;
     }
+    afterVlcomInit();
+    return null;
   } catch (eVl) {
     console.warn('[pcsh] Portal residentes:', eVl);
     __pcshVlcomEmbeddedStarted = false;
@@ -15139,6 +15257,51 @@ function pcshApplyModulePageTitle(faIconClass, titleText) {
   }
 }
 
+function pcshCargaMiniHtml() {
+  return '<div class="mini-carga" aria-hidden="true">' +
+    '<span class="mini-ficha"></span>' +
+    '<span class="mini-ficha mini-ficha--2"></span>' +
+    '<span class="mini-ficha mini-ficha--3"></span>' +
+    '<div class="mini-arturito"><svg viewBox="0 0 64 64" xmlns="http://www.w3.org/2000/svg">' +
+      '<line x1="32" y1="12" x2="32" y2="5" stroke="#5a8501" stroke-width="2.4"/>' +
+      '<circle class="mini-antena" cx="32" cy="4.5" r="3.2" fill="#FFD700"/>' +
+      '<rect x="10" y="14" width="44" height="42" rx="12" fill="#7FBA02"/>' +
+      '<rect x="15" y="20" width="34" height="24" rx="6" fill="#1a1a1a"/>' +
+      '<ellipse class="mini-ojo" cx="26" cy="31" rx="3.1" ry="3.1" fill="#7FBA02"/>' +
+      '<ellipse class="mini-ojo" cx="38" cy="31" rx="3.1" ry="3.1" fill="#7FBA02"/>' +
+      '<path d="M26 39 Q32 44 38 39" stroke="#7FBA02" stroke-width="2.2" fill="none" stroke-linecap="round"/>' +
+    '</svg></div></div>' +
+    '<p class="carga-titulo">Cargando<span class="carga-puntos" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>' +
+    '<p class="carga-sub">Arturito ordena tus fichas…</p>' +
+    '<div class="carga-barra" aria-hidden="true"><span></span></div>';
+}
+
+function pcshCargaMiniSiTarda(clave, promesas) {
+  var lista = (promesas || []).filter(function (p) { return p && typeof p.then === 'function'; });
+  if (!lista.length) return;
+  var token = (window._pcshCargaToken || 0) + 1;
+  window._pcshCargaToken = token;
+  document.querySelectorAll('.modulo-carga').forEach(function (n) { n.remove(); });
+  var timer = setTimeout(function () {
+    if (window._pcshCargaToken !== token) return;
+    var velo = document.createElement('div');
+    velo.className = 'modulo-carga';
+    velo.setAttribute('data-carga', clave || '');
+    velo.setAttribute('role', 'status');
+    velo.setAttribute('aria-live', 'polite');
+    velo.innerHTML = '<div class="modulo-carga-card">' + pcshCargaMiniHtml() + '</div>';
+    document.body.appendChild(velo);
+  }, 380);
+  Promise.all(lista.map(function (p) { return Promise.resolve(p).catch(function () {}); })).then(function () {
+    clearTimeout(timer);
+    if (window._pcshCargaToken !== token) return;
+    var velo = document.querySelector('.modulo-carga');
+    if (!velo) return;
+    velo.classList.add('is-out');
+    setTimeout(function () { if (velo.parentNode) velo.remove(); }, 280);
+  });
+}
+
 function showTab(tab) {
   const tabN = document.getElementById('tabNovedades');
   const tabV = document.getElementById('tabVisitas');
@@ -15177,6 +15340,7 @@ function showTab(tab) {
   }
   if (tab !== 'tabAusencia') pcshAbsenceAlertStop();
   if (tab !== 'tabNovedades') pcshArrancarModulosSecundarios();
+  var cargasMini = [];
   tabN.style.display = tab === 'tabNovedades' ? '' : 'none';
   if (tabV) tabV.style.display = tab === 'tabVisitas' ? '' : 'none';
   if (tabPr) tabPr.style.display = tab === 'tabProveedores' ? '' : 'none';
@@ -15218,7 +15382,7 @@ function showTab(tab) {
     pcshApplyModulePageTitle('fa-user-clock', 'Visitas');
     pd.textContent = '';
     if (typeof pcshArrancarModulosSecundarios === 'function') pcshArrancarModulosSecundarios();
-    if (typeof pcshEnsureConserjeriaDeptDataSynced === 'function') pcshEnsureConserjeriaDeptDataSynced();
+    if (typeof pcshEnsureConserjeriaDeptDataSynced === 'function') cargasMini.push(pcshEnsureConserjeriaDeptDataSynced());
     initVisitasUi();
     if (typeof pcshRefreshVisitasProveedorSelects === 'function') pcshRefreshVisitasProveedorSelects();
     renderVisitasModule();
@@ -15236,8 +15400,8 @@ function showTab(tab) {
   } else if (tab === 'tabResidentes') {
     pcshApplyModulePageTitle('fa-users', 'Residentes');
     pd.textContent = '';
-    if (typeof pcshEnsureConserjeriaDeptDataSynced === 'function') pcshEnsureConserjeriaDeptDataSynced();
-    pcshEnsureVlcomFrameLoaded();
+    if (typeof pcshEnsureConserjeriaDeptDataSynced === 'function') cargasMini.push(pcshEnsureConserjeriaDeptDataSynced());
+    cargasMini.push(pcshEnsureVlcomFrameLoaded());
     if (typeof pcshRefreshAllDerivedDeptViews === 'function') pcshRefreshAllDerivedDeptViews();
     if (typeof window.vlcomRefreshMapsWhenVisible === 'function') {
       requestAnimationFrame(function () {
@@ -15249,13 +15413,13 @@ function showTab(tab) {
   } else if (tab === 'tabEncomiendas') {
     pcshApplyModulePageTitle('fa-box-open', 'Encomiendas');
     pd.textContent = '';
-    if (typeof pcshEnsureConserjeriaDeptDataSynced === 'function') pcshEnsureConserjeriaDeptDataSynced();
+    if (typeof pcshEnsureConserjeriaDeptDataSynced === 'function') cargasMini.push(pcshEnsureConserjeriaDeptDataSynced());
     initEncomiendasUi();
     renderEncomiendasModule();
   } else if (tab === 'tabReservas') {
     pcshApplyModulePageTitle('fa-calendar-check', 'Reservas — espacios comunes');
     pd.textContent = '';
-    if (typeof pcshEnsureConserjeriaDeptDataSynced === 'function') pcshEnsureConserjeriaDeptDataSynced();
+    if (typeof pcshEnsureConserjeriaDeptDataSynced === 'function') cargasMini.push(pcshEnsureConserjeriaDeptDataSynced());
     initReservasUi();
     renderReservasModule();
     if (!window.__pcshResTimer) {
@@ -15294,6 +15458,7 @@ function showTab(tab) {
     syncFiltrosMainToGestion();
     renderNovedadesGestion();
   }
+  pcshCargaMiniSiTarda(tab, cargasMini);
 }
 
 (function pcshBindMainTabNav() {
@@ -21239,7 +21404,19 @@ if (typeof pcshBootstrapTurnoFromLocalToCloud === 'function') {
     pcshBootstrapTurnoFromLocalToCloud();
   }, 0);
 }
+var _pcshBootCargaHecha = false;
+function pcshBootCargaLista() {
+  if (_pcshBootCargaHecha) return;
+  _pcshBootCargaHecha = true;
+  if (typeof window._pcshBootCargaResolver === 'function') {
+    window._pcshBootCargaResolver();
+    window._pcshBootCargaResolver = null;
+  }
+}
+pcshCargaMiniSiTarda('arranque', [new Promise(function (resolve) { window._pcshBootCargaResolver = resolve; })]);
+setTimeout(pcshBootCargaLista, 9000);
 listenNovedades(function (ns) {
+  pcshBootCargaLista();
   _pcshNovedadesRecientes = ns || [];
   pcshFusionarNovedadesParaUi();
   if (!window._pcshNovFiltroMesInit) {
@@ -23959,7 +24136,7 @@ function pcshEnsureConserjeriaDeptDataSynced() {
     } catch (e) {}
   }
   if (window.pcshDbBackend === 'firestore' && typeof db !== 'undefined') {
-    db.collection('pcsh_wm815')
+    return db.collection('pcsh_wm815')
       .doc('state')
       .get()
       .then(function (snap) {
@@ -23975,7 +24152,6 @@ function pcshEnsureConserjeriaDeptDataSynced() {
         pcshSyncWm815UnitsFromVlcomLocalStorage();
         refreshVisitasOnly();
       });
-    return;
   }
   try {
     pcshSyncWm815UnitsFromVlcomLocalStorage();
