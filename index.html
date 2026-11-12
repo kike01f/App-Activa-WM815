@@ -10028,6 +10028,96 @@ function pcshVisPlayTrafficAlert(kind) {
     }
   } catch (e) {}
 }
+function pcshVisTextoCorreoFase(v, fase) {
+  var depto = typeof pcshVisitDeptLabelDisplay === 'function' ? pcshVisitDeptLabelDisplay(v && v.deptLabel) : (v && v.deptLabel) || '—';
+  var quien = (v && v.visitor) || '—';
+  var patente = (v && v.plate) || '—';
+  var ingreso = typeof fmtVisDate === 'function' ? fmtVisDate(v && v.at) : (v && v.at) || '—';
+  var encabezado =
+    'Unidad: ' + (depto || '—') +
+    '\nVisitante: ' + quien +
+    '\nPatente: ' + patente +
+    '\nIngreso: ' + ingreso +
+    '\n\n';
+  if (fase === 'warn') {
+    return (
+      'Estimado/a residente de la unidad ' + (depto || '—') + ':\n\n' +
+      'El vehículo de su visita está en los últimos 30 minutos de las 5 horas de permanencia.\n\n' +
+      encabezado +
+      'Si el vehículo sigue en el edificio al cumplirse las 5 horas, comienza un período de gracia de 15 minutos. Después de esa gracia corresponde la multa de estacionamiento.\n\n' +
+      'Ante cualquier consulta, comuníquese con conserjería.'
+    );
+  }
+  if (fase === 'grace') {
+    return (
+      'Estimado/a residente de la unidad ' + (depto || '—') + ':\n\n' +
+      'Se cumplieron las 5 horas de permanencia. Comienza el período de gracia de 15 minutos.\n\n' +
+      encabezado +
+      'Si el vehículo no sale antes de que termine la gracia, se cursará la multa de estacionamiento.\n\n' +
+      'Ante cualquier consulta, comuníquese con conserjería.'
+    );
+  }
+  return (
+    'Estimado/a residente de la unidad ' + (depto || '—') + ':\n\n' +
+    'Terminó el período de gracia. La permanencia superó las 5 horas más 15 minutos y corresponde la multa de estacionamiento.\n\n' +
+    encabezado +
+    'Ante cualquier consulta, comuníquese con conserjería o administración.'
+  );
+}
+function pcshVisAvisarCorreoFase(v, fase, primeraVista) {
+  if (!v || !v.vehicular || v.outAt || !v.id) return;
+  if (fase !== 'warn' && fase !== 'grace' && fase !== 'fine') return;
+  if (primeraVista && fase === 'fine') return;
+  if (!v.correoAviso || typeof v.correoAviso !== 'object') v.correoAviso = {};
+  if (v.correoAviso[fase]) return;
+  var ahora = Date.now();
+  if (v.correoAvisoReintento && v.correoAvisoReintento[fase] && ahora < v.correoAvisoReintento[fase]) return;
+  v.correoAviso[fase] = 'enviando';
+  var dep = typeof pcshEncDeptResolveByNumber === 'function' ? pcshEncDeptResolveByNumber(v.deptLabel) : null;
+  var inf = dep && typeof pcshEncResidentEmailsAllForDept === 'function' ? pcshEncResidentEmailsAllForDept(dep.id) : { email: '' };
+  var mail = String((inf && inf.email) || '').trim();
+  var depto = typeof pcshVisitDeptLabelDisplay === 'function' ? pcshVisitDeptLabelDisplay(v.deptLabel) : v.deptLabel || '';
+  var asuntos = {
+    warn: 'Visita vehicular: quedan 30 minutos — Depto ' + depto,
+    grace: 'Visita vehicular: comenzó la gracia de 15 minutos — Depto ' + depto,
+    fine: 'Visita vehicular: corresponde multa de estacionamiento — Depto ' + depto
+  };
+  function marcar(valor) {
+    v.correoAviso[fase] = valor;
+    if (typeof db === 'undefined' || !db || typeof db.collection !== 'function') return;
+    var patch = {};
+    patch['correoAviso.' + fase] = valor;
+    db.collection('visitas').doc(String(v.id)).update(patch).catch(function (err) {
+      console.warn('[visitas] no se guardó el aviso de correo', err);
+    });
+  }
+  if (!mail) {
+    marcar('sin-correo');
+    return;
+  }
+  if (typeof pcshEnviarCorreoPorGestion !== 'function') {
+    delete v.correoAviso[fase];
+    return;
+  }
+  pcshEnviarCorreoPorGestion({
+    to: mail,
+    cc: 'conserjeria.wm815@gmail.com',
+    asunto: asuntos[fase],
+    texto: pcshVisTextoCorreoFase(v, fase),
+    html: pcshHtmlCorreoVisita(v, fase),
+    origen: 'conserjeria-visita',
+    refId: String(v.id),
+    fase: fase
+  }).then(function (r) {
+    if (r && r.exito) {
+      marcar(new Date().toISOString());
+      return;
+    }
+    delete v.correoAviso[fase];
+    if (!v.correoAvisoReintento) v.correoAvisoReintento = {};
+    v.correoAvisoReintento[fase] = Date.now() + 60000;
+  });
+}
 function pcshVisTrafficAlertsTick() {
   if (typeof visitasList === 'undefined' || !Array.isArray(visitasList)) return;
   if (!window.__pcshVisVehPhaseSnap) window.__pcshVisVehPhaseSnap = {};
@@ -10052,13 +10142,15 @@ function pcshVisTrafficAlertsTick() {
     prev = snap[id];
     if (prev === undefined) {
       snap[id] = ph;
+      pcshVisAvisarCorreoFase(v, ph, true);
       continue;
     }
     if (prev === ph) continue;
     snap[id] = ph;
     if (prev === 'ok' && ph === 'warn') pcshVisPlayTrafficAlert('warn');
     else if (prev === 'warn' && ph === 'grace') pcshVisPlayTrafficAlert('grace');
-    else if (
+    pcshVisAvisarCorreoFase(v, ph);
+    if (
       ph === 'fine' &&
       prev !== 'fine' &&
       typeof pcshVehStateForMultaParte === 'function' &&
@@ -21663,6 +21755,237 @@ function encomiendaRegistroConserjeCellHtml(e) {
   html += '</div>';
   return html;
 }
+function pcshHtmlAvisoOperativo(opts) {
+  opts = opts || {};
+  var tono = opts.tono || '#74bd20';
+  var filas = (opts.filas || [])
+    .map(function (f) {
+      return (
+        '<tr>' +
+        '<td style="padding:9px 14px;border-bottom:1px solid #e4eadc;font-family:Arial,sans-serif;font-size:13px;color:#5c6b4a;width:42%;">' +
+        escapeHtml(f.k) +
+        '</td>' +
+        '<td style="padding:9px 14px;border-bottom:1px solid #e4eadc;font-family:Arial,sans-serif;font-size:14px;color:#1a1a1a;">' +
+        escapeHtml(f.v || '—') +
+        '</td></tr>'
+      );
+    })
+    .join('');
+  return (
+    '<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>' +
+    escapeHtml(opts.titulo || 'Aviso WM 815') +
+    '</title></head><body style="margin:0;padding:0;background:#f3f6ef;">' +
+    '<table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f3f6ef;"><tr><td align="center" style="padding:24px 12px;">' +
+    '<table role="presentation" width="560" cellpadding="0" cellspacing="0" style="width:560px;max-width:560px;background:#ffffff;border-radius:14px;">' +
+    '<tr><td align="center" style="padding:22px 24px 10px;"><img src="https://img.mailinblue.com/8323725/images/content_library/original/685f21fb4a1b4fde403defaf.jpeg" width="230" alt="WM 815" style="display:block;margin:0 auto;border:0;width:230px;height:auto;"></td></tr>' +
+    '<tr><td style="height:5px;background:' +
+    tono +
+    ';font-size:0;line-height:0;">&nbsp;</td></tr>' +
+    '<tr><td style="padding:22px 32px 6px;font-family:Arial,sans-serif;text-align:center;">' +
+    '<p style="margin:0 0 8px;font-size:11px;letter-spacing:.12em;color:#6a8f32;text-transform:uppercase;">Correo automático</p>' +
+    '<h1 style="margin:0;font-size:22px;line-height:1.3;color:#243018;font-weight:700;">' +
+    escapeHtml(opts.titulo || 'Aviso') +
+    '</h1></td></tr>' +
+    '<tr><td style="padding:12px 32px 4px;font-family:Arial,sans-serif;font-size:15px;line-height:1.55;color:#1a1a1a;">' +
+    '<p style="margin:0 0 12px;">' +
+    escapeHtml(opts.saludo || '') +
+    '</p><p style="margin:0 0 16px;">' +
+    escapeHtml(opts.mensaje || '') +
+    '</p></td></tr>' +
+    (filas
+      ? '<tr><td style="padding:0 32px 18px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7faf3;border-radius:10px;">' +
+        filas +
+        '</table></td></tr>'
+      : '') +
+    '<tr><td style="padding:0 32px 22px;font-family:Arial,sans-serif;font-size:14px;line-height:1.5;color:#3d4a32;">' +
+    escapeHtml(opts.cierre || 'Ante cualquier consulta, comuníquese con conserjería.') +
+    '</td></tr>' +
+    '<tr><td style="padding:14px 32px;background:#f4f7ef;font-family:Arial,sans-serif;font-size:12px;line-height:1.5;color:#3d4a32;">Nota: este es un correo automático del Sistema de Gestión. No es necesario responder.</td></tr>' +
+    '<tr><td style="padding:18px 28px 20px;background:#3b3f44;font-family:Arial,sans-serif;text-align:center;">' +
+    '<p style="margin:0 0 4px;color:#ffffff;font-size:16px;font-weight:700;">Conserjería 24/7</p>' +
+    '<p style="margin:0;color:#d5d8d0;font-size:12px;line-height:1.5;">Sistema de Gestión · Edificio WM 815<br>Cuidemos el medio ambiente: no imprima este correo si no es necesario.</p>' +
+    '</td></tr></table></td></tr></table></body></html>'
+  );
+}
+function pcshHtmlCorreoEncomienda(e, kind) {
+  e = e || {};
+  var dep = typeof pcshEncDeptById === 'function' ? pcshEncDeptById(e.deptId) : null;
+  var depto = dep ? dep.number : '—';
+  var resName = (e.destinatarioNombre && String(e.destinatarioNombre).trim()) || (typeof pcshEncDeptResidentDisplayName === 'function' ? pcshEncDeptResidentDisplayName(e.deptId) : '');
+  var saludo = resName && resName !== '—' ? 'Estimado/a ' + resName + ':' : 'Estimado/a residente:';
+  var llegada = kind === 'llegada';
+  var filas = [
+    { k: 'Unidad', v: depto },
+    { k: 'Descripción', v: e.descripcion || '—' }
+  ];
+  if (llegada) {
+    filas.push({ k: 'Recepción', v: typeof fmtVisDate === 'function' ? fmtVisDate(e.receivedAt) : e.receivedAt || '—' });
+    filas.push({ k: 'Registrada por', v: (e.registradoPor || e.receivedByName || '').trim() || 'Conserjería' });
+  } else {
+    filas.push({ k: 'Quién retira', v: (e.retiradoPor && String(e.retiradoPor).trim()) || '—' });
+    filas.push({ k: 'Fecha y hora de retiro', v: typeof fmtVisDate === 'function' ? fmtVisDate(e.entregadoAt || new Date().toISOString()) : e.entregadoAt || '—' });
+    filas.push({ k: 'Retiro registrado por', v: (e.retiroRegistradoPor || '').trim() || 'Conserjería' });
+  }
+  return pcshHtmlAvisoOperativo({
+    tono: llegada ? '#74bd20' : '#3d6b14',
+    titulo: llegada ? 'Llegó una encomienda' : 'Encomienda retirada',
+    saludo: saludo,
+    mensaje: llegada
+      ? 'Le informamos que ha llegado una encomienda a su nombre. Puede retirarla en conserjería en el horario habitual.'
+      : 'Le confirmamos el retiro de su encomienda en conserjería.',
+    filas: filas,
+    cierre: 'Ante cualquier consulta, comuníquese con conserjería o administración.'
+  });
+}
+function pcshHtmlCorreoVisita(v, fase) {
+  v = v || {};
+  var depto = typeof pcshVisitDeptLabelDisplay === 'function' ? pcshVisitDeptLabelDisplay(v.deptLabel) : v.deptLabel || '—';
+  var ingreso = typeof fmtVisDate === 'function' ? fmtVisDate(v.at) : v.at || '—';
+  var tono = fase === 'fine' ? '#c2412d' : fase === 'grace' ? '#d97706' : '#c8960a';
+  var titulo = fase === 'fine' ? 'Corresponde multa de estacionamiento' : fase === 'grace' ? 'Comenzó la gracia de 15 minutos' : 'Quedan 30 minutos';
+  var mensaje =
+    fase === 'fine'
+      ? 'Terminó el período de gracia. La permanencia del vehículo superó las 5 horas más 15 minutos y corresponde la multa de estacionamiento.'
+      : fase === 'grace'
+        ? 'Se cumplieron las 5 horas de permanencia. Comienza el período de gracia de 15 minutos. Si el vehículo no sale antes de que termine, se cursará la multa de estacionamiento.'
+        : 'El vehículo de su visita está en los últimos 30 minutos de las 5 horas de permanencia. Si sigue en el edificio al cumplirse ese plazo, comienza una gracia de 15 minutos.';
+  return pcshHtmlAvisoOperativo({
+    tono: tono,
+    titulo: titulo,
+    saludo: 'Estimado/a residente de la unidad ' + (depto || '—') + ':',
+    mensaje: mensaje,
+    filas: [
+      { k: 'Unidad', v: depto || '—' },
+      { k: 'Visitante', v: v.visitor || '—' },
+      { k: 'Patente', v: v.plate || '—' },
+      { k: 'Ingreso', v: ingreso }
+    ],
+    cierre: fase === 'fine' ? 'Ante cualquier consulta, comuníquese con conserjería o administración.' : 'Ante cualquier consulta, comuníquese con conserjería.'
+  });
+}
+async function pcshEncolarCorreoOperativoGestion(job) {
+  var fs = window.pcshMainDb || (typeof db !== 'undefined' ? db : null);
+  if (!fs || typeof fs.collection !== 'function' || typeof firebase === 'undefined') {
+    throw new Error('Firestore de Conserjería no disponible');
+  }
+  var ref = fs.collection('pcsh_wm815').doc('welcome');
+  var FV = firebase.firestore.FieldValue;
+  var item = {
+    id: 'op_' + Date.now() + '_' + Math.random().toString(36).slice(2, 8),
+    tipo: 'operativo',
+    to: job.to,
+    cc: job.cc || '',
+    asunto: job.asunto,
+    texto: job.texto,
+    html: job.html || '',
+    createdAt: new Date().toISOString(),
+    status: 'pending',
+    origen: job.origen || 'conserjeria-operativo',
+    refId: job.refId || '',
+    fase: job.fase || ''
+  };
+  await ref.firestore.runTransaction(function (tx) {
+    return tx.get(ref).then(function (snap) {
+      var data = snap && snap.exists ? snap.data() || {} : {};
+      var jobs = Array.isArray(data.queue) ? data.queue.slice() : [];
+      jobs.push(item);
+      if (jobs.length > 80) jobs = jobs.slice(jobs.length - 80);
+      tx.set(
+        ref,
+        { queue: jobs, updatedAt: FV.serverTimestamp(), origen: 'conserjeria-wm' },
+        { merge: true }
+      );
+    });
+  });
+  return { encolado: true };
+}
+async function pcshEnviarCorreoPorGestion(opts) {
+  opts = opts || {};
+  var to = String(opts.to || '')
+    .split(/[,;]/)
+    .map(function (s) { return String(s || '').trim(); })
+    .filter(Boolean);
+  if (!to.length) return { exito: false, error: 'Sin destinatario' };
+  var asunto = String(opts.asunto || '').trim();
+  var texto = String(opts.texto || '');
+  if (texto.indexOf('correo automático') < 0) {
+    texto +=
+      '\n\nNota: este es un correo automático del Sistema de Gestión. No es necesario responder.';
+  }
+  var html = opts.html || pcshHtmlAvisoOperativo({ titulo: asunto, saludo: 'Estimado/a residente:', mensaje: texto });
+  var mailData = {
+    to: to.length === 1 ? to[0] : to,
+    message: { subject: asunto, text: texto, html: html },
+    createdBy: 'conserjeria-automatico',
+    status: 'pending',
+    tipo: 'HTML',
+    origen: opts.origen || 'conserjeria-operativo'
+  };
+  if (opts.cc) mailData.cc = opts.cc;
+  try {
+    if (typeof firebase === 'undefined' || !firebase.firestore) throw new Error('Firebase no cargado');
+    var app = typeof pcshBodegaAppAdministracion === 'function' ? pcshBodegaAppAdministracion() : null;
+    if (!app) throw new Error('Sin proyecto de correo de Gestión');
+    mailData.createdAt = firebase.firestore.FieldValue.serverTimestamp();
+    var docRef = await app.firestore().collection('mail').add(mailData);
+    return { exito: true, docId: docRef.id, via: 'mail' };
+  } catch (eDir) {
+    console.warn('[correo] escritura directa en mail de Gestión', eDir);
+    try {
+      await pcshEncolarCorreoOperativoGestion({
+        to: mailData.to,
+        cc: opts.cc || '',
+        asunto: asunto,
+        texto: texto,
+        html: html,
+        origen: opts.origen || 'conserjeria-operativo',
+        refId: opts.refId || '',
+        fase: opts.fase || ''
+      });
+      return { exito: true, via: 'cola' };
+    } catch (eCola) {
+      return { exito: false, error: (eCola && eCola.message) || String(eCola) };
+    }
+  }
+}
+function pcshEncEnviarAvisoAutomatico(e, kind) {
+  if (!e || !e.id) return;
+  var inf = pcshEncEmailsForNotify(e);
+  var mail = String((inf && inf.email) || '').trim();
+  var dep = pcshEncDeptById(e.deptId);
+  var num = dep ? dep.number : '';
+  var subj =
+    kind === 'llegada'
+      ? 'Encomienda en conserjería — Depto ' + num
+      : 'Confirmación retiro encomienda — Depto ' + num;
+  if (!mail) {
+    showMsg('No hay correo del residente. El aviso automático no se envió.', 'warn');
+    return;
+  }
+  pcshEnviarCorreoPorGestion({
+    to: mail,
+    cc: 'conserjeria.wm815@gmail.com',
+    asunto: subj,
+    texto: pcshEncBodyText(e, kind),
+    html: pcshHtmlCorreoEncomienda(e, kind),
+    origen: 'conserjeria-encomienda',
+    refId: e.id,
+    fase: kind
+  }).then(function (r) {
+    if (r && r.exito) {
+      pcshEncApplyNotifyMark(e.id, kind, {
+        closeModal: false,
+        toastMsg: r.via === 'cola'
+          ? 'Aviso dejado en la cola de correo de Gestión.'
+          : 'Aviso automático enviado por el correo de Gestión.',
+        toastType: 'success'
+      });
+      return;
+    }
+    showMsg('No se pudo enviar el aviso automático. Puede abrirlo a mano.', 'warn');
+    openEncNotifyModal(e.id, kind);
+  });
+}
 function pcshEncBodyText(e, kind) {
   var dep = pcshEncDeptById(e.deptId);
   var depto = dep ? dep.number : '—';
@@ -21675,7 +21998,7 @@ function pcshEncBodyText(e, kind) {
   var nomRetiroConserje = ((e.retiroRegistradoPor || '').trim()) || conserjeNombreVis();
   var notifTs = new Date().toLocaleString('es-CL', { dateStyle: 'short', timeStyle: 'medium' });
   var sig =
-    '\n\n—\nSistema de Gestión - Conserjería\nEdificio WM815\n\nCuidemos el Medio Ambiente, por favor, no imprima este E-Mail si no es necesario.\n';
+    '\n\n—\nSistema de Gestión - Conserjería\nEdificio WM815\n\nNota: este es un correo automático del Sistema de Gestión. No es necesario responder.\n\nCuidemos el Medio Ambiente, por favor, no imprima este E-Mail si no es necesario.\n';
   if (kind === 'llegada') {
     return (
       saludoLine +
@@ -21930,7 +22253,7 @@ function openEncomiendaModal(id) {
         '" style="width:100%;background:var(--gray-50);padding:0.45rem;border-radius:8px;border:1px solid var(--gray-300);" title="Se registró al marcar el retiro" /></div>'
       : '') +
     (!id
-      ? '<div class="form-group"><label><input type="checkbox" name="avisar" checked /> Tras guardar, abrir ventana para avisar al residente por correo</label></div>'
+      ? '<p class="page-desc" style="margin:0.35rem 0 0">Al guardar, el aviso de llegada se envía solo al correo del residente, con el sistema de correo de Gestión. El mensaje indica que es un correo automático.</p>'
       : '') +
     '<input type="hidden" name="eid" value="' +
     escapeHtml(id && e ? e.id : '') +
@@ -22043,12 +22366,7 @@ function pcshEncSaveFromForm() {
       .then(function () {
         pcshEncCloseMainModal();
         showMsg('Encomienda guardada.', 'success');
-        var avisar = f.avisar && f.avisar.checked;
-        if (avisar) {
-          setTimeout(function () {
-            openEncNotifyModal(newId, 'llegada');
-          }, 200);
-        }
+        pcshEncEnviarAvisoAutomatico(Object.assign({ id: newId }, o), 'llegada');
       })
       .catch(function () {
         showMsg('No se pudo guardar.', 'error');
@@ -22078,7 +22396,7 @@ function openEncEntregarModal(id) {
     ' · ' +
     escapeHtml(e.descripcion || 'Encomienda') +
     '</p>' +
-    '<p class="page-desc" style="margin-top:0">Indique la persona que retira el paquete. Luego podrá enviar un <strong>correo distinto</strong> al de la llegada.</p>' +
+    '<p class="page-desc" style="margin-top:0">Indique la persona que retira el paquete. Al registrar el retiro se envía sola la confirmación, por el correo de Gestión.</p>' +
     '<form id="f-enc-ret"><div class="form-group"><label>Quién retira</label>' +
     '<input name="retiradoPor" required autocomplete="name" placeholder="Nombre y apellido" style="width:100%;padding:0.45rem;border-radius:8px;border:1px solid var(--gray-300);background:var(--input-bg);color:var(--text-main);" /></div>' +
     '<input type="hidden" name="encId" value="' +
@@ -22119,15 +22437,14 @@ function openEncEntregarModal(id) {
       .then(function () {
         pcshEncCloseMainModal();
         showMsg('Retiro registrado.', 'success');
-        showConfirmDialog(
-          '¿Abrir correo para enviar la confirmación de retiro al residente?',
-          function () {
-            setTimeout(function () {
-              openEncNotifyModal(id, 'retiro');
-            }, 150);
-          },
-          'Correo al residente',
-          'Sí, abrir'
+        pcshEncEnviarAvisoAutomatico(
+          Object.assign({}, cur, {
+            id: id,
+            entregadoAt: now,
+            retiradoPor: nombre,
+            retiroRegistradoPor: conserjeNombreVis()
+          }),
+          'retiro'
         );
       })
       .catch(function () {
