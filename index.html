@@ -3341,11 +3341,6 @@
         <p class="page-desc" style="margin:0 0 0.4rem;font-size:0.72rem;line-height:1.35;opacity:0.92">Visitas vehiculares: hasta <strong>5 h</strong> desde el ingreso; <strong>alerta</strong> (amarillo) en los últimos 30 min; <strong>15 min de gracia</strong> tras las 5 h; después, <strong>multa</strong> y parte informativo (no aplica a <strong>proveedores</strong> en auto: solo control de tiempo).</p>
         <div id="vis-open-list" aria-live="polite"></div>
       </div>
-      <div class="cg-vis-open-card" id="vis-hoy-card">
-        <h4><i class="fa-solid fa-clipboard-check" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Ingresos de hoy</h4>
-        <p class="page-desc" style="margin:0 0 0.4rem;font-size:0.72rem;line-height:1.35;opacity:0.92">Incluye visitas particulares a pie. Esas no aparecen arriba porque no llevan salida.</p>
-        <div id="vis-hoy-list" aria-live="polite"></div>
-      </div>
       <div class="card cg-card-accent--visit">
         <div class="card-h">
           <h3><i class="fa-solid fa-right-to-bracket" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Registrar ingreso</h3>
@@ -10794,7 +10789,7 @@ function renderVisitasModule() {
     var openVis = allVis.filter(function (v) { return !v.outAt && !visitIsPeatonal(v); })
       .sort(function (a, b) { return pcshVisitAtToMs(a.at) - pcshVisitAtToMs(b.at); });
     if (!openVis.length) {
-      openListEl.innerHTML = '<p class="page-desc" style="margin:0;font-size:0.85rem;color:var(--text-secondary)">Nadie dentro que requiera <strong>salida</strong>. Las visitas a pie quedan en <strong>Ingresos de hoy</strong>.</p>';
+      openListEl.innerHTML = '<p class="page-desc" style="margin:0;font-size:0.85rem;color:var(--text-secondary)">Nadie dentro que requiera <strong>salida</strong>.</p>';
     } else {
       openListEl.innerHTML = '<ul class="cg-vis-open-list">' + openVis.map(function (v) {
         var isProv = visitIsProveedor(v);
