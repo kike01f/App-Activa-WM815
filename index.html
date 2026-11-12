@@ -9437,7 +9437,7 @@ function pcshVisAsegurarNovedadMultaEstacionamiento(v, opts) {
               conserje: conserje,
               texto: texto,
               categoria: 'Multa',
-              notaInterna: 'Generada automáticamente desde visitas (estacionamiento). Visita ' + vid,
+              notaInterna: '',
               origen: 'visita_estacionamiento',
               visitaId: vid,
               depto: depto,
@@ -9469,7 +9469,7 @@ function pcshVisAsegurarNovedadMultaEstacionamiento(v, opts) {
         conserje: conserje,
         texto: texto,
         categoria: 'Multa',
-        notaInterna: 'Generada automáticamente desde visitas (estacionamiento). Visita ' + vid,
+        notaInterna: '',
         origen: 'visita_estacionamiento',
         visitaId: vid,
         depto: depto,
@@ -13286,8 +13286,8 @@ function showConfirmDialog(message, onConfirm, title, btnText, onCancel) {
     close();
     if (typeof onCancel === 'function') onCancel();
   }
-  document.getElementById('confirmYes').addEventListener('click', ok);
-  document.getElementById('confirmNo').addEventListener('click', no);
+  document.getElementById('confirmYes').addEventListener('click', ok, { once: true });
+  document.getElementById('confirmNo').addEventListener('click', no, { once: true });
 }
 
 /** Sustituye window.prompt: el resultado llega a onResult(texto) o onResult(null) si cancela. */
@@ -15672,7 +15672,9 @@ function abrirModalEditarNovedadAdmin(cor) {
   }
   document.getElementById('pcshEditNovCorrelativo').value = String(cor);
   document.getElementById('pcshEditNovTexto').value = nov.texto || '';
-  document.getElementById('pcshEditNovNotaInt').value = (nov.notaInterna != null ? String(nov.notaInterna) : '');
+  document.getElementById('pcshEditNovNotaInt').value = (typeof pcshNotaInternaVisibleNovedad === 'function'
+    ? pcshNotaInternaVisibleNovedad(nov.notaInterna)
+    : (nov.notaInterna != null ? String(nov.notaInterna) : ''));
   document.getElementById('pcshEditNovFecha').value = fechaParaInput(nov.fecha) || '';
   document.getElementById('pcshEditNovHora').value = horaParaInputTime(nov.hora) || '';
   fillPcshEditNovConserjeSelect(nov.conserje);
@@ -15813,19 +15815,22 @@ function pcshHtmlEstadoMultaGestion(n) {
   var label = pcshEtiquetaEstadoMultaGestion(est);
   return '<span class="tl-reclamo-est es-' + est.replace(/[^a-z0-9_]/g, '') + '" title="Estado de Administración">Adm: ' + escapeHtml(label) + '</span>';
 }
+function pcshNotaInternaVisibleNovedad(texto) {
+  var s = String(texto || '').trim();
+  if (!s) return '';
+  if (/generada autom[aá]ticamente desde visitas/i.test(s)) return '';
+  if (/visita\s+[A-Za-z0-9_-]{10,}/i.test(s) && /estacionamiento/i.test(s)) return '';
+  return s;
+}
 function pcshHtmlObsMultaGestion(n) {
   if (!n || (typeof pcshEsCategoriaMulta === 'function' && !pcshEsCategoriaMulta(n.categoria))) return '';
   var d = pcshMultaGestionDeNovedad(n);
   if (!d) return '';
-  var parts = [];
-  if (pcshMultaGestionEstaAnulada(d)) parts.push('Esta multa fue anulada por Administración y no se incluye en el reporte de comité.');
-  if (d.folio) parts.push('Folio: ' + String(d.folio));
-  if (d.monto != null && d.monto !== '' && Number(d.monto) > 0) {
-    parts.push('Monto: ' + String(d.monto) + (d.tipoUnidad ? ' ' + d.tipoUnidad : ''));
-  }
-  if (String(d.observacionAdmin || '').trim()) parts.push(String(d.observacionAdmin).trim());
-  if (!parts.length) return '';
-  return '<div class="tl-reclamo-obs"><strong>Administración:</strong> ' + escapeHtml(parts.join(' · ')).replace(/\n/g, '<br>') + '</div>';
+  var obs = String(d.observacionAdmin || '').trim();
+  if (!obs) return '';
+  if (/anulada por administraci[oó]n/i.test(obs)) return '';
+  if (/no se incluye en el reporte de comit[eé]/i.test(obs)) return '';
+  return '<div class="tl-reclamo-obs"><strong>Administración:</strong> ' + escapeHtml(obs).replace(/\n/g, '<br>') + '</div>';
 }
 function pcshMultaAlertaHuella(d) {
   if (!d) return '';
@@ -16166,15 +16171,38 @@ async function updateNovedad(c, data) {
   } catch (eUpdM) {}
 }
 async function removeNovedad(c) {
-  await db.collection('novedades').doc(String(c)).delete();
+  var cor = Number(c);
+  if (!isFinite(cor)) {
+    if (typeof showMsg === 'function') showMsg('No se pudo identificar la novedad a eliminar.', 'error');
+    return false;
+  }
+  try {
+    await db.collection('novedades').doc(String(cor)).delete();
+  } catch (eDel) {
+    console.warn('[novedades] eliminar:', eDel);
+    if (typeof showMsg === 'function') showMsg('No se pudo eliminar la novedad. ' + ((eDel && eDel.message) ? eDel.message : 'Revise permisos o conexión.'), 'error');
+    return false;
+  }
   try {
     var now = new Date().toISOString();
-    await db.collection('reclamos_desde_novedad').doc(String(c)).set({ activa: false, updatedAt: now }, { merge: true });
+    await db.collection('reclamos_desde_novedad').doc(String(cor)).set({ activa: false, updatedAt: now }, { merge: true });
   } catch (eDelR) {}
   try {
     var nowM = new Date().toISOString();
-    await db.collection('multas_desde_novedad').doc(String(c)).set({ activa: false, updatedAt: nowM }, { merge: true });
+    await db.collection('multas_desde_novedad').doc(String(cor)).set({ activa: false, updatedAt: nowM }, { merge: true });
   } catch (eDelM) {}
+  try {
+    if (typeof novedades !== 'undefined' && Array.isArray(novedades)) {
+      novedades = novedades.filter(function (x) { return !x || Number(x.correlativo) !== cor; });
+    }
+  } catch (eLoc) {}
+  if (typeof showMsg === 'function') showMsg('Novedad eliminada.', 'success');
+  if (typeof pcshProgramarUiNovedades === 'function') pcshProgramarUiNovedades({ dash: false });
+  else {
+    if (typeof renderNovedades === 'function') renderNovedades();
+    if (typeof renderNovedadesGestion === 'function') renderNovedadesGestion();
+  }
+  return true;
 }
 
 /* ===== Resumen diario de novedades ===== */
@@ -17826,7 +17854,8 @@ function renderNovedades() {
       (typeof pcshHtmlEstadoReclamoGestion === 'function' ? pcshHtmlEstadoReclamoGestion(n) : '') +
       (typeof pcshHtmlEstadoMultaGestion === 'function' ? pcshHtmlEstadoMultaGestion(n) : '') +
       (esDest ? ' <span class="tl-dest-badge"><i class="fa-solid fa-star" aria-hidden="true"></i> Destacada</span>' : '');
-    var notaInternaHtml = (n.notaInterna && String(n.notaInterna).trim()) ? '<div class="tl-nov-note"><strong>Nota:</strong> ' + escapeHtml(String(n.notaInterna)).replace(/\n/g, '<br>') + '</div>' : '';
+    var notaIntVis = typeof pcshNotaInternaVisibleNovedad === 'function' ? pcshNotaInternaVisibleNovedad(n.notaInterna) : String(n.notaInterna || '').trim();
+    var notaInternaHtml = notaIntVis ? '<div class="tl-nov-note"><strong>Nota:</strong> ' + escapeHtml(notaIntVis).replace(/\n/g, '<br>') + '</div>' : '';
     var reclamoObsHtml = (typeof pcshHtmlObsReclamoGestion === 'function' ? pcshHtmlObsReclamoGestion(n) : '') +
       (typeof pcshHtmlObsMultaGestion === 'function' ? pcshHtmlObsMultaGestion(n) : '');
     var item3 = document.createElement('div');
@@ -18011,9 +18040,19 @@ function renderNovedadesGestion() {
       n.correlativo +
       '" title="Eliminar"><i class="fa-solid fa-trash" aria-hidden="true"></i><span class="sr-only"> Eliminar</span></button></td>';
     tbody.appendChild(tr2);
-    tr2.querySelector('[data-del]').onclick = function () {
-      showConfirmDialog('¿Eliminar novedad?', function () { removeNovedad(n.correlativo); });
-    };
+    var delBtn = tr2.querySelector('[data-del]');
+    if (delBtn) {
+      delBtn.onclick = function (ev) {
+        if (ev) {
+          ev.preventDefault();
+          ev.stopPropagation();
+        }
+        var corDel = parseInt(delBtn.getAttribute('data-del'), 10);
+        showConfirmDialog('¿Eliminar la novedad #' + (numeros[corDel] || corDel) + ' del libro?', function () {
+          removeNovedad(corDel);
+        }, 'Eliminar novedad', 'Eliminar');
+      };
+    }
     var ed = tr2.querySelector('[data-edit-gestion]');
     if (ed) {
       ed.onclick = function () {
