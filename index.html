@@ -8294,8 +8294,11 @@ function pcshVisNormalizeDocExtranjero(raw) {
   return t.replace(/[^A-Z0-9\-\/]/g, '');
 }
 
-function pcshVisitasResolverIdentificacion(rec, rutRaw, docExtranjero, onDone) {
+function pcshVisitasResolverIdentificacion(rec, rutRaw, docExtranjero, onDone, onAbort) {
   var raw = String(rutRaw || '').trim();
+  function abortar() {
+    if (typeof onAbort === 'function') onAbort();
+  }
   if (!raw) {
     rec.visitorRut = '';
     rec.docExtranjero = false;
@@ -8306,6 +8309,7 @@ function pcshVisitasResolverIdentificacion(rec, rutRaw, docExtranjero, onDone) {
     var norm = pcshVisNormalizeDocExtranjero(raw);
     if (norm.length < 3) {
       showMsg('El DNI o pasaporte es demasiado corto. Revise el número.', 'error');
+      abortar();
       return;
     }
     rec.visitorRut = norm;
@@ -8316,14 +8320,14 @@ function pcshVisitasResolverIdentificacion(rec, rutRaw, docExtranjero, onDone) {
   pcshVisitasResolverRutChileNoExtranjero(rec, raw, function () {
     rec.docExtranjero = false;
     onDone();
-  });
+  }, abortar);
 }
 
 function pcshVisitasCommitIngreso(form, rec, veh, vex) {
   if (rec && rec.visitorRut && !rec.visitorRutKey) {
     rec.visitorRutKey = pcshVisitIdentityKeyFromRecord(rec);
   }
-  db.collection('visitas')
+  return db.collection('visitas')
     .add(rec)
     .then(function (ref) {
       clearVisitParkingFieldError(form);
@@ -8361,8 +8365,11 @@ function pcshVisitasCommitIngreso(form, rec, veh, vex) {
 /**
  * RUT chileno sin casilla extranjero: normaliza, o pide confirmar si el DV no coincide con módulo 11; luego onDone().
  */
-function pcshVisitasResolverRutChileNoExtranjero(rec, rutRaw, onDone) {
+function pcshVisitasResolverRutChileNoExtranjero(rec, rutRaw, onDone, onAbort) {
   var raw = String(rutRaw || '').trim();
+  function abortar() {
+    if (typeof onAbort === 'function') onAbort();
+  }
   if (!raw) {
     rec.visitorRut = '';
     onDone();
@@ -8371,6 +8378,7 @@ function pcshVisitasResolverRutChileNoExtranjero(rec, rutRaw, onDone) {
   var ev = pcshVisitasEvaluarRutChile(raw);
   if (ev.tipo === 'error') {
     showMsg(ev.msg, 'error');
+    abortar();
     return;
   }
   if (ev.tipo === 'ok') {
@@ -8391,7 +8399,7 @@ function pcshVisitasResolverRutChileNoExtranjero(rec, rutRaw, onDone) {
       },
       'Verificar RUT',
       'Registrar igual',
-      function () {}
+      abortar
     );
     return;
   }
@@ -10479,6 +10487,7 @@ function bindOneVisitForm(form) {
   }
   form.addEventListener('submit', function (e) {
     e.preventDefault();
+    if (form.getAttribute('data-pcsh-guardando') === '1') return;
     if (!puedeRegistrarComoConserje()) {
       showMsg('Debe abrir el turno (conserje activo) o iniciar sesión en Administración para registrar visitas.', 'error');
       return;
@@ -10531,14 +10540,26 @@ function bindOneVisitForm(form) {
       showMsg('Seleccione unidad destino.', 'error');
       return;
     }
+    var btnGuardar = form.querySelector('button[type="submit"]');
+    var cerrado = false;
+    function terminarGuardado() {
+      if (cerrado) return;
+      cerrado = true;
+      form.removeAttribute('data-pcsh-guardando');
+      if (btnGuardar) btnGuardar.disabled = false;
+    }
+    function guardarUnaVez() {
+      if (form.getAttribute('data-pcsh-guardando') === '1') return;
+      form.setAttribute('data-pcsh-guardando', '1');
+      if (btnGuardar) btnGuardar.disabled = true;
+      Promise.resolve(pcshVisitasCommitIngreso(form, rec, veh, vex)).then(terminarGuardado, terminarGuardado);
+    }
     if (ing === 'persona') {
       rec.visitor = pcshVisFormatNombreTitulo(String(fd.get('visitor') || ''));
       if (!rec.visitor) { showMsg('Indique nombre del visitante.', 'error'); return; }
       var cbDocP = form.querySelector('input[name="visitorDocExtranjero"]');
       var rutRawP = String(fd.get('visitorRut') || '');
-      pcshVisitasResolverIdentificacion(rec, rutRawP, !!(cbDocP && cbDocP.checked), function () {
-        pcshVisitasCommitIngreso(form, rec, veh, vex);
-      });
+      pcshVisitasResolverIdentificacion(rec, rutRawP, !!(cbDocP && cbDocP.checked), guardarUnaVez, terminarGuardado);
       return;
     } else {
       var pidSel = String(fd.get('proveedorId') || '').trim();
@@ -10555,9 +10576,7 @@ function bindOneVisitForm(form) {
       if (!rec.proveedorEmpresa) { showMsg('Indique empresa proveedora o elija una del directorio.', 'error'); return; }
       var cbDocC = form.querySelector('input[name="contactDocExtranjero"]');
       var rutRawC = String(fd.get('visitContactRut') || '');
-      pcshVisitasResolverIdentificacion(rec, rutRawC, !!(cbDocC && cbDocC.checked), function () {
-        pcshVisitasCommitIngreso(form, rec, veh, vex);
-      });
+      pcshVisitasResolverIdentificacion(rec, rutRawC, !!(cbDocC && cbDocC.checked), guardarUnaVez, terminarGuardado);
       return;
     }
   });
@@ -21885,10 +21904,14 @@ function pcshCorreosAvisoVisitaUnidad(deptLabelOrId) {
   var pu = pcshEncGetPortalUnit(dep.id);
   if (!pu) return '';
   var emails = [];
+  var vistos = {};
   (pu.residents || []).forEach(function (r) {
     if (!pcshResidenteRecibeAvisoVisita(r, pu.unitUse)) return;
     var em = String((r && r.email) || '').trim();
-    if (em && emails.indexOf(em) < 0) emails.push(em);
+    var clave = em.toLowerCase();
+    if (!em || vistos[clave]) return;
+    vistos[clave] = true;
+    emails.push(em);
   });
   return emails.join(',');
 }
@@ -21926,6 +21949,7 @@ function pcshTextoCorreoIngresoVisita(v) {
 }
 function pcshVisNotificarIngresoParticular(v) {
   if (!v || v.visitKind === 'proveedor') return;
+  if (v.correoIngreso) return;
   var mail = pcshCorreosAvisoVisitaUnidad(v.deptLabel);
   var depto = typeof pcshVisitDeptLabelDisplay === 'function' ? pcshVisitDeptLabelDisplay(v.deptLabel) : v.deptLabel || '';
   if (!mail) {
@@ -21933,6 +21957,7 @@ function pcshVisNotificarIngresoParticular(v) {
     return;
   }
   if (typeof pcshEnviarCorreoPorGestion !== 'function') return;
+  v.correoIngreso = 'enviando';
   pcshEnviarCorreoPorGestion({
     to: mail,
     asunto: 'Ingreso de visita — Depto ' + depto,
@@ -21971,8 +21996,15 @@ async function pcshEncolarCorreoOperativoGestion(job) {
     return tx.get(ref).then(function (snap) {
       var data = snap && snap.exists ? snap.data() || {} : {};
       var jobs = Array.isArray(data.queue) ? data.queue.slice() : [];
-      jobs.push(item);
-      if (jobs.length > 80) jobs = jobs.slice(jobs.length - 80);
+      var clave = String(item.origen || '') + '|' + String(item.refId || '') + '|' + String(item.fase || '');
+      var ya = item.refId && jobs.some(function (j) {
+        if (!j || j.status === 'error') return false;
+        return String(j.origen || '') + '|' + String(j.refId || '') + '|' + String(j.fase || '') === clave;
+      });
+      if (!ya) {
+        jobs.push(item);
+        if (jobs.length > 80) jobs = jobs.slice(jobs.length - 80);
+      }
       tx.set(
         ref,
         { queue: jobs, updatedAt: FV.serverTimestamp(), origen: 'conserjeria-wm' },
@@ -22077,7 +22109,7 @@ async function pcshEscribirMailConSesion(mailData, idToken) {
   if (!res.ok) throw new Error('mail ' + res.status);
   var json = await res.json();
   var name = String(json.name || '');
-  return name.split('/').pop();
+  return name.split('/').pop() || 'enviado';
 }
 async function pcshEnviarCorreoPorGestion(opts) {
   opts = opts || {};
@@ -22085,7 +22117,22 @@ async function pcshEnviarCorreoPorGestion(opts) {
     .split(/[,;]/)
     .map(function (s) { return String(s || '').trim(); })
     .filter(Boolean);
+  var toVistos = {};
+  to = to.filter(function (s) {
+    var k = s.toLowerCase();
+    if (toVistos[k]) return false;
+    toVistos[k] = true;
+    return true;
+  });
   if (!to.length) return { exito: false, error: 'Sin destinatario' };
+  var claveEnvio = [opts.origen || '', opts.refId || '', opts.fase || '', to.join('|').toLowerCase()].join('::');
+  window._pcshCorreoEnvioHecho = window._pcshCorreoEnvioHecho || {};
+  window._pcshCorreoEnvioVuelo = window._pcshCorreoEnvioVuelo || {};
+  var hecho = window._pcshCorreoEnvioHecho[claveEnvio];
+  if (opts.refId && (window._pcshCorreoEnvioVuelo[claveEnvio] || (hecho && Date.now() - hecho < 120000))) {
+    return { exito: true, via: 'dedupe' };
+  }
+  if (opts.refId) window._pcshCorreoEnvioVuelo[claveEnvio] = true;
   var asunto = String(opts.asunto || '').trim();
   var texto = String(opts.texto || '');
   if (texto.indexOf('correo automático') < 0) {
@@ -22103,28 +22150,36 @@ async function pcshEnviarCorreoPorGestion(opts) {
   };
   if (opts.cc) mailData.cc = opts.cc;
   try {
-    var idToken = await pcshIdTokenCorreoGestion();
-    if (idToken) {
-      var docId = await pcshEscribirMailConSesion(mailData, idToken);
-      if (docId) return { exito: true, docId: docId, via: 'mail' };
+    try {
+      var idToken = await pcshIdTokenCorreoGestion();
+      if (idToken) {
+        var docId = await pcshEscribirMailConSesion(mailData, idToken);
+        if (docId) {
+          if (opts.refId) window._pcshCorreoEnvioHecho[claveEnvio] = Date.now();
+          return { exito: true, docId: docId, via: 'mail' };
+        }
+      }
+    } catch (eSes) {
+      console.warn('[correo] sesión de Gestión', eSes);
     }
-  } catch (eSes) {
-    console.warn('[correo] sesión de Gestión', eSes);
-  }
-  try {
-    await pcshEncolarCorreoOperativoGestion({
-      to: mailData.to,
-      cc: opts.cc || '',
-      asunto: asunto,
-      texto: texto,
-      html: html,
-      origen: opts.origen || 'conserjeria-operativo',
-      refId: opts.refId || '',
-      fase: opts.fase || ''
-    });
+    try {
+      await pcshEncolarCorreoOperativoGestion({
+        to: mailData.to,
+        cc: opts.cc || '',
+        asunto: asunto,
+        texto: texto,
+        html: html,
+        origen: opts.origen || 'conserjeria-operativo',
+        refId: opts.refId || '',
+        fase: opts.fase || ''
+      });
+    } catch (eCola) {
+      return { exito: false, error: (eCola && eCola.message) || String(eCola) };
+    }
+    if (opts.refId) window._pcshCorreoEnvioHecho[claveEnvio] = Date.now();
     return { exito: true, via: 'cola' };
-  } catch (eCola) {
-    return { exito: false, error: (eCola && eCola.message) || String(eCola) };
+  } finally {
+    if (opts.refId) delete window._pcshCorreoEnvioVuelo[claveEnvio];
   }
 }
 function pcshEncEnviarAvisoAutomatico(e, kind) {
