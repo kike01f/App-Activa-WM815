@@ -3860,6 +3860,27 @@
             flex: 1 1 12rem;
             min-width: 10rem;
         }
+        #tabResidentes .resident-vehicle-row {
+            display: flex;
+            margin-top: 0.45rem;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
+        #tabResidentes .resident-vehicle-row label {
+            margin: 0;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--secondary-text);
+            white-space: nowrap;
+        }
+        #tabResidentes .resident-vehicle-row .form-input {
+            flex: 1 1 8rem;
+            min-width: 7rem;
+        }
+        #tabResidentes .resident-vehicle-row .resident-vehicle-plate {
+            text-transform: uppercase;
+        }
 
         #tabResidentes .add-resident-btn {
             width: 40px;
@@ -4705,7 +4726,7 @@
             <section class="form-section">
                 <h3><i class="fa-solid fa-table-list" aria-hidden="true"></i> Unidades Registradas</h3>
                 <div style="margin-bottom: 10px;">
-                    <input type="text" id="unitsFilter" class="form-input" placeholder="Filtrar: assetplan, entregada, doble, número…" style="width: 100%; max-width: 500px; padding: 8px; font-size: 0.9rem;" oninput="updateUnitsTable()">
+                    <input type="text" id="unitsFilter" class="form-input" placeholder="Filtrar: assetplan, entregada, doble, número, patente…" style="width: 100%; max-width: 500px; padding: 8px; font-size: 0.9rem;" oninput="updateUnitsTable()">
                 </div>
                 <div class="table-container">
                     <table class="data-table">
@@ -4742,7 +4763,7 @@
             <section class="form-section">
                 <h3><i class="fa-solid fa-users" aria-hidden="true"></i> Lista de Residentes</h3>
                 <div style="margin-bottom: 10px;">
-                    <input type="text" id="residentsFilter" class="form-input" placeholder="Filtrar residentes…" style="width: 100%; max-width: 500px; padding: 8px; font-size: 0.9rem;" oninput="updateResidentsTable()">
+                    <input type="text" id="residentsFilter" class="form-input" placeholder="Filtrar residentes: nombre, unidad, RUT, patente, modelo, color…" style="width: 100%; max-width: 500px; padding: 8px; font-size: 0.9rem;" oninput="updateResidentsTable()">
                 </div>
                 <div class="table-container">
                     <table class="data-table">
@@ -4754,6 +4775,7 @@
                                 <th>Corredor</th>
                                 <th>Email</th>
                                 <th>Teléfono</th>
+                                <th>Vehículo</th>
                                 <th>Fecha Registro</th>
                                 <th>Acciones</th>
                             </tr>
@@ -4871,7 +4893,7 @@
                     <div class="leyenda-item"><span style="font-size: 0.85rem; color: #fbbf24;">✉</span><span style="font-size: 0.8rem;">Bienvenida pendiente</span></div>
                 </div>
                 <div style="margin-bottom: 10px;">
-                    <input type="text" id="buildingMapFilter" class="form-input" placeholder="Filtrar por número, uso, residente, estacionamiento, bodega…" style="width: 100%; max-width: 400px; padding: 0.5rem 0.75rem; font-size: 0.875rem;">
+                    <input type="text" id="buildingMapFilter" class="form-input" placeholder="Filtrar por número, uso, residente, patente, estacionamiento, bodega…" style="width: 100%; max-width: 400px; padding: 0.5rem 0.75rem; font-size: 0.875rem;">
                 </div>
                 <div class="building-map-edificio" id="buildingMap"></div>
                 <div id="pcshBienvenidaPanel" style="margin-top: 1rem; padding: 0.85rem 1rem; background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 10px;">
@@ -5309,7 +5331,7 @@
                     Arrendatarios y visitas autorizadas dados de salida. Puedes restaurar, eliminar individual o seleccionar múltiples.
                 </p>
                 <div style="margin-bottom: 10px; display: flex; gap: 8px; align-items: center; flex-wrap: wrap;">
-                    <input type="text" id="formerResidentsFilter" class="form-input" placeholder="Filtrar por nombre, unidad, email, RUT…" style="flex: 1; min-width: 200px; max-width: 500px; padding: 8px; font-size: 0.9rem;" oninput="updateFormerResidentsTable()">
+                    <input type="text" id="formerResidentsFilter" class="form-input" placeholder="Filtrar por nombre, unidad, email, RUT, patente…" style="flex: 1; min-width: 200px; max-width: 500px; padding: 8px; font-size: 0.9rem;" oninput="updateFormerResidentsTable()">
                     <button type="button" onclick="document.getElementById('importJsonFile').click()" class="btn btn-info" style="font-size: 0.85rem; padding: 8px 12px; white-space: nowrap;">
                         <i class="fa-solid fa-folder-open" aria-hidden="true"></i> Importar desde JSON
                     </button>
@@ -12686,6 +12708,9 @@ function pcshWm815ResidentToPortal(r) {
     phone: (r.phone != null ? String(r.phone) : r.telefono != null ? String(r.telefono) : '').trim(),
     rut: r.rut != null ? String(r.rut) : '',
     corredor: corredor,
+    vehiclePlate: r.vehiclePlate != null ? String(r.vehiclePlate) : '',
+    vehicleModel: r.vehicleModel != null ? String(r.vehicleModel) : '',
+    vehicleColor: r.vehicleColor != null ? String(r.vehicleColor) : '',
     registeredAt: r.registeredAt || r.updatedAt || null
   };
 }
@@ -28918,6 +28943,33 @@ showTab('tabNovedades');
             });
         }
 
+        /** Patente guardada: mayúsculas, solo letras y números (sin espacios, guiones ni puntos). */
+        function vlcomNormalizeVehiclePlate(p) {
+            return String(p || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
+        }
+
+        function vlcomResidentVehicleLabel(r) {
+            if (!r) return '';
+            return [r.vehiclePlate, r.vehicleModel, r.vehicleColor]
+                .map((v) => String(v || '').trim())
+                .filter(Boolean)
+                .join(' · ');
+        }
+
+        /** Coincidencia del texto de búsqueda (ya en minúsculas) con patente, modelo o color del residente. */
+        function vlcomResidentVehicleMatches(r, filterValue) {
+            if (!r || !filterValue) return false;
+            const q = String(filterValue).toLowerCase().trim();
+            if (!q) return false;
+            const plate = String(r.vehiclePlate || '').toLowerCase();
+            const qPlate = q.replace(/[^a-z0-9]/g, '');
+            if (plate && qPlate && plate.includes(qPlate)) return true;
+            const model = String(r.vehicleModel || '').toLowerCase();
+            const color = String(r.vehicleColor || '').toLowerCase();
+            return (!!model && model.includes(q)) || (!!color && color.includes(q));
+        }
+        window.vlcomResidentVehicleMatches = vlcomResidentVehicleMatches;
+
         function addResident(resident = null) {
             const residentsList = document.getElementById('residentsList');
             const residentItem = document.createElement('div');
@@ -28951,6 +29003,10 @@ showTab('tabNovedades');
                 ? String(resident.corredor).replace(/"/g, '&quot;')
                 : '';
             const showCorredor = isUnitFormArriendo();
+            const escAttr = (s) => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const vehPlateVal = escAttr(resident && resident.vehiclePlate);
+            const vehModelVal = escAttr(resident && resident.vehicleModel);
+            const vehColorVal = escAttr(resident && resident.vehicleColor);
             
             residentItem.innerHTML = `
                 <div class="resident-row">
@@ -28974,6 +29030,12 @@ showTab('tabNovedades');
                     <label for=""><i class="fa-solid fa-handshake" aria-hidden="true"></i> Corredor</label>
                     <input type="text" class="form-input resident-corredor" placeholder="Nombre del corredor" value="${corredorVal}" ${showCorredor ? '' : 'disabled'} autocomplete="off">
                 </div>
+                <div class="resident-vehicle-row">
+                    <label><i class="fa-solid fa-car" aria-hidden="true"></i> Vehículo</label>
+                    <input type="text" class="form-input resident-vehicle-plate" placeholder="Patente (ABCD12)" value="${vehPlateVal}" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Patente del vehículo">
+                    <input type="text" class="form-input resident-vehicle-model" placeholder="Marca / modelo" value="${vehModelVal}" autocomplete="off" aria-label="Marca y modelo del vehículo">
+                    <input type="text" class="form-input resident-vehicle-color" placeholder="Color" value="${vehColorVal}" autocomplete="off" aria-label="Color del vehículo">
+                </div>
                 <small style="color: var(--secondary-text); font-size: 0.8rem; margin-top: 4px; display: block;" data-registration-date="${registrationDate}"><i class="fa-solid fa-calendar-days" aria-hidden="true"></i> Registrado: ${formattedDate}</small>
             `;
             const nameInput = residentItem.querySelector('.resident-name');
@@ -28991,6 +29053,11 @@ showTab('tabNovedades');
                 // Mantener el cursor al final
                 const newLength = e.target.value.length;
                 e.target.setSelectionRange(newLength, newLength);
+            });
+            const vehPlateInput = residentItem.querySelector('.resident-vehicle-plate');
+            vehPlateInput.addEventListener('input', (e) => {
+                const norm = vlcomNormalizeVehiclePlate(e.target.value);
+                if (e.target.value !== norm) e.target.value = norm;
             });
             // Cambiar color al cambiar tipo
             const typeSelect = residentItem.querySelector('.resident-type');
@@ -30278,6 +30345,15 @@ showTab('tabNovedades');
                             registeredAt: registeredAt.toISOString() // Fecha de registro individual del residente
                         };
                         if (corredor) residentRow.corredor = corredor;
+                        const vehPlateEl = item.querySelector('.resident-vehicle-plate');
+                        const vehModelEl = item.querySelector('.resident-vehicle-model');
+                        const vehColorEl = item.querySelector('.resident-vehicle-color');
+                        const vehiclePlate = vlcomNormalizeVehiclePlate(vehPlateEl ? vehPlateEl.value : '');
+                        const vehicleModel = String((vehModelEl && vehModelEl.value) || '').trim().replace(/\s+/g, ' ');
+                        const vehicleColor = formatName(String((vehColorEl && vehColorEl.value) || '').trim());
+                        if (vehiclePlate) residentRow.vehiclePlate = vehiclePlate;
+                        if (vehicleModel) residentRow.vehicleModel = vehicleModel;
+                        if (vehicleColor) residentRow.vehicleColor = vehicleColor;
                         formData.residents.push(residentRow);
                     }
                 });
@@ -30485,6 +30561,9 @@ showTab('tabNovedades');
                 phone: resident.phone || '',
                 rut: resident.rut || '',
                 type: resident.type,
+                vehiclePlate: resident.vehiclePlate || '',
+                vehicleModel: resident.vehicleModel || '',
+                vehicleColor: resident.vehicleColor || '',
                 registeredAt: resident.registeredAt || new Date().toISOString(),
                 originalData: { ...resident }
             };
@@ -30615,6 +30694,9 @@ showTab('tabNovedades');
                                 phone: residentData.phone || '',
                                 rut: residentData.rut || '',
                                 type: residentData.type,
+                                vehiclePlate: residentData.vehiclePlate || '',
+                                vehicleModel: residentData.vehicleModel || '',
+                                vehicleColor: residentData.vehicleColor || '',
                                 unitNumber: unitData.unitNumber,
                                 unitId: unitData.id,
                                 exitDate: new Date().toISOString(),
@@ -31283,7 +31365,9 @@ showTab('tabNovedades');
                     resident.unitNumber.toLowerCase().includes(filterValue) ||
                     (resident.email && resident.email.toLowerCase().includes(filterValue)) ||
                     (resident.phone && resident.phone.toLowerCase().includes(filterValue)) ||
-                    (resident.rut && resident.rut.toLowerCase().includes(filterValue))
+                    (resident.rut && resident.rut.toLowerCase().includes(filterValue)) ||
+                    vlcomResidentVehicleMatches(resident, filterValue) ||
+                    vlcomResidentVehicleMatches(resident.originalData, filterValue)
                 );
             }
             
@@ -32159,7 +32243,8 @@ showTab('tabNovedades');
                         (unit.bikeStorageDetail && unit.bikeStorageDetail.toLowerCase().includes(filterValue)) ||
                         unit.residents.some(resident =>
                             resident.name.toLowerCase().includes(filterValue) ||
-                            resident.type.toLowerCase().includes(filterValue)
+                            resident.type.toLowerCase().includes(filterValue) ||
+                            vlcomResidentVehicleMatches(resident, filterValue)
                         )
                     );
                 });
@@ -32322,7 +32407,9 @@ showTab('tabNovedades');
                     resident.type.toLowerCase().includes(filterValue) ||
                     resident.unitNumber.toLowerCase().includes(filterValue) ||
                     resident.email.toLowerCase().includes(filterValue) ||
-                    (resident.phone && resident.phone.toLowerCase().includes(filterValue))
+                    (resident.phone && resident.phone.toLowerCase().includes(filterValue)) ||
+                    (resident.rut && resident.rut.toLowerCase().includes(filterValue)) ||
+                    vlcomResidentVehicleMatches(resident, filterValue)
                 );
             }
             
@@ -32380,6 +32467,7 @@ showTab('tabNovedades');
                 const escapedUnitId = (resident.unitId || '').replace(/'/g, "\\'");
                 
                 const corredorTxt = resident.corredor ? String(resident.corredor) : '—';
+                const vehicleTxt = (vlcomResidentVehicleLabel(resident) || '—').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                 const isNewReg = typeof vlcomResidentIsNewHighlight === 'function'
                     ? vlcomResidentIsNewHighlight(resident, nowForResidents)
                     : false;
@@ -32394,6 +32482,7 @@ showTab('tabNovedades');
                         <td>${corredorTxt}</td>
                         <td>${resident.email}</td>
                         <td>${resident.phone || 'N/A'}</td>
+                        <td>${vehicleTxt}</td>
                         <td>${registrationDate}</td>
                         <td class="vlcom-td-nowrap">
                             <button type="button" onclick="printResidentCard('${escapedId}', '${escapedName}', '${escapedUnit}')"
@@ -32534,7 +32623,7 @@ showTab('tabNovedades');
                     <div style="margin:6px 0;">
                         <div style="color:#b3b3b3;font-size:0.75rem;margin-bottom:4px;font-weight:600;">Residente</div>
                         <div style="padding:6px 8px;background:#2a2a2a;border-radius:6px;border:1px solid #404040;">
-                            <div style="font-size:0.8rem;line-height:1.25;"><b>${escapeHtml(residentData.name)}</b> <span style="font-size:0.75rem;${typeColor}">(${escapeHtml(residentData.type)})</span><br><span style="font-size:0.75rem;color:#b3b3b3;">Email: ${escapeHtml(residentData.email || 'N/A')}<br>${residentData.phone ? 'Tel: ' + escapeHtml(residentData.phone) + '<br>' : ''}${residentData.rut ? 'RUT: ' + escapeHtml(residentData.rut) : ''}</span><br><span style="font-size:0.65rem;color:#888;">Registro: ${formatDateTime(residentData.registeredAt)}</span></div>
+                            <div style="font-size:0.8rem;line-height:1.25;"><b>${escapeHtml(residentData.name)}</b> <span style="font-size:0.75rem;${typeColor}">(${escapeHtml(residentData.type)})</span><br><span style="font-size:0.75rem;color:#b3b3b3;">Email: ${escapeHtml(residentData.email || 'N/A')}<br>${residentData.phone ? 'Tel: ' + escapeHtml(residentData.phone) + '<br>' : ''}${residentData.rut ? 'RUT: ' + escapeHtml(residentData.rut) : ''}${vlcomResidentVehicleLabel(residentData) ? '<br>Vehículo: ' + escapeHtml(vlcomResidentVehicleLabel(residentData)) : ''}</span><br><span style="font-size:0.65rem;color:#888;">Registro: ${formatDateTime(residentData.registeredAt)}</span></div>
                         </div>
                     </div>
                     <div style="margin:6px 0;padding:5px 6px;background:#2a2a2a;border-radius:6px;border:1px solid #404040;">
@@ -32722,7 +32811,8 @@ showTab('tabNovedades');
                     owner.unitNumber.toLowerCase().includes(filterValue) ||
                     owner.email.toLowerCase().includes(filterValue) ||
                     (owner.parkingNumber && owner.parkingNumber.toLowerCase().includes(filterValue)) ||
-                    (owner.storageNumber && owner.storageNumber.toLowerCase().includes(filterValue))
+                    (owner.storageNumber && owner.storageNumber.toLowerCase().includes(filterValue)) ||
+                    vlcomResidentVehicleMatches(owner, filterValue)
                 );
             }
             
@@ -33156,6 +33246,8 @@ showTab('tabNovedades');
                         ? vlcomUnitShouldHighlightNewResident(unit, new Date())
                         : false;
                 }
+                if (/[a-z]/i.test(filterValue) && unit && Array.isArray(unit.residents) &&
+                    unit.residents.some(r => vlcomResidentVehicleMatches(r, filterValue))) return true;
                 const filterNumbers = filterValue.replace(/\D/g, '');
                 const unitNumbers = unitNumber.replace(/\D/g, '');
                 const isUnitNumberSearch = filterNumbers.length >= 3 || /^\d+$/.test(filterValue.trim());
@@ -33180,7 +33272,8 @@ showTab('tabNovedades');
                     (r.name && r.name.toLowerCase().includes(filterValue)) ||
                     (r.type && r.type.toLowerCase().includes(filterValue)) ||
                     (r.email && r.email.toLowerCase().includes(filterValue)) ||
-                    (r.phone && r.phone.toLowerCase().includes(filterValue)))) return true;
+                    (r.phone && r.phone.toLowerCase().includes(filterValue)) ||
+                    vlcomResidentVehicleMatches(r, filterValue))) return true;
                 if (unit.unitNote && unit.unitNote.toLowerCase().includes(filterValue)) return true;
                 return false;
             };
@@ -34095,6 +34188,9 @@ showTab('tabNovedades');
                         "Email": resident.email,
                         "Teléfono": resident.phone || "N/A",
                         "Corredor": resident.corredor || "N/A",
+                        "Patente Vehículo": resident.vehiclePlate || "N/A",
+                        "Modelo Vehículo": resident.vehicleModel || "N/A",
+                        "Color Vehículo": resident.vehicleColor || "N/A",
                         "Unidad Asignada": unit.unitNumber,
                         "Uso de la Unidad": unit.unitUse,
                         "Estacionamientos (Todos)": parkingInfo,
@@ -34460,6 +34556,16 @@ showTab('tabNovedades');
                             type: tipo,
                             registeredAt: new Date().toISOString()
                         };
+                        const vehCell = (aliases) => {
+                            const v = _vlcomRowGet(row, aliases);
+                            return /^n\/?a$/i.test(v) ? '' : v;
+                        };
+                        const vehiclePlate = vlcomNormalizeVehiclePlate(vehCell(['Patente Vehículo', 'Patente Vehiculo', 'Patente']));
+                        const vehicleModel = vehCell(['Modelo Vehículo', 'Modelo Vehiculo', 'Modelo']);
+                        const vehicleColor = formatName(vehCell(['Color Vehículo', 'Color Vehiculo', 'Color']));
+                        if (vehiclePlate) payload.vehiclePlate = vehiclePlate;
+                        if (vehicleModel) payload.vehicleModel = vehicleModel;
+                        if (vehicleColor) payload.vehicleColor = vehicleColor;
                         if (existingIdx >= 0) {
                             const prev = unit.residents[existingIdx];
                             unit.residents[existingIdx] = Object.assign({}, prev, payload, {
