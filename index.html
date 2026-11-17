@@ -3860,23 +3860,46 @@
             flex: 1 1 12rem;
             min-width: 10rem;
         }
-        #tabResidentes .resident-vehicle-row {
-            display: flex;
+        #tabResidentes .resident-vehicles {
             margin-top: 0.45rem;
-            align-items: center;
-            gap: 0.5rem;
-            flex-wrap: wrap;
         }
-        #tabResidentes .resident-vehicle-row label {
+        #tabResidentes .resident-vehicles-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 0.5rem;
+        }
+        #tabResidentes .resident-vehicles-head label {
             margin: 0;
             font-size: 0.8rem;
             font-weight: 600;
             color: var(--secondary-text);
             white-space: nowrap;
         }
+        #tabResidentes .resident-vehicles-head .resident-vehicle-add {
+            padding: 0.2rem 0.55rem;
+            font-size: 0.75rem;
+            border-radius: 6px;
+        }
+        #tabResidentes .resident-vehicle-row {
+            display: flex;
+            margin-top: 0.35rem;
+            align-items: center;
+            gap: 0.5rem;
+            flex-wrap: wrap;
+        }
         #tabResidentes .resident-vehicle-row .form-input {
             flex: 1 1 8rem;
             min-width: 7rem;
+        }
+        #tabResidentes .resident-vehicle-row .resident-vehicle-remove {
+            flex: 0 0 auto;
+            width: 28px;
+            height: 28px;
+            padding: 0;
+            border-radius: 6px;
+            line-height: 1;
+            font-size: 1rem;
         }
         #tabResidentes .resident-vehicle-row .resident-vehicle-plate {
             text-transform: uppercase;
@@ -12708,9 +12731,18 @@ function pcshWm815ResidentToPortal(r) {
     phone: (r.phone != null ? String(r.phone) : r.telefono != null ? String(r.telefono) : '').trim(),
     rut: r.rut != null ? String(r.rut) : '',
     corredor: corredor,
-    vehiclePlate: r.vehiclePlate != null ? String(r.vehiclePlate) : '',
-    vehicleModel: r.vehicleModel != null ? String(r.vehicleModel) : '',
-    vehicleColor: r.vehicleColor != null ? String(r.vehicleColor) : '',
+    vehicles: (Array.isArray(r.vehicles)
+      ? r.vehicles
+      : [{ plate: r.vehiclePlate, model: r.vehicleModel, color: r.vehicleColor }]
+    )
+      .map(function (v) {
+        return {
+          plate: String((v && v.plate) || '').trim(),
+          model: String((v && v.model) || '').trim(),
+          color: String((v && v.color) || '').trim()
+        };
+      })
+      .filter(function (v) { return v.plate || v.model || v.color; }),
     registeredAt: r.registeredAt || r.updatedAt || null
   };
 }
@@ -28948,27 +28980,78 @@ showTab('tabNovedades');
             return String(p || '').toUpperCase().replace(/[^A-Z0-9]/g, '');
         }
 
-        function vlcomResidentVehicleLabel(r) {
-            if (!r) return '';
-            return [r.vehiclePlate, r.vehicleModel, r.vehicleColor]
-                .map((v) => String(v || '').trim())
-                .filter(Boolean)
-                .join(' · ');
+        /** Vehículos del residente como lista [{ plate, model, color }]; acepta el formato antiguo de un solo vehículo (vehiclePlate/vehicleModel/vehicleColor). */
+        function vlcomResidentVehicles(r) {
+            if (!r) return [];
+            const src = Array.isArray(r.vehicles)
+                ? r.vehicles
+                : [{ plate: r.vehiclePlate, model: r.vehicleModel, color: r.vehicleColor }];
+            return src
+                .map((v) => ({
+                    plate: String((v && v.plate) || '').trim(),
+                    model: String((v && v.model) || '').trim(),
+                    color: String((v && v.color) || '').trim()
+                }))
+                .filter((v) => v.plate || v.model || v.color);
         }
 
-        /** Coincidencia del texto de búsqueda (ya en minúsculas) con patente, modelo o color del residente. */
+        function vlcomVehicleLabel(v) {
+            return [v.plate, v.model, v.color].filter(Boolean).join(' · ');
+        }
+
+        function vlcomResidentVehicleLabel(r, sep = '; ') {
+            return vlcomResidentVehicles(r).map(vlcomVehicleLabel).join(sep);
+        }
+
+        /** Coincidencia del texto de búsqueda (ya en minúsculas) con patente, modelo o color de cualquiera de los vehículos del residente. */
         function vlcomResidentVehicleMatches(r, filterValue) {
             if (!r || !filterValue) return false;
             const q = String(filterValue).toLowerCase().trim();
             if (!q) return false;
-            const plate = String(r.vehiclePlate || '').toLowerCase();
             const qPlate = q.replace(/[^a-z0-9]/g, '');
-            if (plate && qPlate && plate.includes(qPlate)) return true;
-            const model = String(r.vehicleModel || '').toLowerCase();
-            const color = String(r.vehicleColor || '').toLowerCase();
-            return (!!model && model.includes(q)) || (!!color && color.includes(q));
+            return vlcomResidentVehicles(r).some((v) => {
+                const plate = v.plate.toLowerCase();
+                if (plate && qPlate && plate.includes(qPlate)) return true;
+                return v.model.toLowerCase().includes(q) || v.color.toLowerCase().includes(q);
+            });
         }
         window.vlcomResidentVehicleMatches = vlcomResidentVehicleMatches;
+
+        function addResidentVehicleField(residentItem, vehicle = null) {
+            const list = residentItem.querySelector('.resident-vehicles-list');
+            if (!list) return;
+            const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+            const row = document.createElement('div');
+            row.className = 'resident-vehicle-row';
+            row.innerHTML = `
+                <input type="text" class="form-input resident-vehicle-plate" placeholder="Patente (ABCD12)" value="${esc(vehicle && vehicle.plate)}" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Patente del vehículo">
+                <input type="text" class="form-input resident-vehicle-model" placeholder="Marca / modelo" value="${esc(vehicle && vehicle.model)}" autocomplete="off" aria-label="Marca y modelo del vehículo">
+                <input type="text" class="form-input resident-vehicle-color" placeholder="Color" value="${esc(vehicle && vehicle.color)}" autocomplete="off" aria-label="Color del vehículo">
+                <button type="button" class="resident-vehicle-remove" title="Quitar vehículo" aria-label="Quitar vehículo">×</button>
+            `;
+            row.querySelector('.resident-vehicle-plate').addEventListener('input', (e) => {
+                const norm = vlcomNormalizeVehiclePlate(e.target.value);
+                if (e.target.value !== norm) e.target.value = norm;
+            });
+            row.querySelector('.resident-vehicle-remove').addEventListener('click', () => {
+                if (list.children.length > 1) {
+                    row.remove();
+                } else {
+                    row.querySelectorAll('input').forEach((inp) => { inp.value = ''; });
+                }
+            });
+            list.appendChild(row);
+        }
+
+        function readResidentVehiclesFromForm(residentItem) {
+            return Array.from(residentItem.querySelectorAll('.resident-vehicle-row'))
+                .map((row) => ({
+                    plate: vlcomNormalizeVehiclePlate(row.querySelector('.resident-vehicle-plate').value),
+                    model: String(row.querySelector('.resident-vehicle-model').value || '').trim().replace(/\s+/g, ' '),
+                    color: formatName(String(row.querySelector('.resident-vehicle-color').value || '').trim())
+                }))
+                .filter((v) => v.plate || v.model || v.color);
+        }
 
         function addResident(resident = null) {
             const residentsList = document.getElementById('residentsList');
@@ -29003,10 +29086,6 @@ showTab('tabNovedades');
                 ? String(resident.corredor).replace(/"/g, '&quot;')
                 : '';
             const showCorredor = isUnitFormArriendo();
-            const escAttr = (s) => String(s || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-            const vehPlateVal = escAttr(resident && resident.vehiclePlate);
-            const vehModelVal = escAttr(resident && resident.vehicleModel);
-            const vehColorVal = escAttr(resident && resident.vehicleColor);
             
             residentItem.innerHTML = `
                 <div class="resident-row">
@@ -29030,11 +29109,12 @@ showTab('tabNovedades');
                     <label for=""><i class="fa-solid fa-handshake" aria-hidden="true"></i> Corredor</label>
                     <input type="text" class="form-input resident-corredor" placeholder="Nombre del corredor" value="${corredorVal}" ${showCorredor ? '' : 'disabled'} autocomplete="off">
                 </div>
-                <div class="resident-vehicle-row">
-                    <label><i class="fa-solid fa-car" aria-hidden="true"></i> Vehículo</label>
-                    <input type="text" class="form-input resident-vehicle-plate" placeholder="Patente (ABCD12)" value="${vehPlateVal}" maxlength="10" autocomplete="off" autocapitalize="characters" spellcheck="false" aria-label="Patente del vehículo">
-                    <input type="text" class="form-input resident-vehicle-model" placeholder="Marca / modelo" value="${vehModelVal}" autocomplete="off" aria-label="Marca y modelo del vehículo">
-                    <input type="text" class="form-input resident-vehicle-color" placeholder="Color" value="${vehColorVal}" autocomplete="off" aria-label="Color del vehículo">
+                <div class="resident-vehicles">
+                    <div class="resident-vehicles-head">
+                        <label><i class="fa-solid fa-car" aria-hidden="true"></i> Vehículos</label>
+                        <button type="button" class="resident-vehicle-add" title="Agregar otro vehículo"><i class="fa-solid fa-plus" aria-hidden="true"></i> Agregar vehículo</button>
+                    </div>
+                    <div class="resident-vehicles-list"></div>
                 </div>
                 <small style="color: var(--secondary-text); font-size: 0.8rem; margin-top: 4px; display: block;" data-registration-date="${registrationDate}"><i class="fa-solid fa-calendar-days" aria-hidden="true"></i> Registrado: ${formattedDate}</small>
             `;
@@ -29054,10 +29134,17 @@ showTab('tabNovedades');
                 const newLength = e.target.value.length;
                 e.target.setSelectionRange(newLength, newLength);
             });
-            const vehPlateInput = residentItem.querySelector('.resident-vehicle-plate');
-            vehPlateInput.addEventListener('input', (e) => {
-                const norm = vlcomNormalizeVehiclePlate(e.target.value);
-                if (e.target.value !== norm) e.target.value = norm;
+            const initialVehicles = vlcomResidentVehicles(resident);
+            if (initialVehicles.length) {
+                initialVehicles.forEach((v) => addResidentVehicleField(residentItem, v));
+            } else {
+                addResidentVehicleField(residentItem);
+            }
+            residentItem.querySelector('.resident-vehicle-add').addEventListener('click', () => {
+                addResidentVehicleField(residentItem);
+                const rows = residentItem.querySelectorAll('.resident-vehicle-row');
+                const last = rows[rows.length - 1];
+                if (last) last.querySelector('.resident-vehicle-plate').focus();
             });
             // Cambiar color al cambiar tipo
             const typeSelect = residentItem.querySelector('.resident-type');
@@ -30345,15 +30432,8 @@ showTab('tabNovedades');
                             registeredAt: registeredAt.toISOString() // Fecha de registro individual del residente
                         };
                         if (corredor) residentRow.corredor = corredor;
-                        const vehPlateEl = item.querySelector('.resident-vehicle-plate');
-                        const vehModelEl = item.querySelector('.resident-vehicle-model');
-                        const vehColorEl = item.querySelector('.resident-vehicle-color');
-                        const vehiclePlate = vlcomNormalizeVehiclePlate(vehPlateEl ? vehPlateEl.value : '');
-                        const vehicleModel = String((vehModelEl && vehModelEl.value) || '').trim().replace(/\s+/g, ' ');
-                        const vehicleColor = formatName(String((vehColorEl && vehColorEl.value) || '').trim());
-                        if (vehiclePlate) residentRow.vehiclePlate = vehiclePlate;
-                        if (vehicleModel) residentRow.vehicleModel = vehicleModel;
-                        if (vehicleColor) residentRow.vehicleColor = vehicleColor;
+                        const vehicles = readResidentVehiclesFromForm(item);
+                        if (vehicles.length) residentRow.vehicles = vehicles;
                         formData.residents.push(residentRow);
                     }
                 });
@@ -30561,9 +30641,7 @@ showTab('tabNovedades');
                 phone: resident.phone || '',
                 rut: resident.rut || '',
                 type: resident.type,
-                vehiclePlate: resident.vehiclePlate || '',
-                vehicleModel: resident.vehicleModel || '',
-                vehicleColor: resident.vehicleColor || '',
+                vehicles: vlcomResidentVehicles(resident),
                 registeredAt: resident.registeredAt || new Date().toISOString(),
                 originalData: { ...resident }
             };
@@ -30694,9 +30772,7 @@ showTab('tabNovedades');
                                 phone: residentData.phone || '',
                                 rut: residentData.rut || '',
                                 type: residentData.type,
-                                vehiclePlate: residentData.vehiclePlate || '',
-                                vehicleModel: residentData.vehicleModel || '',
-                                vehicleColor: residentData.vehicleColor || '',
+                                vehicles: residentData.vehicles || [],
                                 unitNumber: unitData.unitNumber,
                                 unitId: unitData.id,
                                 exitDate: new Date().toISOString(),
@@ -32467,7 +32543,9 @@ showTab('tabNovedades');
                 const escapedUnitId = (resident.unitId || '').replace(/'/g, "\\'");
                 
                 const corredorTxt = resident.corredor ? String(resident.corredor) : '—';
-                const vehicleTxt = (vlcomResidentVehicleLabel(resident) || '—').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                const vehicleTxt = vlcomResidentVehicles(resident)
+                    .map((v) => vlcomVehicleLabel(v).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;'))
+                    .join('<br>') || '—';
                 const isNewReg = typeof vlcomResidentIsNewHighlight === 'function'
                     ? vlcomResidentIsNewHighlight(resident, nowForResidents)
                     : false;
@@ -32623,7 +32701,7 @@ showTab('tabNovedades');
                     <div style="margin:6px 0;">
                         <div style="color:#b3b3b3;font-size:0.75rem;margin-bottom:4px;font-weight:600;">Residente</div>
                         <div style="padding:6px 8px;background:#2a2a2a;border-radius:6px;border:1px solid #404040;">
-                            <div style="font-size:0.8rem;line-height:1.25;"><b>${escapeHtml(residentData.name)}</b> <span style="font-size:0.75rem;${typeColor}">(${escapeHtml(residentData.type)})</span><br><span style="font-size:0.75rem;color:#b3b3b3;">Email: ${escapeHtml(residentData.email || 'N/A')}<br>${residentData.phone ? 'Tel: ' + escapeHtml(residentData.phone) + '<br>' : ''}${residentData.rut ? 'RUT: ' + escapeHtml(residentData.rut) : ''}${vlcomResidentVehicleLabel(residentData) ? '<br>Vehículo: ' + escapeHtml(vlcomResidentVehicleLabel(residentData)) : ''}</span><br><span style="font-size:0.65rem;color:#888;">Registro: ${formatDateTime(residentData.registeredAt)}</span></div>
+                            <div style="font-size:0.8rem;line-height:1.25;"><b>${escapeHtml(residentData.name)}</b> <span style="font-size:0.75rem;${typeColor}">(${escapeHtml(residentData.type)})</span><br><span style="font-size:0.75rem;color:#b3b3b3;">Email: ${escapeHtml(residentData.email || 'N/A')}<br>${residentData.phone ? 'Tel: ' + escapeHtml(residentData.phone) + '<br>' : ''}${residentData.rut ? 'RUT: ' + escapeHtml(residentData.rut) : ''}${vlcomResidentVehicles(residentData).map((v, i, arr) => '<br>' + (arr.length > 1 ? 'Vehículo ' + (i + 1) : 'Vehículo') + ': ' + escapeHtml(vlcomVehicleLabel(v))).join('')}</span><br><span style="font-size:0.65rem;color:#888;">Registro: ${formatDateTime(residentData.registeredAt)}</span></div>
                         </div>
                     </div>
                     <div style="margin:6px 0;padding:5px 6px;background:#2a2a2a;border-radius:6px;border:1px solid #404040;">
@@ -34188,9 +34266,9 @@ showTab('tabNovedades');
                         "Email": resident.email,
                         "Teléfono": resident.phone || "N/A",
                         "Corredor": resident.corredor || "N/A",
-                        "Patente Vehículo": resident.vehiclePlate || "N/A",
-                        "Modelo Vehículo": resident.vehicleModel || "N/A",
-                        "Color Vehículo": resident.vehicleColor || "N/A",
+                        "Patente Vehículo": vlcomResidentVehicles(resident).map(v => v.plate || '—').join('; ') || "N/A",
+                        "Modelo Vehículo": vlcomResidentVehicles(resident).map(v => v.model || '—').join('; ') || "N/A",
+                        "Color Vehículo": vlcomResidentVehicles(resident).map(v => v.color || '—').join('; ') || "N/A",
                         "Unidad Asignada": unit.unitNumber,
                         "Uso de la Unidad": unit.unitUse,
                         "Estacionamientos (Todos)": parkingInfo,
@@ -34560,12 +34638,20 @@ showTab('tabNovedades');
                             const v = _vlcomRowGet(row, aliases);
                             return /^n\/?a$/i.test(v) ? '' : v;
                         };
-                        const vehiclePlate = vlcomNormalizeVehiclePlate(vehCell(['Patente Vehículo', 'Patente Vehiculo', 'Patente']));
-                        const vehicleModel = vehCell(['Modelo Vehículo', 'Modelo Vehiculo', 'Modelo']);
-                        const vehicleColor = formatName(vehCell(['Color Vehículo', 'Color Vehiculo', 'Color']));
-                        if (vehiclePlate) payload.vehiclePlate = vehiclePlate;
-                        if (vehicleModel) payload.vehicleModel = vehicleModel;
-                        if (vehicleColor) payload.vehicleColor = vehicleColor;
+                        const vehSplit = (s) => String(s || '').split(';').map(x => x.trim()).map(x => (x === '—' || x === '-') ? '' : x);
+                        const vPlates = vehSplit(vehCell(['Patente Vehículo', 'Patente Vehiculo', 'Patente']));
+                        const vModels = vehSplit(vehCell(['Modelo Vehículo', 'Modelo Vehiculo', 'Modelo']));
+                        const vColors = vehSplit(vehCell(['Color Vehículo', 'Color Vehiculo', 'Color']));
+                        const vehicles = [];
+                        for (let vi = 0; vi < Math.max(vPlates.length, vModels.length, vColors.length); vi++) {
+                            const v = {
+                                plate: vlcomNormalizeVehiclePlate(vPlates[vi]),
+                                model: String(vModels[vi] || '').replace(/\s+/g, ' '),
+                                color: formatName(vColors[vi] || '')
+                            };
+                            if (v.plate || v.model || v.color) vehicles.push(v);
+                        }
+                        if (vehicles.length) payload.vehicles = vehicles;
                         if (existingIdx >= 0) {
                             const prev = unit.residents[existingIdx];
                             unit.residents[existingIdx] = Object.assign({}, prev, payload, {
