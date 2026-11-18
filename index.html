@@ -29029,7 +29029,7 @@ showTab('tabNovedades');
             const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             const list = vlcomResidentVehicles(r);
             if (!list.length) return '';
-            return '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">' + list.map((v) => {
+            return '<div class="ufx-veh" style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;min-width:0;">' + list.map((v) => {
                 const hex = vlcomVehicleColorHex(v.color);
                 const plate = v.plate
                     ? `<span style="font-family:ui-monospace,Menlo,monospace;font-weight:700;letter-spacing:0.04em;background:#f8fafc;color:#0f172a;border:1px solid #0f172a;border-radius:3px;padding:0 5px;">${esc(vlcomFormatPlateDisplay(v.plate))}</span>`
@@ -33018,22 +33018,25 @@ showTab('tabNovedades');
             const st = document.createElement('style');
             st.id = 'pcsh-ufx-styles';
             st.textContent = `
-                .modal-content.ufx { max-width: 640px; width: min(640px, 94vw); padding: 14px 16px 16px; font-size: 0.875rem; text-align: left; }
-                .ufx-head { display: grid; grid-template-columns: 1fr auto; gap: 8px 10px; align-items: center; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+                .modal.ufx-modal { padding: clamp(6px, 2vw, 16px); }
+                .modal-content.ufx { box-sizing: border-box; max-width: 640px; width: 100%; max-height: calc(100vh - 24px) !important; max-height: calc(100dvh - 24px) !important; overflow-x: hidden; overflow-y: auto; overscroll-behavior: contain; padding: 0 16px 16px; font-size: 0.875rem; text-align: left; }
+                .modal-content.ufx *, .modal-content.ufx *::before, .modal-content.ufx *::after { box-sizing: border-box; }
+                .ufx-head { position: sticky; top: 0; z-index: 3; background: var(--card-color); display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 8px 10px; align-items: center; margin: 0 -16px 10px; padding: 14px 16px 10px; border-bottom: 1px solid var(--border-color); }
                 .ufx-head-main { display: flex; align-items: center; gap: 10px; min-width: 0; }
                 .ufx-unit-icon { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: rgba(116, 189, 32, 0.16); color: var(--accent-color); font-size: 1.1rem; flex-shrink: 0; }
                 .ufx-kicker { font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--secondary-text); }
-                .ufx-title { margin: 0; font-size: 1.45rem; line-height: 1.1; color: var(--accent-color); font-weight: 800; }
-                .ufx-close { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border-color); background: var(--card-color); color: var(--secondary-text); cursor: pointer; display: grid; place-items: center; }
+                .ufx-head-main > div { min-width: 0; }
+                .ufx-title { margin: 0; font-size: 1.45rem; line-height: 1.1; color: var(--accent-color); font-weight: 800; overflow-wrap: anywhere; }
+                .ufx-close { width: 32px; height: 32px; flex-shrink: 0; border-radius: 50%; border: 1px solid var(--border-color); background: var(--card-color); color: var(--secondary-text); cursor: pointer; display: grid; place-items: center; }
                 .ufx-close:hover { color: var(--primary-text); border-color: var(--accent-color); }
                 .ufx-head-tags { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
-                .ufx-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; border: 1px solid var(--border-color); background: var(--card-color); color: var(--primary-text); }
+                .ufx-pill { max-width: 100%; display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; border: 1px solid var(--border-color); background: var(--card-color); color: var(--primary-text); }
                 .ufx-pill.is-use { border-color: var(--accent-color); color: var(--accent-color); background: rgba(116, 189, 32, 0.10); }
                 .ufx-pill.is-ok { border-color: #4ade80; background: rgba(74, 222, 128, 0.12); }
                 .ufx-pill.is-info { border-color: #93c5fd; background: rgba(147, 197, 253, 0.14); }
                 .ufx-pill.is-warn { border-color: #fbbf24; background: rgba(251, 191, 36, 0.12); }
-                .ufx-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
-                .ufx-stat { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 10px; background: var(--card-color); border: 1px solid var(--border-color); opacity: 0.72; }
+                .ufx-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(118px, 1fr)); gap: 6px; margin-bottom: 12px; }
+                .ufx-stat { min-width: 0; display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 10px; background: var(--card-color); border: 1px solid var(--border-color); opacity: 0.72; }
                 .ufx-stat.is-on { opacity: 1; border-color: rgba(116, 189, 32, 0.55); }
                 .ufx-stat > i { color: var(--accent-color); font-size: 0.95rem; width: 16px; text-align: center; }
                 .ufx-stat-value { font-weight: 800; font-size: 0.95rem; color: var(--primary-text); line-height: 1.1; }
@@ -33048,49 +33051,52 @@ showTab('tabNovedades');
                 .ufx-res.is-owner { border-left-color: var(--accent-color); background: rgba(116, 189, 32, 0.08); }
                 .ufx-res.is-tenant { border-left-color: #60a5fa; }
                 .ufx-res.is-visit { border-left-color: #fbbf24; }
-                .ufx-res-head { display: flex; align-items: center; gap: 9px; }
+                .ufx-res { min-width: 0; }
+                .ufx-res-head { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 9px; }
                 .ufx-avatar { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; font-weight: 800; font-size: 0.78rem; background: var(--surface-color, rgba(255,255,255,0.06)); color: var(--primary-text); border: 1px solid var(--border-color); }
                 .ufx-res.is-owner .ufx-avatar { background: var(--accent-color); color: var(--bg-color); border-color: transparent; }
                 .ufx-res.is-tenant .ufx-avatar { background: rgba(96, 165, 250, 0.22); }
                 .ufx-res.is-visit .ufx-avatar { background: rgba(251, 191, 36, 0.22); }
-                .ufx-res-id { flex: 1; min-width: 0; }
+                .ufx-res-id { flex: 1 1 150px; min-width: 0; }
                 .ufx-res-name { font-weight: 700; font-size: 0.88rem; color: var(--primary-text); line-height: 1.2; overflow-wrap: anywhere; }
                 .ufx-tag { display: inline-block; margin-top: 2px; font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--secondary-text); }
                 .ufx-res.is-owner .ufx-tag { color: var(--accent-color); }
                 .ufx-res.is-tenant .ufx-tag { color: #60a5fa; }
                 .ufx-res.is-visit .ufx-tag { color: #fbbf24; }
-                .ufx-res-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; flex-shrink: 0; }
+                .ufx-res-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; margin-left: auto; max-width: 100%; }
                 .ufx-res-actions .btn { padding: 3px 7px; font-size: 0.7rem; white-space: nowrap; margin: 0; }
                 .ufx-res-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 7px 0 0 43px; }
                 .ufx-meta { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--primary-text); text-decoration: none; min-width: 0; overflow-wrap: anywhere; }
                 .ufx-meta > i { color: var(--secondary-text); font-size: 0.72rem; width: 12px; text-align: center; }
                 a.ufx-meta:hover { color: var(--accent-color); }
                 .ufx-meta.is-empty { color: var(--secondary-text); font-style: italic; }
-                .ufx-res > div[style*="flex-wrap"] { margin-left: 43px !important; margin-top: 6px !important; }
+                .ufx-meta > span { min-width: 0; overflow-wrap: anywhere; }
+                .ufx-veh { margin: 6px 0 0 43px !important; max-width: calc(100% - 43px); }
+                .ufx-veh > span { max-width: 100%; flex-wrap: wrap; overflow-wrap: anywhere; }
                 .ufx-res-foot { margin: 6px 0 0 43px; font-size: 0.66rem; color: var(--secondary-text); }
                 .ufx-note .ufx-res-foot { margin-left: 0; }
                 .ufx-empty { padding: 14px; text-align: center; color: var(--secondary-text); font-style: italic; border: 1px dashed var(--border-color); border-radius: 10px; }
                 .ufx-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
-                .ufx-slot { padding: 6px 8px; border-radius: 8px; background: var(--surface-color, rgba(255,255,255,0.03)); border: 1px solid var(--border-color); }
+                .ufx-slot { min-width: 0; padding: 6px 8px; border-radius: 8px; background: var(--surface-color, rgba(255,255,255,0.03)); border: 1px solid var(--border-color); }
                 .ufx-slot.is-rental { border-color: #e67e22; background: linear-gradient(135deg, rgba(230, 126, 34, 0.15), rgba(230, 126, 34, 0.05)); }
                 .ufx-slot-label { font-size: 0.68rem; color: var(--secondary-text); margin-bottom: 4px; font-weight: 600; }
                 .ufx-slot-label > i { opacity: 0.85; margin-right: 2px; }
                 .ufx-chips { display: flex; flex-wrap: wrap; gap: 4px; }
-                .ufx-chip { padding: 2px 8px; border-radius: 6px; font-size: 0.76rem; font-weight: 700; white-space: nowrap; }
+                .ufx-chip { max-width: 100%; padding: 2px 8px; border-radius: 6px; font-size: 0.76rem; font-weight: 700; line-height: 1.35; overflow-wrap: anywhere; }
                 .ufx-chip.is-accent { background: var(--accent-color); color: var(--bg-color); }
                 .ufx-chip.is-info { background: var(--info-color); color: #fff; }
                 .ufx-chip.is-rental { background: #e67e22; color: #fff; }
                 .ufx-none { font-size: 0.78rem; color: var(--secondary-text); }
-                .ufx-family { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
-                .ufx-family-item { font-size: 0.8rem; color: var(--primary-text); margin-top: 2px; }
-                .ufx-note-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+                .ufx-family { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(180px, 100%), 1fr)); gap: 10px; }
+                .ufx-family-item { font-size: 0.8rem; color: var(--primary-text); margin-top: 2px; overflow-wrap: anywhere; }
+                .ufx-note-head { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 6px 8px; }
                 .ufx-note-head .ufx-sec-title { margin-bottom: 0; }
                 .ufx-note { border-left: 4px solid #fbbf24; }
-                .ufx-note-body { margin-top: 6px; font-size: 0.84rem; line-height: 1.4; color: var(--primary-text); white-space: pre-wrap; }
+                .ufx-note-body { margin-top: 6px; font-size: 0.84rem; line-height: 1.4; color: var(--primary-text); white-space: pre-wrap; overflow-wrap: anywhere; }
                 .ufx-add-note { width: 100%; margin-bottom: 12px; padding: 8px; border-radius: 10px; border: 1px dashed var(--border-color); background: transparent; color: var(--secondary-text); font-size: 0.78rem; cursor: pointer; }
                 .ufx-add-note:hover { border-color: var(--accent-color); color: var(--accent-color); }
                 .ufx-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding-top: 10px; border-top: 1px solid var(--border-color); }
-                .ufx-actions .btn { width: 100%; margin: 0; padding: 7px; font-size: 0.8rem; }
+                .ufx-actions .btn { width: 100%; min-width: 0; margin: 0; padding: 7px; font-size: 0.8rem; white-space: normal; }
                 .modal-content.ufx .ufx-close, .modal-content.ufx .ufx-add-note { background: transparent !important; color: var(--secondary-text) !important; box-shadow: none !important; transform: none !important; font-weight: 600; }
                 .modal-content.ufx .ufx-close { border: 1px solid var(--border-color) !important; padding: 0 !important; }
                 .modal-content.ufx .ufx-add-note { border: 1px dashed var(--border-color) !important; }
@@ -33098,11 +33104,18 @@ showTab('tabNovedades');
                 .ufx-wide { grid-column: 1 / -1; }
                 .ufx-hint { margin: -2px 0 2px; font-size: 0.68rem; color: var(--secondary-text); text-align: center; }
                 @media (max-width: 520px) {
-                    .ufx-stats { grid-template-columns: repeat(2, 1fr); }
-                    .ufx-res-head { flex-wrap: wrap; }
-                    .ufx-res-actions { width: 100%; justify-content: flex-start; padding-left: 43px; }
-                    .ufx-res-meta, .ufx-res-foot, .ufx-res > div[style*="flex-wrap"] { margin-left: 0 !important; }
-                    .ufx-res-actions { padding-left: 0; }
+                    .modal-content.ufx { padding: 0 12px 12px; }
+                    .ufx-head { margin: 0 -12px 10px; padding: 10px 12px 8px; }
+                    .ufx-unit-icon { width: 36px; height: 36px; font-size: 0.95rem; }
+                    .ufx-title { font-size: 1.25rem; }
+                    .ufx-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+                    .ufx-res-head > .ufx-res-actions { width: 100%; justify-content: flex-start; margin-left: 0; }
+                    .ufx-res-meta, .ufx-res-foot { margin-left: 0; }
+                    .ufx-veh { margin-left: 0 !important; max-width: 100%; }
+                }
+                @media (max-width: 360px) {
+                    .ufx-actions { grid-template-columns: 1fr; }
+                    .ufx-res-actions .btn { padding: 3px 6px; }
                 }
             `;
             document.head.appendChild(st);
@@ -33110,7 +33123,7 @@ showTab('tabNovedades');
 
         function showUnitDetailModal(unit) {
             const modal = document.createElement('div');
-            modal.className = 'modal pcsh-vlcom-body-modal';
+            modal.className = 'modal pcsh-vlcom-body-modal ufx-modal';
             pcshUfxEnsureStyles();
             const ufxEsc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
             const ufxInitials = (n) => String(n || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w.charAt(0)).join('').toUpperCase() || '?';
@@ -33220,6 +33233,7 @@ showTab('tabNovedades');
             const chips = (list, cls) => list.length
                 ? list.map((x) => `<span class="ufx-chip ${cls || ''}">${ufxEsc(x)}</span>`).join('')
                 : '<span class="ufx-none">N/A</span>';
+            const longSlot = (list) => list.some((x) => String(x).length > 22) ? 'ufx-wide' : '';
             const slot = (icon, label, body, extra) => `<div class="ufx-slot ${extra || ''}">
                     <div class="ufx-slot-label"><i class="fa-solid ${icon}" aria-hidden="true"></i> ${label}</div>
                     <div class="ufx-chips">${body}</div>
@@ -33242,7 +33256,7 @@ showTab('tabNovedades');
                     </div>
                 </section>` : '';
             modal.innerHTML = `
-                <div class="modal-content ufx" style="max-height: 90vh; overflow-y: auto;">
+                <div class="modal-content ufx">
                     <header class="ufx-head">
                         <div class="ufx-head-main">
                             <span class="ufx-unit-icon" aria-hidden="true"><i class="fa-solid fa-building"></i></span>
@@ -33273,10 +33287,10 @@ showTab('tabNovedades');
                     <section class="ufx-card">
                         <div class="ufx-sec-title"><i class="fa-solid fa-key" aria-hidden="true"></i> Espacios asignados</div>
                         <div class="ufx-slots">
-                            ${slot('fa-square-parking', parkingList.length > 1 ? 'Estacionamientos' : 'Estacionamiento', chips(parkingList, 'is-accent'))}
-                            ${rentalList.length ? slot('fa-car', 'Est. arriendo <em>(informativo)</em>', chips(rentalList, 'is-rental'), 'is-rental') : ''}
-                            ${slot('fa-box', storageList.length > 1 ? 'Bodegas' : 'Bodega', chips(storageList, 'is-info'))}
-                            ${slot('fa-bicycle', bikeList.length > 1 ? 'Bicicleteros' : 'Bicicletero', chips(bikeList, 'is-accent'))}
+                            ${slot('fa-square-parking', parkingList.length > 1 ? 'Estacionamientos' : 'Estacionamiento', chips(parkingList, 'is-accent'), longSlot(parkingList))}
+                            ${rentalList.length ? slot('fa-car', 'Est. arriendo <em>(informativo)</em>', chips(rentalList, 'is-rental'), 'is-rental ' + longSlot(rentalList)) : ''}
+                            ${slot('fa-box', storageList.length > 1 ? 'Bodegas' : 'Bodega', chips(storageList, 'is-info'), longSlot(storageList))}
+                            ${slot('fa-bicycle', bikeList.length > 1 ? 'Bicicleteros' : 'Bicicletero', chips(bikeList, 'is-accent'), longSlot(bikeList))}
                         </div>
                     </section>
 
