@@ -27409,6 +27409,62 @@ showTab('tabNovedades');
     }, 0);
   }
 
+  /** Última versión del servidor (por id, serializada) sobre la que trabaja este equipo. */
+  var _vlcomServerBase = { units: null, formerResidents: null };
+
+  function vlcomSnapshotById(list) {
+    var map = Object.create(null);
+    if (!Array.isArray(list)) return map;
+    for (var i = 0; i < list.length; i++) {
+      var it = list[i];
+      if (it && it.id != null) map[String(it.id)] = JSON.stringify(it);
+    }
+    return map;
+  }
+
+  function vlcomRememberServerBase(units, formerResidents) {
+    _vlcomServerBase.units = vlcomSnapshotById(units);
+    _vlcomServerBase.formerResidents = vlcomSnapshotById(formerResidents);
+  }
+
+  /**
+   * Fusión a tres vías por id entre la lista local, la del servidor y la base que vio este equipo:
+   * lo que no se modificó aquí se toma del servidor, así no se pisan cambios guardados desde otros equipos.
+   */
+  function vlcomMergeById(local, server, base) {
+    function sinId(x) {
+      return !x || x.id == null;
+    }
+    if (!base || local.some(sinId) || server.some(sinId)) return local.slice();
+    var localById = Object.create(null);
+    var i, k;
+    for (i = 0; i < local.length; i++) localById[String(local[i].id)] = local[i];
+    var merged = [];
+    var usados = Object.create(null);
+    for (i = 0; i < server.length; i++) {
+      k = String(server[i].id);
+      var l = localById[k];
+      if (l) {
+        merged.push(base[k] !== undefined && JSON.stringify(l) === base[k] ? server[i] : l);
+        usados[k] = true;
+      } else if (base[k] === undefined) {
+        merged.push(server[i]);
+      }
+    }
+    for (i = 0; i < local.length; i++) {
+      k = String(local[i].id);
+      if (usados[k]) continue;
+      if (base[k] !== undefined && JSON.stringify(local[i]) === base[k]) continue;
+      merged.push(local[i]);
+    }
+    return merged;
+  }
+
+  function vlcomReplaceArrayContents(target, items) {
+    target.length = 0;
+    Array.prototype.push.apply(target, items);
+  }
+
   window.saveUnitsToCloud = async function () {
     window.vlcomIsSaving = true;
     try {
@@ -27424,6 +27480,30 @@ showTab('tabNovedades');
       var payload = { v: 1, units: validUnits, savedAt: new Date().toISOString() };
 
       if (window.pcshDbBackend === 'firestore' && typeof firebase !== 'undefined') {
+        var serverSnap = null;
+        try {
+          serverSnap = await wm815Ref().get({ source: 'server' });
+        } catch (eSrv) {
+          console.warn('[vlcom] Sin lectura del servidor antes de guardar; se guarda la copia local:', eSrv);
+        }
+        if (serverSnap && serverSnap.exists) {
+          var sd = serverSnap.data() || {};
+          var serverUnits = (Array.isArray(sd.units) ? sd.units : [])
+            .map(function (u) {
+              return normalizeUnitData(pcshShallowCloneUnit(u));
+            })
+            .filter(function (u) {
+              return u && u.id && u.unitNumber;
+            });
+          validUnits = vlcomMergeById(validUnits, serverUnits, _vlcomServerBase.units);
+          if (Array.isArray(sd.formerResidents)) {
+            frList = vlcomMergeById(frList, sd.formerResidents, _vlcomServerBase.formerResidents);
+            if (Array.isArray(st.formerResidents)) vlcomReplaceArrayContents(st.formerResidents, frList);
+            else st.formerResidents = frList.slice();
+          }
+          vlcomReplaceArrayContents(st.units, validUnits);
+          payload.units = validUnits;
+        }
         var FV = firebase.firestore.FieldValue;
         await wm815Ref().set(
           {
@@ -27435,6 +27515,7 @@ showTab('tabNovedades');
           },
           { merge: true }
         );
+        vlcomRememberServerBase(validUnits, frList);
         localStorage.setItem(UNITS_KEY, JSON.stringify(payload));
         try {
           localStorage.setItem(
@@ -27522,6 +27603,7 @@ showTab('tabNovedades');
           } else if (!st.formerResidents) {
             st.formerResidents = [];
           }
+          vlcomRememberServerBase(units, Array.isArray(d.formerResidents) ? d.formerResidents : []);
           try {
             localStorage.setItem(UNITS_KEY, JSON.stringify({ v: 1, units: units, savedAt: new Date().toISOString() }));
             if (st.formerResidents && st.formerResidents.length) {
@@ -27788,6 +27870,7 @@ showTab('tabNovedades');
           if (st) {
             st.units = units;
             st.formerResidents = Array.isArray(dat.formerResidents) ? dat.formerResidents : [];
+            vlcomRememberServerBase(units, st.formerResidents);
           }
           try {
             localStorage.setItem(UNITS_KEY, JSON.stringify({ v: 1, units: units, savedAt: new Date().toISOString() }));
