@@ -15505,7 +15505,9 @@ function pcshApplyModulePageTitle(faIconClass, titleText) {
   }
 }
 
-function pcshCargaMiniHtml() {
+function pcshCargaMiniHtml(textos) {
+  var titulo = (textos && textos.titulo) || 'Cargando';
+  var sub = (textos && textos.sub) || 'Arturito ordena tus fichas…';
   return '<div class="mini-carga" aria-hidden="true">' +
     '<span class="mini-ficha"></span>' +
     '<span class="mini-ficha mini-ficha--2"></span>' +
@@ -15519,12 +15521,12 @@ function pcshCargaMiniHtml() {
       '<ellipse class="mini-ojo" cx="38" cy="31" rx="3.1" ry="3.1" fill="#7FBA02"/>' +
       '<path d="M26 39 Q32 44 38 39" stroke="#7FBA02" stroke-width="2.2" fill="none" stroke-linecap="round"/>' +
     '</svg></div></div>' +
-    '<p class="carga-titulo">Cargando<span class="carga-puntos" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>' +
-    '<p class="carga-sub">Arturito ordena tus fichas…</p>' +
+    '<p class="carga-titulo">' + titulo + '<span class="carga-puntos" aria-hidden="true"><i>.</i><i>.</i><i>.</i></span></p>' +
+    '<p class="carga-sub">' + sub + '</p>' +
     '<div class="carga-barra" aria-hidden="true"><span></span></div>';
 }
 
-function pcshCargaMiniSiTarda(clave, promesas) {
+function pcshCargaMiniSiTarda(clave, promesas, textos) {
   var lista = (promesas || []).filter(function (p) { return p && typeof p.then === 'function'; });
   if (!lista.length) return;
   var token = (window._pcshCargaToken || 0) + 1;
@@ -15537,7 +15539,7 @@ function pcshCargaMiniSiTarda(clave, promesas) {
     velo.setAttribute('data-carga', clave || '');
     velo.setAttribute('role', 'status');
     velo.setAttribute('aria-live', 'polite');
-    velo.innerHTML = '<div class="modulo-carga-card">' + pcshCargaMiniHtml() + '</div>';
+    velo.innerHTML = '<div class="modulo-carga-card">' + pcshCargaMiniHtml(textos) + '</div>';
     document.body.appendChild(velo);
   }, 380);
   Promise.all(lista.map(function (p) { return Promise.resolve(p).catch(function () {}); })).then(function () {
@@ -27409,62 +27411,6 @@ showTab('tabNovedades');
     }, 0);
   }
 
-  /** Última versión del servidor (por id, serializada) sobre la que trabaja este equipo. */
-  var _vlcomServerBase = { units: null, formerResidents: null };
-
-  function vlcomSnapshotById(list) {
-    var map = Object.create(null);
-    if (!Array.isArray(list)) return map;
-    for (var i = 0; i < list.length; i++) {
-      var it = list[i];
-      if (it && it.id != null) map[String(it.id)] = JSON.stringify(it);
-    }
-    return map;
-  }
-
-  function vlcomRememberServerBase(units, formerResidents) {
-    _vlcomServerBase.units = vlcomSnapshotById(units);
-    _vlcomServerBase.formerResidents = vlcomSnapshotById(formerResidents);
-  }
-
-  /**
-   * Fusión a tres vías por id entre la lista local, la del servidor y la base que vio este equipo:
-   * lo que no se modificó aquí se toma del servidor, así no se pisan cambios guardados desde otros equipos.
-   */
-  function vlcomMergeById(local, server, base) {
-    function sinId(x) {
-      return !x || x.id == null;
-    }
-    if (!base || local.some(sinId) || server.some(sinId)) return local.slice();
-    var localById = Object.create(null);
-    var i, k;
-    for (i = 0; i < local.length; i++) localById[String(local[i].id)] = local[i];
-    var merged = [];
-    var usados = Object.create(null);
-    for (i = 0; i < server.length; i++) {
-      k = String(server[i].id);
-      var l = localById[k];
-      if (l) {
-        merged.push(base[k] !== undefined && JSON.stringify(l) === base[k] ? server[i] : l);
-        usados[k] = true;
-      } else if (base[k] === undefined) {
-        merged.push(server[i]);
-      }
-    }
-    for (i = 0; i < local.length; i++) {
-      k = String(local[i].id);
-      if (usados[k]) continue;
-      if (base[k] !== undefined && JSON.stringify(local[i]) === base[k]) continue;
-      merged.push(local[i]);
-    }
-    return merged;
-  }
-
-  function vlcomReplaceArrayContents(target, items) {
-    target.length = 0;
-    Array.prototype.push.apply(target, items);
-  }
-
   window.saveUnitsToCloud = async function () {
     window.vlcomIsSaving = true;
     try {
@@ -27480,30 +27426,6 @@ showTab('tabNovedades');
       var payload = { v: 1, units: validUnits, savedAt: new Date().toISOString() };
 
       if (window.pcshDbBackend === 'firestore' && typeof firebase !== 'undefined') {
-        var serverSnap = null;
-        try {
-          serverSnap = await wm815Ref().get({ source: 'server' });
-        } catch (eSrv) {
-          console.warn('[vlcom] Sin lectura del servidor antes de guardar; se guarda la copia local:', eSrv);
-        }
-        if (serverSnap && serverSnap.exists) {
-          var sd = serverSnap.data() || {};
-          var serverUnits = (Array.isArray(sd.units) ? sd.units : [])
-            .map(function (u) {
-              return normalizeUnitData(pcshShallowCloneUnit(u));
-            })
-            .filter(function (u) {
-              return u && u.id && u.unitNumber;
-            });
-          validUnits = vlcomMergeById(validUnits, serverUnits, _vlcomServerBase.units);
-          if (Array.isArray(sd.formerResidents)) {
-            frList = vlcomMergeById(frList, sd.formerResidents, _vlcomServerBase.formerResidents);
-            if (Array.isArray(st.formerResidents)) vlcomReplaceArrayContents(st.formerResidents, frList);
-            else st.formerResidents = frList.slice();
-          }
-          vlcomReplaceArrayContents(st.units, validUnits);
-          payload.units = validUnits;
-        }
         var FV = firebase.firestore.FieldValue;
         await wm815Ref().set(
           {
@@ -27515,7 +27437,6 @@ showTab('tabNovedades');
           },
           { merge: true }
         );
-        vlcomRememberServerBase(validUnits, frList);
         localStorage.setItem(UNITS_KEY, JSON.stringify(payload));
         try {
           localStorage.setItem(
@@ -27603,7 +27524,6 @@ showTab('tabNovedades');
           } else if (!st.formerResidents) {
             st.formerResidents = [];
           }
-          vlcomRememberServerBase(units, Array.isArray(d.formerResidents) ? d.formerResidents : []);
           try {
             localStorage.setItem(UNITS_KEY, JSON.stringify({ v: 1, units: units, savedAt: new Date().toISOString() }));
             if (st.formerResidents && st.formerResidents.length) {
@@ -27870,7 +27790,6 @@ showTab('tabNovedades');
           if (st) {
             st.units = units;
             st.formerResidents = Array.isArray(dat.formerResidents) ? dat.formerResidents : [];
-            vlcomRememberServerBase(units, st.formerResidents);
           }
           try {
             localStorage.setItem(UNITS_KEY, JSON.stringify({ v: 1, units: units, savedAt: new Date().toISOString() }));
@@ -28597,6 +28516,8 @@ showTab('tabNovedades');
         }
         function vlcomPuedeRegistrarUnidades() {
             if (vlcomEsModoAdmin()) return true;
+            if (typeof conserjeActivo !== 'undefined' && conserjeActivo && String(conserjeActivo).trim()) return true;
+            if (typeof pcshTurnoRemoteOpen !== 'undefined' && pcshTurnoRemoteOpen) return true;
             const c = localStorage.getItem('pcsh_conserje_activo');
             return !!(c && String(c).trim());
         }
@@ -29080,6 +29001,45 @@ showTab('tabNovedades');
 
         function vlcomVehicleLabel(v) {
             return [v.plate, v.model, v.color].filter(Boolean).join(' · ');
+        }
+
+        /** Patente chilena en bloques de 2 (BBBB12 → BB·BB·12; AB1234 → AB·12·34). */
+        function vlcomFormatPlateDisplay(plate) {
+            const p = vlcomNormalizeVehiclePlate(plate);
+            return p.length === 6 ? p.slice(0, 2) + '·' + p.slice(2, 4) + '·' + p.slice(4) : p;
+        }
+
+        const VLCOM_VEHICLE_COLORS = {
+            blanco: '#f8fafc', negro: '#111827', gris: '#9ca3af', plata: '#cbd5e1', plateado: '#cbd5e1',
+            rojo: '#dc2626', azul: '#2563eb', verde: '#16a34a', amarillo: '#facc15', naranjo: '#f97316',
+            naranja: '#f97316', cafe: '#92400e', 'café': '#92400e', beige: '#d6c7a1', burdeo: '#7f1d1d',
+            morado: '#7c3aed', celeste: '#38bdf8', dorado: '#ca8a04'
+        };
+
+        function vlcomVehicleColorHex(color) {
+            const words = String(color || '').toLowerCase().split(/[\s/,-]+/);
+            for (const w of words) {
+                if (VLCOM_VEHICLE_COLORS[w]) return VLCOM_VEHICLE_COLORS[w];
+            }
+            return '';
+        }
+
+        /** Vehículos del residente como chips (patente tipo placa + modelo + punto de color) para fichas. */
+        function vlcomResidentVehiclesChipsHtml(r) {
+            const esc = (s) => String(s || '').replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const list = vlcomResidentVehicles(r);
+            if (!list.length) return '';
+            return '<div style="display:flex;flex-wrap:wrap;gap:4px;margin-top:3px;">' + list.map((v) => {
+                const hex = vlcomVehicleColorHex(v.color);
+                const plate = v.plate
+                    ? `<span style="font-family:ui-monospace,Menlo,monospace;font-weight:700;letter-spacing:0.04em;background:#f8fafc;color:#0f172a;border:1px solid #0f172a;border-radius:3px;padding:0 5px;">${esc(vlcomFormatPlateDisplay(v.plate))}</span>`
+                    : '<span style="opacity:0.7;">Sin patente</span>';
+                const dot = hex
+                    ? `<span title="${esc(v.color)}" style="display:inline-block;width:9px;height:9px;border-radius:50%;background:${hex};border:1px solid rgba(255,255,255,0.45);"></span>`
+                    : '';
+                const detail = [v.model, hex ? '' : v.color].filter(Boolean).map(esc).join(' · ');
+                return `<span title="${esc(vlcomVehicleLabel(v))}" style="display:inline-flex;align-items:center;gap:5px;font-size:0.72rem;padding:2px 6px;border-radius:5px;background:rgba(148,163,184,0.14);border:1px solid var(--border-color);"><i class="fa-solid fa-car-side" aria-hidden="true" style="opacity:0.8;"></i>${plate}${detail ? '<span>' + detail + '</span>' : ''}${dot}</span>`;
+            }).join('') + '</div>';
         }
 
         function vlcomResidentVehicleLabel(r, sep = '; ') {
@@ -30343,6 +30303,19 @@ showTab('tabNovedades');
                 showNotification('error', 'Active un turno de conserje o inicie sesión en Administración para registrar unidades.');
                 return;
             }
+            if (handleUnitFormSubmit._busy) return;
+            handleUnitFormSubmit._busy = true;
+            const submitBtn = document.querySelector('#unitForm .btn.btn-primary');
+            const submitHtml = submitBtn ? submitBtn.innerHTML : '';
+            let terminarCarga = function () {};
+            const cargaGuardado = new Promise(function (resolve) { terminarCarga = resolve; });
+            if (submitBtn) {
+                submitBtn.disabled = true;
+                submitBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Guardando…';
+            }
+            if (typeof pcshCargaMiniSiTarda === 'function') {
+                pcshCargaMiniSiTarda('guardar-unidad', [cargaGuardado], { titulo: 'Guardando', sub: 'Arturito archiva la ficha…' });
+            }
             try {
                 // Preservar la nota existente si estamos editando
                 const existingUnit = appState.editingUnitId ? appState.units.find(u => u.id === appState.editingUnitId) : null;
@@ -30553,17 +30526,15 @@ showTab('tabNovedades');
                     await saveUnitsToCloud();
                     
                     // Solo si el guardado es exitoso, actualizar la UI y limpiar el formulario
-                    if (typeof enviarCorreoBienvenidaSiResidentesNuevos === 'function') {
-                        try {
-                            await enviarCorreoBienvenidaSiResidentesNuevos(formData, existingResidentsSnapshot);
-                        } catch (eBien) {
-                            console.warn('[bienvenida] No se encoló la bienvenida al guardar:', eBien);
-                        }
-                    }
                     const wasEdit = !!appState.editingUnitId;
                     updateAllUI();
                     resetForm();
                     showNotification('success', wasEdit ? '✅ Unidad actualizada exitosamente' : '✅ Unidad registrada exitosamente');
+                    if (typeof enviarCorreoBienvenidaSiResidentesNuevos === 'function') {
+                        Promise.resolve(enviarCorreoBienvenidaSiResidentesNuevos(formData, existingResidentsSnapshot)).catch(function (eBien) {
+                            console.warn('[bienvenida] No se encoló la bienvenida al guardar:', eBien);
+                        });
+                    }
                 } catch (error) {
                     console.error('Error guardando unidad:', error);
                     // Revertir cambios locales si falla el guardado
@@ -30591,6 +30562,13 @@ showTab('tabNovedades');
                 }
             } catch (error) {
                 showNotification('error', error.message);
+            } finally {
+                handleUnitFormSubmit._busy = false;
+                terminarCarga();
+                if (submitBtn) {
+                    submitBtn.disabled = false;
+                    if (submitBtn.innerHTML.indexOf('fa-spinner') >= 0) submitBtn.innerHTML = submitHtml;
+                }
             }
         }
 
@@ -33035,67 +33013,169 @@ showTab('tabNovedades');
         }
 
         // ===== MODAL DE DETALLE =====
+        function pcshUfxEnsureStyles() {
+            if (document.getElementById('pcsh-ufx-styles')) return;
+            const st = document.createElement('style');
+            st.id = 'pcsh-ufx-styles';
+            st.textContent = `
+                .modal-content.ufx { max-width: 640px; width: min(640px, 94vw); padding: 14px 16px 16px; font-size: 0.875rem; text-align: left; }
+                .ufx-head { display: grid; grid-template-columns: 1fr auto; gap: 8px 10px; align-items: center; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--border-color); }
+                .ufx-head-main { display: flex; align-items: center; gap: 10px; min-width: 0; }
+                .ufx-unit-icon { width: 42px; height: 42px; border-radius: 12px; display: grid; place-items: center; background: rgba(116, 189, 32, 0.16); color: var(--accent-color); font-size: 1.1rem; flex-shrink: 0; }
+                .ufx-kicker { font-size: 0.68rem; letter-spacing: 0.08em; text-transform: uppercase; color: var(--secondary-text); }
+                .ufx-title { margin: 0; font-size: 1.45rem; line-height: 1.1; color: var(--accent-color); font-weight: 800; }
+                .ufx-close { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--border-color); background: var(--card-color); color: var(--secondary-text); cursor: pointer; display: grid; place-items: center; }
+                .ufx-close:hover { color: var(--primary-text); border-color: var(--accent-color); }
+                .ufx-head-tags { grid-column: 1 / -1; display: flex; flex-wrap: wrap; gap: 6px; }
+                .ufx-pill { display: inline-flex; align-items: center; gap: 5px; padding: 3px 9px; border-radius: 999px; font-size: 0.72rem; font-weight: 600; border: 1px solid var(--border-color); background: var(--card-color); color: var(--primary-text); }
+                .ufx-pill.is-use { border-color: var(--accent-color); color: var(--accent-color); background: rgba(116, 189, 32, 0.10); }
+                .ufx-pill.is-ok { border-color: #4ade80; background: rgba(74, 222, 128, 0.12); }
+                .ufx-pill.is-info { border-color: #93c5fd; background: rgba(147, 197, 253, 0.14); }
+                .ufx-pill.is-warn { border-color: #fbbf24; background: rgba(251, 191, 36, 0.12); }
+                .ufx-stats { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; margin-bottom: 12px; }
+                .ufx-stat { display: flex; align-items: center; gap: 8px; padding: 7px 8px; border-radius: 10px; background: var(--card-color); border: 1px solid var(--border-color); opacity: 0.72; }
+                .ufx-stat.is-on { opacity: 1; border-color: rgba(116, 189, 32, 0.55); }
+                .ufx-stat > i { color: var(--accent-color); font-size: 0.95rem; width: 16px; text-align: center; }
+                .ufx-stat-value { font-weight: 800; font-size: 0.95rem; color: var(--primary-text); line-height: 1.1; }
+                .ufx-stat-label { font-size: 0.66rem; color: var(--secondary-text); }
+                .ufx-section, .ufx-card, .ufx-note { margin-bottom: 12px; }
+                .ufx-card, .ufx-note { padding: 9px 10px; border-radius: 10px; background: var(--card-color); border: 1px solid var(--border-color); }
+                .ufx-sec-title { display: flex; align-items: center; gap: 6px; font-size: 0.74rem; font-weight: 700; letter-spacing: 0.04em; text-transform: uppercase; color: var(--secondary-text); margin-bottom: 7px; }
+                .ufx-sec-title > i { color: var(--accent-color); }
+                .ufx-count { margin-left: auto; min-width: 20px; padding: 0 6px; border-radius: 999px; background: rgba(116, 189, 32, 0.16); color: var(--accent-color); text-align: center; }
+                .ufx-res-list { display: flex; flex-direction: column; gap: 7px; }
+                .ufx-res { padding: 9px 10px; border-radius: 10px; background: var(--card-color); border: 1px solid var(--border-color); border-left: 4px solid var(--border-color); }
+                .ufx-res.is-owner { border-left-color: var(--accent-color); background: rgba(116, 189, 32, 0.08); }
+                .ufx-res.is-tenant { border-left-color: #60a5fa; }
+                .ufx-res.is-visit { border-left-color: #fbbf24; }
+                .ufx-res-head { display: flex; align-items: center; gap: 9px; }
+                .ufx-avatar { width: 34px; height: 34px; border-radius: 50%; flex-shrink: 0; display: grid; place-items: center; font-weight: 800; font-size: 0.78rem; background: var(--surface-color, rgba(255,255,255,0.06)); color: var(--primary-text); border: 1px solid var(--border-color); }
+                .ufx-res.is-owner .ufx-avatar { background: var(--accent-color); color: var(--bg-color); border-color: transparent; }
+                .ufx-res.is-tenant .ufx-avatar { background: rgba(96, 165, 250, 0.22); }
+                .ufx-res.is-visit .ufx-avatar { background: rgba(251, 191, 36, 0.22); }
+                .ufx-res-id { flex: 1; min-width: 0; }
+                .ufx-res-name { font-weight: 700; font-size: 0.88rem; color: var(--primary-text); line-height: 1.2; overflow-wrap: anywhere; }
+                .ufx-tag { display: inline-block; margin-top: 2px; font-size: 0.66rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: var(--secondary-text); }
+                .ufx-res.is-owner .ufx-tag { color: var(--accent-color); }
+                .ufx-res.is-tenant .ufx-tag { color: #60a5fa; }
+                .ufx-res.is-visit .ufx-tag { color: #fbbf24; }
+                .ufx-res-actions { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 4px; flex-shrink: 0; }
+                .ufx-res-actions .btn { padding: 3px 7px; font-size: 0.7rem; white-space: nowrap; margin: 0; }
+                .ufx-res-meta { display: flex; flex-wrap: wrap; gap: 4px 14px; margin: 7px 0 0 43px; }
+                .ufx-meta { display: inline-flex; align-items: center; gap: 6px; font-size: 0.78rem; color: var(--primary-text); text-decoration: none; min-width: 0; overflow-wrap: anywhere; }
+                .ufx-meta > i { color: var(--secondary-text); font-size: 0.72rem; width: 12px; text-align: center; }
+                a.ufx-meta:hover { color: var(--accent-color); }
+                .ufx-meta.is-empty { color: var(--secondary-text); font-style: italic; }
+                .ufx-res > div[style*="flex-wrap"] { margin-left: 43px !important; margin-top: 6px !important; }
+                .ufx-res-foot { margin: 6px 0 0 43px; font-size: 0.66rem; color: var(--secondary-text); }
+                .ufx-note .ufx-res-foot { margin-left: 0; }
+                .ufx-empty { padding: 14px; text-align: center; color: var(--secondary-text); font-style: italic; border: 1px dashed var(--border-color); border-radius: 10px; }
+                .ufx-slots { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 8px; }
+                .ufx-slot { padding: 6px 8px; border-radius: 8px; background: var(--surface-color, rgba(255,255,255,0.03)); border: 1px solid var(--border-color); }
+                .ufx-slot.is-rental { border-color: #e67e22; background: linear-gradient(135deg, rgba(230, 126, 34, 0.15), rgba(230, 126, 34, 0.05)); }
+                .ufx-slot-label { font-size: 0.68rem; color: var(--secondary-text); margin-bottom: 4px; font-weight: 600; }
+                .ufx-slot-label > i { opacity: 0.85; margin-right: 2px; }
+                .ufx-chips { display: flex; flex-wrap: wrap; gap: 4px; }
+                .ufx-chip { padding: 2px 8px; border-radius: 6px; font-size: 0.76rem; font-weight: 700; white-space: nowrap; }
+                .ufx-chip.is-accent { background: var(--accent-color); color: var(--bg-color); }
+                .ufx-chip.is-info { background: var(--info-color); color: #fff; }
+                .ufx-chip.is-rental { background: #e67e22; color: #fff; }
+                .ufx-none { font-size: 0.78rem; color: var(--secondary-text); }
+                .ufx-family { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 10px; }
+                .ufx-family-item { font-size: 0.8rem; color: var(--primary-text); margin-top: 2px; }
+                .ufx-note-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+                .ufx-note-head .ufx-sec-title { margin-bottom: 0; }
+                .ufx-note { border-left: 4px solid #fbbf24; }
+                .ufx-note-body { margin-top: 6px; font-size: 0.84rem; line-height: 1.4; color: var(--primary-text); white-space: pre-wrap; }
+                .ufx-add-note { width: 100%; margin-bottom: 12px; padding: 8px; border-radius: 10px; border: 1px dashed var(--border-color); background: transparent; color: var(--secondary-text); font-size: 0.78rem; cursor: pointer; }
+                .ufx-add-note:hover { border-color: var(--accent-color); color: var(--accent-color); }
+                .ufx-actions { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; padding-top: 10px; border-top: 1px solid var(--border-color); }
+                .ufx-actions .btn { width: 100%; margin: 0; padding: 7px; font-size: 0.8rem; }
+                .modal-content.ufx .ufx-close, .modal-content.ufx .ufx-add-note { background: transparent !important; color: var(--secondary-text) !important; box-shadow: none !important; transform: none !important; font-weight: 600; }
+                .modal-content.ufx .ufx-close { border: 1px solid var(--border-color) !important; padding: 0 !important; }
+                .modal-content.ufx .ufx-add-note { border: 1px dashed var(--border-color) !important; }
+                .modal-content.ufx .ufx-close:hover, .modal-content.ufx .ufx-add-note:hover { color: var(--accent-color) !important; border-color: var(--accent-color) !important; }
+                .ufx-wide { grid-column: 1 / -1; }
+                .ufx-hint { margin: -2px 0 2px; font-size: 0.68rem; color: var(--secondary-text); text-align: center; }
+                @media (max-width: 520px) {
+                    .ufx-stats { grid-template-columns: repeat(2, 1fr); }
+                    .ufx-res-head { flex-wrap: wrap; }
+                    .ufx-res-actions { width: 100%; justify-content: flex-start; padding-left: 43px; }
+                    .ufx-res-meta, .ufx-res-foot, .ufx-res > div[style*="flex-wrap"] { margin-left: 0 !important; }
+                    .ufx-res-actions { padding-left: 0; }
+                }
+            `;
+            document.head.appendChild(st);
+        }
+
         function showUnitDetailModal(unit) {
             const modal = document.createElement('div');
             modal.className = 'modal pcsh-vlcom-body-modal';
+            pcshUfxEnsureStyles();
+            const ufxEsc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const ufxInitials = (n) => String(n || '').trim().split(/\s+/).filter(Boolean).slice(0, 2).map((w) => w.charAt(0)).join('').toUpperCase() || '?';
+            const ufxTypeRank = { 'Propietario': 0, 'Arrendatario': 1, 'Residente': 2, 'Visita Autorizada': 3 };
+            const ufxTypeClass = { 'Propietario': 'is-owner', 'Arrendatario': 'is-tenant', 'Visita Autorizada': 'is-visit' };
+            const escapedUnitId = (unit.id || '').replace(/'/g, "\\'");
+            const unitResidents = Array.isArray(unit.residents) ? unit.residents : [];
             let residentsHtml = '';
-            if (unit.residents && unit.residents.length) {
-                residentsHtml = `<ul style="text-align:left; margin:2px 0 0 0; padding-left:12px; list-style: none;">` +
-                    unit.residents.map((r, index) => {
-                        // Escapar valores para evitar problemas con comillas
-                        const escapedId = (r.id || '').replace(/'/g, "\\'");
-                        const escapedName = r.name.replace(/'/g, "\\'");
-                        const escapedUnit = unit.unitNumber.replace(/'/g, "\\'");
-                        const escapedUnitId = (unit.id || '').replace(/'/g, "\\'");
-                        const isPropietario = r.type === 'Propietario';
-                        const liStyle = isPropietario
-                            ? 'margin-bottom: 4px; padding: 5px 6px; background: rgba(116, 189, 32, 0.18); border-radius: 4px; border: 1px solid var(--accent-color); border-left: 3px solid var(--accent-color);'
-                            : 'margin-bottom: 4px; padding: 5px 6px; background: var(--card-color); border-radius: 4px; border: 1px solid var(--border-color);';
-                        const typeStyle = isPropietario
-                            ? 'color: var(--accent-color); font-size: 0.75rem; font-weight: 600;'
-                            : 'color: var(--secondary-text); font-size: 0.75rem;';
+            if (unitResidents.length) {
+                residentsHtml = unitResidents
+                    .map((r, index) => ({ r, index }))
+                    .sort((a, b) => (ufxTypeRank[a.r.type] ?? 9) - (ufxTypeRank[b.r.type] ?? 9) || a.index - b.index)
+                    .map(({ r, index }) => {
                         const regDateStr = r.registeredAt ? (() => { try { const d = new Date(r.registeredAt); return isNaN(d.getTime()) ? 'N/A' : d.toLocaleString('es-CL', { day: '2-digit', month: '2-digit', year: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false }); } catch (_) { return 'N/A'; } })() : 'N/A';
-                        let residentInfo = `<li style="${liStyle}">
-                            <div style="display: flex; justify-content: space-between; align-items: flex-start; gap: 6px;">
-                                <div style="flex: 1; min-width: 0; font-size: 0.8rem; line-height: 1.25;">
-                                    <b>${r.name}</b> <span style="${typeStyle}">(${r.type})</span><br>
-                                    <span style="font-size: 0.75rem;">Email: ${r.email || 'N/A'}<br>
-                                    ${r.phone ? 'Tel: ' + r.phone + '<br>' : ''}
-                                    ${r.rut ? 'RUT: ' + r.rut + '<br>' : ''}</span>
-                                    <span style="font-size: 0.65rem; color: var(--secondary-text);">Registro: ${regDateStr}</span>
-                                </div>
-                                <div style="display: flex; gap: 3px; flex-shrink: 0; align-items: center;">
-                                    <button type="button" class="btn btn-sm btn-secondary" onclick="closeMapModalAndEditResident('${escapedUnitId}', ${index})" style="padding: 2px 5px; font-size: 0.7rem; white-space: nowrap;" title="Editar residente"><i class="fa-solid fa-pen" aria-hidden="true"></i> Editar</button>
-                                    <button type="button" class="btn btn-sm btn-info" onclick="transferResidentRecord('${escapedUnitId}', ${index})" style="padding: 2px 5px; font-size: 0.7rem; white-space: nowrap;" title="Trasladar este residente a otra unidad, ocupada o vacía"><i class="fa-solid fa-arrows-left-right" aria-hidden="true"></i></button>`;
-                        if (typeof pcshResidenteRecibeBienvenida === 'function' && pcshResidenteRecibeBienvenida(r) && String(r.email || r.correo || '').trim()) {
-                            const mailAttr = String(r.email || r.correo || '').replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;');
-                            residentInfo += `<button type="button" class="btn btn-sm btn-primary btn-bienvenida-un-correo" data-email="${mailAttr}" style="padding: 2px 5px; font-size: 0.7rem; white-space: nowrap;" title="Enviar bienvenida solo a este correo"><i class="fa-solid fa-envelope" aria-hidden="true"></i></button>`;
+                        const mail = String(r.email || r.correo || '').trim();
+                        const phone = String(r.phone || '').trim();
+                        const meta = [
+                            mail
+                                ? `<a class="ufx-meta" href="mailto:${ufxEsc(mail)}" title="Escribir a ${ufxEsc(mail)}"><i class="fa-solid fa-envelope" aria-hidden="true"></i><span>${ufxEsc(mail)}</span></a>`
+                                : `<span class="ufx-meta is-empty"><i class="fa-solid fa-envelope" aria-hidden="true"></i><span>Sin correo</span></span>`,
+                            phone ? `<a class="ufx-meta" href="tel:${ufxEsc(phone.replace(/[^\d+]/g, ''))}" title="Llamar"><i class="fa-solid fa-phone" aria-hidden="true"></i><span>${ufxEsc(phone)}</span></a>` : '',
+                            r.rut ? `<span class="ufx-meta"><i class="fa-solid fa-id-card" aria-hidden="true"></i><span>${ufxEsc(r.rut)}</span></span>` : ''
+                        ].join('');
+                        let actions = `<button type="button" class="btn btn-sm btn-secondary" onclick="closeMapModalAndEditResident('${escapedUnitId}', ${index})" title="Editar residente"><i class="fa-solid fa-pen" aria-hidden="true"></i> Editar</button>
+                            <button type="button" class="btn btn-sm btn-info" onclick="transferResidentRecord('${escapedUnitId}', ${index})" title="Trasladar este residente a otra unidad, ocupada o vacía"><i class="fa-solid fa-arrows-left-right" aria-hidden="true"></i></button>`;
+                        if (typeof pcshResidenteRecibeBienvenida === 'function' && pcshResidenteRecibeBienvenida(r) && mail) {
+                            actions += `<button type="button" class="btn btn-sm btn-primary btn-bienvenida-un-correo" data-email="${ufxEsc(mail)}" title="Enviar bienvenida solo a este correo"><i class="fa-solid fa-envelope" aria-hidden="true"></i></button>`;
                         }
                         if (r.type === 'Arrendatario' || r.type === 'Visita Autorizada') {
-                            residentInfo += `<button class="btn btn-sm btn-danger" onclick="giveResidentExit('${unit.id}', ${index})" style="padding: 2px 5px; font-size: 0.7rem; white-space: nowrap;"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Salida</button>`;
+                            actions += `<button type="button" class="btn btn-sm btn-danger" onclick="giveResidentExit('${unit.id}', ${index})" title="Registrar salida"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i> Salida</button>`;
                         }
-                        residentInfo += `</div></div></li>`;
-                        return residentInfo;
-                    }).join('') +
-                    `</ul>`;
+                        return `<article class="ufx-res ${ufxTypeClass[r.type] || ''}">
+                            <div class="ufx-res-head">
+                                <span class="ufx-avatar" aria-hidden="true">${ufxEsc(ufxInitials(r.name))}</span>
+                                <div class="ufx-res-id">
+                                    <div class="ufx-res-name">${ufxEsc(r.name || '—')}</div>
+                                    <span class="ufx-tag">${ufxEsc(r.type || 'Residente')}</span>
+                                </div>
+                                <div class="ufx-res-actions">${actions}</div>
+                            </div>
+                            <div class="ufx-res-meta">${meta}</div>
+                            ${vlcomResidentVehiclesChipsHtml(r)}
+                            <div class="ufx-res-foot"><i class="fa-regular fa-clock" aria-hidden="true"></i> Registro: ${regDateStr}</div>
+                        </article>`;
+                    }).join('');
             } else {
-                residentsHtml = '<em style="font-size: 0.8rem; color: var(--secondary-text);">Sin residentes registrados</em>';
+                residentsHtml = '<div class="ufx-empty"><i class="fa-solid fa-user-slash" aria-hidden="true"></i> Sin residentes registrados</div>';
             }
             // Sección de nota editable
             let noteSection = '';
             if (unit.unitNote && unit.unitNote.trim() !== '') {
                 const noteUpdatedAtFormatted = unit.unitNoteUpdatedAt ? formatNoteUpdatedAt(unit.unitNoteUpdatedAt) : '';
-                noteSection = `<div id="unitNoteSection" style="background: var(--surface-color); border: 1px solid var(--border-color); border-radius: 6px; padding: 5px 6px; margin: 6px 0;">
-                    <div style="margin-bottom: 2px; font-size: 0.78rem;"><b>Nota:</b></div>
-                    <div style="margin-bottom: 4px; color: var(--primary-text); font-size: 0.8rem; line-height: 1.3;">${unit.unitNote.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
-                    ${noteUpdatedAtFormatted ? '<div style="font-size: 0.7rem; color: var(--secondary-text); margin-bottom: 4px;">Modificado: ' + noteUpdatedAtFormatted.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>' : ''}
-                    <div style="display: flex; gap: 4px; justify-content: flex-end;">
-                        <button id="editNoteBtn" class="btn btn-sm btn-secondary" style="padding: 2px 6px; font-size: 0.7rem;"><i class="fa-solid fa-pen" aria-hidden="true"></i> Editar</button>
-                        <button id="deleteNoteBtn" class="btn btn-sm btn-danger" style="padding: 2px 6px; font-size: 0.7rem;"><i class="fa-solid fa-trash" aria-hidden="true"></i> Eliminar</button>
+                noteSection = `<div id="unitNoteSection" class="ufx-note">
+                    <div class="ufx-note-head">
+                        <span class="ufx-sec-title"><i class="fa-solid fa-note-sticky" aria-hidden="true"></i> Nota de la unidad</span>
+                        <div class="ufx-res-actions">
+                            <button id="editNoteBtn" class="btn btn-sm btn-secondary"><i class="fa-solid fa-pen" aria-hidden="true"></i> Editar</button>
+                            <button id="deleteNoteBtn" class="btn btn-sm btn-danger" title="Eliminar nota"><i class="fa-solid fa-trash" aria-hidden="true"></i></button>
+                        </div>
                     </div>
+                    <div class="ufx-note-body">${unit.unitNote.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+                    ${noteUpdatedAtFormatted ? '<div class="ufx-res-foot">Modificado: ' + noteUpdatedAtFormatted.replace(/</g, '&lt;').replace(/>/g, '&gt;') + '</div>' : ''}
                 </div>`;
             } else {
-                noteSection = `<div id="unitNoteSection" style="margin: 6px 0;"><button id="addNoteBtn" class="btn btn-sm btn-secondary" style="padding: 2px 6px; font-size: 0.75rem;"><i class="fa-solid fa-note-sticky" aria-hidden="true"></i> Agregar Nota</button></div>`;
+                noteSection = `<div id="unitNoteSection"><button id="addNoteBtn" class="ufx-add-note" type="button"><i class="fa-solid fa-note-sticky" aria-hidden="true"></i> Agregar nota a la unidad</button></div>`;
             }
             // Obtener estacionamientos (array o valor único)
             let parkingInfo = 'N/A';
@@ -33118,152 +33198,105 @@ showTab('tabNovedades');
                 storageList = [unit.storageNumber];
                 storageInfo = unit.storageNumber;
             }
+            const rentalList = getRentalParkingList(unit);
+            const bikeList = (Array.isArray(unit.bikeStorageNumbers) ? unit.bikeStorageNumbers : []).map((num, i) => {
+                const det = (unit.bikeStorageDetails && unit.bikeStorageDetails[i]) || '';
+                return det ? (num ? num + ' (' + det + ')' : det) : (num || '');
+            }).filter(Boolean);
+            const pets = Array.isArray(unit.pets) ? unit.pets : [];
+            const kids = Array.isArray(unit.children) ? unit.children : [];
+            const hasPet = !!(unit.hasPet || pets.length);
+            const hasKids = !!(unit.hasChildren || kids.length);
+            const vehicleCount = unitResidents.reduce((n, r) => n + vlcomResidentVehicles(r).length, 0);
+            const unitNum = parseInt(String(unit.unitNumber || '').replace(/\D/g, ''), 10);
+            const floorLabel = unitNum >= 100 ? 'Piso ' + Math.floor(unitNum / 100) : '';
+            const estB = typeof pcshEstadoBienvenidaUnidad === 'function' ? pcshEstadoBienvenidaUnidad(unit) : '';
+            const bienvenidaPill = {
+                'enviada': '<span class="ufx-pill is-ok"><i class="fa-solid fa-envelope-circle-check" aria-hidden="true"></i> Bienvenida enviada</span>',
+                'en-cola': '<span class="ufx-pill is-info"><i class="fa-solid fa-envelope" aria-hidden="true"></i> Bienvenida en cola (aún no enviada)</span>',
+                'pendiente': '<span class="ufx-pill is-warn"><i class="fa-solid fa-envelope" aria-hidden="true"></i> Bienvenida pendiente (no enviada)</span>',
+                'sin-correo': '<span class="ufx-pill"><i class="fa-solid fa-envelope" aria-hidden="true"></i> Sin correo registrado</span>'
+            }[estB] || '';
+            const chips = (list, cls) => list.length
+                ? list.map((x) => `<span class="ufx-chip ${cls || ''}">${ufxEsc(x)}</span>`).join('')
+                : '<span class="ufx-none">N/A</span>';
+            const slot = (icon, label, body, extra) => `<div class="ufx-slot ${extra || ''}">
+                    <div class="ufx-slot-label"><i class="fa-solid ${icon}" aria-hidden="true"></i> ${label}</div>
+                    <div class="ufx-chips">${body}</div>
+                </div>`;
+            const stat = (icon, label, value, on) => `<div class="ufx-stat ${on ? 'is-on' : ''}">
+                    <i class="fa-solid ${icon}" aria-hidden="true"></i>
+                    <div><div class="ufx-stat-value">${value}</div><div class="ufx-stat-label">${label}</div></div>
+                </div>`;
+            const familyHtml = (pets.length || kids.length || unit.hasPet) ? `<section class="ufx-card">
+                    <div class="ufx-sec-title"><i class="fa-solid fa-house-chimney-user" aria-hidden="true"></i> Grupo familiar</div>
+                    <div class="ufx-family">
+                        ${hasPet ? `<div>
+                            <div class="ufx-slot-label"><i class="fa-solid fa-paw" aria-hidden="true"></i> Mascotas${pets.length ? ' (' + pets.length + ')' : ''}</div>
+                            ${pets.length ? pets.map((p) => `<div class="ufx-family-item"><strong>${escapeHtml(p.name || '—')}</strong>${p.type ? ' · ' + escapeHtml(p.type) : ''}</div>`).join('') : '<div class="ufx-none">Sí (sin detalle registrado)</div>'}
+                        </div>` : ''}
+                        ${kids.length ? `<div>
+                            <div class="ufx-slot-label"><i class="fa-solid fa-child" aria-hidden="true"></i> Niños (${kids.length})</div>
+                            ${kids.map((c) => `<div class="ufx-family-item"><strong>${escapeHtml(c.name || '—')}</strong>${c.age != null ? ' · ' + escapeHtml(String(c.age)) + ' años' : ''}${c.rut ? ' · RUT ' + escapeHtml(c.rut) : ''}</div>`).join('')}
+                        </div>` : ''}
+                    </div>
+                </section>` : '';
             modal.innerHTML = `
-                <div class="modal-content" style="max-height: 90vh; overflow-y: auto; font-size: 0.875rem;">
-                    <h3 style="color: var(--accent-color); margin-bottom: 6px; font-size: 1.05rem;">Unidad ${unit.unitNumber}</h3>
-                    ${(() => {
-                        const estB = typeof pcshEstadoBienvenidaUnidad === 'function' ? pcshEstadoBienvenidaUnidad(unit) : '';
-                        if (estB === 'enviada') return '<div style="margin:0 0 8px 0;padding:6px 8px;background:rgba(74,222,128,0.12);border-radius:6px;border:1px solid #4ade80;font-size:0.8rem;font-weight:600;">✉ Bienvenida enviada</div>';
-                        if (estB === 'en-cola') return '<div style="margin:0 0 8px 0;padding:6px 8px;background:rgba(147,197,253,0.14);border-radius:6px;border:1px solid #93c5fd;font-size:0.8rem;font-weight:600;">✉ Bienvenida en cola (aún no enviada)</div>';
-                        if (estB === 'pendiente') return '<div style="margin:0 0 8px 0;padding:6px 8px;background:rgba(251,191,36,0.12);border-radius:6px;border:1px solid #fbbf24;font-size:0.8rem;font-weight:600;">✉ Bienvenida pendiente (no enviada)</div>';
-                        if (estB === 'sin-correo') return '<div style="margin:0 0 8px 0;padding:6px 8px;background:var(--card-color);border-radius:6px;border:1px solid var(--border-color);font-size:0.8rem;font-weight:600;">✉ Sin correo registrado</div>';
-                        return '';
-                    })()}
-                    
-                    <div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 6px; margin-bottom: 6px;">
-                        <div style="padding: 5px 6px; background: var(--card-color); border-radius: 6px; border: 1px solid var(--border-color);">
-                            <div style="color: var(--secondary-text); font-size: 0.7rem; margin-bottom: 1px;">Uso</div>
-                            <div style="color: var(--primary-text); font-weight: 600; font-size: 0.82rem;">${unit.unitUse}</div>
-                        </div>
-                        <div style="padding: 5px 6px; background: var(--card-color); border-radius: 6px; border: 1px solid var(--border-color);">
-                            <div style="color: var(--secondary-text); font-size: 0.7rem; margin-bottom: 1px;">Residentes</div>
-                            <div style="color: var(--primary-text); font-weight: 600; font-size: 0.82rem;">${unit.residents.length}</div>
-                        </div>
-                        <div style="padding: 5px 6px; background: var(--card-color); border-radius: 6px; border: 1px solid var(--border-color);">
-                            <div style="color: var(--secondary-text); font-size: 0.7rem; margin-bottom: 3px;">Mascota</div>
-                            <div style="color: var(--primary-text); font-weight: 600; font-size: 0.82rem;">
-                                <i class="fa-solid fa-paw" aria-hidden="true" style="font-size: 0.75rem; margin-right: 3px;"></i>${unit.hasPet || (Array.isArray(unit.pets) && unit.pets.length) ? 'Sí' : 'No'}
+                <div class="modal-content ufx" style="max-height: 90vh; overflow-y: auto;">
+                    <header class="ufx-head">
+                        <div class="ufx-head-main">
+                            <span class="ufx-unit-icon" aria-hidden="true"><i class="fa-solid fa-building"></i></span>
+                            <div>
+                                <div class="ufx-kicker">Unidad${floorLabel ? ' · ' + floorLabel : ''}</div>
+                                <h3 class="ufx-title">${ufxEsc(unit.unitNumber)}</h3>
                             </div>
                         </div>
+                        <button type="button" class="ufx-close" onclick="this.closest('.modal').remove()" aria-label="Cerrar" title="Cerrar"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                        <div class="ufx-head-tags">
+                            <span class="ufx-pill is-use">${ufxEsc(unit.unitUse || 'Sin uso definido')}</span>
+                            ${bienvenidaPill}
+                        </div>
+                    </header>
+
+                    <div class="ufx-stats">
+                        ${stat('fa-users', 'Residentes', unitResidents.length, unitResidents.length > 0)}
+                        ${stat('fa-car-side', 'Vehículos', vehicleCount, vehicleCount > 0)}
+                        ${stat('fa-paw', 'Mascota', pets.length ? pets.length : (hasPet ? 'Sí' : 'No'), hasPet)}
+                        ${stat('fa-child', 'Niños', kids.length ? kids.length : (hasKids ? 'Sí' : 'No'), hasKids)}
                     </div>
 
-                    ${(() => {
-                        const pets = Array.isArray(unit.pets) ? unit.pets : [];
-                        if (!unit.hasPet && !pets.length) {
-                            return `<div style="margin: 6px 0; padding: 5px 6px; background: var(--card-color); border-radius: 6px; border: 1px solid var(--border-color);">
-                        <div style="color: var(--secondary-text); font-size: 0.7rem; margin-bottom: 1px;">Mascotas</div>
-                        <div style="color: var(--primary-text); font-size: 0.8rem;">No</div>
-                    </div>`;
-                        }
-                        if (!pets.length) {
-                            return `<div style="margin: 6px 0; padding: 5px 6px; background: var(--card-color); border-radius: 6px; border: 1px solid var(--border-color);">
-                        <div style="color: var(--secondary-text); font-size: 0.7rem; margin-bottom: 1px;">Mascotas</div>
-                        <div style="color: var(--primary-text); font-size: 0.8rem;">Sí (sin detalle registrado)</div>
-                    </div>`;
-                        }
-                        return `<div style="margin: 6px 0; padding: 5px 6px; background: var(--card-color); border-radius: 6px; border: 1px solid var(--border-color);">
-                        <div style="color: var(--secondary-text); font-size: 0.72rem; margin-bottom: 3px; font-weight: 600;"><i class="fa-solid fa-paw" aria-hidden="true" style="margin-right:0.3rem;opacity:0.9"></i>Mascotas (${pets.length}):</div>
-                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                            ${pets.map((p) => `<div style="font-size: 0.8rem; color: var(--primary-text);"><strong>${escapeHtml(p.name || '—')}</strong>${p.type ? ' · ' + escapeHtml(p.type) : ''}</div>`).join('')}
-                        </div>
-                    </div>`;
-                    })()}
+                    <section class="ufx-section">
+                        <div class="ufx-sec-title"><i class="fa-solid fa-users" aria-hidden="true"></i> Residentes <span class="ufx-count">${unitResidents.length}</span></div>
+                        <div class="ufx-res-list">${residentsHtml}</div>
+                    </section>
 
-                    ${(() => {
-                        const kids = Array.isArray(unit.children) ? unit.children : [];
-                        if (!unit.hasChildren && !kids.length) {
-                            return `<div style="margin: 6px 0; padding: 5px 6px; background: var(--card-color); border-radius: 6px; border: 1px solid var(--border-color);">
-                        <div style="color: var(--secondary-text); font-size: 0.7rem; margin-bottom: 1px;">Niños</div>
-                        <div style="color: var(--primary-text); font-size: 0.8rem;">No</div>
-                    </div>`;
-                        }
-                        return `<div style="margin: 6px 0; padding: 5px 6px; background: var(--card-color); border-radius: 6px; border: 1px solid var(--border-color);">
-                        <div style="color: var(--secondary-text); font-size: 0.72rem; margin-bottom: 3px; font-weight: 600;"><i class="fa-solid fa-child" aria-hidden="true" style="margin-right:0.3rem;opacity:0.9"></i>Niños (${kids.length}):</div>
-                        <div style="display: flex; flex-direction: column; gap: 4px;">
-                            ${kids.map((c) => `<div style="font-size: 0.8rem; color: var(--primary-text);"><strong>${escapeHtml(c.name || '—')}</strong>${c.age != null ? ' · ' + escapeHtml(String(c.age)) + ' años' : ''}${c.rut ? ' · RUT ' + escapeHtml(c.rut) : ''}</div>`).join('')}
+                    <section class="ufx-card">
+                        <div class="ufx-sec-title"><i class="fa-solid fa-key" aria-hidden="true"></i> Espacios asignados</div>
+                        <div class="ufx-slots">
+                            ${slot('fa-square-parking', parkingList.length > 1 ? 'Estacionamientos' : 'Estacionamiento', chips(parkingList, 'is-accent'))}
+                            ${rentalList.length ? slot('fa-car', 'Est. arriendo <em>(informativo)</em>', chips(rentalList, 'is-rental'), 'is-rental') : ''}
+                            ${slot('fa-box', storageList.length > 1 ? 'Bodegas' : 'Bodega', chips(storageList, 'is-info'))}
+                            ${slot('fa-bicycle', bikeList.length > 1 ? 'Bicicleteros' : 'Bicicletero', chips(bikeList, 'is-accent'))}
                         </div>
-                    </div>`;
-                    })()}
-                    
-                    ${parkingList.length > 0 ? `
-                    <div style="margin: 6px 0; padding: 5px 6px; background: var(--card-color); border-radius: 6px; border: 1px solid var(--border-color);">
-                        <div style="color: var(--secondary-text); font-size: 0.72rem; margin-bottom: 3px; font-weight: 600;"><i class="fa-solid fa-car" aria-hidden="true" style="margin-right:0.3rem;opacity:0.9"></i>Estacionamientos:</div>
-                        <div style="display: flex; flex-wrap: wrap; gap: 3px;">
-                            ${parkingList.map(p => `<span style="background: var(--accent-color); color: var(--bg-color); padding: 3px 6px; border-radius: 3px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;">${p}</span>`).join('')}
-                        </div>
-                    </div>
-                    ` : `
-                    <div style="margin: 6px 0; padding: 5px 6px; background: var(--card-color); border-radius: 6px; border: 1px solid var(--border-color);">
-                        <div style="color: var(--secondary-text); font-size: 0.7rem; margin-bottom: 1px;">Estacionamiento</div>
-                        <div style="color: var(--primary-text); font-size: 0.8rem;">N/A</div>
-                    </div>
-                    `}
-                    
-                    ${(() => {
-                        const rList = getRentalParkingList(unit);
-                        return rList.length
-                            ? `<div style="margin: 6px 0; padding: 5px 6px; background: linear-gradient(135deg, rgba(230, 126, 34, 0.15), rgba(230, 126, 34, 0.05)); border-radius: 6px; border: 1px solid #e67e22;">
-                        <div style="color: var(--secondary-text); font-size: 0.72rem; margin-bottom: 3px; font-weight: 600;"><i class="fa-solid fa-car" aria-hidden="true" style="margin-right:0.3rem;opacity:0.9"></i>Est. Arriendo (ref.):</div>
-                        <div style="display: flex; flex-wrap: wrap; gap: 3px; align-items: center;">
-                            ${rList.map((rp) => `<span style="background: #e67e22; color: white; padding: 3px 8px; border-radius: 3px; font-size: 0.8rem; font-weight: 700; white-space: nowrap;">${rp}</span>`).join('')}
-                            <span style="color: var(--secondary-text); font-size: 0.7rem; font-style: italic;">(informativo)</span>
-                        </div>
-                    </div>`
-                            : '';
-                    })()}
-                    
-                    ${storageList.length > 0 ? `
-                    <div style="margin: 6px 0; padding: 5px 6px; background: var(--card-color); border-radius: 6px; border: 1px solid var(--border-color);">
-                        <div style="color: var(--secondary-text); font-size: 0.72rem; margin-bottom: 3px; font-weight: 600;"><i class="fa-solid fa-box" aria-hidden="true" style="margin-right:0.3rem;opacity:0.9"></i>Bodegas:</div>
-                        <div style="display: flex; flex-wrap: wrap; gap: 3px;">
-                            ${storageList.map(s => `<span style="background: var(--info-color); color: white; padding: 3px 6px; border-radius: 3px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;">${s}</span>`).join('')}
-                        </div>
-                    </div>
-                    ` : `
-                    <div style="margin: 6px 0; padding: 5px 6px; background: var(--card-color); border-radius: 6px; border: 1px solid var(--border-color);">
-                        <div style="color: var(--secondary-text); font-size: 0.7rem; margin-bottom: 1px;">Bodega</div>
-                        <div style="color: var(--primary-text); font-size: 0.8rem;">N/A</div>
-                    </div>
-                    `}
-                    
-                    ${(unit.bikeStorageNumbers && unit.bikeStorageNumbers.length > 0) ? `
-                    <div style="margin: 6px 0; padding: 5px 6px; background: var(--card-color); border-radius: 6px; border: 1px solid var(--border-color);">
-                        <div style="color: var(--secondary-text); font-size: 0.72rem; margin-bottom: 3px; font-weight: 600;"><i class="fa-solid fa-bicycle" aria-hidden="true" style="margin-right:0.3rem;opacity:0.9"></i>Bicicleteros:</div>
-                        <div style="display: flex; flex-wrap: wrap; gap: 3px;">
-                            ${unit.bikeStorageNumbers.map((num, i) => {
-                                const det = (unit.bikeStorageDetails && unit.bikeStorageDetails[i]) || '';
-                                const label = det ? (num ? num + ' (' + det + ')' : det) : (num || '');
-                                return `<span style="background: var(--accent-color); color: var(--bg-color); padding: 3px 6px; border-radius: 3px; font-size: 0.75rem; font-weight: 600; white-space: nowrap;">${(label || '').replace(/</g, '&lt;').replace(/>/g, '&gt;')}</span>`;
-                            }).join('')}
-                        </div>
-                    </div>
-                    ` : `
-                    <div style="margin: 6px 0; padding: 5px 6px; background: var(--card-color); border-radius: 6px; border: 1px solid var(--border-color);">
-                        <div style="color: var(--secondary-text); font-size: 0.7rem; margin-bottom: 1px;">Bicicletero</div>
-                        <div style="color: var(--primary-text); font-size: 0.8rem;">N/A</div>
-                    </div>
-                    `}
-                    
+                    </section>
+
+                    ${familyHtml}
+
                     ${noteSection}
-                    
-                    <div style="margin-top: 6px;">
-                        <div style="color: var(--secondary-text); font-size: 0.75rem; margin-bottom: 3px; font-weight: 600;"><i class="fa-solid fa-users" aria-hidden="true" style="margin-right:0.3rem;opacity:0.9"></i>Residentes:</div>
-                        <div style="max-height: 320px; overflow-y: auto; padding: 5px 6px; background: var(--card-color); border-radius: 6px; border: 1px solid var(--border-color);">
-                            ${residentsHtml}
-                        </div>
-                    </div>
-                    
-                    <button type="button" class="btn btn-primary btn-enviar-bienvenida-unidad" style="margin-top: 10px; width: 100%; padding: 6px; font-size: 0.8rem;" title="Si hay un solo correo se envía a esa persona; si hay varios, puede elegir uno o enviar a todos los de esta unidad. Las visitas frecuentes no lo reciben.">
-                        <i class="fa-solid fa-envelope" aria-hidden="true"></i> Enviar bienvenida
-                    </button>
-                    <p style="margin: 4px 0 0 0; font-size: 0.7rem; color: var(--secondary-text);">Un correo o todos los de esta unidad. Excluye visitas autorizadas/frecuentes.</p>
-                    <button type="button" class="btn btn-info" style="margin-top: 8px; width: 100%; padding: 6px; font-size: 0.8rem;" onclick="transferUnitContent('${(unit.id || '').replace(/'/g, "\\'")}')" title="Trasladar la unidad a otra ocupada o vacía. En una ocupada solo se agregan los residentes.">
-                        <i class="fa-solid fa-arrows-left-right" aria-hidden="true"></i> Trasladar unidad completa
-                    </button>
-                    <button type="button" class="btn btn-primary" style="margin-top: 8px; width: 100%; padding: 6px; font-size: 0.8rem;" onclick="downloadUnitModuleFichaHtml('${(unit.id || '').replace(/'/g, "\\'")}')" title="Imprimir la ficha del módulo (unidad y residentes)">
-                        <i class="fa-solid fa-print" aria-hidden="true"></i> Imprimir
-                    </button>
-                    <button class="btn btn-secondary" style="margin-top: 8px; width: 100%; padding: 6px; font-size: 0.8rem;" onclick="this.closest('.modal').remove()">Cerrar</button>
+
+                    <footer class="ufx-actions">
+                        <button type="button" class="btn btn-primary btn-enviar-bienvenida-unidad ufx-wide" title="Si hay un solo correo se envía a esa persona; si hay varios, puede elegir uno o enviar a todos los de esta unidad. Las visitas frecuentes no lo reciben.">
+                            <i class="fa-solid fa-envelope" aria-hidden="true"></i> Enviar bienvenida
+                        </button>
+                        <p class="ufx-hint ufx-wide">Un correo o todos los de esta unidad. Excluye visitas autorizadas/frecuentes.</p>
+                        <button type="button" class="btn btn-info" onclick="transferUnitContent('${escapedUnitId}')" title="Trasladar la unidad a otra ocupada o vacía. En una ocupada solo se agregan los residentes.">
+                            <i class="fa-solid fa-arrows-left-right" aria-hidden="true"></i> Trasladar unidad
+                        </button>
+                        <button type="button" class="btn btn-primary" onclick="downloadUnitModuleFichaHtml('${escapedUnitId}')" title="Imprimir la ficha del módulo (unidad y residentes)">
+                            <i class="fa-solid fa-print" aria-hidden="true"></i> Imprimir
+                        </button>
+                        <button type="button" class="btn btn-secondary ufx-wide" onclick="this.closest('.modal').remove()">Cerrar</button>
+                    </footer>
                 </div>
             `;
             document.body.appendChild(modal);
