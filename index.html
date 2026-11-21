@@ -110,9 +110,9 @@
       --sidebar-w-collapsed: 72px;
       --cg-sidebar-p: var(--blue-500);
       --on-accent: #0f172a;
-      /* Ancho / márgenes como index-fabrica: .content + módulo dept (.container 1050px) */
-      --cg-module-content-max: 1050px;
-      --cg-content-pad-x: 0.85rem;
+      /* Ancho fluido: el contenido ocupa todo el área disponible según el viewport */
+      --cg-module-content-max: none;
+      --cg-content-pad-x: clamp(0.65rem, 1.2vw, 1.35rem);
       --cg-content-pad-y-top: 0.5rem;
       --cg-content-pad-y-bottom: 0.75rem;
       --primary-text: var(--text-main);
@@ -143,14 +143,15 @@
       color: var(--gray-800);
       line-height: 1.5;
     }
-    /* Contenedor principal: mismo ancho útil que index-fabrica (.content → módulos; compact = 0.85rem 1rem 1rem) */
+    /* Contenedor principal fluido: se expande con el viewport (todos los módulos) */
     .container {
       box-sizing: border-box;
       width: 100%;
-      max-width: min(var(--cg-module-content-max), 100%);
-      margin: 0 auto;
+      max-width: 100%;
+      margin: 0;
       padding: var(--cg-content-pad-y-top) var(--cg-content-pad-x) var(--cg-content-pad-y-bottom);
       background: transparent; border-radius: 0; box-shadow: none;
+      min-width: 0;
     }
     #mainApp.container { background: transparent; box-shadow: none; }
     h1, h2 { color: var(--text-main); margin-top: 0; }
@@ -1414,7 +1415,9 @@
     }
     .main-wrap.main-area {
       margin-left: var(--sidebar-w);
+      width: auto;
       min-width: 0;
+      max-width: none;
       padding: 0;
       overflow-x: auto;
       min-height: 100vh;
@@ -1534,9 +1537,19 @@
       }
     }
     .main-area .container {
-      margin: 0 auto;
-      max-width: min(var(--cg-module-content-max), 100%);
+      margin: 0;
+      width: 100%;
+      max-width: 100%;
       padding: var(--cg-content-pad-y-top) var(--cg-content-pad-x) var(--cg-content-pad-y-bottom);
+      min-width: 0;
+    }
+    /* Paneles de módulo: siempre a ancho completo del main */
+    #mainApp .pcsh-fabrica-panel,
+    #mainApp [id^="tab"] {
+      width: 100%;
+      max-width: 100%;
+      min-width: 0;
+      box-sizing: border-box;
     }
     .page-header { margin-bottom: 0.35rem; padding-bottom: 0; }
     .page-header h1,
@@ -1630,7 +1643,11 @@
       border-bottom: 1px solid var(--border-color);
     }
     .pcsh-fabrica-panel .pcsh-form-2col {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 0 0.75rem; align-items: start;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+      gap: 0 0.75rem;
+      align-items: start;
+      width: 100%;
     }
     @media (max-width: 640px) {
       .pcsh-fabrica-panel .pcsh-form-2col { grid-template-columns: 1fr; }
@@ -1755,7 +1772,10 @@
       border: 1px solid rgba(245,158,11,0.45); background: rgba(245,158,11,0.12); font-size: 0.8rem; line-height: 1.45;
     }
     .pcsh-chk-tarjetas {
-      display: grid; grid-template-columns: 1fr 1fr; gap: 0.45rem 0.65rem;
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+      gap: 0.45rem 0.65rem;
+      width: 100%;
     }
     .pcsh-chk-tarjetas label { margin: 0; }
     .pcsh-chk-tarjetas input[type="text"] { margin-top: 0.28rem; font-size: 0.82rem; padding: 0.4rem 0.5rem; }
@@ -2297,7 +2317,12 @@
     #tabVisitas .cg-vis-type-opt-inner { display: block; padding: 0.5rem 0.65rem; }
     #tabVisitas .cg-vis-type-opt-inner strong { display: block; font-size: 0.88rem; color: var(--text-main); }
     #tabVisitas .cg-vis-type-opt-inner small { display: block; font-size: 0.72rem; color: var(--text-secondary); margin-top: 0.15rem; line-height: 1.25; }
-    #tabVisitas .cg-form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 0.65rem; }
+    #tabVisitas .cg-form-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+      gap: 0.4rem 0.65rem;
+      width: 100%;
+    }
     @media (max-width: 480px) { #tabVisitas .cg-form-grid-2 { grid-template-columns: 1fr; } }
     #tabVisitas .cg-vis-hist-wrap { max-height: min(70vh, 640px); overflow: auto; border-radius: 8px; border: 1px solid var(--border); }
     #tabVisitas table.pcsh-data-table { width: 100%; border-collapse: collapse; font-size: calc(0.7rem * var(--cg-table-fs)); }
@@ -2319,7 +2344,12 @@
 
     /* —— Proveedores (index-fabrica: directorio + contactos) —— */
     #tabProveedores .toolbar { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
-    #tabProveedores .cg-form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.4rem 0.75rem; }
+    #tabProveedores .cg-form-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 14rem), 1fr));
+      gap: 0.4rem 0.75rem;
+      width: 100%;
+    }
     @media (max-width: 640px) { #tabProveedores .cg-form-grid-2 { grid-template-columns: 1fr; } }
     #tabProveedores .cg-empty-table { text-align: center; padding: 1.35rem 1rem !important; color: var(--gray-500); font-size: calc(0.808rem * 1.01 * var(--cg-table-fs)); }
     #tabProveedores #f-prov .toolbar { margin-top: 0.45rem; }
@@ -2568,7 +2598,12 @@
     .pcsh-turno-info-badge:empty { display: none; }
 
     .modal-content.modal-res-lg { max-width: 640px; width: 92%; }
-    .modal-content.modal-res-lg .cg-form-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 0.75rem; }
+    .modal-content.modal-res-lg .cg-form-grid-2 {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr));
+      gap: 0.5rem 0.75rem;
+      width: 100%;
+    }
     @media (max-width: 540px) { .modal-content.modal-res-lg .cg-form-grid-2 { grid-template-columns: 1fr; } }
 
     /* —— Alertas de ausencia (Fábrica / tema oscuro) —— */
@@ -2977,9 +3012,10 @@
     }
     .pcsh-dash-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(124px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 140px), 1fr));
       gap: 0.45rem;
       margin-bottom: 0.6rem;
+      width: 100%;
     }
     .pcsh-dash-tile {
       border-radius: 8px;
@@ -3009,9 +3045,10 @@
     .pcsh-dash-ausencia-alert .pcsh-dash-muted { font-size: 0.78rem; line-height: 1.35; margin: 0; }
     .pcsh-dash-split {
       display: grid;
-      grid-template-columns: 1fr 1fr;
+      grid-template-columns: repeat(auto-fit, minmax(min(100%, 18rem), 1fr));
       gap: 0.75rem;
       margin-top: 0.35rem;
+      width: 100%;
     }
     @media (max-width: 780px) {
       .pcsh-dash-split { grid-template-columns: 1fr; }
@@ -3061,10 +3098,14 @@
       display: grid;
       grid-template-columns: 1fr;
       gap: 0.2rem;
+      width: 100%;
     }
     .pcsh-dash-sub.pcsh-dash-active-vis .pcsh-dash-active-vis-li { margin-bottom: 0; }
     @media (min-width: 720px) {
-      .pcsh-dash-active-vis-ul { grid-template-columns: 1fr 1fr; gap: 0.25rem 0.5rem; }
+      .pcsh-dash-active-vis-ul {
+        grid-template-columns: repeat(auto-fit, minmax(min(100%, 16rem), 1fr));
+        gap: 0.25rem 0.5rem;
+      }
     }
     .pcsh-dash-active-vis-li {
       font-size: 0.76rem; line-height: 1.25; padding: 0.28rem 0.35rem;
@@ -4121,13 +4162,15 @@
         }
 
         #tabResidentes .container {
-            max-width: 1050px;
-            margin: 12px auto;
+            width: 100%;
+            max-width: 100%;
+            margin: 12px 0;
             background: var(--card-color);
             border-radius: var(--radius);
             overflow: hidden;
             border: 1px solid var(--border-color);
             box-shadow: var(--shadow);
+            box-sizing: border-box;
         }
 
         #tabResidentes .header {
@@ -5314,7 +5357,7 @@
         }
 
         @media (max-width: 900px) {
-            #tabResidentes .container { margin: 2px; max-width: 99vw; }
+            #tabResidentes .container { margin: 2px 0; max-width: 100%; width: 100%; }
             #tabResidentes .header { padding: 8px; flex-direction: column; gap: 6px; }
             #tabResidentes .nav-tabs { padding: 8px; gap: 6px; }
             #tabResidentes .nav-tab {
