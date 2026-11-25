@@ -11083,6 +11083,9 @@ function pcshVisPlayTrafficAlert(kind) {
     }
   } catch (e) {}
 }
+var PCSH_VIS_AVISO_SALIDA_VEH =
+  'Su visita debe informar en conserjería al momento de retirarse del edificio con el vehículo, para registrar la salida y detener el control de tiempo de estacionamiento.';
+
 function pcshVisTextoCorreoFase(v, fase) {
   var depto = typeof pcshVisitDeptLabelDisplay === 'function' ? pcshVisitDeptLabelDisplay(v && v.deptLabel) : (v && v.deptLabel) || '—';
   var quien = (v && v.visitor) || '—';
@@ -11093,6 +11096,7 @@ function pcshVisTextoCorreoFase(v, fase) {
     '\nVisitante: ' + quien +
     '\nPatente: ' + patente +
     '\nIngreso: ' + ingreso +
+    '\n\n⚠ IMPORTANTE: ' + PCSH_VIS_AVISO_SALIDA_VEH +
     '\n\n';
   if (fase === 'warn') {
     return (
@@ -23623,6 +23627,14 @@ function pcshHtmlAvisoOperativo(opts) {
     '</p><p style="margin:0 0 16px;">' +
     escapeHtml(opts.mensaje || '') +
     '</p></td></tr>' +
+    (opts.destacado
+      ? '<tr><td style="padding:0 32px 18px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#fff4d6;border:2px solid #e0a800;border-radius:10px;">' +
+        '<tr><td style="padding:14px 16px;font-family:Arial,sans-serif;font-size:15px;line-height:1.5;color:#1a1a1a;">' +
+        '<p style="margin:0 0 4px;font-size:12px;letter-spacing:.08em;text-transform:uppercase;font-weight:700;color:#8a6100;">&#9888; Importante</p>' +
+        '<p style="margin:0;font-weight:700;">' +
+        escapeHtml(opts.destacado) +
+        '</p></td></tr></table></td></tr>'
+      : '') +
     (filas
       ? '<tr><td style="padding:0 32px 18px;"><table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:#f7f7f7;border-radius:10px;">' +
         filas +
@@ -23683,6 +23695,7 @@ function pcshHtmlCorreoVisita(v, fase) {
     titulo: titulo,
     saludo: 'Estimado/a residente de la unidad ' + (depto || '—') + ':',
     mensaje: mensaje,
+    destacado: PCSH_VIS_AVISO_SALIDA_VEH,
     filas: [
       { k: 'Unidad', v: depto || '—' },
       { k: 'Visitante', v: v.visitor || '—' },
@@ -23732,6 +23745,7 @@ function pcshHtmlCorreoIngresoVisita(v) {
     titulo: 'Ingreso de visita',
     saludo: 'Estimado/a residente de la unidad ' + (depto || '—') + ':',
     mensaje: 'Se registró el ingreso de una visita particular a su unidad.',
+    destacado: v.vehicular ? PCSH_VIS_AVISO_SALIDA_VEH : '',
     filas: filas,
     cierre: 'Ante cualquier consulta, comuníquese con conserjería.'
   });
@@ -23747,6 +23761,7 @@ function pcshTextoCorreoIngresoVisita(v) {
     'Visitante: ' + (v.visitor || '—') + '\n' +
     'Ingreso: ' + ingreso;
   if (v.vehicular && v.plate) texto += '\nPatente: ' + v.plate;
+  if (v.vehicular) texto += '\n\n⚠ IMPORTANTE: ' + PCSH_VIS_AVISO_SALIDA_VEH;
   return texto + '\n\nAnte cualquier consulta, comuníquese con conserjería.';
 }
 function pcshVisNotificarIngresoParticular(v) {
