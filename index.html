@@ -34676,6 +34676,237 @@ showTab('tabNovedades');
             }, 150);
         }
 
+        // ===== EDICIÓN RÁPIDA DE RESIDENTE DESDE EL MAPA =====
+        function pcshQerEnsureStyles() {
+            if (document.getElementById('pcsh-qer-styles')) return;
+            const st = document.createElement('style');
+            st.id = 'pcsh-qer-styles';
+            st.textContent = `
+                .modal-content.qer { box-sizing: border-box; max-width: 560px; width: 100%; max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain; padding: 0 16px 14px; font-size: 0.875rem; text-align: left; }
+                .modal-content.qer *, .modal-content.qer *::before, .modal-content.qer *::after { box-sizing: border-box; }
+                .qer-head { position: sticky; top: 0; z-index: 2; background: var(--card-color); display: flex; align-items: center; gap: 10px; margin: 0 -16px 12px; padding: 14px 16px 10px; border-bottom: 1px solid var(--border-color); }
+                .qer-head h3 { margin: 0; font-size: 1.05rem; color: var(--accent-color); flex: 1; min-width: 0; overflow-wrap: anywhere; }
+                .qer-head small { display: block; font-size: 0.7rem; color: var(--secondary-text); font-weight: 500; letter-spacing: 0.04em; text-transform: uppercase; }
+                .qer-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 10px; }
+                .qer-field { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+                .qer-field.is-wide { grid-column: 1 / -1; }
+                .qer-field > label, .qer-veh-head > label { font-size: 0.72rem; font-weight: 600; color: var(--secondary-text); }
+                .modal-content.qer .form-input { width: 100%; min-width: 0; padding: 8px 10px; border: 1px solid var(--gray-300); background: var(--gray-100); color: var(--primary-text); border-radius: 8px; font-size: 0.85rem; font-family: inherit; }
+                .modal-content.qer .form-input:focus { outline: none; border-color: var(--blue-400); box-shadow: 0 0 0 3px color-mix(in srgb, var(--blue-500) 22%, transparent); }
+                .modal-content.qer .form-input.error { border-color: var(--danger-color); background-color: rgba(255, 71, 87, 0.1); }
+                .qer-veh { margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-color); }
+                .qer-veh-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
+                .modal-content.qer .resident-vehicle-add { padding: 3px 9px !important; font-size: 0.74rem !important; border-radius: 6px; border: 1px dashed var(--border-color) !important; background: transparent !important; color: var(--secondary-text) !important; cursor: pointer; }
+                .modal-content.qer .resident-vehicle-add:hover { color: var(--accent-color) !important; border-color: var(--accent-color) !important; }
+                .modal-content.qer .resident-vehicle-row { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin-top: 6px; }
+                .modal-content.qer .resident-vehicle-row .form-input { flex: 1 1 7rem; width: auto; }
+                .modal-content.qer .resident-vehicle-plate { text-transform: uppercase; }
+                .modal-content.qer .resident-vehicle-remove { flex: 0 0 auto; width: 30px; height: 30px; padding: 0; border-radius: 6px; border: 1px solid var(--border-color); background: transparent; color: var(--secondary-text); font-size: 1rem; line-height: 1; cursor: pointer; }
+                .modal-content.qer .resident-vehicle-remove:hover { color: var(--danger-color); border-color: var(--danger-color); }
+                .qer-foot-note { margin-top: 10px; font-size: 0.7rem; color: var(--secondary-text); }
+                .qer-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 12px; padding-top: 10px; border-top: 1px solid var(--border-color); }
+                .qer-actions .btn { flex: 1 1 auto; margin: 0; }
+                .qer-actions .qer-full { flex-basis: 100%; background: transparent !important; border: 1px dashed var(--border-color) !important; color: var(--secondary-text) !important; font-size: 0.78rem; }
+                .qer-actions .qer-full:hover { color: var(--accent-color) !important; border-color: var(--accent-color) !important; }
+                @media (max-width: 480px) { .qer-grid { grid-template-columns: 1fr; } }
+            `;
+            document.head.appendChild(st);
+        }
+
+        /** Edita (o agrega, si residentIndex < 0) un residente directamente desde la ficha del mapa, sin pasar por el formulario de la unidad. */
+        function pcshQuickEditResident(unitId, residentIndex) {
+            const unit = appState.units.find(u => u.id === unitId);
+            if (!unit) {
+                showNotification('error', '❌ No se encontró la unidad');
+                return;
+            }
+            const residents = Array.isArray(unit.residents) ? unit.residents : [];
+            const isNew = !(residentIndex >= 0 && residentIndex < residents.length);
+            const original = isNew ? null : residents[residentIndex];
+            const isArriendo = String(unit.unitUse || '').toLowerCase().indexOf('arriend') >= 0;
+            const esc = (s) => String(s == null ? '' : s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+            const r = original || {};
+            const typeOptions = ['Propietario', 'Arrendatario', 'Familiar', 'Visita Autorizada']
+                .map(t => `<option value="${t}" ${r.type === t ? 'selected' : ''}>${t}</option>`).join('');
+
+            document.querySelectorAll('body > .modal.ufx-modal, body > .modal.qer-modal').forEach(m => m.remove());
+            pcshQerEnsureStyles();
+
+            const modal = document.createElement('div');
+            modal.className = 'modal pcsh-vlcom-body-modal qer-modal';
+            modal.innerHTML = `
+                <form class="modal-content qer" novalidate>
+                    <header class="qer-head">
+                        <h3><small>Unidad ${esc(unit.unitNumber)}</small>${isNew ? 'Agregar residente' : 'Editar residente'}</h3>
+                        <button type="button" class="btn btn-sm btn-secondary qer-cancel" aria-label="Cerrar" title="Cerrar"><i class="fa-solid fa-xmark" aria-hidden="true"></i></button>
+                    </header>
+                    <div class="qer-grid">
+                        <div class="qer-field is-wide">
+                            <label for="qerName">Nombre completo *</label>
+                            <input id="qerName" type="text" class="form-input" value="${esc(r.name)}" autocomplete="off" required>
+                        </div>
+                        <div class="qer-field">
+                            <label for="qerRut">RUT</label>
+                            <input id="qerRut" type="text" class="form-input" value="${esc(r.rut)}" placeholder="12.345.678-9" autocomplete="off">
+                        </div>
+                        <div class="qer-field">
+                            <label for="qerType">Tipo *</label>
+                            <select id="qerType" class="form-input" required>
+                                <option value="">Seleccione…</option>
+                                ${typeOptions}
+                            </select>
+                        </div>
+                        <div class="qer-field">
+                            <label for="qerEmail">Email *</label>
+                            <input id="qerEmail" type="email" class="form-input" value="${esc(r.email || r.correo)}" autocomplete="off" required>
+                        </div>
+                        <div class="qer-field">
+                            <label for="qerPhone">Teléfono</label>
+                            <input id="qerPhone" type="tel" class="form-input" value="${esc(r.phone)}" autocomplete="off">
+                        </div>
+                        ${isArriendo ? `<div class="qer-field is-wide">
+                            <label for="qerCorredor"><i class="fa-solid fa-handshake" aria-hidden="true"></i> Corredor</label>
+                            <input id="qerCorredor" type="text" class="form-input" value="${esc(r.corredor)}" placeholder="Nombre del corredor" autocomplete="off">
+                        </div>` : ''}
+                    </div>
+                    <div class="qer-veh">
+                        <div class="qer-veh-head">
+                            <label><i class="fa-solid fa-car" aria-hidden="true"></i> Vehículos</label>
+                            <button type="button" class="resident-vehicle-add"><i class="fa-solid fa-plus" aria-hidden="true"></i> Agregar vehículo</button>
+                        </div>
+                        <div class="resident-vehicles-list"></div>
+                    </div>
+                    ${isNew ? '' : `<p class="qer-foot-note"><i class="fa-regular fa-clock" aria-hidden="true"></i> Registrado: ${esc(r.registeredAt ? new Date(r.registeredAt).toLocaleDateString('es-CL') : 'N/A')}</p>`}
+                    <footer class="qer-actions">
+                        <button type="submit" class="btn btn-primary qer-save"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> ${isNew ? 'Agregar' : 'Guardar cambios'}</button>
+                        <button type="button" class="btn btn-secondary qer-cancel">Cancelar</button>
+                        ${isNew ? '' : '<button type="button" class="btn qer-full" title="Abrir la unidad completa en el formulario de edición (estacionamientos, bodegas, mascotas, etc.)"><i class="fa-solid fa-up-right-from-square" aria-hidden="true"></i> Abrir formulario completo de la unidad</button>'}
+                    </footer>
+                </form>
+            `;
+            document.body.appendChild(modal);
+
+            const form = modal.querySelector('form');
+            const $ = (sel) => form.querySelector(sel);
+            const initialVehicles = vlcomResidentVehicles(original);
+            if (initialVehicles.length) {
+                initialVehicles.forEach(v => addResidentVehicleField(form, v));
+            } else {
+                addResidentVehicleField(form);
+            }
+            $('.resident-vehicle-add').addEventListener('click', () => {
+                addResidentVehicleField(form);
+                const rows = form.querySelectorAll('.resident-vehicle-row');
+                const last = rows[rows.length - 1];
+                if (last) last.querySelector('.resident-vehicle-plate').focus();
+            });
+            $('#qerName').addEventListener('blur', (e) => { e.target.value = formatName(e.target.value.trim()); });
+            $('#qerRut').addEventListener('input', (e) => {
+                e.target.value = formatRutInput(e.target.value);
+                e.target.setSelectionRange(e.target.value.length, e.target.value.length);
+            });
+            form.querySelectorAll('.form-input').forEach(inp => inp.addEventListener('input', () => inp.classList.remove('error')));
+
+            const backToUnit = () => {
+                modal.remove();
+                document.removeEventListener('keydown', onKey);
+                const fresh = appState.units.find(u => u.id === unitId);
+                if (fresh) showUnitDetailModal(fresh);
+            };
+            const onKey = (e) => { if (e.key === 'Escape') backToUnit(); };
+            document.addEventListener('keydown', onKey);
+            form.querySelectorAll('.qer-cancel').forEach(b => b.addEventListener('click', backToUnit));
+            modal.addEventListener('click', (e) => { if (e.target === modal) backToUnit(); });
+            const fullBtn = $('.qer-full');
+            if (fullBtn) {
+                fullBtn.addEventListener('click', () => {
+                    document.removeEventListener('keydown', onKey);
+                    closeMapModalAndEditResident(unitId, residentIndex);
+                });
+            }
+
+            form.addEventListener('submit', async (e) => {
+                e.preventDefault();
+                const saveBtn = $('.qer-save');
+                if (saveBtn.disabled) return;
+                const fail = (msg, el) => {
+                    if (el) { el.classList.add('error'); el.focus(); }
+                    showNotification('error', '❌ ' + msg);
+                };
+                const name = formatName($('#qerName').value.trim());
+                const rut = $('#qerRut').value.trim();
+                const email = $('#qerEmail').value.trim();
+                const phone = $('#qerPhone').value.trim();
+                const type = $('#qerType').value;
+                if (!name) return fail('Ingrese el nombre del residente', $('#qerName'));
+                if (!type) return fail('Seleccione el tipo de residente', $('#qerType'));
+                if (!email) return fail('Ingrese el email del residente', $('#qerEmail'));
+                if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) return fail('El email no es válido', $('#qerEmail'));
+                if (rut && !validateRut(rut)) return fail('El RUT debe tener el formato 12.345.678-9', $('#qerRut'));
+
+                const target = appState.units.find(u => u.id === unitId);
+                if (!target) return fail('La unidad ya no existe');
+                if (!Array.isArray(target.residents)) target.residents = [];
+                let idx = -1;
+                if (!isNew) {
+                    idx = target.residents.indexOf(original);
+                    if (idx === -1) {
+                        idx = target.residents.findIndex(x =>
+                            x.name === original.name && x.type === original.type &&
+                            (x.rut || '') === (original.rut || '') && (x.email || '') === (original.email || ''));
+                    }
+                    if (idx === -1) return fail('El residente fue modificado o eliminado por otro usuario. Cierre y vuelva a abrir la ficha.');
+                }
+                const remainingOwner = target.residents.some((x, i) => i !== idx && x.type === 'Propietario');
+                if (type !== 'Propietario' && !remainingOwner) {
+                    return fail('La unidad debe tener al menos un propietario registrado', $('#qerType'));
+                }
+
+                const row = Object.assign({}, original || {}, {
+                    name,
+                    rut,
+                    email: formatText(email),
+                    phone: formatText(phone),
+                    type,
+                    registeredAt: (original && original.registeredAt) || new Date().toISOString()
+                });
+                delete row.correo;
+                const corredor = isArriendo && $('#qerCorredor') ? formatName($('#qerCorredor').value.trim()) : '';
+                if (corredor) row.corredor = corredor; else delete row.corredor;
+                const vehicles = readResidentVehiclesFromForm(form);
+                delete row.vehiclePlate; delete row.vehicleModel; delete row.vehicleColor;
+                if (vehicles.length) row.vehicles = vehicles; else delete row.vehicles;
+
+                const prevResidents = target.residents.map(x => Object.assign({}, x));
+                if (isNew) target.residents.push(row); else target.residents[idx] = row;
+
+                saveBtn.disabled = true;
+                const saveHtml = saveBtn.innerHTML;
+                saveBtn.innerHTML = '<i class="fa-solid fa-spinner fa-spin" aria-hidden="true"></i> Guardando...';
+                try {
+                    await saveUnitsToCloud();
+                } catch (err) {
+                    console.error('Error guardando residente desde el mapa:', err);
+                    target.residents = prevResidents;
+                    try { await loadUnitsFromCloud({ silent: true }); } catch (_) {}
+                    saveBtn.disabled = false;
+                    saveBtn.innerHTML = saveHtml;
+                    updateAllUI();
+                    return;
+                }
+                updateAllUI();
+                showNotification('success', isNew ? '✅ Residente agregado' : '✅ Residente actualizado');
+                if (isNew && typeof enviarCorreoBienvenidaSiResidentesNuevos === 'function') {
+                    Promise.resolve(enviarCorreoBienvenidaSiResidentesNuevos(target, prevResidents)).catch(function (eBien) {
+                        console.warn('[bienvenida] No se encoló la bienvenida al agregar desde el mapa:', eBien);
+                    });
+                }
+                backToUnit();
+            });
+
+            setTimeout(() => $('#qerName').focus(), 30);
+        }
+
         // ===== MODAL DE DETALLE =====
         function pcshUfxEnsureStyles() {
             if (document.getElementById('pcsh-ufx-styles')) return;
@@ -34811,7 +35042,7 @@ showTab('tabNovedades');
                             phone ? `<a class="ufx-meta" href="tel:${ufxEsc(phone.replace(/[^\d+]/g, ''))}" title="Llamar"><i class="fa-solid fa-phone" aria-hidden="true"></i><span>${ufxEsc(phone)}</span></a>` : '',
                             r.rut ? `<span class="ufx-meta"><i class="fa-solid fa-id-card" aria-hidden="true"></i><span>${ufxEsc(r.rut)}</span></span>` : ''
                         ].join('');
-                        let actions = `<button type="button" class="btn btn-sm btn-secondary" onclick="closeMapModalAndEditResident('${escapedUnitId}', ${index})" title="Editar residente" aria-label="Editar residente"><i class="fa-solid fa-pen" aria-hidden="true"></i><span class="btn-txt">Editar</span></button>
+                        let actions = `<button type="button" class="btn btn-sm btn-secondary" onclick="pcshQuickEditResident('${escapedUnitId}', ${index})" title="Editar residente aquí mismo" aria-label="Editar residente"><i class="fa-solid fa-pen" aria-hidden="true"></i><span class="btn-txt">Editar</span></button>
                             <button type="button" class="btn btn-sm btn-info" onclick="transferResidentRecord('${escapedUnitId}', ${index})" title="Trasladar este residente a otra unidad, ocupada o vacía"><i class="fa-solid fa-arrows-left-right" aria-hidden="true"></i></button>`;
                         if (typeof pcshResidenteRecibeBienvenida === 'function' && pcshResidenteRecibeBienvenida(r) && mail) {
                             actions += `<button type="button" class="btn btn-sm btn-primary btn-bienvenida-un-correo" data-email="${ufxEsc(mail)}" title="Enviar bienvenida solo a este correo"><i class="fa-solid fa-envelope" aria-hidden="true"></i></button>`;
@@ -34946,6 +35177,7 @@ showTab('tabNovedades');
                     <section class="ufx-section">
                         <div class="ufx-sec-title"><i class="fa-solid fa-users" aria-hidden="true"></i> Residentes <span class="ufx-count">${unitResidents.length}</span></div>
                         <div class="ufx-res-list">${residentsHtml}</div>
+                        <button type="button" class="ufx-add-note" style="margin: 7px 0 0;" onclick="pcshQuickEditResident('${escapedUnitId}', -1)"><i class="fa-solid fa-user-plus" aria-hidden="true"></i> Agregar residente</button>
                     </section>
 
                     <section class="ufx-card">
@@ -35704,6 +35936,7 @@ showTab('tabNovedades');
         window.deleteUnit = deleteUnit;
         window.showUnitDetailModal = showUnitDetailModal;
         window.closeMapModalAndEditResident = closeMapModalAndEditResident;
+        window.pcshQuickEditResident = pcshQuickEditResident;
 
         function clearAllResidentsModuleData() {
             showAuthModal('Vaciar todos los registros del módulo residentes', () => {
