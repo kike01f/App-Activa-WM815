@@ -34819,10 +34819,13 @@ showTab('tabNovedades');
                 const fresh = appState.units.find(u => u.id === unitId);
                 if (fresh) showUnitDetailModal(fresh);
             };
-            const onKey = (e) => { if (e.key === 'Escape') backToUnit(); };
+            const onKey = (e) => {
+                if (!document.body.contains(modal)) { document.removeEventListener('keydown', onKey); return; }
+                if (e.key === 'Escape') backToUnit();
+            };
             document.addEventListener('keydown', onKey);
             form.querySelectorAll('.qer-cancel').forEach(b => b.addEventListener('click', backToUnit));
-            modal.addEventListener('click', (e) => { if (e.target === modal) backToUnit(); });
+            pcshBindBackdropClose(modal, backToUnit);
             const fullBtn = $('.qer-full');
             if (fullBtn) {
                 fullBtn.addEventListener('click', () => {
@@ -35002,6 +35005,17 @@ showTab('tabNovedades');
             };
 
             setTimeout(() => document.getElementById('unitUse').focus(), 30);
+        }
+
+        /** Cierra el modal al pulsar el fondo solo si el clic empezó y terminó en el fondo (evita cierres al seleccionar texto y soltar fuera). */
+        function pcshBindBackdropClose(modal, onClose) {
+            let pressedOnBackdrop = false;
+            modal.addEventListener('pointerdown', (e) => { pressedOnBackdrop = e.target === modal; });
+            modal.addEventListener('click', (e) => {
+                const ok = pressedOnBackdrop && e.target === modal;
+                pressedOnBackdrop = false;
+                if (ok) onClose();
+            });
         }
 
         // ===== MODAL DE DETALLE =====
@@ -35307,7 +35321,7 @@ showTab('tabNovedades');
                 </div>
             `;
             document.body.appendChild(modal);
-            modal.onclick = (e) => { if (e.target === modal) modal.remove(); };
+            pcshBindBackdropClose(modal, () => modal.remove());
             var btnBienvenidaUnidad = modal.querySelector('.btn-enviar-bienvenida-unidad');
             if (btnBienvenidaUnidad) {
                 btnBienvenidaUnidad.addEventListener('click', function () {
@@ -37493,7 +37507,7 @@ showTab('tabNovedades');
             const currentNote = unit.unitNote || '';
             const escAttr = (s) => String(s ?? '').replace(/&/g, '&amp;').replace(/"/g, '&quot;');
             modal.innerHTML = `
-                <div class="modal-content">
+                <div class="modal-content" style="max-height: calc(100dvh - 24px); overflow-y: auto; overscroll-behavior: contain;">
                     <h3 style="color: var(--accent-color); margin-bottom: 15px;">${isEditing ? 'Editar' : 'Agregar'} Nota - Unidad ${unit.unitNumber}</h3>
                     ${unitParkings.length > 0 ? `
                     <div style="margin-bottom: 15px; padding: 10px; background: var(--surface-color); border-radius: 8px; border: 1px solid var(--border-color);">
@@ -37503,7 +37517,7 @@ showTab('tabNovedades');
                         </div>
                     </div>
                     ` : ''}
-                    <textarea id="noteTextarea" class="form-input" rows="4" placeholder="Escribe tu nota aquí..." style="width: 100%; margin-bottom: 15px;">${currentNote}</textarea>
+                    <textarea id="noteTextarea" class="form-input" rows="4" placeholder="Escribe tu nota aquí..." style="width: 100%; margin-bottom: 15px;">${currentNote.replace(/&/g, '&amp;').replace(/</g, '&lt;')}</textarea>
                     <div style="margin-bottom: 12px;">
                         <label style="display: flex; align-items: center; gap: 8px; cursor: pointer;">
                             <input type="checkbox" id="rentalContractCheckbox" ${unit.hasRentalContract ? 'checked' : ''} style="width: 18px; height: 18px; cursor: pointer;">
@@ -37631,6 +37645,9 @@ showTab('tabNovedades');
                 }
                 
                 // Guardar inmediatamente en almacenamiento local
+                const saveBtn = modal.querySelector('#saveNoteBtn');
+                if (saveBtn.disabled) return;
+                saveBtn.disabled = true;
                 try {
                     await saveUnitNoteToCloud(unit);
                     updateAllUI();
@@ -37640,16 +37657,33 @@ showTab('tabNovedades');
                 } catch (error) {
                     console.error('Error guardando nota:', error);
                     showNotification('error', '❌ Error al guardar nota');
+                    saveBtn.disabled = false;
                 }
             };
             
-            modal.querySelector('#cancelNoteBtn').onclick = () => {
+            const snapshotForm = () => JSON.stringify([
+                textarea.value,
+                modal.querySelector('#rentalContractCheckbox').checked,
+                modal.querySelector('#noteHasPetCheckbox').checked,
+                Array.from(rentalRowsEl.querySelectorAll('.rental-parking-num-input')).map(i => i.value)
+            ]);
+            const initialSnapshot = snapshotForm();
+            const backToUnit = () => {
                 modal.remove();
+                const fresh = appState.units.find(u => u.id === unit.id);
+                if (fresh) showUnitDetailModal(fresh);
             };
-            
-            modal.onclick = (e) => {
-                if (e.target === modal) modal.remove();
-            };
+
+            modal.querySelector('#cancelNoteBtn').onclick = backToUnit;
+
+            pcshBindBackdropClose(modal, () => {
+                if (snapshotForm() !== initialSnapshot) {
+                    showNotification('warning', 'La nota tiene cambios sin guardar. Use Guardar o Cancelar.');
+                    textarea.focus();
+                    return;
+                }
+                backToUnit();
+            });
         }
 
         function forceUpdateStats() {
