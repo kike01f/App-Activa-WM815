@@ -11086,6 +11086,11 @@ function pcshVisPlayTrafficAlert(kind) {
 var PCSH_VIS_AVISO_SALIDA_VEH =
   'Su visita debe informar en conserjería al momento de retirarse del edificio con el vehículo, para registrar la salida y detener el control de tiempo de estacionamiento.';
 
+function pcshVisEstacionamientoCorreo(v) {
+  var pk = v && v.parkingCode ? canonicalVisitParkingCode(v.parkingCode) || String(v.parkingCode).trim() : '';
+  return pk || 'Sin asignar';
+}
+
 function pcshVisTextoCorreoFase(v, fase) {
   var depto = typeof pcshVisitDeptLabelDisplay === 'function' ? pcshVisitDeptLabelDisplay(v && v.deptLabel) : (v && v.deptLabel) || '—';
   var quien = (v && v.visitor) || '—';
@@ -11095,6 +11100,7 @@ function pcshVisTextoCorreoFase(v, fase) {
     'Unidad: ' + (depto || '—') +
     '\nVisitante: ' + quien +
     '\nPatente: ' + patente +
+    '\nEstacionamiento: ' + pcshVisEstacionamientoCorreo(v) +
     '\nIngreso: ' + ingreso +
     '\n\n⚠ IMPORTANTE: ' + PCSH_VIS_AVISO_SALIDA_VEH +
     '\n\n';
@@ -23836,6 +23842,7 @@ function pcshHtmlCorreoVisita(v, fase) {
       { k: 'Unidad', v: depto || '—' },
       { k: 'Visitante', v: v.visitor || '—' },
       { k: 'Patente', v: v.plate || '—' },
+      { k: 'Estacionamiento', v: pcshVisEstacionamientoCorreo(v) },
       { k: 'Ingreso', v: ingreso }
     ],
     cierre: fase === 'fine' ? 'Ante cualquier consulta, comuníquese con conserjería o administración.' : 'Ante cualquier consulta, comuníquese con conserjería.'
@@ -23876,6 +23883,7 @@ function pcshHtmlCorreoIngresoVisita(v) {
     { k: 'Ingreso', v: ingreso }
   ];
   if (v.vehicular && v.plate) filas.push({ k: 'Patente', v: v.plate });
+  if (v.vehicular) filas.push({ k: 'Estacionamiento', v: pcshVisEstacionamientoCorreo(v) });
   return pcshHtmlAvisoOperativo({
     tono: '#3b3f44',
     titulo: 'Ingreso de visita',
@@ -23897,6 +23905,7 @@ function pcshTextoCorreoIngresoVisita(v) {
     'Visitante: ' + (v.visitor || '—') + '\n' +
     'Ingreso: ' + ingreso;
   if (v.vehicular && v.plate) texto += '\nPatente: ' + v.plate;
+  if (v.vehicular) texto += '\nEstacionamiento: ' + pcshVisEstacionamientoCorreo(v);
   if (v.vehicular) texto += '\n\n⚠ IMPORTANTE: ' + PCSH_VIS_AVISO_SALIDA_VEH;
   return texto + '\n\nAnte cualquier consulta, comuníquese con conserjería.';
 }
