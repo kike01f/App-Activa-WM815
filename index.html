@@ -9598,8 +9598,104 @@ function pcshVisApplyUltimaVisitaAlForm(form, ult) {
   return filled;
 }
 
+var PCSH_VIS_BADGE_FRECUENTE =
+  '<span class="badge-vis-frecuente" title="Visita frecuente (autorizada en la ficha de la unidad)" style="display:inline-flex;align-items:center;gap:3px;padding:1px 6px;border-radius:999px;font-size:0.7rem;font-weight:700;color:#4ade80;border:1px solid #4ade80;background:rgba(74,222,128,0.12);white-space:nowrap"><i class="fa-solid fa-star" aria-hidden="true" style="font-size:0.6rem"></i>Frecuente</span>';
+
+function pcshVisFrecuenteDocKey(s) {
+  return pcshRutNormalizeChileKey(s) || String(s || '').toUpperCase().replace(/[^0-9A-Z]/g, '');
+}
+
+/** Coincidencias del RUT/documento en las fichas de residentes del módulo Edificio: [{ unitNumber, name, type, frecuente }]. */
+function pcshVisBuscarResidentesPorRut(raw) {
+  var key = pcshVisFrecuenteDocKey(raw);
+  if (!key || key.length < 5) return [];
+  var units = (typeof appState !== 'undefined' && appState && Array.isArray(appState.units) && appState.units.length)
+    ? appState.units
+    : pcshReadWm815UnitsArray();
+  var hits = [];
+  units.forEach(function (u) {
+    if (!u || !Array.isArray(u.residents)) return;
+    u.residents.forEach(function (r) {
+      if (!r || !r.rut || pcshVisFrecuenteDocKey(r.rut) !== key) return;
+      var type = String(r.type || '').trim();
+      hits.push({
+        unitNumber: pcshExtractDeptNumberFromRecord(u),
+        name: String(r.name || '').trim(),
+        type: type,
+        frecuente: type === 'Visita Autorizada'
+      });
+    });
+  });
+  return hits;
+}
+
+/** Visitas frecuentes (Visita Autorizada) cuyo RUT coincide y que están autorizadas en la unidad indicada. */
+function pcshVisEsFrecuenteEnUnidad(rutRaw, deptLabel) {
+  var deptKey = pcshNormDeptKey(pcshVisitDeptLabelDisplay(deptLabel));
+  if (!deptKey) return false;
+  return pcshVisBuscarResidentesPorRut(rutRaw).some(function (h) {
+    return h.frecuente && pcshNormDeptKey(h.unitNumber) === deptKey;
+  });
+}
+
+function pcshVisOcultarFrecuente(form) {
+  var box = form && form.querySelector('.pcsh-vis-frecuente-info');
+  if (box) {
+    box.style.display = 'none';
+    box.innerHTML = '';
+  }
+}
+
+/** Identifica por RUT si el visitante es visita frecuente según la ficha de residentes; completa nombre y unidad si están vacíos. */
+function pcshVisIdentificarFrecuente(form, rutInp) {
+  if (!form || !rutInp || rutInp.name !== 'visitorRut') return;
+  var hits = pcshVisBuscarResidentesPorRut(rutInp.value);
+  if (!hits.length) {
+    pcshVisOcultarFrecuente(form);
+    return;
+  }
+  var box = form.querySelector('.pcsh-vis-frecuente-info');
+  if (!box) {
+    box = document.createElement('div');
+    box.className = 'pcsh-vis-frecuente-info';
+    box.setAttribute('role', 'status');
+    box.style.cssText = 'margin-top:0.45rem;padding:0.45rem 0.6rem;border-radius:8px;font-size:0.8rem;line-height:1.4;';
+    (rutInp.closest('.form-group') || rutInp.parentNode).appendChild(box);
+  }
+  var frec = hits.filter(function (h) { return h.frecuente; });
+  var unidades = function (list) {
+    return list.map(function (h) { return '<strong>' + escapeHtml(h.unitNumber || '—') + '</strong>'; })
+      .filter(function (x, i, arr) { return arr.indexOf(x) === i; }).join(', ');
+  };
+  if (frec.length) {
+    var nom = form.querySelector('input[name="visitor"]');
+    if (nom && !String(nom.value || '').trim() && frec[0].name) nom.value = frec[0].name;
+    var sel = form.querySelector('select[name="deptLabel"]');
+    var unidadesFrec = frec.map(function (h) { return pcshNormDeptKey(h.unitNumber); })
+      .filter(function (x, i, arr) { return x && arr.indexOf(x) === i; });
+    if (sel && !sel.value && unidadesFrec.length === 1) pcshVisDeptSelectSet(sel, frec[0].unitNumber);
+    box.style.background = 'rgba(74, 222, 128, 0.12)';
+    box.style.border = '1px solid #4ade80';
+    box.style.color = 'var(--text-main)';
+    box.innerHTML = '<i class="fa-solid fa-star" aria-hidden="true" style="color:#4ade80;margin-right:0.3rem"></i>' +
+      '<strong>Visita frecuente</strong> autorizada en la unidad ' + unidades(frec) +
+      (frec[0].name ? ' — ' + escapeHtml(frec[0].name) : '') +
+      (unidadesFrec.length > 1 ? '. Seleccione la unidad destino.' : '.');
+  } else {
+    var h = hits[0];
+    box.style.background = 'rgba(147, 197, 253, 0.12)';
+    box.style.border = '1px solid #93c5fd';
+    box.style.color = 'var(--text-main)';
+    box.innerHTML = '<i class="fa-solid fa-house-user" aria-hidden="true" style="color:#93c5fd;margin-right:0.3rem"></i>' +
+      'RUT registrado como <strong>' + escapeHtml(h.type || 'Residente') + '</strong> de la unidad ' + unidades(hits) +
+      (h.name ? ' — ' + escapeHtml(h.name) : '') + '. No figura como visita frecuente.';
+  }
+  box.style.display = 'block';
+}
+
 function pcshVisTryAutofillFromUltimaVisita(form, rutInp, foreignCb) {
   if (!form || !rutInp) return;
+  pcshVisIdentificarFrecuente(form, rutInp);
   var foreign = !!(foreignCb && foreignCb.checked);
   var raw = rutInp.value;
   if (!String(raw || '').trim()) return;
@@ -11404,6 +11500,17 @@ function bindOneVisitForm(form) {
   var cbC = form.querySelector('input[name="contactDocExtranjero"]');
   if (rutV && cbV) pcshVisBindRutField(form, rutV, cbV);
   if (rutC && cbC) pcshVisBindRutField(form, rutC, cbC);
+  if (rutV) {
+    var frecTimer = null;
+    rutV.addEventListener('input', function () {
+      clearTimeout(frecTimer);
+      frecTimer = setTimeout(function () { pcshVisIdentificarFrecuente(form, rutV); }, 200);
+    });
+    form.addEventListener('reset', function () {
+      clearTimeout(frecTimer);
+      pcshVisOcultarFrecuente(form);
+    });
+  }
   pcshVisBindCarnetPayloadField(form, form.querySelector('input[name="visitor"]'));
   pcshVisBindCarnetPayloadField(form, rutV);
   function pcshVisBindNombreTituloBlur(inp) {
@@ -11502,6 +11609,7 @@ function bindOneVisitForm(form) {
       if (!rec.visitor) { showMsg('Indique nombre del visitante.', 'error'); return; }
       var cbDocP = form.querySelector('input[name="visitorDocExtranjero"]');
       var rutRawP = String(fd.get('visitorRut') || '');
+      if (rutRawP.trim() && pcshVisEsFrecuenteEnUnidad(rutRawP, rec.deptLabel)) rec.visitaFrecuente = true;
       pcshVisitasResolverIdentificacion(rec, rutRawP, !!(cbDocP && cbDocP.checked), guardarUnaVez, terminarGuardado);
       return;
     } else {
@@ -11756,6 +11864,7 @@ function renderVisitasModule() {
       openListEl.innerHTML = '<ul class="cg-vis-open-list">' + openVis.map(function (v) {
         var isProv = visitIsProveedor(v);
         var badge = isProv ? '<span class="badge-vis-proveedor">Proveedor</span>' : '<span class="badge-vis-persona">Persona</span>';
+        if (v.visitaFrecuente) badge += ' ' + PCSH_VIS_BADGE_FRECUENTE;
         var displayName = isProv ? (v.visitor || v.proveedorEmpresa || '—') : (v.visitor || '—');
         var meta = 'Depto ' + escapeHtml(pcshVisitDeptLabelDisplay(v.deptLabel) || '—') + (isProv && v.proveedorEmpresa ? ' · ' + escapeHtml(v.proveedorEmpresa) : '');
         var pkList = v.vehicular && v.parkingCode
@@ -11939,7 +12048,8 @@ function renderVisitasModule() {
     } else {
       filasPagina.forEach(function (v) {
         var isP = visitIsProveedor(v);
-        var tipo = isP ? '<span class="badge-vis-proveedor">Prov.</span> ' : '<span class="badge-vis-persona">Pers.</span> ';
+        var tipo = (isP ? '<span class="badge-vis-proveedor">Prov.</span> ' : '<span class="badge-vis-persona">Pers.</span> ') +
+          (v.visitaFrecuente ? PCSH_VIS_BADGE_FRECUENTE + ' ' : '');
         var nameCell = tipo + escapeHtml(v.visitor || '—') + (v.visitorRut ? '<div style="font-size:calc(0.7rem * var(--cg-table-fs));opacity:0.85">' + (v.docExtranjero ? 'DNI/Pas. ' : 'RUT ') + escapeHtml(v.visitorRut) + '</div>' : '') + (isP && v.proveedorEmpresa ? '<div style="font-size:calc(0.68rem * var(--cg-table-fs));opacity:0.8">' + escapeHtml(v.proveedorEmpresa) + '</div>' : '');
         var pkDisp = v.parkingCode ? (canonicalVisitParkingCode(v.parkingCode) || String(v.parkingCode).trim()) : '';
         var veh = v.vehicular ? 'Sí · ' + escapeHtml(v.plate || '—') + (pkDisp ? ' · ' + escapeHtml(pkDisp) : '') : 'No';
