@@ -11899,6 +11899,11 @@ function renderVisitasModule() {
               escapeHtml(v.id) +
               '" title="Corregir fechas/horas"><i class="fa-solid fa-clock" aria-hidden="true"></i></button> '
             : '';
+        if (pcshVisPuedeCorregir(v)) {
+          editOpenBtn += '<button type="button" class="btn btn-secondary btn-sm pcsh-vis-corregir" data-id="' +
+            escapeHtml(v.id) +
+            '" title="Corregir unidad o estacionamiento" aria-label="Corregir unidad o estacionamiento"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button> ';
+        }
         return '<li' + liMulta + '>' + badge + '<div class="cg-vis-open-identity"><strong class="cg-vis-open-name">' + escapeHtml(displayName) + '</strong>' + plate + pkList + '</div><span class="cg-vis-open-meta">' + meta + ' · ' + live + '</span>' +
           notasBtnOpen +
           editOpenBtn +
@@ -12089,6 +12094,7 @@ function renderVisitasModule() {
         else salConserje = '<span style="opacity:0.75;font-style:italic">Pendiente</span>';
         var actions = '';
         if (!v.outAt && !visitIsPeatonal(v)) actions += '<button type="button" class="btn btn-secondary btn-sm pcsh-vis-out" data-id="' + escapeHtml(v.id) + '" title="Registrar salida" aria-label="Registrar salida"><i class="fa-solid fa-right-from-bracket" aria-hidden="true"></i><span class="btn-txt">Salida</span></button> ';
+        if (pcshVisPuedeCorregir(v)) actions += '<button type="button" class="btn btn-secondary btn-sm pcsh-vis-corregir" data-id="' + escapeHtml(v.id) + '" title="Corregir unidad o estacionamiento" aria-label="Corregir unidad o estacionamiento"><i class="fa-solid fa-pen-to-square" aria-hidden="true"></i></button> ';
         if (esModoAdmin()) {
           actions +=
             '<button type="button" class="btn btn-secondary btn-sm pcsh-vis-edit-times" data-id="' +
@@ -13077,6 +13083,11 @@ function initVisitasUi() {
         pcshOpenVisitaHorasModal(ed.getAttribute('data-id'));
         return;
       }
+      var corr = e.target.closest('.pcsh-vis-corregir');
+      if (corr) {
+        pcshOpenVisitaCorregirModal(corr.getAttribute('data-id'));
+        return;
+      }
       var o = e.target.closest('.pcsh-vis-out');
       var d = e.target.closest('.pcsh-vis-del');
       if (o) regVisitaSalida(o.getAttribute('data-id'));
@@ -13093,6 +13104,11 @@ function initVisitasUi() {
       var ed = e.target.closest('.pcsh-vis-edit-times');
       if (ed) {
         pcshOpenVisitaHorasModal(ed.getAttribute('data-id'));
+        return;
+      }
+      var corr = e.target.closest('.pcsh-vis-corregir');
+      if (corr) {
+        pcshOpenVisitaCorregirModal(corr.getAttribute('data-id'));
         return;
       }
       var o = e.target.closest('.pcsh-vis-out');
@@ -13127,6 +13143,126 @@ function eliminarVisita(id) {
   showConfirmDialog('¿Eliminar este registro de visita?', function () {
     db.collection('visitas').doc(id).delete().then(function () { showMsg('Visita eliminada.', 'success'); });
   }, 'Eliminar visita', 'Sí, eliminar');
+}
+
+function pcshVisPuedeCorregir(v) {
+  if (!v) return false;
+  if (esModoAdmin()) return true;
+  return !v.outAt && puedeRegistrarComoConserje();
+}
+
+/** Corrección de unidad destino y estacionamiento EV- de una visita ya registrada (conserje). */
+function pcshOpenVisitaCorregirModal(visitId) {
+  var v = visitasList.find(function (x) { return String(x.id) === String(visitId); });
+  if (!v) { showMsg('Registro no encontrado.', 'error'); return; }
+  if (!pcshVisPuedeCorregir(v)) {
+    showMsg(v.outAt
+      ? 'La visita ya registró salida; solo Administración puede corregirla.'
+      : 'Debe abrir el turno (conserje activo) para corregir visitas.', 'error');
+    return;
+  }
+  var prev = document.getElementById('modalVisitaCorregir');
+  if (prev) prev.remove();
+  var deptActual = pcshVisitDeptLabelDisplay(v.deptLabel) || String(v.deptLabel || '');
+  var pkActual = v.parkingCode ? (canonicalVisitParkingCode(v.parkingCode) || String(v.parkingCode).trim()) : '';
+  var pkDigits = pkActual ? pcshDigitsOnly(pkActual.replace(/^EV-/i, ''), 6) : '';
+  var esPersona = !visitIsProveedor(v);
+  var m = document.createElement('div');
+  m.id = 'modalVisitaCorregir';
+  m.className = 'modal';
+  m.style.display = 'flex';
+  m.innerHTML =
+    '<div class="modal-content" style="max-width:440px;text-align:left">' +
+    '<h3 style="margin:0 0 0.35rem;color:var(--accent-color)"><i class="fa-solid fa-pen-to-square" aria-hidden="true" style="margin-right:0.4rem"></i>Corregir visita</h3>' +
+    '<p class="page-desc" style="margin:0 0 0.75rem;font-size:0.82rem">' +
+    escapeHtml(v.visitor || '—') + ' · ingreso ' + escapeHtml(fmtVisDate(v.at)) +
+    (v.vehicular && v.plate ? ' · Pat. ' + escapeHtml(v.plate) : '') + '</p>' +
+    '<div class="form-group" style="margin-bottom:0.7rem"><label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:4px">Unidad destino</label>' +
+    '<select name="deptLabel" style="width:100%;padding:0.5rem;border-radius:8px;background:var(--input-bg);color:var(--text-main);border:1px solid var(--input-border)">' +
+    '<option value="">— Unidad —</option>' + buildVisitDeptOptions() + '</select>' +
+    '<small class="page-desc" style="display:block;margin-top:4px;font-size:0.75rem">Registrada actualmente: <strong>' + escapeHtml(deptActual || '—') + '</strong></small></div>' +
+    (v.vehicular
+      ? '<div class="form-group" style="margin-bottom:0.7rem"><label style="display:block;font-size:0.82rem;font-weight:600;margin-bottom:4px">Estacionamiento de visita</label>' +
+        '<div style="display:flex;align-items:stretch;max-width:220px;border:1px solid var(--input-border);border-radius:8px;overflow:hidden">' +
+        '<span style="display:flex;align-items:center;padding:8px 10px;font-weight:700;background:var(--surface-color);border-right:1px solid var(--input-border);color:var(--accent-color)">EV-</span>' +
+        '<input type="text" name="parkingCodeNum" maxlength="6" inputmode="numeric" placeholder="Nº" autocomplete="off" value="' + escapeHtml(pkDigits) + '" style="flex:1;min-width:48px;border:none;padding:8px 10px;background:transparent;color:inherit" /></div></div>'
+      : '') +
+    '<div class="pcsh-vis-corr-aviso" style="display:none;margin:0 0 0.7rem;padding:0.5rem 0.65rem;border-radius:8px;font-size:0.8rem;line-height:1.4;background:rgba(251,191,36,0.12);border:1px solid #fbbf24"></div>' +
+    '<div class="modal-buttons" style="justify-content:flex-end">' +
+    '<button type="button" class="btn btn-secondary pcsh-vis-corr-cancel">Cancelar</button>' +
+    '<button type="button" class="btn btn-primary pcsh-vis-corr-save"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i> Guardar corrección</button>' +
+    '</div></div>';
+  document.body.appendChild(m);
+  var sel = m.querySelector('select[name="deptLabel"]');
+  pcshVisDeptSelectSet(sel, v.deptLabel);
+  var pkIn = m.querySelector('input[name="parkingCodeNum"]');
+  if (pkIn) pkIn.addEventListener('input', function () { pkIn.value = pcshDigitsOnly(pkIn.value, 6); });
+  var aviso = m.querySelector('.pcsh-vis-corr-aviso');
+  function actualizarAviso() {
+    var cambia = sel.value && sel.value !== deptActual;
+    if (cambia && esPersona) {
+      aviso.innerHTML = '<i class="fa-solid fa-envelope" aria-hidden="true" style="margin-right:0.3rem"></i>Al guardar se enviará un <strong>correo de disculpa</strong> a la unidad <strong>' +
+        escapeHtml(deptActual || '—') + '</strong> y el aviso de ingreso a la unidad <strong>' + escapeHtml(sel.value) + '</strong>.';
+      aviso.style.display = 'block';
+    } else {
+      aviso.style.display = 'none';
+    }
+  }
+  sel.addEventListener('change', actualizarAviso);
+  function cerrar() { m.remove(); }
+  m.querySelector('.pcsh-vis-corr-cancel').addEventListener('click', cerrar);
+  var downOnBackdrop = false;
+  m.addEventListener('pointerdown', function (e) { downOnBackdrop = e.target === m; });
+  m.addEventListener('click', function (e) { if (downOnBackdrop && e.target === m) cerrar(); downOnBackdrop = false; });
+
+  var btnSave = m.querySelector('.pcsh-vis-corr-save');
+  btnSave.addEventListener('click', function () {
+    if (btnSave.disabled) return;
+    var deptNuevo = String(sel.value || '').trim();
+    if (!deptNuevo) { showMsg('Seleccione la unidad destino.', 'error'); return; }
+    var pkNuevo = '';
+    if (pkIn) {
+      var d = pcshDigitsOnly(pkIn.value, 6);
+      pkNuevo = d ? 'EV-' + d : '';
+      if (pkNuevo && pkNuevo !== pkActual) {
+        var choca = (visitasList || []).some(function (x) {
+          return x && String(x.id) !== String(v.id) && !x.outAt && x.vehicular &&
+            canonicalVisitParkingCode(x.parkingCode || '') === pkNuevo;
+        });
+        if (choca) { showMsg('El ' + pkNuevo + ' ya está asignado a otra visita activa. Elija otro número.', 'error'); pkIn.focus(); return; }
+      }
+    }
+    var cambiaDept = deptNuevo !== deptActual;
+    var cambiaPk = !!pkIn && pkNuevo !== pkActual;
+    if (!cambiaDept && !cambiaPk) { cerrar(); return; }
+    var deptAntes = v.deptLabel;
+    var patch = {
+      correcciones: firebase.firestore.FieldValue.arrayUnion({
+        at: new Date().toISOString(),
+        por: conserjeNombreVis(),
+        deptAntes: cambiaDept ? deptActual : '',
+        deptNuevo: cambiaDept ? deptNuevo : '',
+        parkingAntes: cambiaPk ? pkActual : '',
+        parkingNuevo: cambiaPk ? pkNuevo : ''
+      })
+    };
+    if (cambiaDept) patch.deptLabel = deptNuevo;
+    if (cambiaPk) patch.parkingCode = pkNuevo;
+    btnSave.disabled = true;
+    db.collection('visitas').doc(String(v.id)).update(patch).then(function () {
+      if (cambiaDept) v.deptLabel = deptNuevo;
+      if (cambiaPk) v.parkingCode = pkNuevo;
+      cerrar();
+      showMsg('Visita corregida' + (cambiaDept ? ': unidad ' + deptNuevo : '') + (cambiaPk ? (cambiaDept ? ', ' : ': ') + 'estacionamiento ' + (pkNuevo || 'sin asignar') : '') + '.', 'success');
+      if (typeof renderVisitasModule === 'function') renderVisitasModule();
+      if (cambiaDept) pcshVisNotificarCorreccionUnidad(v, deptAntes);
+    }).catch(function (err) {
+      console.warn('[pcsh] visitas corregir', err);
+      btnSave.disabled = false;
+      showMsg(err && err.message ? 'No se pudo guardar: ' + err.message : 'No se pudo guardar la corrección.', 'error');
+    });
+  });
+  setTimeout(function () { try { sel.focus(); } catch (eF) {} }, 30);
 }
 
 function pcshCloseVisitaHorasModal() {
@@ -23763,6 +23899,70 @@ function pcshTextoCorreoIngresoVisita(v) {
   if (v.vehicular && v.plate) texto += '\nPatente: ' + v.plate;
   if (v.vehicular) texto += '\n\n⚠ IMPORTANTE: ' + PCSH_VIS_AVISO_SALIDA_VEH;
   return texto + '\n\nAnte cualquier consulta, comuníquese con conserjería.';
+}
+/** Correo de disculpa a la unidad que recibió por error el aviso de ingreso (no repite los datos del visitante). */
+function pcshHtmlCorreoDisculpaVisita(deptErrado, v) {
+  var ingreso = typeof fmtVisDate === 'function' ? fmtVisDate(v && v.at) : (v && v.at) || '—';
+  return pcshHtmlAvisoOperativo({
+    tono: '#3b3f44',
+    titulo: 'Disculpe las molestias',
+    saludo: 'Estimado/a residente de la unidad ' + (deptErrado || '—') + ':',
+    mensaje:
+      'Le pedimos disculpas: el aviso de ingreso de visita que recibió (registrado el ' + ingreso + ') fue asociado a su unidad por un error de registro en conserjería. ' +
+      'La visita no corresponde a su unidad y el registro ya fue corregido. Puede ignorar el aviso anterior.',
+    filas: [
+      { k: 'Unidad', v: deptErrado || '—' },
+      { k: 'Aviso anulado', v: 'Ingreso de visita del ' + ingreso }
+    ],
+    cierre: 'Lamentamos el inconveniente. Ante cualquier consulta, comuníquese con conserjería.'
+  });
+}
+function pcshTextoCorreoDisculpaVisita(deptErrado, v) {
+  var ingreso = typeof fmtVisDate === 'function' ? fmtVisDate(v && v.at) : (v && v.at) || '—';
+  return (
+    'Estimado/a residente de la unidad ' + (deptErrado || '—') + ':\n\n' +
+    'Le pedimos disculpas: el aviso de ingreso de visita que recibió (registrado el ' + ingreso + ') fue asociado a su unidad por un error de registro en conserjería. ' +
+    'La visita no corresponde a su unidad y el registro ya fue corregido. Puede ignorar el aviso anterior.\n\n' +
+    'Lamentamos el inconveniente. Ante cualquier consulta, comuníquese con conserjería.'
+  );
+}
+/** Tras corregir la unidad de una visita: disculpa a la unidad errada y aviso de ingreso a la unidad correcta. */
+function pcshVisNotificarCorreccionUnidad(v, deptAntes) {
+  if (!v || v.visitKind === 'proveedor' || typeof pcshEnviarCorreoPorGestion !== 'function') return;
+  var marca = String(Date.now());
+  var deptErrado = pcshVisitDeptLabelDisplay(deptAntes) || deptAntes;
+  var deptNuevo = pcshVisitDeptLabelDisplay(v.deptLabel) || v.deptLabel;
+  var mailErrado = pcshCorreosAvisoVisitaUnidad(deptAntes);
+  var mailNuevo = pcshCorreosAvisoVisitaUnidad(v.deptLabel);
+  if (mailErrado) {
+    pcshEnviarCorreoPorGestion({
+      to: mailErrado,
+      asunto: 'Disculpe las molestias — aviso de visita enviado por error (Depto ' + deptErrado + ')',
+      texto: pcshTextoCorreoDisculpaVisita(deptErrado, v),
+      html: pcshHtmlCorreoDisculpaVisita(deptErrado, v),
+      origen: 'conserjeria-visita',
+      refId: String(v.id || ''),
+      fase: 'disculpa-' + marca
+    }).then(function (r) {
+      if (r && r.exito) showMsg('Se envió un correo de disculpa a la unidad ' + deptErrado + '.', 'success');
+      else showMsg('No se pudo enviar el correo de disculpa a la unidad ' + deptErrado + '.', 'warn');
+    });
+  } else {
+    showMsg('La unidad ' + deptErrado + ' no tiene correos de aviso; no se envió disculpa.', 'info');
+  }
+  if (mailNuevo) {
+    pcshEnviarCorreoPorGestion({
+      to: mailNuevo,
+      asunto: 'Ingreso de visita — Depto ' + deptNuevo,
+      texto: pcshTextoCorreoIngresoVisita(v),
+      html: pcshHtmlCorreoIngresoVisita(v),
+      origen: 'conserjeria-visita',
+      refId: String(v.id || ''),
+      fase: 'ingreso-correccion-' + marca
+    }).then(function (r) {
+      if (r && r.exito) showMsg('Aviso de ingreso enviado a la unidad correcta (' + deptNuevo + ').', 'success');
+    });
+  }
 }
 function pcshVisNotificarIngresoParticular(v) {
   if (!v || v.visitKind === 'proveedor') return;
