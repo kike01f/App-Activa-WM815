@@ -13902,7 +13902,7 @@ function pcshWm815ResidentToPortal(r) {
   var id = r.id != null ? String(r.id) : r.cgResLineId != null ? String(r.cgResLineId) : '';
   var typeStr = r.type != null ? String(r.type).trim() : 'Propietario';
   var corredor = r.corredor != null ? String(r.corredor).trim() : '';
-  return {
+  var out = {
     id: id,
     name: name,
     type: typeStr,
@@ -13924,6 +13924,9 @@ function pcshWm815ResidentToPortal(r) {
       .filter(function (v) { return v.plate || v.model || v.color; }),
     registeredAt: r.registeredAt || r.updatedAt || null
   };
+  if (typeof r.notifVisitas === 'boolean') out.notifVisitas = r.notifVisitas;
+  if (typeof r.notifEncomiendas === 'boolean') out.notifEncomiendas = r.notifEncomiendas;
+  return out;
 }
 
 function pcshWm815RowToPortalUnit(raw) {
@@ -23673,7 +23676,7 @@ function pcshEncOccupantChoices(deptId) {
   var unitUse = pu.unitUse;
   return pu.residents
     .filter(function (r) {
-      return pcshResidenteRecibeAvisoVisita(r, unitUse);
+      return pcshResidenteAvisoPorDefecto(r, unitUse);
     })
     .map(function (r) {
       return {
@@ -23695,12 +23698,16 @@ function pcshEncResidentEmailsAllForDept(deptId) {
   var pu = pcshEncGetPortalUnit(deptId);
   if (!pu) return { email: '', fuente: '' };
   var emails = [];
+  var personalizado = false;
   (pu.residents || []).forEach(function (r) {
-    if (!pcshResidenteRecibeAvisoVisita(r, pu.unitUse)) return;
+    if (r && typeof r.notifEncomiendas === 'boolean') personalizado = true;
+    if (!pcshResidenteRecibeAvisoEncomienda(r, pu.unitUse)) return;
     var em = String(r.email || '').trim();
     if (em && emails.indexOf(em) < 0) emails.push(em);
   });
-  var fuente = pu.unitUse === 'Arriendo' ? 'arrendatarios de la unidad' : 'propietario y familiares';
+  var fuente = personalizado
+    ? 'correos seleccionados en la ficha'
+    : pu.unitUse === 'Arriendo' ? 'arrendatarios de la unidad' : 'propietario y familiares';
   return {
     email: emails.join(','),
     fuente: emails.length ? fuente : ''
@@ -23848,11 +23855,21 @@ function pcshHtmlCorreoVisita(v, fase) {
     cierre: fase === 'fine' ? 'Ante cualquier consulta, comuníquese con conserjería o administración.' : 'Ante cualquier consulta, comuníquese con conserjería.'
   });
 }
-function pcshResidenteRecibeAvisoVisita(r, unitUse) {
+/** Regla automática de avisos: habitacional → propietario y familiares; arriendo → arrendatarios; nunca visitas frecuentes. */
+function pcshResidenteAvisoPorDefecto(r, unitUse) {
   var t = String((r && r.type) || '').trim().toLowerCase();
   if (!t || t.indexOf('visita') !== -1) return false;
   if (unitUse === 'Arriendo') return t.indexOf('arrendatario') !== -1;
   return t.indexOf('propietario') !== -1 || t.indexOf('familiar') !== -1;
+}
+/** La selección hecha en la ficha (notifVisitas) prevalece sobre la regla automática. */
+function pcshResidenteRecibeAvisoVisita(r, unitUse) {
+  if (r && typeof r.notifVisitas === 'boolean') return r.notifVisitas;
+  return pcshResidenteAvisoPorDefecto(r, unitUse);
+}
+function pcshResidenteRecibeAvisoEncomienda(r, unitUse) {
+  if (r && typeof r.notifEncomiendas === 'boolean') return r.notifEncomiendas;
+  return pcshResidenteAvisoPorDefecto(r, unitUse);
 }
 function pcshCorreosAvisoVisitaUnidad(deptLabelOrId) {
   var dep = null;
@@ -32445,6 +32462,15 @@ showTab('tabNovedades');
                             registeredAt: registeredAt.toISOString() // Fecha de registro individual del residente
                         };
                         if (corredor) residentRow.corredor = corredor;
+                        if (existingUnit && Array.isArray(existingUnit.residents)) {
+                            const emailKey = residentRow.email.toLowerCase();
+                            const prevRes = existingUnit.residents.find(r => r && r.email && String(r.email).toLowerCase() === emailKey) ||
+                                existingUnit.residents.find(r => r && r.name && r.name.toLowerCase() === residentRow.name.toLowerCase());
+                            if (prevRes) {
+                                if (typeof prevRes.notifVisitas === 'boolean') residentRow.notifVisitas = prevRes.notifVisitas;
+                                if (typeof prevRes.notifEncomiendas === 'boolean') residentRow.notifEncomiendas = prevRes.notifEncomiendas;
+                            }
+                        }
                         const vehicles = readResidentVehiclesFromForm(item);
                         if (vehicles.length) residentRow.vehicles = vehicles;
                         formData.residents.push(residentRow);
@@ -35582,6 +35608,32 @@ showTab('tabNovedades');
                     <i class="fa-solid ${icon}" aria-hidden="true"></i>
                     <div><div class="ufx-stat-value">${value}</div><div class="ufx-stat-label">${label}</div></div>
                 </div>`;
+            const notifDefault = (r) => typeof pcshResidenteAvisoPorDefecto === 'function' ? pcshResidenteAvisoPorDefecto(r, unit.unitUse) : false;
+            const notifRows = unitResidents
+                .map((r, index) => ({ r, index, mail: String(r.email || r.correo || '').trim() }))
+                .filter((x) => x.mail)
+                .map(({ r, index, mail }) => {
+                    const vis = typeof r.notifVisitas === 'boolean' ? r.notifVisitas : notifDefault(r);
+                    const enc = typeof r.notifEncomiendas === 'boolean' ? r.notifEncomiendas : notifDefault(r);
+                    return `<tr>
+                        <td><div class="ufx-res-name" style="font-size:0.8rem">${ufxEsc(r.name || '—')}</div><div class="ufx-none" style="font-size:0.72rem;overflow-wrap:anywhere">${ufxEsc(mail)}</div></td>
+                        <td style="text-align:center"><input type="checkbox" class="ufx-notif-cb" data-idx="${index}" data-kind="notifVisitas" ${vis ? 'checked' : ''} aria-label="Avisos de visitas a ${ufxEsc(mail)}" style="width:17px;height:17px;cursor:pointer"></td>
+                        <td style="text-align:center"><input type="checkbox" class="ufx-notif-cb" data-idx="${index}" data-kind="notifEncomiendas" ${enc ? 'checked' : ''} aria-label="Avisos de encomiendas a ${ufxEsc(mail)}" style="width:17px;height:17px;cursor:pointer"></td>
+                    </tr>`;
+                }).join('');
+            const notifHtml = notifRows ? `<section class="ufx-card ufx-notif">
+                    <div class="ufx-sec-title"><i class="fa-solid fa-bell" aria-hidden="true"></i> Notificaciones por correo</div>
+                    <table style="width:100%;border-collapse:collapse;font-size:0.8rem">
+                        <thead><tr style="color:var(--secondary-text);font-size:0.7rem;text-transform:uppercase;letter-spacing:0.04em">
+                            <th style="text-align:left;padding:0 0 4px;font-weight:600">Residente</th>
+                            <th style="width:76px;padding:0 0 4px;font-weight:600"><i class="fa-solid fa-user-group" aria-hidden="true"></i> Visitas</th>
+                            <th style="width:96px;padding:0 0 4px;font-weight:600"><i class="fa-solid fa-box" aria-hidden="true"></i> Encomiendas</th>
+                        </tr></thead>
+                        <tbody>${notifRows}</tbody>
+                    </table>
+                    <div class="ufx-notif-warn ufx-res-foot" style="margin:6px 0 0;color:#fbbf24"></div>
+                    <div class="ufx-res-foot" style="margin:6px 0 0">Marque a qué correos se avisa cada ingreso de visita y cada encomienda. Los cambios se guardan al instante.</div>
+                </section>` : '';
             const familyHtml = (pets.length || kids.length || unit.hasPet) ? `<section class="ufx-card">
                     <div class="ufx-sec-title"><i class="fa-solid fa-house-chimney-user" aria-hidden="true"></i> Grupo familiar</div>
                     <div class="ufx-family">
@@ -35635,6 +35687,8 @@ showTab('tabNovedades');
                         </div>
                     </section>
 
+                    ${notifHtml}
+
                     ${familyHtml}
 
                     ${noteSection}
@@ -35656,6 +35710,43 @@ showTab('tabNovedades');
             `;
             document.body.appendChild(modal);
             pcshBindBackdropClose(modal, () => modal.remove());
+            const notifWarn = modal.querySelector('.ufx-notif-warn');
+            const refreshNotifWarn = () => {
+                if (!notifWarn) return;
+                const sinVis = !modal.querySelector('.ufx-notif-cb[data-kind="notifVisitas"]:checked');
+                const sinEnc = !modal.querySelector('.ufx-notif-cb[data-kind="notifEncomiendas"]:checked');
+                const faltan = [sinVis ? 'visitas' : '', sinEnc ? 'encomiendas' : ''].filter(Boolean);
+                notifWarn.innerHTML = faltan.length
+                    ? '<i class="fa-solid fa-triangle-exclamation" aria-hidden="true"></i> Ningún correo recibirá avisos de ' + faltan.join(' ni de ') + '.'
+                    : '';
+            };
+            refreshNotifWarn();
+            modal.querySelectorAll('.ufx-notif-cb').forEach((cb) => {
+                cb.addEventListener('change', async () => {
+                    const idx = parseInt(cb.dataset.idx, 10);
+                    const kind = cb.dataset.kind;
+                    const target = appState.units.find(u => u.id === unit.id);
+                    const resident = target && Array.isArray(target.residents) ? target.residents[idx] : null;
+                    if (!resident) {
+                        cb.checked = !cb.checked;
+                        showNotification('error', '❌ No se encontró el residente; cierre y vuelva a abrir la ficha.');
+                        return;
+                    }
+                    const prevValue = resident[kind];
+                    resident[kind] = cb.checked;
+                    cb.disabled = true;
+                    try {
+                        await saveUnitsToCloud();
+                        refreshNotifWarn();
+                        showNotification('success', '✅ Preferencia de aviso guardada');
+                    } catch (err) {
+                        if (typeof prevValue === 'boolean') resident[kind] = prevValue; else delete resident[kind];
+                        cb.checked = !cb.checked;
+                    } finally {
+                        cb.disabled = false;
+                    }
+                });
+            });
             var btnBienvenidaUnidad = modal.querySelector('.btn-enviar-bienvenida-unidad');
             if (btnBienvenidaUnidad) {
                 btnBienvenidaUnidad.addEventListener('click', function () {
