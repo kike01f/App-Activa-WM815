@@ -3798,6 +3798,8 @@
     .cg-lav-info { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.35; min-height: 2.2rem; text-align: center; }
     .cg-lav-info b { color: var(--text-main); font-size: 1.05rem; }
     .cg-lav-info .is-late { color: #fbbf24; font-weight: 700; }
+    .cg-lav-info .cg-lav-cod { display: inline-block; margin: 0.2rem 0; padding: 0.1rem 0.5rem; border-radius: 6px; background: color-mix(in srgb, var(--blue-500) 18%, transparent); color: var(--text-main); }
+    .cg-lav-info .cg-lav-cod b { letter-spacing: 0.12em; color: var(--blue-400); font-size: 1rem; }
     .cg-lav-actions { display: flex; flex-wrap: wrap; gap: 0.3rem; justify-content: center; }
     .cg-lav-actions .btn { padding: 0.38rem 0.6rem !important; font-size: 0.76rem !important; }
     #tabLavanderia .cg-lav-tbl-wrap { overflow-x: auto; }
@@ -38279,7 +38281,7 @@ showTab('tabNovedades');
   ];
   var CFG_BASE = {
     nombreEdificio: 'Edificio WM 815',
-    urlPublica: '',
+    urlPublica: 'https://contactosadm-svg.github.io/LavanderiaWM815/',
     duracionLavadoraMin: 45,
     duracionSecadoraMin: 60,
     maxPorUnidad: 3,
@@ -38299,6 +38301,7 @@ showTab('tabNovedades');
   var st = {
     iniciado: false,
     equipos: {},
+    activos: {},
     cfg: Object.assign({}, CFG_BASE),
     cfgCargada: false,
     usos: [],
@@ -38468,6 +38471,12 @@ showTab('tabNovedades');
       console.warn('[lavandería] equipos', e);
       avisoModulo('No se pudo leer el estado de la lavandería desde la nube. Revise la conexión.');
     });
+    db.collection(COL_USOS).where('estado', '==', 'en_uso').onSnapshot(function (qs) {
+      var activos = {};
+      qs.forEach(function (d) { activos[d.id] = d.data(); });
+      st.activos = activos;
+      if (visible()) renderMapa();
+    }, function (e) { console.warn('[lavandería] usos activos', e); });
     db.collection(COL_USOS).where('correoEstado', '==', 'pendiente').onSnapshot(function (qs) {
       qs.forEach(function (d) { procesarCorreo(d.id); });
     }, function (e) { console.warn('[lavandería] cola de correo', e); });
@@ -38524,10 +38533,15 @@ showTab('tabNovedades');
       { k: 'Fecha y hora del registro', v: fecha },
       { k: 'Estado', v: 'Registrado a nombre de la unidad ' + uso.unidad }
     ];
+    if (uso.codigo) filas.push({ k: 'Código para finalizar el uso', v: uso.codigo });
+    var destacado = uso.codigo
+      ? 'Su código para finalizar el uso es ' + uso.codigo + '. Ingréselo junto a su departamento al liberar la ' + tipo.toLowerCase() + ' desde el mapa de lavandería.'
+      : '';
     var mensaje = 'Le confirmamos que la ' + tipo.toLowerCase() + ' ' + uso.numero + ' quedó registrada a nombre de su unidad. ' +
       'Cuando termine, finalice el uso desde el mapa de lavandería para dejarla disponible.';
     var texto = 'Estimado/a residente de la unidad ' + uso.unidad + ':\n\n' + mensaje + '\n\n' +
       filas.map(function (f) { return f.k + ': ' + f.v; }).join('\n') +
+      (destacado ? '\n\n⚠ IMPORTANTE: ' + destacado : '') +
       '\n\nSi usted no realizó este registro, comuníquese de inmediato con conserjería.';
     return pcshEnviarCorreoPorGestion({
       to: to,
@@ -38538,6 +38552,7 @@ showTab('tabNovedades');
         titulo: 'Registro de uso en lavandería',
         saludo: 'Estimado/a residente de la unidad ' + uso.unidad + ':',
         mensaje: mensaje,
+        destacado: destacado,
         filas: filas,
         cierre: 'Si usted no realizó este registro, comuníquese de inmediato con conserjería.'
       }),
@@ -38580,6 +38595,7 @@ showTab('tabNovedades');
         tx.set(usoRef, {
           equipoId: eqId, tipo: eq.tipo, numero: eq.numero, unidad: unidad, inicio: inicio,
           inicioServidor: firebase.firestore.FieldValue.serverTimestamp(),
+          codigo: codigo,
           fin: '', duracionMin: null, estado: 'en_uso', origen: opts.origen, registradoPor: opts.por,
           liberadoPor: '', liberadoPorNombre: '', correoEstado: 'pendiente', correoIntento: 0
         });
@@ -38711,7 +38727,10 @@ showTab('tabNovedades');
       var transc = Date.now() - t0;
       var finMs = t0 + duracionEstimadaMin(eq.tipo) * 60000;
       var tarde = isFinite(t0) && Date.now() > finMs;
+      var usoAct = st.activos[eq.usoId];
+      var cod = usoAct && usoAct.codigo ? usoAct.codigo : '';
       info = 'Depto <b>' + esc(eq.unidad) + '</b><br>Desde ' + esc(hora(eq.inicio)) + ' · ' + esc(durTxt(transc)) +
+        '<br><span class="cg-lav-cod" title="Código para finalizar el uso">Código: <b>' + (cod ? esc(cod) : '—') + '</b></span>' +
         '<br><span class="' + (tarde ? 'is-late' : '') + '">' + (tarde ? 'Superó el tiempo estimado' : 'Fin estimado ' + esc(hora(new Date(finMs).toISOString()))) + '</span>';
       acciones = btn('liberar', 'fa-unlock', 'Liberar', 'btn-primary') + btn('fuera_servicio', 'fa-ban', 'Fuera de servicio');
     } else if (estado === 'fuera_servicio') {
@@ -38791,7 +38810,7 @@ showTab('tabNovedades');
     });
     $('cg-lav-hist-count').textContent = rows.length + ' registro(s)' + (st.usos.length >= 500 ? ' · se muestran los 500 más recientes' : '');
     if (!rows.length) { host.innerHTML = '<p class="page-desc" style="margin:0">Sin registros para los filtros seleccionados.</p>'; return; }
-    host.innerHTML = '<table><thead><tr><th>Depto</th><th>Equipo</th><th>Inicio</th><th>Término</th><th>Duración</th><th>Estado</th><th>Registro</th><th>Liberación</th><th>Correo</th></tr></thead><tbody>' +
+    host.innerHTML = '<table><thead><tr><th>Depto</th><th>Equipo</th><th>Inicio</th><th>Término</th><th>Duración</th><th>Estado</th><th>Código</th><th>Registro</th><th>Liberación</th><th>Correo</th></tr></thead><tbody>' +
       rows.map(function (u) {
         var dur = u.fin ? durTxt(Date.parse(u.fin) - Date.parse(u.inicio)) : durTxt(Date.now() - Date.parse(u.inicio)) + ' (en curso)';
         var lib = !u.fin ? '—' : u.liberadoPor === 'residente' ? 'Residente' : 'Personal: ' + (u.liberadoPorNombre || '—') + (u.notaLiberacion ? ' · ' + u.notaLiberacion : '');
@@ -38803,7 +38822,7 @@ showTab('tabNovedades');
           : '';
         return '<tr><td><strong>' + esc(u.unidad) + '</strong></td><td>' + esc(tipoInfo(u.tipo).label + ' ' + u.numero) + '</td><td>' + esc(fmt(u.inicio)) + '</td><td>' + esc(fmt(u.fin)) +
           '</td><td>' + esc(dur) + '</td><td><span class="cg-lav-badge ' + (u.estado === 'en_uso' ? 'b-uso' : '') + '">' + (u.estado === 'en_uso' ? 'En uso' : 'Finalizado') +
-          '</span></td><td class="t-l">' + esc(reg) + '</td><td class="t-l">' + esc(lib) + '</td><td><span class="cg-lav-badge ' + bc + '" title="' + esc(u.correoDetalle || '') + '">' + esc(CORREO_TXT[ce] || '—') + '</span>' + reenviar + '</td></tr>';
+          '</span></td><td><strong>' + esc(u.codigo || '—') + '</strong></td><td class="t-l">' + esc(reg) + '</td><td class="t-l">' + esc(lib) + '</td><td><span class="cg-lav-badge ' + bc + '" title="' + esc(u.correoDetalle || '') + '">' + esc(CORREO_TXT[ce] || '—') + '</span>' + reenviar + '</td></tr>';
       }).join('') + '</tbody></table>';
   }
   var ACCION_TXT = { registro_personal: 'Registro por personal', liberar: 'Liberación manual', fuera_servicio: 'Fuera de servicio', reactivar: 'Reactivación', config: 'Ajustes', token: 'Nuevo enlace QR' };
@@ -38829,12 +38848,10 @@ showTab('tabNovedades');
   /* ---------- Render: acceso QR y ajustes ---------- */
   function urlPublica() {
     var token = st.cfg.tokenPublico || '';
-    var base = String(st.cfg.urlPublica || '').trim();
+    var base = String(st.cfg.urlPublica || CFG_BASE.urlPublica || '').trim();
     if (!base) {
       base = location.href.split('#')[0].split('?')[0];
       base = base.slice(0, base.lastIndexOf('/') + 1) + PAGINA_PUBLICA;
-    } else if (/\/$/.test(base)) {
-      base += PAGINA_PUBLICA;
     }
     return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'k=' + encodeURIComponent(token);
   }
