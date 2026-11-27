@@ -1896,6 +1896,7 @@
     .pcsh-fabrica-panel .tl-cat.tl-cat-incidentes { background: rgba(220, 38, 38, 0.26); color: #fecaca; }
     .pcsh-fabrica-panel .tl-cat.tl-cat-reclamos { background: rgba(157, 23, 77, 0.3); color: #fbcfe8; }
     .pcsh-fabrica-panel .tl-cat.tl-cat-multa { background: rgba(217, 119, 6, 0.28); color: #fcd34d; }
+    .pcsh-fabrica-panel .tl-cat.tl-cat-lavanderia { background: rgba(56, 189, 248, 0.24); color: #7dd3fc; }
     .pcsh-fabrica-panel .tl-reclamo-est,
     #tabPersonal .tl-reclamo-est,
     #mainApp .tl-reclamo-est {
@@ -2004,6 +2005,7 @@
     .pcsh-fabrica-panel .tl-card-nov-incidentes { border-left: 3px solid #b91c1c; }
     .pcsh-fabrica-panel .tl-card-nov-reclamos { border-left: 3px solid #be185d; }
     .pcsh-fabrica-panel .tl-card-nov-multa { border-left: 3px solid #d97706; }
+    .pcsh-fabrica-panel .tl-card-nov-lavanderia { border-left: 3px solid #38bdf8; }
     .pcsh-fabrica-panel .tl-card-nov-otros { border-left: 3px solid #64748b; }
     .pcsh-fabrica-panel .tl-card-nov-default { border-left: 3px solid var(--gray-400); }
     .pcsh-fabrica-panel .tl-card-nov-admin {
@@ -3980,6 +3982,7 @@
               <option value="Incidentes">Incidentes</option>
               <option value="Reclamos">Reclamos</option>
               <option value="Multa">Multa</option>
+              <option value="Lavandería">Lavandería</option>
               <option value="Otros">Otros</option>
             </select>
           </div>
@@ -4054,6 +4057,7 @@
               <option value="Incidentes">Incidentes</option>
               <option value="Reclamos">Reclamos</option>
               <option value="Multa">Multa</option>
+              <option value="Lavandería">Lavandería</option>
               <option value="Otros">Otros</option>
             </select>
           </div>
@@ -6748,6 +6752,7 @@
               <option value="Incidentes">Incidentes</option>
               <option value="Reclamos">Reclamos</option>
               <option value="Multa">Multa</option>
+              <option value="Lavandería">Lavandería</option>
               <option value="Otros">Otros</option>
             </select>
           </div>
@@ -7955,6 +7960,7 @@ var PCSH_ETIQUETAS_NOVEDAD_DEFAULT = [
   { id: 'incidencias', label: 'Incidentes', color: '#b91c1c' },
   { id: 'reclamos', label: 'Reclamos', color: '#be185d' },
   { id: 'multa', label: 'Multa', color: '#ea580c' },
+  { id: 'lavanderia', label: 'Lavandería', color: '#38bdf8' },
   { id: 'otros', label: 'Otros', color: '#78716c' }
 ];
 window.__pcshCatalogoNovedades = { etiquetas: PCSH_ETIQUETAS_NOVEDAD_DEFAULT.map(function (e) { return Object.assign({}, e); }), avisoMejorasActivo: true };
@@ -7982,7 +7988,11 @@ function pcshEtiquetasNovedadCatalogo(opts) {
     var color = /^#[0-9a-fA-F]{6}$/.test(String(e.color || '')) ? String(e.color) : '#64748b';
     out.push({ id: String(e.id || pcshSlugEtiquetaNovedad(lab)), label: lab, color: color, activa: !e || e.activa !== false });
   });
-  return out.length ? out : PCSH_ETIQUETAS_NOVEDAD_DEFAULT.map(function (e) { return Object.assign({}, e); });
+  if (!out.length) out = PCSH_ETIQUETAS_NOVEDAD_DEFAULT.map(function (e) { return Object.assign({}, e); });
+  if (!out.some(function (e) { return pcshSlugEtiquetaNovedad(e.label) === 'lavanderia' || e.id === 'lavanderia'; })) {
+    out.splice(Math.max(0, out.length - 1), 0, { id: 'lavanderia', label: 'Lavandería', color: '#38bdf8', activa: true });
+  }
+  return out;
 }
 
 function pcshEncontrarEtiquetaNovedad(cat) {
@@ -20383,6 +20393,7 @@ function categoriaBadgeClass(cat, esAdmin) {
     incidencias: 'tl-cat-incidentes',
     reclamos: 'tl-cat-reclamos',
     multa: 'tl-cat-multa',
+    lavanderia: 'tl-cat-lavanderia',
     otros: 'tl-cat-otros'
   };
   return map[c] || 'tl-cat-default';
@@ -20407,6 +20418,7 @@ function categoriaCardClass(cat, esAdmin) {
     incidencias: 'tl-card-nov-incidentes',
     reclamos: 'tl-card-nov-reclamos',
     multa: 'tl-card-nov-multa',
+    lavanderia: 'tl-card-nov-lavanderia',
     otros: 'tl-card-nov-otros'
   };
   return map[c] || 'tl-card-nov-default';
@@ -38302,6 +38314,8 @@ showTab('tabNovedades');
   var COL_EQ = 'pcsh_lavanderia_equipos';
   var COL_USOS = 'pcsh_lavanderia_usos';
   var COL_EV = 'pcsh_lavanderia_eventos';
+  var COL_REP = 'pcsh_lavanderia_reportes';
+  var SPINOK_CC = 'serviciocliente@spinok.cl';
   var PAGINA_PUBLICA = 'lavanderia-wm.html';
   var N_POR_TIPO = 5;
   var TIPOS = [
@@ -38339,7 +38353,8 @@ showTab('tabNovedades');
     unsubHist: null,
     unsubEv: null,
     uiLista: false,
-    correoEnVuelo: {}
+    correoEnVuelo: {},
+    reporteEnVuelo: {}
   };
 
   function fsOk() {
@@ -38509,9 +38524,15 @@ showTab('tabNovedades');
     db.collection(COL_USOS).where('correoEstado', '==', 'pendiente').onSnapshot(function (qs) {
       qs.forEach(function (d) { procesarCorreo(d.id); });
     }, function (e) { console.warn('[lavandería] cola de correo', e); });
+    db.collection(COL_REP).where('novedadEstado', '==', 'pendiente').onSnapshot(function (qs) {
+      qs.forEach(function (d) { procesarReporte(d.id); });
+    }, function (e) { console.warn('[lavandería] cola de reportes', e); });
     setInterval(function () {
       db.collection(COL_USOS).where('correoEstado', '==', 'procesando').get().then(function (qs) {
         qs.forEach(function (d) { procesarCorreo(d.id); });
+      }).catch(function () {});
+      db.collection(COL_REP).where('novedadEstado', '==', 'procesando').get().then(function (qs) {
+        qs.forEach(function (d) { procesarReporte(d.id); });
       }).catch(function () {});
     }, 180000);
     setInterval(function () { if (visible() && st.sub === 'mapa') renderMapa(); }, 30000);
@@ -38591,6 +38612,147 @@ showTab('tabNovedades');
     }).then(function (r) {
       if (r && r.exito) return { estado: r.via === 'mail' ? 'enviado' : 'encolado', detalle: to };
       return { estado: 'error', detalle: (r && r.error) || 'No se pudo enviar' };
+    });
+  }
+
+  /* ---------- Reportes de residentes → novedad + correo respaldo ---------- */
+  function textoNovedadReporte(rep) {
+    var eqNom = (tipoInfo(rep.tipo).label || 'Equipo') + ' ' + (rep.numero || '');
+    var parts = [
+      'Reporte desde la app de lavandería.',
+      'Unidad ' + (rep.unidad || '—') + ' reportó problema en ' + eqNom + '.',
+      'Motivo: ' + (rep.motivo || '—') + '.'
+    ];
+    if (rep.detalle) parts.push('Detalle del residente: ' + String(rep.detalle).trim());
+    if (rep.equipoEstado) parts.push('Estado del equipo al reportar: ' + String(rep.equipoEstado) + '.');
+    return parts.join(' ');
+  }
+  function crearNovedadLavanderia(rep) {
+    var metaRef = db.collection('meta').doc('correlativo');
+    var corOut = null;
+    return db.runTransaction(function (tx) {
+      return tx.get(metaRef).then(function (s) {
+        var cor = s.exists && s.data() && s.data().valor ? Number(s.data().valor) : 1;
+        if (!isFinite(cor) || cor < 1) cor = 1;
+        corOut = cor;
+        var nov = {
+          correlativo: cor,
+          fecha: fechaActual(),
+          hora: horaActual(),
+          mes: typeof pcshMesCalendarioChile === 'function' ? pcshMesCalendarioChile() : '',
+          conserje: 'App Lavandería',
+          texto: textoNovedadReporte(rep),
+          esAdmin: false,
+          categoria: 'Lavandería',
+          depto: String(rep.unidad || ''),
+          origen: 'lavanderia_reporte',
+          reporteId: rep.id,
+          notaInterna: 'Origen: app QR residente · reporte ' + rep.id
+        };
+        tx.set(db.collection('novedades').doc(String(cor)), nov);
+        tx.set(metaRef, { valor: cor + 1 }, { merge: true });
+      });
+    }).then(function () { return corOut; });
+  }
+  function enviarCorreoReporte(rep, correlativo) {
+    var to = correosUnidad(rep.unidad);
+    if (!to) return Promise.resolve({ estado: 'sin_correo', detalle: 'La unidad no tiene correos de aviso registrados.' });
+    var edificio = st.cfg.nombreEdificio || CFG_BASE.nombreEdificio;
+    var eqNom = (tipoInfo(rep.tipo).label || 'Equipo') + ' ' + (rep.numero || '');
+    var filas = [
+      { k: 'Edificio', v: edificio },
+      { k: 'Departamento', v: String(rep.unidad || '') },
+      { k: 'Equipo', v: eqNom },
+      { k: 'Motivo reportado', v: String(rep.motivo || '—') },
+      { k: 'Detalle', v: String(rep.detalle || '—') },
+      { k: 'Novedad en conserjería', v: correlativo ? ('N° ' + correlativo + ' · etiqueta Lavandería') : 'Registrada' },
+      { k: 'Fecha del reporte', v: fmt(rep.creadoAt) }
+    ];
+    var destacado = 'Ante problemas de devolución de dinero, la administración se hace responsable. Debe escribir al servicio al cliente de SpinOk (' + SPINOK_CC + ').';
+    var contacto =
+      'Ante dudas o requerimientos de servicio técnico, contacte a SpinOk:\n' +
+      'Teléfono: +56 2 2231 6060\n' +
+      'Correo: ' + SPINOK_CC + '\n' +
+      'Horario:\n' +
+      'Lunes a Viernes: 09:00 a 21:00 hrs\n' +
+      'Sábados, Domingos y Festivos: 10:00 a 20:00 hrs';
+    var mensaje = 'Recibimos su reporte sobre ' + eqNom + ' desde la app de lavandería. Quedó registrado en el libro de novedades de conserjería con la etiqueta Lavandería' +
+      (correlativo ? ' (novedad N° ' + correlativo + ')' : '') +
+      '. Este correo es un respaldo automático para usted y para el servicio al cliente de SpinOk.';
+    var texto = 'Estimado/a residente de la unidad ' + rep.unidad + ':\n\n' + mensaje + '\n\n⚠ IMPORTANTE: ' + destacado +
+      '\n\n' + filas.map(function (f) { return f.k + ': ' + f.v; }).join('\n') +
+      '\n\n' + contacto +
+      '\n\nSi usted no realizó este reporte, comuníquese de inmediato con conserjería.';
+    var html = pcshHtmlAvisoOperativo({
+      tono: '#0284c7',
+      titulo: 'Reporte de lavandería recibido',
+      saludo: 'Estimado/a residente de la unidad ' + rep.unidad + ':',
+      mensaje: mensaje,
+      destacado: destacado,
+      filas: filas.concat([
+        { k: 'Teléfono SpinOk', v: '+56 2 2231 6060' },
+        { k: 'Correo SpinOk', v: SPINOK_CC },
+        { k: 'Horario Lun–Vie', v: '09:00 a 21:00 hrs' },
+        { k: 'Horario Sáb–Dom y festivos', v: '10:00 a 20:00 hrs' }
+      ]),
+      cierre: 'Ante dudas o requerimientos de servicio técnico, contacte a SpinOk. Si necesita apoyo en el edificio, también puede acercarse a conserjería.'
+    });
+    return pcshEnviarCorreoPorGestion({
+      to: to,
+      cc: SPINOK_CC,
+      asunto: 'Lavandería — reporte ' + eqNom + ' · Depto ' + rep.unidad,
+      texto: texto,
+      html: html,
+      origen: 'conserjeria-lavanderia-reporte',
+      refId: rep.id,
+      fase: 'reporte'
+    }).then(function (r) {
+      if (r && r.exito) return { estado: r.via === 'mail' ? 'enviado' : 'encolado', detalle: to + ' · CC ' + SPINOK_CC };
+      return { estado: 'error', detalle: (r && r.error) || 'No se pudo enviar' };
+    });
+  }
+  function procesarReporte(repId) {
+    if (st.reporteEnVuelo[repId]) return;
+    st.reporteEnVuelo[repId] = true;
+    var ref = db.collection(COL_REP).doc(repId);
+    var rep = null;
+    db.runTransaction(function (tx) {
+      return tx.get(ref).then(function (s) {
+        if (!s.exists) return false;
+        var d = s.data() || {};
+        var reclamoVencido = d.novedadEstado === 'procesando' && Date.now() - (Date.parse(d.novedadClaimAt || '') || 0) > 180000;
+        if (d.novedadEstado !== 'pendiente' && !reclamoVencido) return false;
+        rep = Object.assign({ id: s.id }, d);
+        tx.update(ref, { novedadEstado: 'procesando', novedadClaimAt: nowIso() });
+        return true;
+      });
+    }).then(function (tomado) {
+      if (!tomado) return null;
+      return asegurarUnidadesCargadas().then(function () {
+        return crearNovedadLavanderia(rep).then(function (cor) {
+          return enviarCorreoReporte(rep, cor).then(function (rMail) {
+            return ref.update({
+              novedadEstado: 'ok',
+              novedadCorrelativo: cor || null,
+              novedadAt: nowIso(),
+              correoEstado: rMail.estado,
+              correoDetalle: rMail.detalle || '',
+              correoAt: nowIso()
+            });
+          });
+        });
+      }).catch(function (e) {
+        console.warn('[lavandería] reporte', e);
+        return ref.update({
+          novedadEstado: 'error',
+          novedadDetalle: (e && e.message) || String(e),
+          novedadAt: nowIso()
+        });
+      });
+    }).catch(function (e) {
+      console.warn('[lavandería] claim reporte', e);
+    }).then(function () {
+      delete st.reporteEnVuelo[repId];
     });
   }
 
