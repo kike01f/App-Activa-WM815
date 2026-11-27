@@ -38354,6 +38354,7 @@ showTab('tabNovedades');
     unsubEv: null,
     uiLista: false,
     correoEnVuelo: {},
+    avisoFinEnVuelo: {},
     reporteEnVuelo: {}
   };
 
@@ -38520,6 +38521,7 @@ showTab('tabNovedades');
       qs.forEach(function (d) { activos[d.id] = d.data(); });
       st.activos = activos;
       if (visible()) renderMapa();
+      revisarAvisosFinCiclo();
     }, function (e) { console.warn('[lavandería] usos activos', e); });
     db.collection(COL_USOS).where('correoEstado', '==', 'pendiente').onSnapshot(function (qs) {
       qs.forEach(function (d) { procesarCorreo(d.id); });
@@ -38535,7 +38537,11 @@ showTab('tabNovedades');
         qs.forEach(function (d) { procesarReporte(d.id); });
       }).catch(function () {});
     }, 180000);
-    setInterval(function () { if (visible() && st.sub === 'mapa') renderMapa(); }, 30000);
+    setInterval(function () {
+      revisarAvisosFinCiclo();
+      if (visible() && st.sub === 'mapa') renderMapa();
+    }, 30000);
+    setTimeout(revisarAvisosFinCiclo, 4000);
     window.addEventListener('pcsh-wm815-units-updated', publicarUnidades);
   }
 
@@ -38612,6 +38618,107 @@ showTab('tabNovedades');
     }).then(function (r) {
       if (r && r.exito) return { estado: r.via === 'mail' ? 'enviado' : 'encolado', detalle: to };
       return { estado: 'error', detalle: (r && r.error) || 'No se pudo enviar' };
+    });
+  }
+
+  /* ---------- Aviso 7 min antes del fin del ciclo ---------- */
+  function momentoAvisoFin(uso) {
+    var avisoAt = Date.parse(uso.avisoFinAt || '');
+    if (isFinite(avisoAt) && avisoAt > 0) return avisoAt;
+    var inicio = Date.parse(uso.inicio || '');
+    if (!isFinite(inicio)) return 0;
+    var dur = Number(uso.duracionEstimadaMin);
+    if (!(dur > 0)) dur = duracionEstimadaMin(uso.tipo);
+    return inicio + Math.max(1, dur - 7) * 60000;
+  }
+  function finEstimadoIso(uso) {
+    if (uso.finEstimadoAt) return uso.finEstimadoAt;
+    var inicio = Date.parse(uso.inicio || '');
+    var dur = Number(uso.duracionEstimadaMin);
+    if (!(dur > 0)) dur = duracionEstimadaMin(uso.tipo);
+    if (!isFinite(inicio)) return '';
+    return new Date(inicio + dur * 60000).toISOString();
+  }
+  function revisarAvisosFinCiclo() {
+    if (!fsOk()) return;
+    Object.keys(st.activos || {}).forEach(function (id) {
+      var uso = Object.assign({ id: id }, st.activos[id] || {});
+      if (uso.estado && uso.estado !== 'en_uso') return;
+      var est = uso.avisoFinEstado || 'pendiente';
+      if (est !== 'pendiente' && est !== 'procesando') return;
+      if (est === 'procesando') {
+        var claim = Date.parse(uso.avisoFinClaimAt || '') || 0;
+        if (claim && Date.now() - claim < 180000) return;
+      }
+      if (Date.now() < momentoAvisoFin(uso)) return;
+      procesarAvisoFin(id);
+    });
+  }
+  function enviarCorreoAvisoFin(uso) {
+    var to = correosUnidad(uso.unidad);
+    if (!to) return Promise.resolve({ estado: 'sin_correo', detalle: 'La unidad no tiene correos de aviso registrados.' });
+    var tipo = tipoInfo(uso.tipo).label;
+    var eqNom = tipo + ' ' + uso.numero;
+    var finIso = finEstimadoIso(uso);
+    var mensaje = 'Tu ciclo en ' + eqNom + ' está por terminar (quedan unos 7 minutos). Retira tu ropa a tiempo y finaliza el uso en la app de lavandería para dejar el equipo disponible.';
+    var filas = [
+      { k: 'Equipo', v: eqNom },
+      { k: 'Departamento', v: String(uso.unidad || '') },
+      { k: 'Fin estimado', v: finIso ? fmt(finIso) : 'En unos minutos' }
+    ];
+    var texto = 'Estimado/a residente de la unidad ' + uso.unidad + ':\n\n' + mensaje +
+      '\n\n' + filas.map(function (f) { return f.k + ': ' + f.v; }).join('\n');
+    return pcshEnviarCorreoPorGestion({
+      to: to,
+      asunto: 'Lavandería — ' + eqNom + ' termina en ~7 min · Depto ' + uso.unidad,
+      texto: texto,
+      html: pcshHtmlAvisoOperativo({
+        tono: '#d97706',
+        titulo: 'Tu ciclo está por terminar',
+        saludo: 'Estimado/a residente de la unidad ' + uso.unidad + ':',
+        mensaje: mensaje,
+        destacado: 'Finaliza el uso desde la app cuando retires tu ropa.',
+        filas: filas,
+        cierre: 'Si ya liberaste el equipo, puedes ignorar este aviso.'
+      }),
+      origen: 'conserjeria-lavanderia-aviso-fin',
+      refId: uso.id,
+      fase: 'aviso-fin'
+    }).then(function (r) {
+      if (r && r.exito) return { estado: r.via === 'mail' ? 'enviado' : 'encolado', detalle: to };
+      return { estado: 'error', detalle: (r && r.error) || 'No se pudo enviar' };
+    });
+  }
+  function procesarAvisoFin(usoId) {
+    if (st.avisoFinEnVuelo[usoId]) return;
+    st.avisoFinEnVuelo[usoId] = true;
+    var ref = db.collection(COL_USOS).doc(usoId);
+    var uso = null;
+    db.runTransaction(function (tx) {
+      return tx.get(ref).then(function (s) {
+        if (!s.exists) return false;
+        var d = s.data() || {};
+        if (d.estado !== 'en_uso') return false;
+        var est = d.avisoFinEstado || 'pendiente';
+        var reclamoVencido = est === 'procesando' && Date.now() - (Date.parse(d.avisoFinClaimAt || '') || 0) > 180000;
+        if (est !== 'pendiente' && !reclamoVencido) return false;
+        if (Date.now() < momentoAvisoFin(d)) return false;
+        uso = Object.assign({ id: s.id }, d);
+        tx.update(ref, { avisoFinEstado: 'procesando', avisoFinClaimAt: nowIso() });
+        return true;
+      });
+    }).then(function (tomado) {
+      if (!tomado) return null;
+      return asegurarUnidadesCargadas()
+        .then(function () { return enviarCorreoAvisoFin(uso); })
+        .catch(function (e) { return { estado: 'error', detalle: (e && e.message) || String(e) }; })
+        .then(function (r) {
+          return ref.update({ avisoFinEstado: r.estado, avisoFinDetalle: r.detalle || '', avisoFinEnvioAt: nowIso() });
+        });
+    }).catch(function (e) {
+      console.warn('[lavandería] aviso fin', e);
+    }).then(function () {
+      delete st.avisoFinEnVuelo[usoId];
     });
   }
 
@@ -38767,6 +38874,11 @@ showTab('tabNovedades');
         var max = Number(cfg.maxPorUnidad) || 0;
         if (max && enUso >= max) throw errUsuario('La unidad ' + unidad + ' ya tiene ' + enUso + ' equipo(s) en uso (máximo ' + max + ').');
         var hash = hashCodigo(usoId, codigo);
+        var durEst = Number(eq.tipo === 'secadora' ? cfg.duracionSecadoraMin : cfg.duracionLavadoraMin);
+        if (!(durEst > 0)) durEst = eq.tipo === 'secadora' ? 60 : 45;
+        var t0 = Date.parse(inicio);
+        var finEst = new Date(t0 + durEst * 60000).toISOString();
+        var avisoAt = new Date(t0 + Math.max(1, durEst - 7) * 60000).toISOString();
         tx.update(refs[idx], {
           estado: 'en_uso', unidad: unidad, usoId: usoId, inicio: inicio, codigoHash: hash, motivo: '',
           actualizadoAt: inicio, actualizadoPor: opts.por, origen: opts.origen
@@ -38776,7 +38888,8 @@ showTab('tabNovedades');
           inicioServidor: firebase.firestore.FieldValue.serverTimestamp(),
           codigo: codigo,
           fin: '', duracionMin: null, estado: 'en_uso', origen: opts.origen, registradoPor: opts.por,
-          liberadoPor: '', liberadoPorNombre: '', correoEstado: 'pendiente', correoIntento: 0
+          liberadoPor: '', liberadoPorNombre: '', correoEstado: 'pendiente', correoIntento: 0,
+          duracionEstimadaMin: durEst, finEstimadoAt: finEst, avisoFinAt: avisoAt, avisoFinEstado: 'pendiente'
         });
         tx.set(evRef, {
           at: inicio, equipoId: eqId, equipo: tipoInfo(eq.tipo).label + ' ' + eq.numero, accion: 'registro_personal',
