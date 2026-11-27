@@ -38592,6 +38592,21 @@ showTab('tabNovedades');
       delete st.correoEnVuelo[usoId];
     });
   }
+  function codigoUsoTxt(uso) {
+    var c = uso && uso.codigo != null ? String(uso.codigo).trim() : '';
+    return c || '—';
+  }
+  function filaCodigoUso(uso) {
+    return { k: 'Código para finalizar el uso', v: codigoUsoTxt(uso) };
+  }
+  function destacadoCodigoUso(uso, tipoLabel) {
+    var cod = codigoUsoTxt(uso);
+    if (cod === '—') {
+      return 'Conserve el código de 4 dígitos de este uso. Si no lo tiene, solicítelo en conserjería junto con su departamento.';
+    }
+    return 'Su código para finalizar el uso es ' + cod + '. Ingréselo junto a su departamento al liberar la ' +
+      String(tipoLabel || 'máquina').toLowerCase() + ' desde el mapa de lavandería.';
+  }
   function enviarCorreoUso(uso) {
     var to = correosUnidad(uso.unidad);
     if (!to) return Promise.resolve({ estado: 'sin_correo', detalle: 'La unidad no tiene correos de aviso registrados.' });
@@ -38604,17 +38619,15 @@ showTab('tabNovedades');
       { k: 'Tipo de equipo', v: tipo },
       { k: 'Número de ' + tipo.toLowerCase(), v: String(uso.numero) },
       { k: 'Fecha y hora del registro', v: fecha },
-      { k: 'Estado', v: 'Registrado a nombre de la unidad ' + uso.unidad }
+      { k: 'Estado', v: 'Registrado a nombre de la unidad ' + uso.unidad },
+      filaCodigoUso(uso)
     ];
-    if (uso.codigo) filas.push({ k: 'Código para finalizar el uso', v: uso.codigo });
-    var destacado = uso.codigo
-      ? 'Su código para finalizar el uso es ' + uso.codigo + '. Ingréselo junto a su departamento al liberar la ' + tipo.toLowerCase() + ' desde el mapa de lavandería.'
-      : '';
+    var destacado = destacadoCodigoUso(uso, tipo);
     var mensaje = 'Le confirmamos que la ' + tipo.toLowerCase() + ' ' + uso.numero + ' quedó registrada a nombre de su unidad. ' +
       'Cuando termine, finalice el uso desde el mapa de lavandería para dejarla disponible.';
     var texto = 'Estimado/a residente de la unidad ' + uso.unidad + ':\n\n' + mensaje + '\n\n' +
       filas.map(function (f) { return f.k + ': ' + f.v; }).join('\n') +
-      (destacado ? '\n\n⚠ IMPORTANTE: ' + destacado : '') +
+      '\n\n⚠ IMPORTANTE: ' + destacado +
       '\n\nSi usted no realizó este registro, comuníquese de inmediato con conserjería.';
     return pcshEnviarCorreoPorGestion({
       to: to,
@@ -38681,10 +38694,13 @@ showTab('tabNovedades');
     var filas = [
       { k: 'Equipo', v: eqNom },
       { k: 'Departamento', v: String(uso.unidad || '') },
-      { k: 'Fin estimado', v: finIso ? fmt(finIso) : 'En unos minutos' }
+      { k: 'Fin estimado', v: finIso ? fmt(finIso) : 'En unos minutos' },
+      filaCodigoUso(uso)
     ];
+    var destacado = destacadoCodigoUso(uso, tipo);
     var texto = 'Estimado/a residente de la unidad ' + uso.unidad + ':\n\n' + mensaje +
-      '\n\n' + filas.map(function (f) { return f.k + ': ' + f.v; }).join('\n');
+      '\n\n' + filas.map(function (f) { return f.k + ': ' + f.v; }).join('\n') +
+      '\n\n⚠ IMPORTANTE: ' + destacado;
     return pcshEnviarCorreoPorGestion({
       to: to,
       asunto: 'Lavandería — ' + eqNom + ' termina en ~7 min · Depto ' + uso.unidad,
@@ -38694,7 +38710,7 @@ showTab('tabNovedades');
         titulo: 'Tu ciclo está por terminar',
         saludo: 'Estimado/a residente de la unidad ' + uso.unidad + ':',
         mensaje: mensaje,
-        destacado: 'Finaliza el uso desde la app cuando retires tu ropa.',
+        destacado: destacado,
         filas: filas,
         cierre: 'Si ya liberaste el equipo, puedes ignorar este aviso.'
       }),
@@ -38772,11 +38788,14 @@ showTab('tabNovedades');
       { k: 'Equipo', v: eqNom },
       { k: 'Departamento', v: String(uso.unidad || '') },
       { k: 'Fin estimado', v: finIso ? fmt(finIso) : 'Ya vencido' },
-      { k: 'Estado en mapa', v: 'Tiempo vencido (naranja)' }
+      { k: 'Estado en mapa', v: 'Tiempo vencido' },
+      filaCodigoUso(uso)
     ];
+    var destacado = destacadoCodigoUso(uso, tipo) +
+      ' Retire su ropa ahora. Si no lo hace, conserjería podrá retirarla para dar facilidad a otro residente.';
     var texto = 'Estimado/a residente de la unidad ' + uso.unidad + ':\n\n' + mensaje +
       '\n\n' + filas.map(function (f) { return f.k + ': ' + f.v; }).join('\n') +
-      '\n\n⚠ ADVERTENCIA: Su ropa podrá ser retirada por conserjería para liberar el equipo.';
+      '\n\n⚠ ADVERTENCIA: ' + destacado;
     return pcshEnviarCorreoPorGestion({
       to: to,
       asunto: 'Lavandería — ' + eqNom + ' con tiempo vencido · Depto ' + uso.unidad,
@@ -38786,7 +38805,7 @@ showTab('tabNovedades');
         titulo: 'Tiempo de ciclo vencido',
         saludo: 'Estimado/a residente de la unidad ' + uso.unidad + ':',
         mensaje: mensaje,
-        destacado: 'Retire su ropa ahora. Si no lo hace, conserjería podrá retirarla para dar facilidad a otro residente.',
+        destacado: destacado,
         filas: filas,
         cierre: 'Finalice el uso en la app con su departamento y el código de 4 dígitos. Si ya liberó el equipo, ignore este aviso.'
       }),
