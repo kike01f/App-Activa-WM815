@@ -38618,14 +38618,18 @@ showTab('tabNovedades');
   /* ---------- Reportes de residentes → novedad + correo respaldo ---------- */
   function textoNovedadReporte(rep) {
     var eqNom = (tipoInfo(rep.tipo).label || 'Equipo') + ' ' + (rep.numero || '');
-    var parts = [
-      'Reporte desde la app de lavandería.',
-      'Unidad ' + (rep.unidad || '—') + ' reportó problema en ' + eqNom + '.',
-      'Motivo: ' + (rep.motivo || '—') + '.'
+    var estadoEq = ESTADO_TXT[rep.equipoEstado] || '';
+    var lines = [
+      'Falla de lavandería',
+      '',
+      'Unidad: ' + (rep.unidad || '—'),
+      'Equipo: ' + eqNom
     ];
-    if (rep.detalle) parts.push('Detalle del residente: ' + String(rep.detalle).trim());
-    if (rep.equipoEstado) parts.push('Estado del equipo al reportar: ' + String(rep.equipoEstado) + '.');
-    return parts.join(' ');
+    if (estadoEq) lines.push('Estado: ' + estadoEq);
+    lines.push('Motivo: ' + (rep.motivo || '—'));
+    var det = String(rep.detalle || '').trim();
+    if (det) lines.push('Detalle: ' + det);
+    return lines.join('\n');
   }
   function crearNovedadLavanderia(rep) {
     var metaRef = db.collection('meta').doc('correlativo');
@@ -38645,9 +38649,7 @@ showTab('tabNovedades');
           esAdmin: false,
           categoria: 'Lavandería',
           depto: String(rep.unidad || ''),
-          origen: 'lavanderia_reporte',
-          reporteId: rep.id,
-          notaInterna: 'Origen: app QR residente · reporte ' + rep.id
+          origen: 'lavanderia_reporte'
         };
         tx.set(db.collection('novedades').doc(String(cor)), nov);
         tx.set(metaRef, { valor: cor + 1 }, { merge: true });
@@ -38665,7 +38667,7 @@ showTab('tabNovedades');
       { k: 'Equipo', v: eqNom },
       { k: 'Motivo reportado', v: String(rep.motivo || '—') },
       { k: 'Detalle', v: String(rep.detalle || '—') },
-      { k: 'Novedad en conserjería', v: correlativo ? ('N° ' + correlativo + ' · etiqueta Lavandería') : 'Registrada' },
+      { k: 'Novedad en conserjería', v: correlativo ? ('N° ' + correlativo) : 'Registrada' },
       { k: 'Fecha del reporte', v: fmt(rep.creadoAt) }
     ];
     var destacado = 'Ante problemas de devolución de dinero, la administración se hace responsable. Debe escribir al servicio al cliente de SpinOk (' + SPINOK_CC + ').';
@@ -38676,7 +38678,7 @@ showTab('tabNovedades');
       'Horario:\n' +
       'Lunes a Viernes: 09:00 a 21:00 hrs\n' +
       'Sábados, Domingos y Festivos: 10:00 a 20:00 hrs';
-    var mensaje = 'Recibimos su reporte sobre ' + eqNom + ' desde la app de lavandería. Quedó registrado en el libro de novedades de conserjería con la etiqueta Lavandería' +
+    var mensaje = 'Recibimos su reporte sobre ' + eqNom + ' desde la app de lavandería. Quedó registrado en el libro de novedades de conserjería' +
       (correlativo ? ' (novedad N° ' + correlativo + ')' : '') +
       '. Este correo es un respaldo automático para usted y para el servicio al cliente de SpinOk.';
     var texto = 'Estimado/a residente de la unidad ' + rep.unidad + ':\n\n' + mensaje + '\n\n⚠ IMPORTANTE: ' + destacado +
