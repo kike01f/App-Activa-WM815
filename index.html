@@ -38656,53 +38656,39 @@ showTab('tabNovedades');
       });
     }).then(function () { return corOut; });
   }
-  function enviarCorreoReporte(rep, correlativo) {
+  function enviarCorreoReporte(rep) {
     var to = correosUnidad(rep.unidad);
     if (!to) return Promise.resolve({ estado: 'sin_correo', detalle: 'La unidad no tiene correos de aviso registrados.' });
-    var edificio = st.cfg.nombreEdificio || CFG_BASE.nombreEdificio;
     var eqNom = (tipoInfo(rep.tipo).label || 'Equipo') + ' ' + (rep.numero || '');
+    var det = String(rep.detalle || '').trim();
     var filas = [
-      { k: 'Edificio', v: edificio },
       { k: 'Departamento', v: String(rep.unidad || '') },
       { k: 'Equipo', v: eqNom },
-      { k: 'Motivo reportado', v: String(rep.motivo || '—') },
-      { k: 'Detalle', v: String(rep.detalle || '—') },
-      { k: 'Novedad en conserjería', v: correlativo ? ('N° ' + correlativo) : 'Registrada' },
-      { k: 'Fecha del reporte', v: fmt(rep.creadoAt) }
+      { k: 'Motivo', v: String(rep.motivo || '—') }
     ];
-    var destacado = 'Ante problemas de devolución de dinero, la administración se hace responsable. Debe escribir al servicio al cliente de SpinOk (' + SPINOK_CC + ').';
-    var contacto =
-      'Ante dudas o requerimientos de servicio técnico, contacte a SpinOk:\n' +
-      'Teléfono: +56 2 2231 6060\n' +
-      'Correo: ' + SPINOK_CC + '\n' +
-      'Horario:\n' +
-      'Lunes a Viernes: 09:00 a 21:00 hrs\n' +
-      'Sábados, Domingos y Festivos: 10:00 a 20:00 hrs';
-    var mensaje = 'Recibimos su reporte sobre ' + eqNom + ' desde la app de lavandería. Quedó registrado en el libro de novedades de conserjería' +
-      (correlativo ? ' (novedad N° ' + correlativo + ')' : '') +
-      '. Este correo es un respaldo automático para usted y para el servicio al cliente de SpinOk.';
-    var texto = 'Estimado/a residente de la unidad ' + rep.unidad + ':\n\n' + mensaje + '\n\n⚠ IMPORTANTE: ' + destacado +
+    if (det) filas.push({ k: 'Detalle', v: det });
+    var mensaje = 'Tu edificio te ayuda. Recibimos tu reporte de ' + eqNom + ' y también lo enviamos al proveedor (SpinOk), que va en copia en este mismo correo. Puedes hacer el seguimiento respondiendo aquí.';
+    var destacado = 'Si necesitas devolución de dinero, la administración se hace responsable: escribe a ' + SPINOK_CC + '.';
+    var cierre =
+      'Servicio técnico SpinOk · +56 2 2231 6060 · ' + SPINOK_CC +
+      ' · Lun–Vie 09:00–21:00 · Sáb, Dom y festivos 10:00–20:00. Si necesitas apoyo en el edificio, conserjería también puede orientarte.';
+    var texto = 'Estimado/a residente de la unidad ' + rep.unidad + ':\n\n' + mensaje +
+      '\n\n' + destacado +
       '\n\n' + filas.map(function (f) { return f.k + ': ' + f.v; }).join('\n') +
-      '\n\n' + contacto +
-      '\n\nSi usted no realizó este reporte, comuníquese de inmediato con conserjería.';
+      '\n\n' + cierre;
     var html = pcshHtmlAvisoOperativo({
       tono: '#0284c7',
-      titulo: 'Reporte de lavandería recibido',
+      titulo: 'Tu edificio te ayuda',
       saludo: 'Estimado/a residente de la unidad ' + rep.unidad + ':',
       mensaje: mensaje,
       destacado: destacado,
-      filas: filas.concat([
-        { k: 'Teléfono SpinOk', v: '+56 2 2231 6060' },
-        { k: 'Correo SpinOk', v: SPINOK_CC },
-        { k: 'Horario Lun–Vie', v: '09:00 a 21:00 hrs' },
-        { k: 'Horario Sáb–Dom y festivos', v: '10:00 a 20:00 hrs' }
-      ]),
-      cierre: 'Ante dudas o requerimientos de servicio técnico, contacte a SpinOk. Si necesita apoyo en el edificio, también puede acercarse a conserjería.'
+      filas: filas,
+      cierre: cierre
     });
     return pcshEnviarCorreoPorGestion({
       to: to,
       cc: SPINOK_CC,
-      asunto: 'Lavandería — reporte ' + eqNom + ' · Depto ' + rep.unidad,
+      asunto: 'Lavandería — ' + eqNom + ' · Depto ' + rep.unidad,
       texto: texto,
       html: html,
       origen: 'conserjeria-lavanderia-reporte',
@@ -38732,7 +38718,7 @@ showTab('tabNovedades');
       if (!tomado) return null;
       return asegurarUnidadesCargadas().then(function () {
         return crearNovedadLavanderia(rep).then(function (cor) {
-          return enviarCorreoReporte(rep, cor).then(function (rMail) {
+          return enviarCorreoReporte(rep).then(function (rMail) {
             return ref.update({
               novedadEstado: 'ok',
               novedadCorrelativo: cor || null,
