@@ -3765,7 +3765,7 @@
   </style>
   <style>
     /* Lavandería */
-    #tabLavanderia { --lav-ok: #22c55e; --lav-uso: #3b82f6; --lav-off: #ef4444; }
+    #tabLavanderia { --lav-ok: #22c55e; --lav-uso: #3b82f6; --lav-tarde: #f97316; --lav-off: #ef4444; }
     #tabLavanderia .cg-lav-subnav { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.45rem; }
     #tabLavanderia .cg-lav-sub-tab.active { background: var(--blue-500) !important; color: var(--on-accent) !important; border-color: var(--blue-500) !important; }
     #tabLavanderia .cg-module-stats { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: stretch; margin-bottom: 0.45rem; }
@@ -3774,12 +3774,14 @@
     #tabLavanderia .cg-stat-chip-lbl { font-size: 0.62rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.2rem; }
     #tabLavanderia .cg-stat-chip--ok .cg-stat-chip-val { color: var(--lav-ok); }
     #tabLavanderia .cg-stat-chip--uso .cg-stat-chip-val { color: #60a5fa; }
+    #tabLavanderia .cg-stat-chip--tarde .cg-stat-chip-val { color: #fb923c; }
     #tabLavanderia .cg-stat-chip--off .cg-stat-chip-val { color: #f87171; }
     #tabLavanderia .card.cg-card-accent--lav { border-top: 3px solid #38bdf8; }
     #tabLavanderia .cg-lav-legend { display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); }
     #tabLavanderia .cg-lav-legend span::before { content: ''; display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 50%; margin-right: 0.35rem; vertical-align: -1px; }
     #tabLavanderia .cg-lav-legend .l-ok::before { background: var(--lav-ok); }
     #tabLavanderia .cg-lav-legend .l-uso::before { background: var(--lav-uso); }
+    #tabLavanderia .cg-lav-legend .l-tarde::before { background: var(--lav-tarde); }
     #tabLavanderia .cg-lav-legend .l-off::before { background: var(--lav-off); }
     #tabLavanderia .cg-lav-group-title { margin: 0.2rem 0 0.5rem; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); }
     #tabLavanderia .cg-lav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); gap: 0.7rem; margin-bottom: 0.9rem; align-items: stretch; }
@@ -3790,6 +3792,7 @@
       border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); box-shadow: 0 6px 18px rgba(0,0,0,0.25);
     }
     .cg-lav-card.is-en_uso { --c: var(--lav-uso, #3b82f6); }
+    .cg-lav-card.is-en_uso.is-tarde { --c: var(--lav-tarde, #f97316); }
     .cg-lav-card.is-fuera_servicio { --c: var(--lav-off, #ef4444); }
     .cg-lav-card-h { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; text-align: center; }
     .cg-lav-card-h strong {
@@ -3807,6 +3810,7 @@
     .cg-lav-maq::after { content: ''; position: absolute; right: 0.42rem; top: 0.42rem; width: 1.2rem; height: 0.28rem; border-radius: 99px; background: #94a3b8; }
     .cg-lav-door { position: absolute; left: 50%; top: 1.25rem; width: 3.1rem; height: 3.1rem; margin-left: -1.55rem; border-radius: 50%; background: #475569; border: 0.26rem solid #94a3b8; overflow: hidden; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.8); font-size: 0.95rem; }
     .cg-lav-card.is-en_uso .cg-lav-door { background: radial-gradient(circle at 35% 35%, #93c5fd, #1d4ed8); }
+    .cg-lav-card.is-en_uso.is-tarde .cg-lav-door { background: radial-gradient(circle at 35% 35%, #fdba74, #c2410c); }
     .cg-lav-card.is-en_uso .cg-lav-door i { animation: cgLavGiro 1.6s linear infinite; }
     .cg-lav-card.is-fuera_servicio .cg-lav-door { background: #3f1d1d; color: #fca5a5; }
     @keyframes cgLavGiro { to { transform: rotate(360deg); } }
@@ -3816,7 +3820,7 @@
       min-height: 4.6rem; text-align: center;
     }
     .cg-lav-info b { color: var(--text-main); font-size: 1.02rem; }
-    .cg-lav-info .is-late { color: #fbbf24; font-weight: 700; }
+    .cg-lav-info .is-late { color: #fb923c; font-weight: 700; }
     .cg-lav-info .cg-lav-cod {
       display: inline-flex; align-items: center; gap: 0.25rem; margin: 0.15rem 0;
       padding: 0.15rem 0.5rem; border-radius: 6px;
@@ -3837,6 +3841,7 @@
     #tabLavanderia .cg-lav-tbl-wrap td.t-l { text-align: left; }
     #tabLavanderia .cg-lav-badge { display: inline-block; padding: 0.1rem 0.45rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; background: var(--gray-200); color: var(--text-main); }
     #tabLavanderia .cg-lav-badge.b-uso { background: #1d4ed8; color: #fff; }
+    #tabLavanderia .cg-lav-badge.b-tarde { background: #c2410c; color: #fff; }
     #tabLavanderia .cg-lav-badge.b-ok { background: #15803d; color: #fff; }
     #tabLavanderia .cg-lav-badge.b-err { background: #b91c1c; color: #fff; }
     #tabLavanderia .cg-lav-filters { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; }
@@ -6428,7 +6433,7 @@
       <div class="card cg-card-accent--lav">
         <div class="card-h">
           <h3><i class="fa-solid fa-soap" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Mapa de lavandería</h3>
-          <div class="cg-lav-legend"><span class="l-ok">Disponible</span><span class="l-uso">En uso</span><span class="l-off">Fuera de servicio</span></div>
+          <div class="cg-lav-legend"><span class="l-ok">Disponible</span><span class="l-uso">En uso</span><span class="l-tarde">Tiempo vencido</span><span class="l-off">Fuera de servicio</span></div>
         </div>
         <div class="card-b"><div id="cg-lav-map" aria-live="polite"><p class="page-desc" style="margin:0">Cargando equipos…</p></div></div>
       </div>
@@ -38361,6 +38366,7 @@ showTab('tabNovedades');
     uiLista: false,
     correoEnVuelo: {},
     avisoFinEnVuelo: {},
+    avisoRetiroEnVuelo: {},
     reporteEnVuelo: {}
   };
 
@@ -38528,6 +38534,7 @@ showTab('tabNovedades');
       st.activos = activos;
       if (visible()) renderMapa();
       revisarAvisosFinCiclo();
+      revisarAvisosRetiro();
     }, function (e) { console.warn('[lavandería] usos activos', e); });
     db.collection(COL_USOS).where('correoEstado', '==', 'pendiente').onSnapshot(function (qs) {
       qs.forEach(function (d) { procesarCorreo(d.id); });
@@ -38545,9 +38552,13 @@ showTab('tabNovedades');
     }, 180000);
     setInterval(function () {
       revisarAvisosFinCiclo();
+      revisarAvisosRetiro();
       if (visible() && st.sub === 'mapa') renderMapa();
     }, 30000);
-    setTimeout(revisarAvisosFinCiclo, 4000);
+    setTimeout(function () {
+      revisarAvisosFinCiclo();
+      revisarAvisosRetiro();
+    }, 4000);
     window.addEventListener('pcsh-wm815-units-updated', publicarUnidades);
   }
 
@@ -38728,6 +38739,99 @@ showTab('tabNovedades');
     });
   }
 
+  /* ---------- Advertencia: ciclo vencido / retiro de ropa ---------- */
+  function momentoAvisoRetiro(uso) {
+    var finIso = finEstimadoIso(uso);
+    var finAt = Date.parse(finIso || '');
+    return isFinite(finAt) && finAt > 0 ? finAt : 0;
+  }
+  function revisarAvisosRetiro() {
+    if (!fsOk()) return;
+    Object.keys(st.activos || {}).forEach(function (id) {
+      var uso = Object.assign({ id: id }, st.activos[id] || {});
+      if (uso.estado && uso.estado !== 'en_uso') return;
+      var est = uso.avisoRetiroEstado || 'pendiente';
+      if (est !== 'pendiente' && est !== 'procesando') return;
+      if (est === 'procesando') {
+        var claim = Date.parse(uso.avisoRetiroClaimAt || '') || 0;
+        if (claim && Date.now() - claim < 180000) return;
+      }
+      var momento = momentoAvisoRetiro(uso);
+      if (!momento || Date.now() < momento) return;
+      procesarAvisoRetiro(id);
+    });
+  }
+  function enviarCorreoAvisoRetiro(uso) {
+    var to = correosUnidad(uso.unidad);
+    if (!to) return Promise.resolve({ estado: 'sin_correo', detalle: 'La unidad no tiene correos de aviso registrados.' });
+    var tipo = tipoInfo(uso.tipo).label;
+    var eqNom = tipo + ' ' + uso.numero;
+    var finIso = finEstimadoIso(uso);
+    var mensaje = 'El tiempo estimado de su ciclo en ' + eqNom + ' ya se venció. Retire su ropa de inmediato y finalice el uso en la app de lavandería. Si no lo hace, conserjería podrá retirar las prendas para dar facilidad a otro residente.';
+    var filas = [
+      { k: 'Equipo', v: eqNom },
+      { k: 'Departamento', v: String(uso.unidad || '') },
+      { k: 'Fin estimado', v: finIso ? fmt(finIso) : 'Ya vencido' },
+      { k: 'Estado en mapa', v: 'Tiempo vencido (naranja)' }
+    ];
+    var texto = 'Estimado/a residente de la unidad ' + uso.unidad + ':\n\n' + mensaje +
+      '\n\n' + filas.map(function (f) { return f.k + ': ' + f.v; }).join('\n') +
+      '\n\n⚠ ADVERTENCIA: Su ropa podrá ser retirada por conserjería para liberar el equipo.';
+    return pcshEnviarCorreoPorGestion({
+      to: to,
+      asunto: 'Lavandería — ' + eqNom + ' con tiempo vencido · Depto ' + uso.unidad,
+      texto: texto,
+      html: pcshHtmlAvisoOperativo({
+        tono: '#ea580c',
+        titulo: 'Tiempo de ciclo vencido',
+        saludo: 'Estimado/a residente de la unidad ' + uso.unidad + ':',
+        mensaje: mensaje,
+        destacado: 'Retire su ropa ahora. Si no lo hace, conserjería podrá retirarla para dar facilidad a otro residente.',
+        filas: filas,
+        cierre: 'Finalice el uso en la app con su departamento y el código de 4 dígitos. Si ya liberó el equipo, ignore este aviso.'
+      }),
+      origen: 'conserjeria-lavanderia-aviso-retiro',
+      refId: uso.id,
+      fase: 'aviso-retiro'
+    }).then(function (r) {
+      if (r && r.exito) return { estado: r.via === 'mail' ? 'enviado' : 'encolado', detalle: to };
+      return { estado: 'error', detalle: (r && r.error) || 'No se pudo enviar' };
+    });
+  }
+  function procesarAvisoRetiro(usoId) {
+    if (st.avisoRetiroEnVuelo[usoId]) return;
+    st.avisoRetiroEnVuelo[usoId] = true;
+    var ref = db.collection(COL_USOS).doc(usoId);
+    var uso = null;
+    db.runTransaction(function (tx) {
+      return tx.get(ref).then(function (s) {
+        if (!s.exists) return false;
+        var d = s.data() || {};
+        if (d.estado !== 'en_uso') return false;
+        var est = d.avisoRetiroEstado || 'pendiente';
+        var reclamoVencido = est === 'procesando' && Date.now() - (Date.parse(d.avisoRetiroClaimAt || '') || 0) > 180000;
+        if (est !== 'pendiente' && !reclamoVencido) return false;
+        var momento = momentoAvisoRetiro(d);
+        if (!momento || Date.now() < momento) return false;
+        uso = Object.assign({ id: s.id }, d);
+        tx.update(ref, { avisoRetiroEstado: 'procesando', avisoRetiroClaimAt: nowIso() });
+        return true;
+      });
+    }).then(function (tomado) {
+      if (!tomado) return null;
+      return asegurarUnidadesCargadas()
+        .then(function () { return enviarCorreoAvisoRetiro(uso); })
+        .catch(function (e) { return { estado: 'error', detalle: (e && e.message) || String(e) }; })
+        .then(function (r) {
+          return ref.update({ avisoRetiroEstado: r.estado, avisoRetiroDetalle: r.detalle || '', avisoRetiroEnvioAt: nowIso() });
+        });
+    }).catch(function (e) {
+      console.warn('[lavandería] aviso retiro', e);
+    }).then(function () {
+      delete st.avisoRetiroEnVuelo[usoId];
+    });
+  }
+
   /* ---------- Reportes de residentes → novedad + correo respaldo ---------- */
   function textoNovedadReporte(rep) {
     var eqNom = (tipoInfo(rep.tipo).label || 'Equipo') + ' ' + (rep.numero || '');
@@ -38895,7 +38999,8 @@ showTab('tabNovedades');
           codigo: codigo,
           fin: '', duracionMin: null, estado: 'en_uso', origen: opts.origen, registradoPor: opts.por,
           liberadoPor: '', liberadoPorNombre: '', correoEstado: 'pendiente', correoIntento: 0,
-          duracionEstimadaMin: durEst, finEstimadoAt: finEst, avisoFinAt: avisoAt, avisoFinEstado: 'pendiente'
+          duracionEstimadaMin: durEst, finEstimadoAt: finEst, avisoFinAt: avisoAt, avisoFinEstado: 'pendiente',
+          avisoRetiroEstado: 'pendiente'
         });
         tx.set(evRef, {
           at: inicio, equipoId: eqId, equipo: tipoInfo(eq.tipo).label + ' ' + eq.numero, accion: 'registro_personal',
@@ -39012,9 +39117,16 @@ showTab('tabNovedades');
     var el = $('cg-lav-aviso');
     if (el) el.innerHTML = html ? '<div class="cg-lav-warn" role="status">' + html + '</div>' : '';
   }
+  function cicloVencidoEq(eq) {
+    if (!eq || eq.estado !== 'en_uso') return false;
+    var t0 = Date.parse(eq.inicio || '');
+    if (!isFinite(t0)) return false;
+    return Date.now() > t0 + duracionEstimadaMin(eq.tipo) * 60000;
+  }
   function cardHtml(eq) {
     var estado = ESTADO_TXT[eq.estado] ? eq.estado : 'disponible';
-    var pillTxt = estado === 'fuera_servicio' ? 'Sin servicio' : ESTADO_TXT[estado];
+    var tarde = cicloVencidoEq(eq);
+    var pillTxt = estado === 'fuera_servicio' ? 'Sin servicio' : (tarde ? 'Tiempo vencido' : ESTADO_TXT[estado]);
     var ti = tipoInfo(eq.tipo);
     var info = '';
     var acciones = '';
@@ -39025,14 +39137,16 @@ showTab('tabNovedades');
       var t0 = Date.parse(eq.inicio || '');
       var transc = Date.now() - t0;
       var finMs = t0 + duracionEstimadaMin(eq.tipo) * 60000;
-      var tarde = isFinite(t0) && Date.now() > finMs;
       var usoAct = st.activos[eq.usoId];
       var cod = usoAct && usoAct.codigo ? usoAct.codigo : '';
+      var avisoRet = usoAct && usoAct.avisoRetiroEstado ? usoAct.avisoRetiroEstado : '';
       info =
         '<span>Depto <b>' + esc(eq.unidad) + '</b></span>' +
         '<span>Desde ' + esc(hora(eq.inicio)) + ' · ' + esc(durTxt(transc)) + '</span>' +
         '<span class="cg-lav-cod" title="Código para finalizar el uso">Código: <b>' + (cod ? esc(cod) : '—') + '</b></span>' +
-        '<span class="' + (tarde ? 'is-late' : '') + '">' + (tarde ? 'Superó el tiempo estimado' : 'Fin estimado ' + esc(hora(new Date(finMs).toISOString()))) + '</span>';
+        '<span class="' + (tarde ? 'is-late' : '') + '">' + (tarde
+          ? 'Ciclo vencido · retirar ropa' + (avisoRet === 'enviado' || avisoRet === 'encolado' ? ' · aviso enviado' : '')
+          : 'Fin estimado ' + esc(hora(new Date(finMs).toISOString()))) + '</span>';
       acciones = btn('liberar', 'fa-unlock', 'Liberar', 'btn-primary') + btn('fuera_servicio', 'fa-ban', 'Fuera de servicio');
     } else if (estado === 'fuera_servicio') {
       info =
@@ -39047,7 +39161,8 @@ showTab('tabNovedades');
     var meta = eq.actualizadoPor && eq.actualizadoPor !== 'Sistema'
       ? 'Último cambio: ' + esc(eq.actualizadoPor) + ' · ' + esc(fmt(eq.actualizadoAt))
       : '&nbsp;';
-    return '<article class="cg-lav-card is-' + estado + '" aria-label="' + esc(equipoLabel(eq) + ': ' + ESTADO_TXT[estado]) + '">' +
+    var ariaEst = tarde ? 'tiempo vencido' : ESTADO_TXT[estado];
+    return '<article class="cg-lav-card is-' + estado + (tarde ? ' is-tarde' : '') + '" aria-label="' + esc(equipoLabel(eq) + ': ' + ariaEst) + '">' +
       '<div class="cg-lav-card-h"><strong>' + esc(equipoLabel(eq)) + '</strong><span class="cg-lav-pill">' + pillTxt + '</span></div>' +
       '<div class="cg-lav-maq"><div class="cg-lav-door"><i class="fa-solid ' + (estado === 'fuera_servicio' ? 'fa-triangle-exclamation' : ti.icon) + '" aria-hidden="true"></i></div></div>' +
       '<div class="cg-lav-info">' + info + '</div>' +
@@ -39059,13 +39174,17 @@ showTab('tabNovedades');
     var host = $('cg-lav-map');
     if (!host) return;
     var lista = equipoIds().map(function (id) { return st.equipos[id]; }).filter(Boolean);
-    var cuenta = { disponible: 0, en_uso: 0, fuera_servicio: 0 };
-    lista.forEach(function (e) { if (cuenta[e.estado] != null) cuenta[e.estado]++; });
+    var cuenta = { disponible: 0, en_uso: 0, vencido: 0, fuera_servicio: 0 };
+    lista.forEach(function (e) {
+      if (e.estado === 'en_uso' && cicloVencidoEq(e)) cuenta.vencido++;
+      else if (cuenta[e.estado] != null) cuenta[e.estado]++;
+    });
     var stats = $('cg-lav-stats');
     if (stats) {
       stats.innerHTML =
         '<div class="cg-stat-chip cg-stat-chip--ok"><span class="cg-stat-chip-val">' + cuenta.disponible + '</span><span class="cg-stat-chip-lbl">Disponibles</span></div>' +
         '<div class="cg-stat-chip cg-stat-chip--uso"><span class="cg-stat-chip-val">' + cuenta.en_uso + '</span><span class="cg-stat-chip-lbl">En uso</span></div>' +
+        '<div class="cg-stat-chip cg-stat-chip--tarde"><span class="cg-stat-chip-val">' + cuenta.vencido + '</span><span class="cg-stat-chip-lbl">Tiempo vencido</span></div>' +
         '<div class="cg-stat-chip cg-stat-chip--off"><span class="cg-stat-chip-val">' + cuenta.fuera_servicio + '</span><span class="cg-stat-chip-lbl">Fuera de servicio</span></div>';
     }
     if (!lista.length) {
@@ -39139,8 +39258,16 @@ showTab('tabNovedades');
         var del = admin
           ? '<td><button type="button" class="btn btn-secondary btn-sm" data-lav-act="borrar-uso" data-uso="' + esc(u.id) + '" title="Eliminar registro"><i class="fa-solid fa-trash" aria-hidden="true"></i><span class="btn-txt">Eliminar</span></button></td>'
           : '';
+        var tardeUso = u.estado === 'en_uso' && (function () {
+          var t0 = Date.parse(u.inicio || '');
+          var durEst = Number(u.duracionEstimadaMin);
+          if (!(durEst > 0)) durEst = duracionEstimadaMin(u.tipo);
+          return isFinite(t0) && Date.now() > t0 + durEst * 60000;
+        })();
+        var badgeEst = u.estado !== 'en_uso' ? '' : (tardeUso ? 'b-tarde' : 'b-uso');
+        var txtEst = u.estado !== 'en_uso' ? 'Finalizado' : (tardeUso ? 'Tiempo vencido' : 'En uso');
         return '<tr><td><strong>' + esc(u.unidad) + '</strong></td><td>' + esc(tipoInfo(u.tipo).label + ' ' + u.numero) + '</td><td>' + esc(fmt(u.inicio)) + '</td><td>' + esc(fmt(u.fin)) +
-          '</td><td>' + esc(dur) + '</td><td><span class="cg-lav-badge ' + (u.estado === 'en_uso' ? 'b-uso' : '') + '">' + (u.estado === 'en_uso' ? 'En uso' : 'Finalizado') +
+          '</td><td>' + esc(dur) + '</td><td><span class="cg-lav-badge ' + badgeEst + '">' + txtEst +
           '</span></td><td><strong>' + esc(u.codigo || '—') + '</strong></td><td class="t-l">' + esc(reg) + '</td><td class="t-l">' + esc(lib) + '</td><td><span class="cg-lav-badge ' + bc + '" title="' + esc(u.correoDetalle || '') + '">' + esc(CORREO_TXT[ce] || '—') + '</span>' + reenviar + '</td>' + del + '</tr>';
       }).join('') + '</tbody></table>';
   }
@@ -39356,8 +39483,8 @@ showTab('tabNovedades');
       'img{width:420px;height:420px}ol{display:inline-block;text-align:left;font-size:20px;line-height:1.6;margin:24px auto}.leg span{display:inline-block;margin:0 12px;font-size:18px}.leg b{display:inline-block;width:16px;height:16px;border-radius:50%;vertical-align:-2px;margin-right:6px}' +
       '.u{font-size:12px;color:#666;word-break:break-all;margin-top:18px}</style></head><body>' +
       '<h1>Lavandería</h1><h2>' + edificio + '</h2><img id="qr" src="' + esc(qrSrc(url, 800)) + '" alt="QR">' +
-      '<ol><li>Escanee el código con la cámara de su teléfono.</li><li>Toque un equipo <strong>verde</strong> y registre su departamento.</li><li>Al terminar, toque su equipo y confirme «Finalizar uso».</li></ol>' +
-      '<div class="leg"><span><b style="background:#22c55e"></b>Disponible</span><span><b style="background:#3b82f6"></b>En uso</span><span><b style="background:#ef4444"></b>Fuera de servicio</span></div>' +
+      '<ol><li>Escanee el código con la cámara de su teléfono.</li><li>Toque un equipo <strong>verde</strong> y registre su departamento.</li><li>Al terminar, toque su equipo, ingrese departamento y código, y finalice.</li><li>Si el equipo pasa a <strong>naranja</strong>, el tiempo venció: retire su ropa de inmediato.</li></ol>' +
+      '<div class="leg"><span><b style="background:#22c55e"></b>Disponible</span><span><b style="background:#3b82f6"></b>En uso</span><span><b style="background:#f97316"></b>Tiempo vencido</span><span><b style="background:#ef4444"></b>Fuera de servicio</span></div>' +
       '<p class="u">' + esc(url) + '</p><script>document.getElementById("qr").onload=function(){setTimeout(function(){window.print()},200)};<\/script></body></html>');
     w.document.close();
   }
