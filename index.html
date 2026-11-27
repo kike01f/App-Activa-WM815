@@ -3780,28 +3780,56 @@
     #tabLavanderia .cg-lav-legend .l-uso::before { background: var(--lav-uso); }
     #tabLavanderia .cg-lav-legend .l-off::before { background: var(--lav-off); }
     #tabLavanderia .cg-lav-group-title { margin: 0.2rem 0 0.5rem; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); }
-    #tabLavanderia .cg-lav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); gap: 0.6rem; margin-bottom: 0.9rem; }
-    .cg-lav-card { --c: var(--lav-ok, #22c55e); position: relative; display: flex; flex-direction: column; gap: 0.4rem; padding: 0.7rem; border-radius: 14px; background: color-mix(in srgb, var(--c) 9%, var(--card-color)); border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); box-shadow: 0 6px 18px rgba(0,0,0,0.25); }
+    #tabLavanderia .cg-lav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(11.5rem, 1fr)); gap: 0.7rem; margin-bottom: 0.9rem; align-items: stretch; }
+    .cg-lav-card {
+      --c: var(--lav-ok, #22c55e); position: relative; display: flex; flex-direction: column; gap: 0.45rem;
+      min-height: 100%; padding: 0.75rem 0.7rem 0.65rem; border-radius: 14px;
+      background: color-mix(in srgb, var(--c) 9%, var(--card-color));
+      border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); box-shadow: 0 6px 18px rgba(0,0,0,0.25);
+    }
     .cg-lav-card.is-en_uso { --c: var(--lav-uso, #3b82f6); }
     .cg-lav-card.is-fuera_servicio { --c: var(--lav-off, #ef4444); }
-    .cg-lav-card-h { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; }
-    .cg-lav-card-h strong { font-size: 0.95rem; color: var(--text-main); }
-    .cg-lav-pill { font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.18rem 0.5rem; border-radius: 999px; background: var(--c); color: #fff; white-space: nowrap; }
-    .cg-lav-maq { position: relative; width: 4.6rem; height: 5.2rem; margin: 0.15rem auto; border-radius: 10px; background: linear-gradient(180deg, #e8eef5, #c5d0e0); box-shadow: inset 0 -4px 0 rgba(0,0,0,0.12); }
-    .cg-lav-maq::before { content: ''; position: absolute; left: 0.45rem; top: 0.42rem; width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
-    .cg-lav-maq::after { content: ''; position: absolute; right: 0.45rem; top: 0.45rem; width: 1.3rem; height: 0.3rem; border-radius: 99px; background: #94a3b8; }
-    .cg-lav-door { position: absolute; left: 50%; top: 1.35rem; width: 3.3rem; height: 3.3rem; margin-left: -1.65rem; border-radius: 50%; background: #475569; border: 0.28rem solid #94a3b8; overflow: hidden; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.8); font-size: 1rem; }
+    .cg-lav-card-h { display: flex; flex-direction: column; align-items: center; gap: 0.35rem; text-align: center; }
+    .cg-lav-card-h strong {
+      font-size: 0.95rem; color: var(--text-main); line-height: 1.2; white-space: nowrap;
+      overflow: hidden; text-overflow: ellipsis; max-width: 100%;
+    }
+    .cg-lav-pill {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-height: 1.35rem; max-width: 100%; font-size: 0.62rem; font-weight: 800;
+      text-transform: uppercase; letter-spacing: 0.03em; padding: 0.18rem 0.55rem;
+      border-radius: 999px; background: var(--c); color: #fff; white-space: nowrap;
+    }
+    .cg-lav-maq { position: relative; width: 4.4rem; height: 5rem; margin: 0.1rem auto 0; flex-shrink: 0; border-radius: 10px; background: linear-gradient(180deg, #e8eef5, #c5d0e0); box-shadow: inset 0 -4px 0 rgba(0,0,0,0.12); }
+    .cg-lav-maq::before { content: ''; position: absolute; left: 0.42rem; top: 0.4rem; width: 0.42rem; height: 0.42rem; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
+    .cg-lav-maq::after { content: ''; position: absolute; right: 0.42rem; top: 0.42rem; width: 1.2rem; height: 0.28rem; border-radius: 99px; background: #94a3b8; }
+    .cg-lav-door { position: absolute; left: 50%; top: 1.25rem; width: 3.1rem; height: 3.1rem; margin-left: -1.55rem; border-radius: 50%; background: #475569; border: 0.26rem solid #94a3b8; overflow: hidden; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.8); font-size: 0.95rem; }
     .cg-lav-card.is-en_uso .cg-lav-door { background: radial-gradient(circle at 35% 35%, #93c5fd, #1d4ed8); }
     .cg-lav-card.is-en_uso .cg-lav-door i { animation: cgLavGiro 1.6s linear infinite; }
     .cg-lav-card.is-fuera_servicio .cg-lav-door { background: #3f1d1d; color: #fca5a5; }
     @keyframes cgLavGiro { to { transform: rotate(360deg); } }
-    .cg-lav-info { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.35; min-height: 2.2rem; text-align: center; }
-    .cg-lav-info b { color: var(--text-main); font-size: 1.05rem; }
+    .cg-lav-info {
+      flex: 1 1 auto; display: flex; flex-direction: column; justify-content: flex-start; align-items: center;
+      gap: 0.15rem; font-size: 0.78rem; color: var(--text-secondary); line-height: 1.35;
+      min-height: 4.6rem; text-align: center;
+    }
+    .cg-lav-info b { color: var(--text-main); font-size: 1.02rem; }
     .cg-lav-info .is-late { color: #fbbf24; font-weight: 700; }
-    .cg-lav-info .cg-lav-cod { display: inline-block; margin: 0.2rem 0; padding: 0.1rem 0.5rem; border-radius: 6px; background: color-mix(in srgb, var(--blue-500) 18%, transparent); color: var(--text-main); }
-    .cg-lav-info .cg-lav-cod b { letter-spacing: 0.12em; color: var(--blue-400); font-size: 1rem; }
-    .cg-lav-actions { display: flex; flex-wrap: wrap; gap: 0.3rem; justify-content: center; }
-    .cg-lav-actions .btn { padding: 0.38rem 0.6rem !important; font-size: 0.76rem !important; }
+    .cg-lav-info .cg-lav-cod {
+      display: inline-flex; align-items: center; gap: 0.25rem; margin: 0.15rem 0;
+      padding: 0.15rem 0.5rem; border-radius: 6px;
+      background: color-mix(in srgb, var(--blue-500) 18%, transparent); color: var(--text-main);
+    }
+    .cg-lav-info .cg-lav-cod b { letter-spacing: 0.12em; color: var(--blue-400); font-size: 0.95rem; }
+    .cg-lav-actions {
+      display: flex; flex-wrap: nowrap; gap: 0.35rem; justify-content: center; align-items: center;
+      margin-top: auto; min-height: 2.35rem;
+    }
+    .cg-lav-actions .btn { flex: 0 0 auto; padding: 0.38rem 0.55rem !important; }
+    .cg-lav-meta {
+      margin: 0; min-height: 2.1em; font-size: 0.66rem; line-height: 1.3; text-align: center;
+      color: var(--text-secondary); opacity: 0.85;
+    }
     #tabLavanderia .cg-lav-tbl-wrap { overflow-x: auto; }
     #tabLavanderia .cg-lav-tbl-wrap table { font-size: 0.82rem; }
     #tabLavanderia .cg-lav-tbl-wrap td.t-l { text-align: left; }
@@ -3817,9 +3845,10 @@
     #tabLavanderia .cg-lav-link { width: 100%; font-family: ui-monospace, monospace; font-size: 0.78rem; }
     #tabLavanderia .cg-lav-warn { padding: 0.55rem 0.7rem; border-radius: 10px; background: color-mix(in srgb, #d97706 18%, var(--card-color)); border: 1px solid color-mix(in srgb, #d97706 55%, transparent); font-size: 0.84rem; margin-bottom: 0.6rem; }
     @media (max-width: 600px) {
-      #tabLavanderia .cg-lav-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.45rem; }
-      .cg-lav-maq { width: 3.9rem; height: 4.5rem; }
-      .cg-lav-door { width: 2.8rem; height: 2.8rem; margin-left: -1.4rem; top: 1.2rem; }
+      #tabLavanderia .cg-lav-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.5rem; }
+      .cg-lav-maq { width: 3.8rem; height: 4.35rem; }
+      .cg-lav-door { width: 2.7rem; height: 2.7rem; margin-left: -1.35rem; top: 1.15rem; }
+      .cg-lav-info { min-height: 4.1rem; font-size: 0.74rem; }
     }
     @media (prefers-reduced-motion: reduce) { .cg-lav-card.is-en_uso .cg-lav-door i { animation: none; } }
   </style>
@@ -38716,6 +38745,7 @@ showTab('tabNovedades');
   }
   function cardHtml(eq) {
     var estado = ESTADO_TXT[eq.estado] ? eq.estado : 'disponible';
+    var pillTxt = estado === 'fuera_servicio' ? 'Sin servicio' : ESTADO_TXT[estado];
     var ti = tipoInfo(eq.tipo);
     var info = '';
     var acciones = '';
@@ -38729,24 +38759,31 @@ showTab('tabNovedades');
       var tarde = isFinite(t0) && Date.now() > finMs;
       var usoAct = st.activos[eq.usoId];
       var cod = usoAct && usoAct.codigo ? usoAct.codigo : '';
-      info = 'Depto <b>' + esc(eq.unidad) + '</b><br>Desde ' + esc(hora(eq.inicio)) + ' · ' + esc(durTxt(transc)) +
-        '<br><span class="cg-lav-cod" title="Código para finalizar el uso">Código: <b>' + (cod ? esc(cod) : '—') + '</b></span>' +
-        '<br><span class="' + (tarde ? 'is-late' : '') + '">' + (tarde ? 'Superó el tiempo estimado' : 'Fin estimado ' + esc(hora(new Date(finMs).toISOString()))) + '</span>';
+      info =
+        '<span>Depto <b>' + esc(eq.unidad) + '</b></span>' +
+        '<span>Desde ' + esc(hora(eq.inicio)) + ' · ' + esc(durTxt(transc)) + '</span>' +
+        '<span class="cg-lav-cod" title="Código para finalizar el uso">Código: <b>' + (cod ? esc(cod) : '—') + '</b></span>' +
+        '<span class="' + (tarde ? 'is-late' : '') + '">' + (tarde ? 'Superó el tiempo estimado' : 'Fin estimado ' + esc(hora(new Date(finMs).toISOString()))) + '</span>';
       acciones = btn('liberar', 'fa-unlock', 'Liberar', 'btn-primary') + btn('fuera_servicio', 'fa-ban', 'Fuera de servicio');
     } else if (estado === 'fuera_servicio') {
-      info = '<span style="color:#fca5a5;font-weight:700">No habilitado</span><br>' + esc(eq.motivo || 'Sin detalle') +
-        (eq.fueraDesde ? '<br>Desde ' + esc(fmt(eq.fueraDesde)) : '');
+      info =
+        '<span style="color:#fca5a5;font-weight:700">No habilitado</span>' +
+        '<span>' + esc(eq.motivo || 'Sin detalle') + '</span>' +
+        (eq.fueraDesde ? '<span>Desde ' + esc(fmt(eq.fueraDesde)) + '</span>' : '<span>&nbsp;</span>');
       acciones = btn('reactivar', 'fa-rotate-left', 'Reactivar', 'btn-primary');
     } else {
-      info = 'Libre para usar';
+      info = '<span>Libre para usar</span><span>&nbsp;</span><span>&nbsp;</span>';
       acciones = btn('registrar', 'fa-plus', 'Registrar', 'btn-primary') + btn('fuera_servicio', 'fa-ban', 'Fuera de servicio');
     }
+    var meta = eq.actualizadoPor && eq.actualizadoPor !== 'Sistema'
+      ? 'Último cambio: ' + esc(eq.actualizadoPor) + ' · ' + esc(fmt(eq.actualizadoAt))
+      : '&nbsp;';
     return '<article class="cg-lav-card is-' + estado + '" aria-label="' + esc(equipoLabel(eq) + ': ' + ESTADO_TXT[estado]) + '">' +
-      '<div class="cg-lav-card-h"><strong>' + esc(equipoLabel(eq)) + '</strong><span class="cg-lav-pill">' + ESTADO_TXT[estado] + '</span></div>' +
+      '<div class="cg-lav-card-h"><strong>' + esc(equipoLabel(eq)) + '</strong><span class="cg-lav-pill">' + pillTxt + '</span></div>' +
       '<div class="cg-lav-maq"><div class="cg-lav-door"><i class="fa-solid ' + (estado === 'fuera_servicio' ? 'fa-triangle-exclamation' : ti.icon) + '" aria-hidden="true"></i></div></div>' +
       '<div class="cg-lav-info">' + info + '</div>' +
       '<div class="cg-lav-actions">' + acciones + '</div>' +
-      (eq.actualizadoPor && eq.actualizadoPor !== 'Sistema' ? '<div class="page-desc" style="margin:0;font-size:0.68rem;text-align:center;opacity:0.8">Último cambio: ' + esc(eq.actualizadoPor) + ' · ' + esc(fmt(eq.actualizadoAt)) + '</div>' : '') +
+      '<p class="cg-lav-meta">' + meta + '</p>' +
       '</article>';
   }
   function renderMapa() {
