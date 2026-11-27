@@ -6445,12 +6445,18 @@
           </div>
         </div>
         <div class="card-b">
-          <p id="cg-lav-hist-count" class="page-desc" style="margin:0 0 0.5rem;"></p>
+          <div style="display:flex;flex-wrap:wrap;gap:0.5rem;align-items:center;justify-content:space-between;margin:0 0 0.5rem;">
+            <p id="cg-lav-hist-count" class="page-desc" style="margin:0;"></p>
+            <button type="button" class="btn btn-secondary btn-sm" id="cg-lav-hist-del-filt" data-lav-act="borrar-usos-filtro" hidden title="Eliminar los registros visibles según los filtros" aria-label="Eliminar registros filtrados"><i class="fa-solid fa-trash" aria-hidden="true"></i><span class="btn-txt">Eliminar filtrados</span></button>
+          </div>
           <div class="cg-lav-tbl-wrap" id="cg-lav-hist"></div>
         </div>
       </div>
       <div class="card cg-card-accent--lav">
-        <div class="card-h"><h3><i class="fa-solid fa-user-shield" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Modificaciones del personal</h3></div>
+        <div class="card-h">
+          <h3><i class="fa-solid fa-user-shield" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Modificaciones del personal</h3>
+          <button type="button" class="btn btn-secondary btn-sm" id="cg-lav-ev-del-filt" data-lav-act="borrar-ev-filtro" hidden title="Eliminar eventos visibles según los filtros" aria-label="Eliminar eventos filtrados"><i class="fa-solid fa-trash" aria-hidden="true"></i><span class="btn-txt">Eliminar filtrados</span></button>
+        </div>
         <div class="card-b"><div class="cg-lav-tbl-wrap" id="cg-lav-eventos"></div></div>
       </div>
     </div>
@@ -39098,19 +39104,29 @@ showTab('tabNovedades');
     if (h && ymd > h) return false;
     return true;
   }
-  function renderHistorial() {
-    var host = $('cg-lav-hist');
-    if (!host) return;
+  function usosFiltrados() {
     var fEq = $('cg-lav-f-eq').value;
     var fDep = norm($('cg-lav-f-dep').value);
-    var rows = st.usos.filter(function (u) {
+    return st.usos.filter(function (u) {
       if (fEq && u.equipoId !== fEq) return false;
       if (fDep && norm(u.unidad).indexOf(fDep) < 0) return false;
       return enRango(u.inicio);
     });
-    $('cg-lav-hist-count').textContent = rows.length + ' registro(s)' + (st.usos.length >= 500 ? ' · se muestran los 500 más recientes' : '');
+  }
+  function eventosFiltrados() {
+    var fEq = $('cg-lav-f-eq').value;
+    return st.eventos.filter(function (e) { return (!fEq || e.equipoId === fEq) && enRango(e.at); });
+  }
+  function renderHistorial() {
+    var host = $('cg-lav-hist');
+    if (!host) return;
+    var rows = usosFiltrados();
+    var admin = esAdmin();
+    var btnFilt = $('cg-lav-hist-del-filt');
+    if (btnFilt) btnFilt.hidden = !(admin && rows.length);
+    $('cg-lav-hist-count').textContent = rows.length + ' registro(s)' + (st.usos.length >= 500 ? ' · se muestran los 500 más recientes' : '') + (admin ? ' · administración puede eliminar' : '');
     if (!rows.length) { host.innerHTML = '<p class="page-desc" style="margin:0">Sin registros para los filtros seleccionados.</p>'; return; }
-    host.innerHTML = '<table><thead><tr><th>Depto</th><th>Equipo</th><th>Inicio</th><th>Término</th><th>Duración</th><th>Estado</th><th>Código</th><th>Registro</th><th>Liberación</th><th>Correo</th></tr></thead><tbody>' +
+    host.innerHTML = '<table><thead><tr><th>Depto</th><th>Equipo</th><th>Inicio</th><th>Término</th><th>Duración</th><th>Estado</th><th>Código</th><th>Registro</th><th>Liberación</th><th>Correo</th>' + (admin ? '<th>Acciones</th>' : '') + '</tr></thead><tbody>' +
       rows.map(function (u) {
         var dur = u.fin ? durTxt(Date.parse(u.fin) - Date.parse(u.inicio)) : durTxt(Date.now() - Date.parse(u.inicio)) + ' (en curso)';
         var lib = !u.fin ? '—' : u.liberadoPor === 'residente' ? 'Residente' : 'Personal: ' + (u.liberadoPorNombre || '—') + (u.notaLiberacion ? ' · ' + u.notaLiberacion : '');
@@ -39120,22 +39136,130 @@ showTab('tabNovedades');
         var reenviar = ce === 'error' || ce === 'sin_correo'
           ? ' <button type="button" class="btn btn-secondary btn-sm" data-lav-act="reenviar" data-uso="' + esc(u.id) + '" title="Reintentar envío">Reintentar</button>'
           : '';
+        var del = admin
+          ? '<td><button type="button" class="btn btn-secondary btn-sm" data-lav-act="borrar-uso" data-uso="' + esc(u.id) + '" title="Eliminar registro"><i class="fa-solid fa-trash" aria-hidden="true"></i><span class="btn-txt">Eliminar</span></button></td>'
+          : '';
         return '<tr><td><strong>' + esc(u.unidad) + '</strong></td><td>' + esc(tipoInfo(u.tipo).label + ' ' + u.numero) + '</td><td>' + esc(fmt(u.inicio)) + '</td><td>' + esc(fmt(u.fin)) +
           '</td><td>' + esc(dur) + '</td><td><span class="cg-lav-badge ' + (u.estado === 'en_uso' ? 'b-uso' : '') + '">' + (u.estado === 'en_uso' ? 'En uso' : 'Finalizado') +
-          '</span></td><td><strong>' + esc(u.codigo || '—') + '</strong></td><td class="t-l">' + esc(reg) + '</td><td class="t-l">' + esc(lib) + '</td><td><span class="cg-lav-badge ' + bc + '" title="' + esc(u.correoDetalle || '') + '">' + esc(CORREO_TXT[ce] || '—') + '</span>' + reenviar + '</td></tr>';
+          '</span></td><td><strong>' + esc(u.codigo || '—') + '</strong></td><td class="t-l">' + esc(reg) + '</td><td class="t-l">' + esc(lib) + '</td><td><span class="cg-lav-badge ' + bc + '" title="' + esc(u.correoDetalle || '') + '">' + esc(CORREO_TXT[ce] || '—') + '</span>' + reenviar + '</td>' + del + '</tr>';
       }).join('') + '</tbody></table>';
   }
-  var ACCION_TXT = { registro_personal: 'Registro por personal', liberar: 'Liberación manual', fuera_servicio: 'Fuera de servicio', reactivar: 'Reactivación', config: 'Ajustes', token: 'Nuevo enlace QR' };
+  var ACCION_TXT = { registro_personal: 'Registro por personal', liberar: 'Liberación manual', fuera_servicio: 'Fuera de servicio', reactivar: 'Reactivación', config: 'Ajustes', token: 'Nuevo enlace QR', borrado_admin: 'Eliminación administrativa' };
   function renderEventos() {
     var host = $('cg-lav-eventos');
     if (!host) return;
-    var fEq = $('cg-lav-f-eq').value;
-    var rows = st.eventos.filter(function (e) { return (!fEq || e.equipoId === fEq) && enRango(e.at); });
+    var rows = eventosFiltrados();
+    var admin = esAdmin();
+    var btnFilt = $('cg-lav-ev-del-filt');
+    if (btnFilt) btnFilt.hidden = !(admin && rows.length);
     if (!rows.length) { host.innerHTML = '<p class="page-desc" style="margin:0">Sin modificaciones registradas.</p>'; return; }
-    host.innerHTML = '<table><thead><tr><th>Fecha</th><th>Equipo</th><th>Acción</th><th>Detalle</th><th>Realizado por</th></tr></thead><tbody>' +
+    host.innerHTML = '<table><thead><tr><th>Fecha</th><th>Equipo</th><th>Acción</th><th>Detalle</th><th>Realizado por</th>' + (admin ? '<th>Acciones</th>' : '') + '</tr></thead><tbody>' +
       rows.map(function (e) {
-        return '<tr><td>' + esc(fmt(e.at)) + '</td><td>' + esc(e.equipo || '—') + '</td><td>' + esc(ACCION_TXT[e.accion] || e.accion) + '</td><td class="t-l">' + esc(e.detalle || '') + '</td><td>' + esc(e.por || '—') + '</td></tr>';
+        var del = admin
+          ? '<td><button type="button" class="btn btn-secondary btn-sm" data-lav-act="borrar-ev" data-ev="' + esc(e.id) + '" title="Eliminar evento"><i class="fa-solid fa-trash" aria-hidden="true"></i><span class="btn-txt">Eliminar</span></button></td>'
+          : '';
+        return '<tr><td>' + esc(fmt(e.at)) + '</td><td>' + esc(e.equipo || '—') + '</td><td>' + esc(ACCION_TXT[e.accion] || e.accion) + '</td><td class="t-l">' + esc(e.detalle || '') + '</td><td>' + esc(e.por || '—') + '</td>' + del + '</tr>';
       }).join('') + '</tbody></table>';
+  }
+  function exigirAdminLav() {
+    if (esAdmin()) return true;
+    showMsg('Solo administración puede eliminar registros de lavandería.', 'warn');
+    return false;
+  }
+  function eliminarUsoDoc(usoId) {
+    var usoRef = db.collection(COL_USOS).doc(usoId);
+    return db.runTransaction(function (tx) {
+      return tx.get(usoRef).then(function (s) {
+        if (!s.exists) return { ok: false, motivo: 'ya_borrado' };
+        var u = s.data() || {};
+        var eqId = u.equipoId;
+        var seguir = Promise.resolve(null);
+        if (u.estado === 'en_uso' && eqId) {
+          var eqRef = db.collection(COL_EQ).doc(eqId);
+          seguir = tx.get(eqRef).then(function (eqSnap) {
+            if (eqSnap.exists) {
+              var eq = eqSnap.data() || {};
+              if (eq.usoId === usoId || (eq.estado === 'en_uso' && norm(eq.unidad) === norm(u.unidad))) {
+                tx.update(eqRef, {
+                  estado: 'disponible', unidad: '', usoId: '', inicio: '', codigoHash: '', motivo: '',
+                  actualizadoAt: nowIso(), actualizadoPor: quien(), origen: 'conserjeria'
+                });
+              }
+            }
+          });
+        }
+        return seguir.then(function () {
+          tx.delete(usoRef);
+          return { ok: true, unidad: u.unidad || '', equipo: (tipoInfo(u.tipo).label || '') + ' ' + (u.numero || ''), estado: u.estado || '' };
+        });
+      });
+    });
+  }
+  function registrarBorradoAdmin(detalle) {
+    return db.collection(COL_EV).doc().set({
+      at: nowIso(), equipoId: '', equipo: '—', accion: 'borrado_admin', detalle: detalle, unidad: '', por: quien(), usoId: ''
+    }).catch(function (e) { console.warn('[lavandería] log borrado', e); });
+  }
+  function borrarUso(usoId) {
+    if (!exigirAdminLav()) return;
+    var u = st.usos.find(function (x) { return x.id === usoId; });
+    var lbl = u ? ((tipoInfo(u.tipo).label || 'Equipo') + ' ' + (u.numero || '') + ' · depto ' + (u.unidad || '—')) : usoId;
+    var extra = u && u.estado === 'en_uso' ? '\nSi el equipo sigue en uso, también quedará liberado.' : '';
+    showConfirmDialog('¿Eliminar este registro de lavandería?\n' + lbl + extra, function () {
+      eliminarUsoDoc(usoId).then(function (r) {
+        if (!r || !r.ok) return showMsg('El registro ya no estaba disponible.', 'info');
+        return registrarBorradoAdmin('Se eliminó el uso ' + usoId + ' (' + (r.equipo || '') + ', depto ' + (r.unidad || '—') + ').').then(function () {
+          showMsg('Registro eliminado.', 'success');
+        });
+      }).catch(function (e) {
+        console.warn('[lavandería] borrar uso', e);
+        showMsg('No se pudo eliminar el registro.', 'error');
+      });
+    }, 'Eliminar registro', 'Eliminar');
+  }
+  function borrarEvento(evId) {
+    if (!exigirAdminLav()) return;
+    showConfirmDialog('¿Eliminar este evento del historial de modificaciones?', function () {
+      db.collection(COL_EV).doc(evId).delete().then(function () {
+        showMsg('Evento eliminado.', 'success');
+      }).catch(function () { showMsg('No se pudo eliminar el evento.', 'error'); });
+    }, 'Eliminar evento', 'Eliminar');
+  }
+  function borrarUsosFiltrados() {
+    if (!exigirAdminLav()) return;
+    var rows = usosFiltrados();
+    if (!rows.length) return showMsg('No hay registros filtrados para eliminar.', 'info');
+    showConfirmDialog('¿Eliminar los ' + rows.length + ' registro(s) visibles con los filtros actuales?\nEsta acción no se puede deshacer.', function () {
+      var ok = 0, fail = 0;
+      var cadena = Promise.resolve();
+      rows.forEach(function (u) {
+        cadena = cadena.then(function () {
+          return eliminarUsoDoc(u.id).then(function (r) { if (r && r.ok) ok++; else fail++; }).catch(function () { fail++; });
+        });
+      });
+      cadena.then(function () {
+        return registrarBorradoAdmin('Administración eliminó ' + ok + ' registro(s) de utilización (falló ' + fail + ').');
+      }).then(function () {
+        showMsg(ok ? ('Se eliminaron ' + ok + ' registro(s)' + (fail ? ' · ' + fail + ' no se pudieron borrar' : '') + '.') : 'No se eliminó ningún registro.', ok ? 'success' : 'warn');
+      });
+    }, 'Eliminar registros filtrados', 'Eliminar');
+  }
+  function borrarEventosFiltrados() {
+    if (!exigirAdminLav()) return;
+    var rows = eventosFiltrados();
+    if (!rows.length) return showMsg('No hay eventos filtrados para eliminar.', 'info');
+    showConfirmDialog('¿Eliminar los ' + rows.length + ' evento(s) visibles con los filtros actuales?', function () {
+      var ok = 0, fail = 0;
+      var cadena = Promise.resolve();
+      rows.forEach(function (e) {
+        cadena = cadena.then(function () {
+          return db.collection(COL_EV).doc(e.id).delete().then(function () { ok++; }).catch(function () { fail++; });
+        });
+      });
+      cadena.then(function () {
+        showMsg(ok ? ('Se eliminaron ' + ok + ' evento(s)' + (fail ? ' · ' + fail + ' fallaron' : '') + '.') : 'No se eliminó ningún evento.', ok ? 'success' : 'warn');
+      });
+    }, 'Eliminar eventos filtrados', 'Eliminar');
   }
   function reenviarCorreo(usoId) {
     if (!exigirPersonal()) return;
@@ -39267,6 +39391,10 @@ showTab('tabNovedades');
       if (act === 'registrar') accionRegistrar(eqId);
       else if (act === 'liberar' || act === 'fuera_servicio' || act === 'reactivar') accionAdmin(eqId, act);
       else if (act === 'reenviar') reenviarCorreo(b.getAttribute('data-uso'));
+      else if (act === 'borrar-uso') borrarUso(b.getAttribute('data-uso'));
+      else if (act === 'borrar-ev') borrarEvento(b.getAttribute('data-ev'));
+      else if (act === 'borrar-usos-filtro') borrarUsosFiltrados();
+      else if (act === 'borrar-ev-filtro') borrarEventosFiltrados();
       else if (act === 'copiar') {
         var url = urlPublica();
         (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(function () {
