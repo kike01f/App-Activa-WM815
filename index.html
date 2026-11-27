@@ -3761,6 +3761,66 @@
       .modulo-carga, .modulo-carga.is-out, .mini-carga::before, .mini-arturito, .mini-ojo, .mini-antena, .mini-ficha, .carga-puntos i, .modulo-carga .carga-barra span { animation: none !important; }
     }
   </style>
+  <style>
+    /* Lavandería */
+    #tabLavanderia { --lav-ok: #22c55e; --lav-uso: #3b82f6; --lav-off: #ef4444; }
+    #tabLavanderia .cg-lav-subnav { display: flex; flex-wrap: wrap; gap: 0.3rem; margin-bottom: 0.45rem; }
+    #tabLavanderia .cg-lav-sub-tab.active { background: var(--blue-500) !important; color: var(--on-accent) !important; border-color: var(--blue-500) !important; }
+    #tabLavanderia .cg-module-stats { display: flex; flex-wrap: wrap; gap: 0.35rem; align-items: stretch; margin-bottom: 0.45rem; }
+    #tabLavanderia .cg-stat-chip { display: flex; flex-direction: column; min-width: 6.5rem; padding: 0.4rem 0.65rem; border-radius: 10px; background: var(--card-color); border: 1px solid var(--border-color); }
+    #tabLavanderia .cg-stat-chip-val { font-size: 1.15rem; font-weight: 800; line-height: 1.1; }
+    #tabLavanderia .cg-stat-chip-lbl { font-size: 0.62rem; font-weight: 600; color: var(--text-secondary); text-transform: uppercase; letter-spacing: 0.04em; margin-top: 0.2rem; }
+    #tabLavanderia .cg-stat-chip--ok .cg-stat-chip-val { color: var(--lav-ok); }
+    #tabLavanderia .cg-stat-chip--uso .cg-stat-chip-val { color: #60a5fa; }
+    #tabLavanderia .cg-stat-chip--off .cg-stat-chip-val { color: #f87171; }
+    #tabLavanderia .card.cg-card-accent--lav { border-top: 3px solid #38bdf8; }
+    #tabLavanderia .cg-lav-legend { display: flex; flex-wrap: wrap; gap: 0.75rem; font-size: 0.8rem; color: var(--text-secondary); }
+    #tabLavanderia .cg-lav-legend span::before { content: ''; display: inline-block; width: 0.7rem; height: 0.7rem; border-radius: 50%; margin-right: 0.35rem; vertical-align: -1px; }
+    #tabLavanderia .cg-lav-legend .l-ok::before { background: var(--lav-ok); }
+    #tabLavanderia .cg-lav-legend .l-uso::before { background: var(--lav-uso); }
+    #tabLavanderia .cg-lav-legend .l-off::before { background: var(--lav-off); }
+    #tabLavanderia .cg-lav-group-title { margin: 0.2rem 0 0.5rem; font-size: 0.78rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--text-secondary); }
+    #tabLavanderia .cg-lav-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(10.5rem, 1fr)); gap: 0.6rem; margin-bottom: 0.9rem; }
+    .cg-lav-card { --c: var(--lav-ok, #22c55e); position: relative; display: flex; flex-direction: column; gap: 0.4rem; padding: 0.7rem; border-radius: 14px; background: color-mix(in srgb, var(--c) 9%, var(--card-color)); border: 1px solid color-mix(in srgb, var(--c) 55%, transparent); box-shadow: 0 6px 18px rgba(0,0,0,0.25); }
+    .cg-lav-card.is-en_uso { --c: var(--lav-uso, #3b82f6); }
+    .cg-lav-card.is-fuera_servicio { --c: var(--lav-off, #ef4444); }
+    .cg-lav-card-h { display: flex; align-items: center; justify-content: space-between; gap: 0.4rem; }
+    .cg-lav-card-h strong { font-size: 0.95rem; color: var(--text-main); }
+    .cg-lav-pill { font-size: 0.66rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.04em; padding: 0.18rem 0.5rem; border-radius: 999px; background: var(--c); color: #fff; white-space: nowrap; }
+    .cg-lav-maq { position: relative; width: 4.6rem; height: 5.2rem; margin: 0.15rem auto; border-radius: 10px; background: linear-gradient(180deg, #e8eef5, #c5d0e0); box-shadow: inset 0 -4px 0 rgba(0,0,0,0.12); }
+    .cg-lav-maq::before { content: ''; position: absolute; left: 0.45rem; top: 0.42rem; width: 0.45rem; height: 0.45rem; border-radius: 50%; background: var(--c); box-shadow: 0 0 8px var(--c); }
+    .cg-lav-maq::after { content: ''; position: absolute; right: 0.45rem; top: 0.45rem; width: 1.3rem; height: 0.3rem; border-radius: 99px; background: #94a3b8; }
+    .cg-lav-door { position: absolute; left: 50%; top: 1.35rem; width: 3.3rem; height: 3.3rem; margin-left: -1.65rem; border-radius: 50%; background: #475569; border: 0.28rem solid #94a3b8; overflow: hidden; display: flex; align-items: center; justify-content: center; color: rgba(255,255,255,0.8); font-size: 1rem; }
+    .cg-lav-card.is-en_uso .cg-lav-door { background: radial-gradient(circle at 35% 35%, #93c5fd, #1d4ed8); }
+    .cg-lav-card.is-en_uso .cg-lav-door i { animation: cgLavGiro 1.6s linear infinite; }
+    .cg-lav-card.is-fuera_servicio .cg-lav-door { background: #3f1d1d; color: #fca5a5; }
+    @keyframes cgLavGiro { to { transform: rotate(360deg); } }
+    .cg-lav-info { font-size: 0.8rem; color: var(--text-secondary); line-height: 1.35; min-height: 2.2rem; text-align: center; }
+    .cg-lav-info b { color: var(--text-main); font-size: 1.05rem; }
+    .cg-lav-info .is-late { color: #fbbf24; font-weight: 700; }
+    .cg-lav-actions { display: flex; flex-wrap: wrap; gap: 0.3rem; justify-content: center; }
+    .cg-lav-actions .btn { padding: 0.38rem 0.6rem !important; font-size: 0.76rem !important; }
+    #tabLavanderia .cg-lav-tbl-wrap { overflow-x: auto; }
+    #tabLavanderia .cg-lav-tbl-wrap table { font-size: 0.82rem; }
+    #tabLavanderia .cg-lav-tbl-wrap td.t-l { text-align: left; }
+    #tabLavanderia .cg-lav-badge { display: inline-block; padding: 0.1rem 0.45rem; border-radius: 999px; font-size: 0.7rem; font-weight: 700; background: var(--gray-200); color: var(--text-main); }
+    #tabLavanderia .cg-lav-badge.b-uso { background: #1d4ed8; color: #fff; }
+    #tabLavanderia .cg-lav-badge.b-ok { background: #15803d; color: #fff; }
+    #tabLavanderia .cg-lav-badge.b-err { background: #b91c1c; color: #fff; }
+    #tabLavanderia .cg-lav-filters { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; }
+    #tabLavanderia .cg-lav-filters .form-group { margin: 0; min-width: 9rem; }
+    #tabLavanderia .cg-lav-cfg-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 0.75rem; }
+    #tabLavanderia .cg-lav-qr { display: flex; flex-wrap: wrap; gap: 1rem; align-items: flex-start; }
+    #tabLavanderia .cg-lav-qr img { width: 200px; height: 200px; border-radius: 12px; background: #fff; padding: 6px; }
+    #tabLavanderia .cg-lav-link { width: 100%; font-family: ui-monospace, monospace; font-size: 0.78rem; }
+    #tabLavanderia .cg-lav-warn { padding: 0.55rem 0.7rem; border-radius: 10px; background: color-mix(in srgb, #d97706 18%, var(--card-color)); border: 1px solid color-mix(in srgb, #d97706 55%, transparent); font-size: 0.84rem; margin-bottom: 0.6rem; }
+    @media (max-width: 600px) {
+      #tabLavanderia .cg-lav-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 0.45rem; }
+      .cg-lav-maq { width: 3.9rem; height: 4.5rem; }
+      .cg-lav-door { width: 2.8rem; height: 2.8rem; margin-left: -1.4rem; top: 1.2rem; }
+    }
+    @media (prefers-reduced-motion: reduce) { .cg-lav-card.is-en_uso .cg-lav-door i { animation: none; } }
+  </style>
 </head>
 <body>
 <div class="pcsh-gest-bell-wrap" id="pcshGestBellWrap" title="Gestiones de Administración">
@@ -3810,6 +3870,7 @@
       <button type="button" class="sidebar-btn" id="tabResidentesBtn" title="Residentes" aria-label="Residentes"><i class="fa-solid fa-users" aria-hidden="true"></i><span class="sidebar-btn-label">Residentes</span></button>
       <button type="button" class="sidebar-btn" id="tabProveedoresBtn" title="Proveedores" aria-label="Proveedores"><i class="fa-solid fa-truck" aria-hidden="true"></i><span class="sidebar-btn-label">Proveedores</span></button>
       <button type="button" class="sidebar-btn" id="tabReservasBtn" title="Reservas" aria-label="Reservas"><i class="fa-solid fa-calendar-check" aria-hidden="true"></i><span class="sidebar-btn-label">Reservas</span></button>
+      <button type="button" class="sidebar-btn" id="tabLavanderiaBtn" title="Lavandería" aria-label="Lavandería"><i class="fa-solid fa-soap" aria-hidden="true"></i><span class="sidebar-btn-label">Lavandería</span></button>
       <button type="button" class="sidebar-btn" id="tabAusenciaBtn" title="Ausencia" aria-label="Ausencia"><i class="fa-solid fa-bullhorn" aria-hidden="true"></i><span class="sidebar-btn-label">Ausencia</span></button>
       <span class="sidebar-section-label">Gestión</span>
       <button type="button" class="sidebar-btn" id="tabPersonalBtn" title="Administración" aria-label="Administración"><i class="fa-solid fa-user-shield" aria-hidden="true"></i><span class="sidebar-btn-label">Administración</span></button>
@@ -6317,6 +6378,69 @@
         </div>
       </div>
       <div class="card-b"><div class="cg-res-hist-wrap"><div id="tbl-res-wrap" role="region" aria-label="Tabla de reservas"></div></div></div>
+    </div>
+  </div>
+
+  <div id="tabLavanderia" class="pcsh-fabrica-panel" style="display:none;">
+    <nav class="cg-lav-subnav" role="tablist" aria-label="Secciones de Lavandería">
+      <button type="button" class="btn btn-secondary btn-sm cg-lav-sub-tab active" data-lav-sub="mapa" role="tab" aria-selected="true" title="Mapa" aria-label="Mapa"><i class="fa-solid fa-map" aria-hidden="true"></i><span class="btn-txt">Mapa</span></button>
+      <button type="button" class="btn btn-secondary btn-sm cg-lav-sub-tab" data-lav-sub="hist" role="tab" aria-selected="false" title="Historial" aria-label="Historial"><i class="fa-solid fa-clock-rotate-left" aria-hidden="true"></i><span class="btn-txt">Historial</span></button>
+      <button type="button" class="btn btn-secondary btn-sm cg-lav-sub-tab" data-lav-sub="cfg" role="tab" aria-selected="false" title="Acceso QR y ajustes" aria-label="Acceso QR y ajustes"><i class="fa-solid fa-qrcode" aria-hidden="true"></i><span class="btn-txt">Acceso QR y ajustes</span></button>
+    </nav>
+    <div id="cg-lav-aviso"></div>
+    <div data-lav-page="mapa">
+      <div class="cg-module-stats" id="cg-lav-stats" aria-live="polite"></div>
+      <div class="card cg-card-accent--lav">
+        <div class="card-h">
+          <h3><i class="fa-solid fa-soap" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Mapa de lavandería</h3>
+          <div class="cg-lav-legend"><span class="l-ok">Disponible</span><span class="l-uso">En uso</span><span class="l-off">Fuera de servicio</span></div>
+        </div>
+        <div class="card-b"><div id="cg-lav-map" aria-live="polite"><p class="page-desc" style="margin:0">Cargando equipos…</p></div></div>
+      </div>
+    </div>
+    <div data-lav-page="hist" hidden>
+      <div class="card cg-card-accent--lav">
+        <div class="card-h">
+          <h3><i class="fa-solid fa-list-ul" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Historial de utilización</h3>
+          <div class="cg-lav-filters">
+            <div class="form-group"><label for="cg-lav-f-desde">Desde</label><input type="date" id="cg-lav-f-desde"></div>
+            <div class="form-group"><label for="cg-lav-f-hasta">Hasta</label><input type="date" id="cg-lav-f-hasta"></div>
+            <div class="form-group"><label for="cg-lav-f-eq">Equipo</label><select id="cg-lav-f-eq"><option value="">Todos</option></select></div>
+            <div class="form-group"><label for="cg-lav-f-dep">Depto</label><input type="search" id="cg-lav-f-dep" placeholder="Ej: 1914" autocomplete="off"></div>
+          </div>
+        </div>
+        <div class="card-b">
+          <p id="cg-lav-hist-count" class="page-desc" style="margin:0 0 0.5rem;"></p>
+          <div class="cg-lav-tbl-wrap" id="cg-lav-hist"></div>
+        </div>
+      </div>
+      <div class="card cg-card-accent--lav">
+        <div class="card-h"><h3><i class="fa-solid fa-user-shield" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Modificaciones del personal</h3></div>
+        <div class="card-b"><div class="cg-lav-tbl-wrap" id="cg-lav-eventos"></div></div>
+      </div>
+    </div>
+    <div data-lav-page="cfg" hidden>
+      <div class="card cg-card-accent--lav">
+        <div class="card-h"><h3><i class="fa-solid fa-qrcode" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Acceso de residentes (QR y enlace)</h3></div>
+        <div class="card-b" id="cg-lav-acceso"></div>
+      </div>
+      <div class="card cg-card-accent--lav">
+        <div class="card-h"><h3><i class="fa-solid fa-sliders" aria-hidden="true" style="margin-right:0.35rem;opacity:0.9"></i>Ajustes del módulo</h3></div>
+        <div class="card-b">
+          <form id="cg-lav-cfg-form" action="#">
+            <div class="cg-lav-cfg-grid">
+              <div class="form-group"><label for="cg-lav-c-edif">Nombre del edificio (aparece en el correo)</label><input type="text" id="cg-lav-c-edif" maxlength="80"></div>
+              <div class="form-group"><label for="cg-lav-c-url">Dirección pública de la página de residentes</label><input type="url" id="cg-lav-c-url" placeholder="https://…/lavanderia-wm.html"></div>
+              <div class="form-group"><label for="cg-lav-c-dl">Duración estimada lavadora (min)</label><input type="number" id="cg-lav-c-dl" min="10" max="240" step="5"></div>
+              <div class="form-group"><label for="cg-lav-c-ds">Duración estimada secadora (min)</label><input type="number" id="cg-lav-c-ds" min="10" max="240" step="5"></div>
+              <div class="form-group"><label for="cg-lav-c-max">Máximo de equipos simultáneos por unidad</label><input type="number" id="cg-lav-c-max" min="1" max="10" step="1"></div>
+              <div class="form-group"><label for="cg-lav-c-bloq">Unidades no habilitadas (separadas por coma)</label><textarea id="cg-lav-c-bloq" rows="2" placeholder="Ej: 1203, 1508"></textarea></div>
+            </div>
+            <p class="page-desc" id="cg-lav-cfg-nota" style="margin:0.5rem 0;font-size:0.8rem;"></p>
+            <button type="submit" class="btn btn-primary" id="cg-lav-cfg-save"><i class="fa-solid fa-floppy-disk" aria-hidden="true"></i><span class="btn-txt">Guardar ajustes</span></button>
+          </form>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -16864,6 +16988,13 @@ function showTab(tab) {
   if (tabEnc) tabEnc.style.display = tab === 'tabEncomiendas' ? '' : 'none';
   if (tabR) tabR.style.display = tab === 'tabReservas' ? '' : 'none';
   if (tabA) tabA.style.display = tab === 'tabAusencia' ? '' : 'none';
+  var tabLav = document.getElementById('tabLavanderia');
+  var bLav = document.getElementById('tabLavanderiaBtn');
+  if (tabLav) tabLav.style.display = tab === 'tabLavanderia' ? '' : 'none';
+  if (bLav) {
+    bLav.classList.toggle('active', tab === 'tabLavanderia');
+    bLav.setAttribute('aria-current', tab === 'tabLavanderia' ? 'page' : 'false');
+  }
   if (tabBodega) tabBodega.style.display = tab === 'tabBodega' ? '' : 'none';
   if (tabBodegaSalidas) tabBodegaSalidas.style.display = tab === 'tabBodegaSalidas' ? '' : 'none';
   if (tabBodegaPedido) tabBodegaPedido.style.display = tab === 'tabBodegaPedido' ? '' : 'none';
@@ -16949,6 +17080,11 @@ function showTab(tab) {
     pd.textContent = '';
     initAusenciaUi();
     refreshAusenciaPanel();
+  } else if (tab === 'tabLavanderia') {
+    pcshApplyModulePageTitle('fa-soap', 'Control de lavandería');
+    pd.textContent = '';
+    if (typeof pcshEnsureConserjeriaDeptDataSynced === 'function') cargasMini.push(pcshEnsureConserjeriaDeptDataSynced());
+    if (typeof window.pcshLavAbrir === 'function') window.pcshLavAbrir();
   } else if (tab === 'tabBodega') {
     pcshApplyModulePageTitle('fa-warehouse', 'Bodega');
     pd.textContent = '';
@@ -16989,6 +17125,7 @@ function showTab(tab) {
   on('tabEncomiendasBtn', function () { showTab('tabEncomiendas'); });
   on('tabReservasBtn', function () { showTab('tabReservas'); });
   on('tabAusenciaBtn', function () { showTab('tabAusencia'); });
+  on('tabLavanderiaBtn', function () { showTab('tabLavanderia'); });
   on('tabBodegaBtn', function () { showTab('tabBodega'); });
   on('tabPersonalBtn', function () {
     if (esModoAdmin()) showTab('tabPersonal');
@@ -26645,6 +26782,9 @@ function pcshScheduleWm815DerivedRefresh() {
     try {
       if (typeof window.pcshRenderDashboard === 'function') window.pcshRenderDashboard();
     } catch (e2) {}
+    try {
+      window.dispatchEvent(new Event('pcsh-wm815-units-updated'));
+    } catch (e3) {}
   }, 220);
 }
 
@@ -38123,6 +38263,733 @@ showTab('tabNovedades');
         window.showChangePasswordModal = showChangePasswordModal;
         window.forceUpdateStats = forceUpdateStats;
     
+</script>
+<script>
+/* ---------- Lavandería: mapa de equipos, acceso de residentes por QR, historial y aviso por correo ---------- */
+(function pcshLavanderiaModulo() {
+  var COL_CFG = 'pcsh_lavanderia';
+  var COL_EQ = 'pcsh_lavanderia_equipos';
+  var COL_USOS = 'pcsh_lavanderia_usos';
+  var COL_EV = 'pcsh_lavanderia_eventos';
+  var PAGINA_PUBLICA = 'lavanderia-wm.html';
+  var N_POR_TIPO = 5;
+  var TIPOS = [
+    { id: 'lavadora', label: 'Lavadora', plural: 'Lavadoras', icon: 'fa-water' },
+    { id: 'secadora', label: 'Secadora', plural: 'Secadoras', icon: 'fa-wind' }
+  ];
+  var CFG_BASE = {
+    nombreEdificio: 'Edificio WM 815',
+    urlPublica: '',
+    duracionLavadoraMin: 45,
+    duracionSecadoraMin: 60,
+    maxPorUnidad: 3,
+    bloqueadas: [],
+    unidades: []
+  };
+  var ESTADO_TXT = { disponible: 'Disponible', en_uso: 'En uso', fuera_servicio: 'Fuera de servicio' };
+  var CORREO_TXT = {
+    pendiente: 'Pendiente',
+    procesando: 'Enviando',
+    enviado: 'Enviado',
+    encolado: 'En cola de envío',
+    sin_correo: 'Unidad sin correo',
+    error: 'Error'
+  };
+
+  var st = {
+    iniciado: false,
+    equipos: {},
+    cfg: Object.assign({}, CFG_BASE),
+    cfgCargada: false,
+    usos: [],
+    eventos: [],
+    sub: 'mapa',
+    unsubHist: null,
+    unsubEv: null,
+    uiLista: false,
+    correoEnVuelo: {}
+  };
+
+  function fsOk() {
+    return window.pcshDbBackend === 'firestore' && typeof db !== 'undefined' && db && typeof db.runTransaction === 'function';
+  }
+  function $(id) { return document.getElementById(id); }
+  function esc(s) { return escapeHtml(s == null ? '' : String(s)); }
+  function nowIso() { return new Date().toISOString(); }
+  function norm(v) { return typeof pcshNormDeptKey === 'function' ? pcshNormDeptKey(v) : String(v || '').trim().toLowerCase(); }
+  function visible() { var el = $('tabLavanderia'); return !!el && el.style.display !== 'none'; }
+  function quien() { try { return conserjeNombreVis(); } catch (e) { return 'Conserjería'; } }
+  function esPersonal() {
+    if (typeof esModoAdmin === 'function' && esModoAdmin()) return true;
+    try { return !!conserjeActivo; } catch (e) { return false; }
+  }
+  function esAdmin() { return typeof esModoAdmin === 'function' && esModoAdmin(); }
+  function equipoIds() {
+    var out = [];
+    TIPOS.forEach(function (t) { for (var n = 1; n <= N_POR_TIPO; n++) out.push(t.id + '-' + n); });
+    return out;
+  }
+  function tipoInfo(id) { return TIPOS[0].id === id ? TIPOS[0] : TIPOS[1]; }
+  function equipoLabel(eq) { return tipoInfo(eq.tipo).label + ' ' + eq.numero; }
+  function fmt(iso) { return iso ? fmtVisDate(iso) : '—'; }
+  function hora(iso) { var s = fmt(iso); return s.length > 11 ? s.slice(11) : s; }
+  function durTxt(ms) {
+    if (!isFinite(ms) || ms < 0) return '—';
+    var min = Math.round(ms / 60000);
+    if (min < 60) return min + ' min';
+    var h = Math.floor(min / 60);
+    var m = min % 60;
+    return h + ' h ' + (m < 10 ? '0' : '') + m + ' min';
+  }
+  function duracionEstimadaMin(tipo) {
+    var v = Number(tipo === 'secadora' ? st.cfg.duracionSecadoraMin : st.cfg.duracionLavadoraMin);
+    return v > 0 ? v : 45;
+  }
+  function aleatorio(n, alfabeto) {
+    var a = new Uint8Array(n);
+    (window.crypto || window.msCrypto).getRandomValues(a);
+    var out = '';
+    for (var i = 0; i < n; i++) out += alfabeto[a[i] % alfabeto.length];
+    return out;
+  }
+  /** Mismo algoritmo que lavanderia-wm.html: el código de liberación nunca se guarda en claro. */
+  function hashCodigo(usoId, codigo) {
+    var str = 'lav|' + usoId + '|' + codigo;
+    var h1 = 0xdeadbeef, h2 = 0x41c6ce57;
+    for (var i = 0; i < str.length; i++) {
+      var ch = str.charCodeAt(i);
+      h1 = Math.imul(h1 ^ ch, 2654435761);
+      h2 = Math.imul(h2 ^ ch, 1597334677);
+    }
+    h1 = Math.imul(h1 ^ (h1 >>> 16), 2246822507) ^ Math.imul(h2 ^ (h2 >>> 13), 3266489909);
+    h2 = Math.imul(h2 ^ (h2 >>> 16), 2246822507) ^ Math.imul(h1 ^ (h1 >>> 13), 3266489909);
+    return (h2 >>> 0).toString(16) + (h1 >>> 0).toString(16);
+  }
+  function errUsuario(msg) { var e = new Error(msg); e.lavUsuario = true; return e; }
+  function msgError(e, def) { return e && e.lavUsuario ? e.message : def; }
+
+  /* ---------- Unidades y correos ---------- */
+  function unidadExiste(num) {
+    if (typeof pcshEncDeptResolveByNumber === 'function' && pcshEncDeptResolveByNumber(num)) return true;
+    var k = norm(num);
+    return (st.cfg.unidades || []).some(function (u) { return norm(u) === k; });
+  }
+  function unidadBloqueada(num) {
+    var k = norm(num);
+    return (st.cfg.bloqueadas || []).some(function (u) { return norm(u) === k; });
+  }
+  function numeroCanonico(num) {
+    var dep = typeof pcshEncDeptResolveByNumber === 'function' ? pcshEncDeptResolveByNumber(num) : null;
+    return dep && dep.number ? String(dep.number) : String(num).trim();
+  }
+  function correosUnidad(num) {
+    var dep = typeof pcshEncDeptResolveByNumber === 'function' ? pcshEncDeptResolveByNumber(num) : null;
+    if (!dep || typeof pcshEncGetPortalUnit !== 'function') return '';
+    var pu = pcshEncGetPortalUnit(dep.id);
+    if (!pu) return '';
+    var vistos = {};
+    var out = [];
+    (pu.residents || []).forEach(function (r) {
+      if (!pcshResidenteAvisoPorDefecto(r, pu.unitUse)) return;
+      var em = String((r && r.email) || '').trim();
+      var k = em.toLowerCase();
+      if (!em || k.indexOf('@') < 0 || vistos[k]) return;
+      vistos[k] = true;
+      out.push(em);
+    });
+    return out.join(',');
+  }
+  function asegurarUnidadesCargadas() {
+    if (typeof pcshReadWm815UnitsArray === 'function' && pcshReadWm815UnitsArray().length) return Promise.resolve();
+    if (typeof pcshEnsureConserjeriaDeptDataSynced !== 'function') return Promise.resolve();
+    return Promise.resolve(pcshEnsureConserjeriaDeptDataSynced()).catch(function () {});
+  }
+  var _pubUnidadesT = null;
+  function publicarUnidades() {
+    clearTimeout(_pubUnidadesT);
+    _pubUnidadesT = setTimeout(function () {
+      if (!fsOk() || !st.cfgCargada || typeof pcshGetDeptNumbersForConserjeria !== 'function') return;
+      var nums = pcshGetDeptNumbersForConserjeria();
+      if (!nums || !nums.length) return;
+      if (nums.join('|') === (st.cfg.unidades || []).join('|')) return;
+      db.collection(COL_CFG).doc('config').set({ unidades: nums, unidadesAt: nowIso() }, { merge: true }).catch(function (e) {
+        console.warn('[lavandería] publicar unidades', e);
+      });
+    }, 1500);
+  }
+
+  /* ---------- Estructura y escucha ---------- */
+  function asegurarEstructura() {
+    var cfgRef = db.collection(COL_CFG).doc('config');
+    var tareas = [
+      db.runTransaction(function (tx) {
+        return tx.get(cfgRef).then(function (s) {
+          var d = s.exists ? s.data() || {} : {};
+          if (d.tokenPublico) return;
+          tx.set(cfgRef, Object.assign({}, CFG_BASE, d, {
+            tokenPublico: aleatorio(24, 'abcdefghijkmnpqrstuvwxyz23456789'),
+            creadoAt: nowIso()
+          }), { merge: true });
+        });
+      })
+    ];
+    equipoIds().forEach(function (id) {
+      var ref = db.collection(COL_EQ).doc(id);
+      tareas.push(db.runTransaction(function (tx) {
+        return tx.get(ref).then(function (s) {
+          if (s.exists) return;
+          var p = id.split('-');
+          tx.set(ref, {
+            tipo: p[0], numero: Number(p[1]), estado: 'disponible', unidad: '', usoId: '', inicio: '',
+            codigoHash: '', motivo: '', actualizadoAt: nowIso(), actualizadoPor: 'Sistema'
+          });
+        });
+      }));
+    });
+    return Promise.all(tareas).catch(function (e) { console.warn('[lavandería] estructura', e); });
+  }
+
+  function iniciar() {
+    if (st.iniciado || !fsOk()) return;
+    st.iniciado = true;
+    asegurarEstructura();
+    db.collection(COL_CFG).doc('config').onSnapshot(function (s) {
+      st.cfg = Object.assign({}, CFG_BASE, s.exists ? s.data() || {} : {});
+      st.cfgCargada = s.exists;
+      publicarUnidades();
+      if (visible()) { renderMapa(); renderAcceso(); renderCfgForm(); }
+    }, function (e) { console.warn('[lavandería] config', e); });
+    db.collection(COL_EQ).onSnapshot(function (qs) {
+      var eqs = {};
+      qs.forEach(function (d) { eqs[d.id] = Object.assign({ id: d.id }, d.data()); });
+      st.equipos = eqs;
+      if (visible()) renderMapa();
+    }, function (e) {
+      console.warn('[lavandería] equipos', e);
+      avisoModulo('No se pudo leer el estado de la lavandería desde la nube. Revise la conexión.');
+    });
+    db.collection(COL_USOS).where('correoEstado', '==', 'pendiente').onSnapshot(function (qs) {
+      qs.forEach(function (d) { procesarCorreo(d.id); });
+    }, function (e) { console.warn('[lavandería] cola de correo', e); });
+    setInterval(function () {
+      db.collection(COL_USOS).where('correoEstado', '==', 'procesando').get().then(function (qs) {
+        qs.forEach(function (d) { procesarCorreo(d.id); });
+      }).catch(function () {});
+    }, 180000);
+    setInterval(function () { if (visible() && st.sub === 'mapa') renderMapa(); }, 30000);
+    window.addEventListener('pcsh-wm815-units-updated', publicarUnidades);
+  }
+
+  /* ---------- Correo de confirmación ---------- */
+  function procesarCorreo(usoId) {
+    if (st.correoEnVuelo[usoId]) return;
+    st.correoEnVuelo[usoId] = true;
+    var ref = db.collection(COL_USOS).doc(usoId);
+    var uso = null;
+    db.runTransaction(function (tx) {
+      return tx.get(ref).then(function (s) {
+        if (!s.exists) return false;
+        var d = s.data() || {};
+        var reclamoVencido = d.correoEstado === 'procesando' && Date.now() - (Date.parse(d.correoClaimAt || '') || 0) > 180000;
+        if (d.correoEstado !== 'pendiente' && !reclamoVencido) return false;
+        uso = Object.assign({ id: s.id }, d);
+        tx.update(ref, { correoEstado: 'procesando', correoClaimAt: nowIso() });
+        return true;
+      });
+    }).then(function (tomado) {
+      if (!tomado) return null;
+      return asegurarUnidadesCargadas()
+        .then(function () { return enviarCorreoUso(uso); })
+        .catch(function (e) { return { estado: 'error', detalle: (e && e.message) || String(e) }; })
+        .then(function (r) {
+          return ref.update({ correoEstado: r.estado, correoDetalle: r.detalle || '', correoAt: nowIso() });
+        });
+    }).catch(function (e) {
+      console.warn('[lavandería] correo', e);
+    }).then(function () {
+      delete st.correoEnVuelo[usoId];
+    });
+  }
+  function enviarCorreoUso(uso) {
+    var to = correosUnidad(uso.unidad);
+    if (!to) return Promise.resolve({ estado: 'sin_correo', detalle: 'La unidad no tiene correos de aviso registrados.' });
+    var edificio = st.cfg.nombreEdificio || CFG_BASE.nombreEdificio;
+    var tipo = tipoInfo(uso.tipo).label;
+    var fecha = fmt(uso.inicio);
+    var filas = [
+      { k: 'Edificio', v: edificio },
+      { k: 'Departamento', v: uso.unidad },
+      { k: 'Tipo de equipo', v: tipo },
+      { k: 'Número de ' + tipo.toLowerCase(), v: String(uso.numero) },
+      { k: 'Fecha y hora del registro', v: fecha },
+      { k: 'Estado', v: 'Registrado a nombre de la unidad ' + uso.unidad }
+    ];
+    var mensaje = 'Le confirmamos que la ' + tipo.toLowerCase() + ' ' + uso.numero + ' quedó registrada a nombre de su unidad. ' +
+      'Cuando termine, finalice el uso desde el mapa de lavandería para dejarla disponible.';
+    var texto = 'Estimado/a residente de la unidad ' + uso.unidad + ':\n\n' + mensaje + '\n\n' +
+      filas.map(function (f) { return f.k + ': ' + f.v; }).join('\n') +
+      '\n\nSi usted no realizó este registro, comuníquese de inmediato con conserjería.';
+    return pcshEnviarCorreoPorGestion({
+      to: to,
+      asunto: 'Lavandería — ' + tipo + ' ' + uso.numero + ' registrada · Depto ' + uso.unidad,
+      texto: texto,
+      html: pcshHtmlAvisoOperativo({
+        tono: '#2563eb',
+        titulo: 'Registro de uso en lavandería',
+        saludo: 'Estimado/a residente de la unidad ' + uso.unidad + ':',
+        mensaje: mensaje,
+        filas: filas,
+        cierre: 'Si usted no realizó este registro, comuníquese de inmediato con conserjería.'
+      }),
+      origen: 'conserjeria-lavanderia',
+      refId: uso.id,
+      fase: 'registro' + (uso.correoIntento ? '-r' + uso.correoIntento : '')
+    }).then(function (r) {
+      if (r && r.exito) return { estado: r.via === 'mail' ? 'enviado' : 'encolado', detalle: to };
+      return { estado: 'error', detalle: (r && r.error) || 'No se pudo enviar' };
+    });
+  }
+
+  /* ---------- Transacciones ---------- */
+  function txRegistrar(eqId, unidad, opts) {
+    var usoId = 'lav_' + Date.now() + '_' + aleatorio(6, 'abcdefghijkmnpqrstuvwxyz23456789');
+    var codigo = aleatorio(4, '0123456789');
+    var cfgRef = db.collection(COL_CFG).doc('config');
+    var refs = equipoIds().map(function (id) { return db.collection(COL_EQ).doc(id); });
+    var idx = equipoIds().indexOf(eqId);
+    var usoRef = db.collection(COL_USOS).doc(usoId);
+    var evRef = db.collection(COL_EV).doc();
+    var inicio = nowIso();
+    return db.runTransaction(function (tx) {
+      return Promise.all([tx.get(cfgRef)].concat(refs.map(function (r) { return tx.get(r); }))).then(function (snaps) {
+        var cfg = Object.assign({}, CFG_BASE, snaps[0].exists ? snaps[0].data() || {} : {});
+        var snap = snaps[1 + idx];
+        if (!snap || !snap.exists) throw errUsuario('El equipo no existe.');
+        var eq = snap.data();
+        if (eq.estado === 'fuera_servicio') throw errUsuario('El equipo está fuera de servicio.');
+        if (eq.estado !== 'disponible') throw errUsuario('El equipo ya fue registrado por la unidad ' + (eq.unidad || '—') + '.');
+        var k = norm(unidad);
+        var enUso = snaps.slice(1).filter(function (s) { return s.exists && s.data().estado === 'en_uso' && norm(s.data().unidad) === k; }).length;
+        var max = Number(cfg.maxPorUnidad) || 0;
+        if (max && enUso >= max) throw errUsuario('La unidad ' + unidad + ' ya tiene ' + enUso + ' equipo(s) en uso (máximo ' + max + ').');
+        var hash = hashCodigo(usoId, codigo);
+        tx.update(refs[idx], {
+          estado: 'en_uso', unidad: unidad, usoId: usoId, inicio: inicio, codigoHash: hash, motivo: '',
+          actualizadoAt: inicio, actualizadoPor: opts.por, origen: opts.origen
+        });
+        tx.set(usoRef, {
+          equipoId: eqId, tipo: eq.tipo, numero: eq.numero, unidad: unidad, inicio: inicio,
+          inicioServidor: firebase.firestore.FieldValue.serverTimestamp(),
+          fin: '', duracionMin: null, estado: 'en_uso', origen: opts.origen, registradoPor: opts.por,
+          liberadoPor: '', liberadoPorNombre: '', correoEstado: 'pendiente', correoIntento: 0
+        });
+        tx.set(evRef, {
+          at: inicio, equipoId: eqId, equipo: tipoInfo(eq.tipo).label + ' ' + eq.numero, accion: 'registro_personal',
+          detalle: 'Uso registrado para la unidad ' + unidad, unidad: unidad, por: opts.por, usoId: usoId
+        });
+      });
+    }).then(function () { return { usoId: usoId, codigo: codigo }; });
+  }
+  function cerrarUsoEnTx(tx, eq, eqId, fin, por, nota) {
+    if (!eq.usoId) return;
+    var ms = Date.parse(fin) - Date.parse(eq.inicio || fin);
+    tx.set(db.collection(COL_USOS).doc(eq.usoId), {
+      fin: fin, duracionMin: isFinite(ms) ? Math.max(0, Math.round(ms / 60000)) : null, estado: 'finalizado',
+      liberadoPor: 'administracion', liberadoPorNombre: por, notaLiberacion: nota || ''
+    }, { merge: true });
+  }
+  function txAdmin(eqId, accion, motivo) {
+    var ref = db.collection(COL_EQ).doc(eqId);
+    var evRef = db.collection(COL_EV).doc();
+    var por = quien();
+    var t = nowIso();
+    return db.runTransaction(function (tx) {
+      return tx.get(ref).then(function (s) {
+        if (!s.exists) throw errUsuario('El equipo no existe.');
+        var eq = s.data();
+        var lbl = tipoInfo(eq.tipo).label + ' ' + eq.numero;
+        var limpio = { unidad: '', usoId: '', inicio: '', codigoHash: '', actualizadoAt: t, actualizadoPor: por, origen: 'conserjeria' };
+        var detalle = '';
+        if (accion === 'liberar') {
+          if (eq.estado !== 'en_uso') throw errUsuario('El equipo ya no está en uso.');
+          cerrarUsoEnTx(tx, eq, eqId, t, por, motivo);
+          tx.update(ref, Object.assign({ estado: 'disponible', motivo: '' }, limpio));
+          detalle = 'Liberación manual del uso de la unidad ' + eq.unidad + (motivo ? ' · ' + motivo : '');
+        } else if (accion === 'fuera_servicio') {
+          if (eq.estado === 'fuera_servicio') throw errUsuario('El equipo ya está fuera de servicio.');
+          if (eq.estado === 'en_uso') cerrarUsoEnTx(tx, eq, eqId, t, por, 'Equipo declarado fuera de servicio');
+          tx.update(ref, Object.assign({ estado: 'fuera_servicio', motivo: motivo || 'Sin detalle', fueraDesde: t }, limpio));
+          detalle = 'Fuera de servicio: ' + (motivo || 'sin detalle') + (eq.estado === 'en_uso' ? ' (se cerró el uso de la unidad ' + eq.unidad + ')' : '');
+        } else if (accion === 'reactivar') {
+          if (eq.estado !== 'fuera_servicio') throw errUsuario('El equipo no está fuera de servicio.');
+          tx.update(ref, Object.assign({ estado: 'disponible', motivo: '', fueraDesde: '' }, limpio));
+          detalle = 'Equipo reactivado' + (eq.motivo ? ' (motivo anterior: ' + eq.motivo + ')' : '') + (motivo ? ' · ' + motivo : '');
+        }
+        tx.set(evRef, { at: t, equipoId: eqId, equipo: lbl, accion: accion, detalle: detalle, unidad: eq.unidad || '', por: por, usoId: eq.usoId || '' });
+      });
+    });
+  }
+
+  /* ---------- Acciones del personal ---------- */
+  function exigirPersonal() {
+    if (esPersonal()) return true;
+    showMsg('Abra turno o inicie sesión de administración para modificar la lavandería.', 'warn');
+    return false;
+  }
+  function accionRegistrar(eqId) {
+    if (!exigirPersonal()) return;
+    var eq = st.equipos[eqId];
+    if (!eq) return;
+    showPromptDialog('Número de departamento que usará la ' + equipoLabel(eq).toLowerCase() + ':', '', function (val) {
+      if (val == null) return;
+      var raw = String(val).trim();
+      if (!raw) return showMsg('Indique el número de departamento.', 'warn');
+      if (!unidadExiste(raw)) return showMsg('La unidad ' + raw + ' no existe en el registro de residentes.', 'error');
+      if (unidadBloqueada(raw)) return showMsg('La unidad ' + raw + ' no está habilitada para usar la lavandería.', 'error');
+      var unidad = numeroCanonico(raw);
+      showConfirmDialog('¿Registrar la ' + equipoLabel(eq) + ' a nombre del depto ' + unidad + '?\nSe enviará la confirmación al correo de la unidad.', function () {
+        txRegistrar(eqId, unidad, { por: quien(), origen: 'conserjeria' }).then(function (r) {
+          showMsg(equipoLabel(eq) + ' registrada al depto ' + unidad + '. Código para finalizar: ' + r.codigo, 'success');
+        }).catch(function (e) {
+          console.warn('[lavandería] registrar', e);
+          showMsg(msgError(e, 'No se pudo registrar el equipo.'), 'error');
+        });
+      }, 'Registrar uso', 'Registrar');
+    }, 'Registrar uso de ' + equipoLabel(eq));
+  }
+  function accionAdmin(eqId, accion) {
+    if (!exigirPersonal()) return;
+    var eq = st.equipos[eqId];
+    if (!eq) return;
+    var lbl = equipoLabel(eq);
+    var ejecutar = function (motivo) {
+      txAdmin(eqId, accion, motivo).then(function () {
+        var txt = accion === 'liberar' ? lbl + ' liberada.' : accion === 'reactivar' ? lbl + ' habilitada nuevamente.' : lbl + ' marcada fuera de servicio.';
+        showMsg(txt, 'success');
+      }).catch(function (e) {
+        console.warn('[lavandería] ' + accion, e);
+        showMsg(msgError(e, 'No se pudo actualizar el equipo.'), 'error');
+      });
+    };
+    if (accion === 'fuera_servicio') {
+      showPromptDialog(
+        'Motivo (falla, mantención, etc.).' + (eq.estado === 'en_uso' ? '\nEl uso actual del depto ' + eq.unidad + ' se cerrará.' : ''),
+        '',
+        function (val) {
+          if (val == null) return;
+          var motivo = String(val).trim();
+          if (!motivo) return showMsg('Indique el motivo para dejar el equipo fuera de servicio.', 'warn');
+          ejecutar(motivo);
+        },
+        'Dejar ' + lbl + ' fuera de servicio'
+      );
+    } else if (accion === 'liberar') {
+      showPromptDialog('Se liberará el equipo registrado por el depto ' + eq.unidad + '. Nota de la intervención (opcional):', '', function (val) {
+        if (val == null) return;
+        ejecutar(String(val).trim());
+      }, 'Liberar ' + lbl);
+    } else {
+      showConfirmDialog('¿Habilitar nuevamente la ' + lbl + '? Quedará disponible para los residentes.', function () { ejecutar(''); }, 'Reactivar equipo', 'Reactivar');
+    }
+  }
+
+  /* ---------- Render: mapa ---------- */
+  function avisoModulo(html) {
+    var el = $('cg-lav-aviso');
+    if (el) el.innerHTML = html ? '<div class="cg-lav-warn" role="status">' + html + '</div>' : '';
+  }
+  function cardHtml(eq) {
+    var estado = ESTADO_TXT[eq.estado] ? eq.estado : 'disponible';
+    var ti = tipoInfo(eq.tipo);
+    var info = '';
+    var acciones = '';
+    var btn = function (act, icon, txt, cls) {
+      return '<button type="button" class="btn btn-sm ' + (cls || 'btn-secondary') + '" data-lav-act="' + act + '" data-eq="' + esc(eq.id) + '" title="' + txt + '" aria-label="' + txt + ' ' + esc(equipoLabel(eq)) + '"><i class="fa-solid ' + icon + '" aria-hidden="true"></i><span class="btn-txt">' + txt + '</span></button>';
+    };
+    if (estado === 'en_uso') {
+      var t0 = Date.parse(eq.inicio || '');
+      var transc = Date.now() - t0;
+      var finMs = t0 + duracionEstimadaMin(eq.tipo) * 60000;
+      var tarde = isFinite(t0) && Date.now() > finMs;
+      info = 'Depto <b>' + esc(eq.unidad) + '</b><br>Desde ' + esc(hora(eq.inicio)) + ' · ' + esc(durTxt(transc)) +
+        '<br><span class="' + (tarde ? 'is-late' : '') + '">' + (tarde ? 'Superó el tiempo estimado' : 'Fin estimado ' + esc(hora(new Date(finMs).toISOString()))) + '</span>';
+      acciones = btn('liberar', 'fa-unlock', 'Liberar', 'btn-primary') + btn('fuera_servicio', 'fa-ban', 'Fuera de servicio');
+    } else if (estado === 'fuera_servicio') {
+      info = '<span style="color:#fca5a5;font-weight:700">No habilitado</span><br>' + esc(eq.motivo || 'Sin detalle') +
+        (eq.fueraDesde ? '<br>Desde ' + esc(fmt(eq.fueraDesde)) : '');
+      acciones = btn('reactivar', 'fa-rotate-left', 'Reactivar', 'btn-primary');
+    } else {
+      info = 'Libre para usar';
+      acciones = btn('registrar', 'fa-plus', 'Registrar', 'btn-primary') + btn('fuera_servicio', 'fa-ban', 'Fuera de servicio');
+    }
+    return '<article class="cg-lav-card is-' + estado + '" aria-label="' + esc(equipoLabel(eq) + ': ' + ESTADO_TXT[estado]) + '">' +
+      '<div class="cg-lav-card-h"><strong>' + esc(equipoLabel(eq)) + '</strong><span class="cg-lav-pill">' + ESTADO_TXT[estado] + '</span></div>' +
+      '<div class="cg-lav-maq"><div class="cg-lav-door"><i class="fa-solid ' + (estado === 'fuera_servicio' ? 'fa-triangle-exclamation' : ti.icon) + '" aria-hidden="true"></i></div></div>' +
+      '<div class="cg-lav-info">' + info + '</div>' +
+      '<div class="cg-lav-actions">' + acciones + '</div>' +
+      (eq.actualizadoPor && eq.actualizadoPor !== 'Sistema' ? '<div class="page-desc" style="margin:0;font-size:0.68rem;text-align:center;opacity:0.8">Último cambio: ' + esc(eq.actualizadoPor) + ' · ' + esc(fmt(eq.actualizadoAt)) + '</div>' : '') +
+      '</article>';
+  }
+  function renderMapa() {
+    var host = $('cg-lav-map');
+    if (!host) return;
+    var lista = equipoIds().map(function (id) { return st.equipos[id]; }).filter(Boolean);
+    var cuenta = { disponible: 0, en_uso: 0, fuera_servicio: 0 };
+    lista.forEach(function (e) { if (cuenta[e.estado] != null) cuenta[e.estado]++; });
+    var stats = $('cg-lav-stats');
+    if (stats) {
+      stats.innerHTML =
+        '<div class="cg-stat-chip cg-stat-chip--ok"><span class="cg-stat-chip-val">' + cuenta.disponible + '</span><span class="cg-stat-chip-lbl">Disponibles</span></div>' +
+        '<div class="cg-stat-chip cg-stat-chip--uso"><span class="cg-stat-chip-val">' + cuenta.en_uso + '</span><span class="cg-stat-chip-lbl">En uso</span></div>' +
+        '<div class="cg-stat-chip cg-stat-chip--off"><span class="cg-stat-chip-val">' + cuenta.fuera_servicio + '</span><span class="cg-stat-chip-lbl">Fuera de servicio</span></div>';
+    }
+    if (!lista.length) {
+      host.innerHTML = '<p class="page-desc" style="margin:0">Preparando los equipos en la base de datos…</p>';
+      return;
+    }
+    host.innerHTML = TIPOS.map(function (t) {
+      var cards = lista.filter(function (e) { return e.tipo === t.id; }).sort(function (a, b) { return a.numero - b.numero; }).map(cardHtml).join('');
+      return '<h4 class="cg-lav-group-title"><i class="fa-solid ' + t.icon + '" aria-hidden="true"></i> ' + t.plural + '</h4><div class="cg-lav-grid">' + cards + '</div>';
+    }).join('');
+  }
+
+  /* ---------- Render: historial ---------- */
+  function escucharHistorial() {
+    if (st.unsubHist || !fsOk()) return;
+    st.unsubHist = db.collection(COL_USOS).orderBy('inicio', 'desc').limit(500).onSnapshot(function (qs) {
+      st.usos = [];
+      qs.forEach(function (d) { st.usos.push(Object.assign({ id: d.id }, d.data())); });
+      if (visible() && st.sub === 'hist') renderHistorial();
+    }, function (e) { console.warn('[lavandería] historial', e); });
+    st.unsubEv = db.collection(COL_EV).orderBy('at', 'desc').limit(300).onSnapshot(function (qs) {
+      st.eventos = [];
+      qs.forEach(function (d) { st.eventos.push(Object.assign({ id: d.id }, d.data())); });
+      if (visible() && st.sub === 'hist') renderEventos();
+    }, function (e) { console.warn('[lavandería] eventos', e); });
+  }
+  function enRango(iso) {
+    var d = $('cg-lav-f-desde').value;
+    var h = $('cg-lav-f-hasta').value;
+    var ymd = '';
+    try {
+      var p = pcshZonedParts(Date.parse(iso));
+      ymd = p.year + '-' + pad(p.month) + '-' + pad(p.day);
+    } catch (e) { ymd = String(iso || '').slice(0, 10); }
+    if (d && ymd < d) return false;
+    if (h && ymd > h) return false;
+    return true;
+  }
+  function renderHistorial() {
+    var host = $('cg-lav-hist');
+    if (!host) return;
+    var fEq = $('cg-lav-f-eq').value;
+    var fDep = norm($('cg-lav-f-dep').value);
+    var rows = st.usos.filter(function (u) {
+      if (fEq && u.equipoId !== fEq) return false;
+      if (fDep && norm(u.unidad).indexOf(fDep) < 0) return false;
+      return enRango(u.inicio);
+    });
+    $('cg-lav-hist-count').textContent = rows.length + ' registro(s)' + (st.usos.length >= 500 ? ' · se muestran los 500 más recientes' : '');
+    if (!rows.length) { host.innerHTML = '<p class="page-desc" style="margin:0">Sin registros para los filtros seleccionados.</p>'; return; }
+    host.innerHTML = '<table><thead><tr><th>Depto</th><th>Equipo</th><th>Inicio</th><th>Término</th><th>Duración</th><th>Estado</th><th>Registro</th><th>Liberación</th><th>Correo</th></tr></thead><tbody>' +
+      rows.map(function (u) {
+        var dur = u.fin ? durTxt(Date.parse(u.fin) - Date.parse(u.inicio)) : durTxt(Date.now() - Date.parse(u.inicio)) + ' (en curso)';
+        var lib = !u.fin ? '—' : u.liberadoPor === 'residente' ? 'Residente' : 'Personal: ' + (u.liberadoPorNombre || '—') + (u.notaLiberacion ? ' · ' + u.notaLiberacion : '');
+        var reg = u.origen === 'qr' ? 'Residente (QR)' : 'Personal: ' + (u.registradoPor || '—');
+        var ce = u.correoEstado || '';
+        var bc = ce === 'enviado' || ce === 'encolado' ? 'b-ok' : ce === 'error' || ce === 'sin_correo' ? 'b-err' : '';
+        var reenviar = ce === 'error' || ce === 'sin_correo'
+          ? ' <button type="button" class="btn btn-secondary btn-sm" data-lav-act="reenviar" data-uso="' + esc(u.id) + '" title="Reintentar envío">Reintentar</button>'
+          : '';
+        return '<tr><td><strong>' + esc(u.unidad) + '</strong></td><td>' + esc(tipoInfo(u.tipo).label + ' ' + u.numero) + '</td><td>' + esc(fmt(u.inicio)) + '</td><td>' + esc(fmt(u.fin)) +
+          '</td><td>' + esc(dur) + '</td><td><span class="cg-lav-badge ' + (u.estado === 'en_uso' ? 'b-uso' : '') + '">' + (u.estado === 'en_uso' ? 'En uso' : 'Finalizado') +
+          '</span></td><td class="t-l">' + esc(reg) + '</td><td class="t-l">' + esc(lib) + '</td><td><span class="cg-lav-badge ' + bc + '" title="' + esc(u.correoDetalle || '') + '">' + esc(CORREO_TXT[ce] || '—') + '</span>' + reenviar + '</td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+  var ACCION_TXT = { registro_personal: 'Registro por personal', liberar: 'Liberación manual', fuera_servicio: 'Fuera de servicio', reactivar: 'Reactivación', config: 'Ajustes', token: 'Nuevo enlace QR' };
+  function renderEventos() {
+    var host = $('cg-lav-eventos');
+    if (!host) return;
+    var fEq = $('cg-lav-f-eq').value;
+    var rows = st.eventos.filter(function (e) { return (!fEq || e.equipoId === fEq) && enRango(e.at); });
+    if (!rows.length) { host.innerHTML = '<p class="page-desc" style="margin:0">Sin modificaciones registradas.</p>'; return; }
+    host.innerHTML = '<table><thead><tr><th>Fecha</th><th>Equipo</th><th>Acción</th><th>Detalle</th><th>Realizado por</th></tr></thead><tbody>' +
+      rows.map(function (e) {
+        return '<tr><td>' + esc(fmt(e.at)) + '</td><td>' + esc(e.equipo || '—') + '</td><td>' + esc(ACCION_TXT[e.accion] || e.accion) + '</td><td class="t-l">' + esc(e.detalle || '') + '</td><td>' + esc(e.por || '—') + '</td></tr>';
+      }).join('') + '</tbody></table>';
+  }
+  function reenviarCorreo(usoId) {
+    if (!exigirPersonal()) return;
+    var u = st.usos.find(function (x) { return x.id === usoId; });
+    db.collection(COL_USOS).doc(usoId).update({
+      correoEstado: 'pendiente', correoIntento: ((u && u.correoIntento) || 0) + 1, correoDetalle: ''
+    }).then(function () { showMsg('Se reintentará el envío del correo.', 'info'); }).catch(function () { showMsg('No se pudo reintentar el envío.', 'error'); });
+  }
+
+  /* ---------- Render: acceso QR y ajustes ---------- */
+  function urlPublica() {
+    var token = st.cfg.tokenPublico || '';
+    var base = String(st.cfg.urlPublica || '').trim();
+    if (!base) {
+      base = location.href.split('#')[0].split('?')[0];
+      base = base.slice(0, base.lastIndexOf('/') + 1) + PAGINA_PUBLICA;
+    } else if (/\/$/.test(base)) {
+      base += PAGINA_PUBLICA;
+    }
+    return base + (base.indexOf('?') >= 0 ? '&' : '?') + 'k=' + encodeURIComponent(token);
+  }
+  function qrSrc(url, size) {
+    return 'https://api.qrserver.com/v1/create-qr-code/?size=' + size + 'x' + size + '&margin=8&data=' + encodeURIComponent(url);
+  }
+  function renderAcceso() {
+    var host = $('cg-lav-acceso');
+    if (!host) return;
+    if (!st.cfg.tokenPublico) { host.innerHTML = '<p class="page-desc" style="margin:0">Generando enlace…</p>'; return; }
+    var url = urlPublica();
+    var local = location.protocol === 'file:' && !String(st.cfg.urlPublica || '').trim();
+    host.innerHTML =
+      (local ? '<div class="cg-lav-warn">Este panel se abrió como archivo local. Publique <strong>' + PAGINA_PUBLICA + '</strong> en su hosting y escriba su dirección en «Ajustes del módulo»; si no, el QR solo funcionará en este computador.</div>' : '') +
+      '<div class="cg-lav-qr"><img src="' + esc(qrSrc(url, 400)) + '" alt="Código QR de acceso a la lavandería" width="200" height="200" loading="lazy">' +
+      '<div style="flex:1;min-width:16rem">' +
+      '<p class="page-desc" style="margin:0 0 0.5rem">Los residentes ven el mapa y registran o finalizan sus propios usos. No ven datos personales ni pueden cambiar el estado «fuera de servicio».</p>' +
+      '<input type="text" class="cg-lav-link" id="cg-lav-url" readonly value="' + esc(url) + '" aria-label="Enlace público de lavandería">' +
+      '<div class="toolbar" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-top:0.5rem">' +
+      '<button type="button" class="btn btn-primary btn-sm" data-lav-act="copiar"><i class="fa-solid fa-copy" aria-hidden="true"></i><span class="btn-txt">Copiar enlace</span></button>' +
+      '<button type="button" class="btn btn-secondary btn-sm" data-lav-act="abrir"><i class="fa-solid fa-arrow-up-right-from-square" aria-hidden="true"></i><span class="btn-txt">Abrir vista residentes</span></button>' +
+      '<button type="button" class="btn btn-secondary btn-sm" data-lav-act="imprimir"><i class="fa-solid fa-print" aria-hidden="true"></i><span class="btn-txt">Imprimir cartel QR</span></button>' +
+      '<button type="button" class="btn btn-secondary btn-sm" data-lav-act="token"><i class="fa-solid fa-rotate" aria-hidden="true"></i><span class="btn-txt">Generar nuevo enlace</span></button>' +
+      '</div></div></div>';
+  }
+  function renderCfgForm() {
+    var f = $('cg-lav-cfg-form');
+    if (!f) return;
+    if (document.activeElement && f.contains(document.activeElement)) return;
+    $('cg-lav-c-edif').value = st.cfg.nombreEdificio || '';
+    $('cg-lav-c-url').value = st.cfg.urlPublica || '';
+    $('cg-lav-c-dl').value = st.cfg.duracionLavadoraMin || 45;
+    $('cg-lav-c-ds').value = st.cfg.duracionSecadoraMin || 60;
+    $('cg-lav-c-max').value = st.cfg.maxPorUnidad || 3;
+    $('cg-lav-c-bloq').value = (st.cfg.bloqueadas || []).join(', ');
+    var admin = esAdmin();
+    Array.prototype.forEach.call(f.querySelectorAll('input,textarea,button'), function (el) { el.disabled = !admin; });
+    $('cg-lav-cfg-nota').textContent = admin
+      ? 'Unidades publicadas para validación: ' + (st.cfg.unidades || []).length + '. Las unidades no habilitadas no podrán registrar equipos.'
+      : 'Solo la administración puede modificar estos ajustes (inicie sesión en «Administración»).';
+  }
+  function guardarCfg(ev) {
+    ev.preventDefault();
+    if (!esAdmin()) return showMsg('Solo la administración puede modificar los ajustes.', 'warn');
+    var bloq = String($('cg-lav-c-bloq').value || '').split(/[,;\s]+/).map(function (s) { return s.trim(); }).filter(Boolean);
+    var datos = {
+      nombreEdificio: String($('cg-lav-c-edif').value || '').trim() || CFG_BASE.nombreEdificio,
+      urlPublica: String($('cg-lav-c-url').value || '').trim(),
+      duracionLavadoraMin: Math.max(10, Number($('cg-lav-c-dl').value) || 45),
+      duracionSecadoraMin: Math.max(10, Number($('cg-lav-c-ds').value) || 60),
+      maxPorUnidad: Math.max(1, Math.min(10, Number($('cg-lav-c-max').value) || 3)),
+      bloqueadas: bloq,
+      actualizadoAt: nowIso(),
+      actualizadoPor: quien()
+    };
+    db.collection(COL_CFG).doc('config').set(datos, { merge: true }).then(function () {
+      db.collection(COL_EV).add({ at: nowIso(), equipoId: '', equipo: '—', accion: 'config', detalle: 'Ajustes actualizados' + (bloq.length ? ' · no habilitadas: ' + bloq.join(', ') : ''), por: quien() });
+      if (document.activeElement) document.activeElement.blur();
+      showMsg('Ajustes de lavandería guardados.', 'success');
+    }).catch(function () { showMsg('No se pudieron guardar los ajustes.', 'error'); });
+  }
+  function regenerarToken() {
+    if (!esAdmin()) return showMsg('Solo la administración puede generar un nuevo enlace.', 'warn');
+    showConfirmDialog('El enlace y el QR actuales dejarán de funcionar. Deberá imprimir e instalar el nuevo cartel. ¿Continuar?', function () {
+      db.collection(COL_CFG).doc('config').set({ tokenPublico: aleatorio(24, 'abcdefghijkmnpqrstuvwxyz23456789'), tokenAt: nowIso() }, { merge: true }).then(function () {
+        db.collection(COL_EV).add({ at: nowIso(), equipoId: '', equipo: '—', accion: 'token', detalle: 'Se generó un nuevo enlace de acceso para residentes', por: quien() });
+        showMsg('Nuevo enlace generado.', 'success');
+      }).catch(function () { showMsg('No se pudo generar el enlace.', 'error'); });
+    }, 'Generar nuevo enlace', 'Generar');
+  }
+  function imprimirCartel() {
+    var url = urlPublica();
+    var w = window.open('', '_blank');
+    if (!w) return showMsg('El navegador bloqueó la ventana de impresión.', 'warn');
+    var edificio = esc(st.cfg.nombreEdificio || CFG_BASE.nombreEdificio);
+    w.document.write('<!DOCTYPE html><html lang="es"><head><meta charset="UTF-8"><title>Lavandería — QR</title><style>' +
+      'body{font-family:Arial,sans-serif;text-align:center;margin:0;padding:40px;color:#111}h1{font-size:44px;margin:0 0 8px}h2{font-size:22px;font-weight:400;margin:0 0 28px;color:#444}' +
+      'img{width:420px;height:420px}ol{display:inline-block;text-align:left;font-size:20px;line-height:1.6;margin:24px auto}.leg span{display:inline-block;margin:0 12px;font-size:18px}.leg b{display:inline-block;width:16px;height:16px;border-radius:50%;vertical-align:-2px;margin-right:6px}' +
+      '.u{font-size:12px;color:#666;word-break:break-all;margin-top:18px}</style></head><body>' +
+      '<h1>Lavandería</h1><h2>' + edificio + '</h2><img id="qr" src="' + esc(qrSrc(url, 800)) + '" alt="QR">' +
+      '<ol><li>Escanee el código con la cámara de su teléfono.</li><li>Toque un equipo <strong>verde</strong> y registre su departamento.</li><li>Al terminar, toque su equipo y confirme «Finalizar uso».</li></ol>' +
+      '<div class="leg"><span><b style="background:#22c55e"></b>Disponible</span><span><b style="background:#3b82f6"></b>En uso</span><span><b style="background:#ef4444"></b>Fuera de servicio</span></div>' +
+      '<p class="u">' + esc(url) + '</p><script>document.getElementById("qr").onload=function(){setTimeout(function(){window.print()},200)};<\/script></body></html>');
+    w.document.close();
+  }
+
+  /* ---------- UI ---------- */
+  function mostrarSub(sub) {
+    st.sub = sub;
+    Array.prototype.forEach.call(document.querySelectorAll('#tabLavanderia .cg-lav-sub-tab'), function (b) {
+      var on = b.getAttribute('data-lav-sub') === sub;
+      b.classList.toggle('active', on);
+      b.setAttribute('aria-selected', on ? 'true' : 'false');
+    });
+    Array.prototype.forEach.call(document.querySelectorAll('#tabLavanderia [data-lav-page]'), function (p) {
+      p.hidden = p.getAttribute('data-lav-page') !== sub;
+    });
+    if (sub === 'mapa') renderMapa();
+    if (sub === 'hist') { escucharHistorial(); renderHistorial(); renderEventos(); }
+    if (sub === 'cfg') { renderAcceso(); renderCfgForm(); }
+  }
+  function prepararUi() {
+    if (st.uiLista) return;
+    st.uiLista = true;
+    var tab = $('tabLavanderia');
+    tab.addEventListener('click', function (ev) {
+      var sub = ev.target.closest('[data-lav-sub]');
+      if (sub) return mostrarSub(sub.getAttribute('data-lav-sub'));
+      var b = ev.target.closest('[data-lav-act]');
+      if (!b) return;
+      var act = b.getAttribute('data-lav-act');
+      var eqId = b.getAttribute('data-eq');
+      if (act === 'registrar') accionRegistrar(eqId);
+      else if (act === 'liberar' || act === 'fuera_servicio' || act === 'reactivar') accionAdmin(eqId, act);
+      else if (act === 'reenviar') reenviarCorreo(b.getAttribute('data-uso'));
+      else if (act === 'copiar') {
+        var url = urlPublica();
+        (navigator.clipboard ? navigator.clipboard.writeText(url) : Promise.reject()).then(function () {
+          showMsg('Enlace copiado.', 'success');
+        }).catch(function () { var i = $('cg-lav-url'); if (i) { i.select(); document.execCommand('copy'); showMsg('Enlace copiado.', 'success'); } });
+      } else if (act === 'abrir') window.open(urlPublica(), '_blank', 'noopener');
+      else if (act === 'imprimir') imprimirCartel();
+      else if (act === 'token') regenerarToken();
+    });
+    var selEq = $('cg-lav-f-eq');
+    equipoIds().forEach(function (id) {
+      var p = id.split('-');
+      var o = document.createElement('option');
+      o.value = id;
+      o.textContent = tipoInfo(p[0]).label + ' ' + p[1];
+      selEq.appendChild(o);
+    });
+    ['cg-lav-f-desde', 'cg-lav-f-hasta', 'cg-lav-f-eq', 'cg-lav-f-dep'].forEach(function (id) {
+      $(id).addEventListener('input', function () { renderHistorial(); renderEventos(); });
+    });
+    $('cg-lav-cfg-form').addEventListener('submit', guardarCfg);
+  }
+
+  window.pcshLavAbrir = function () {
+    prepararUi();
+    if (!fsOk()) {
+      avisoModulo('La lavandería necesita la base de datos en la nube (Firestore) para funcionar en tiempo real y con el acceso QR. Revise la configuración de Firebase.');
+      $('cg-lav-map').innerHTML = '';
+      return;
+    }
+    iniciar();
+    avisoModulo(esPersonal() ? '' : 'Modo consulta: abra turno o inicie sesión de administración para modificar equipos.');
+    publicarUnidades();
+    mostrarSub(st.sub);
+  };
+
+  setTimeout(function () {
+    if (fsOk()) iniciar();
+  }, 2500);
+})();
 </script>
 <div id="pcshAlarmaOverlay" class="pcsh-alarma-overlay" hidden>
   <div class="pcsh-alarma-overlay__card" role="alertdialog" aria-modal="true" aria-labelledby="pcshAlarmaOverlayTitulo">
