@@ -9453,6 +9453,7 @@ function pcshVisitasCommitIngreso(form, rec, veh, vex) {
       rec.id = ref && ref.id ? ref.id : '';
       if (rec.id) {
         if (!window._pcshVisPendientes) window._pcshVisPendientes = {};
+        rec._pcshLocalAt = Date.now();
         window._pcshVisPendientes[rec.id] = rec;
         visitasList = [rec].concat((visitasList || []).filter(function (v) {
           return !v || String(v.id) !== String(rec.id);
@@ -10805,12 +10806,14 @@ function pcshNormalizarAtOutVisita(v, live) {
   src.outAt = outRaw != null && outRaw !== '' ? (typeof pcshVisitAtToIso === 'function' ? pcshVisitAtToIso(outRaw) : outRaw) : outRaw;
   return src;
 }
-/** Solo visitas aún abiertas en fase multa. Las salidas de meses anteriores no generan novedad nueva. */
+/** Solo visitas vehiculares aún abiertas en fase multa. Sin visita activa no se emite. */
 function pcshVisPuedeAutogenerarNovedadMulta(v) {
-  if (!v || v.outAt || v.multaNovedadCorrelativo) return false;
+  if (!v || !v.id || !v.vehicular || v.outAt || v.multaNovedadCorrelativo) return false;
   if (typeof visitIsProveedor === 'function' && visitIsProveedor(v)) return false;
+  var t0 = typeof pcshVisitAtToMs === 'function' ? pcshVisitAtToMs(v.at) : NaN;
+  if (!isFinite(t0) || t0 <= 0) return false;
   var st = typeof pcshVehStateForMultaParte === 'function' ? pcshVehStateForMultaParte(v) : null;
-  return !!(st && st.phase === 'fine');
+  return !!(st && st.phase === 'fine' && pcshVehSuperaUmbralMulta(st.elapsed));
 }
 async function pcshCorregirFechaNovedadMultaVisita(v) {
   if (!v || typeof db === 'undefined' || !db) return null;
@@ -10885,19 +10888,31 @@ function pcshVisAsegurarNovedadMultaEstacionamiento(v, opts) {
   if (typeof db === 'undefined' || !db) return Promise.resolve(null);
   var vid = String(v.id || '');
   if (!vid) return Promise.resolve(null);
+  var exigeAbierta = !opts.forzarParte;
+  if (exigeAbierta && v.outAt) return Promise.resolve(null);
   if (!window.__pcshVisMultaNovLocks) window.__pcshVisMultaNovLocks = {};
   if (window.__pcshVisMultaNovLocks[vid]) return window.__pcshVisMultaNovLocks[vid];
   var job = (async function () {
     try {
       var snap = await db.collection('visitas').doc(vid).get();
-      var live = snap.exists ? snap.data() || {} : {};
+      if (!snap.exists) {
+        if (window._pcshVisPendientes) delete window._pcshVisPendientes[vid];
+        console.warn('[visitas] multa omitida: la visita ya no existe en la nube. id=', vid);
+        return null;
+      }
+      var live = snap.data() || {};
       if (live.multaNovedadCorrelativo) {
         v.multaNovedadCorrelativo = live.multaNovedadCorrelativo;
       }
       var merged = typeof pcshNormalizarAtOutVisita === 'function'
-        ? pcshNormalizarAtOutVisita(v, live)
+        ? pcshNormalizarAtOutVisita(Object.assign({}, v, { outAt: v.outAt || null }), live)
         : Object.assign({}, live, v, { id: vid });
       merged.id = vid;
+      if (live.outAt) merged.outAt = typeof pcshVisitAtToIso === 'function' ? pcshVisitAtToIso(live.outAt) : live.outAt;
+      if (exigeAbierta && merged.outAt) {
+        v.outAt = merged.outAt;
+        return null;
+      }
       if (merged.multaNovedadCorrelativo) {
         v.multaNovedadCorrelativo = merged.multaNovedadCorrelativo;
         await pcshCorregirFechaNovedadMultaVisita(merged);
@@ -10908,12 +10923,14 @@ function pcshVisAsegurarNovedadMultaEstacionamiento(v, opts) {
       var st2 = typeof pcshVehStateForMultaParte === 'function' ? pcshVehStateForMultaParte(merged) : st;
       if (!st2 || st2.phase !== 'fine') return null;
       if (typeof pcshVehSuperaUmbralMulta === 'function' && !pcshVehSuperaUmbralMulta(st2.elapsed)) return null;
+      if (exigeAbierta && !pcshVisPuedeAutogenerarNovedadMulta(merged)) return null;
       var fhNov = pcshFechaHoraParaNovedadMultaVisita(merged);
       if (!fhNov || !fhNov.fecha) {
         console.warn('[visitas] multa sin fecha de ingreso/salida, no se crea novedad. visita=', vid);
         return null;
       }
-      if (merged.outAt && !opts.forzarParte) {
+      if (merged.outAt && !opts.forzarParte) return null;
+      if (merged.outAt && opts.forzarParte) {
         var mesHoy = typeof pcshMesCalendarioChile === 'function' ? pcshMesCalendarioChile() : '';
         if (mesHoy && fhNov.mes && fhNov.mes !== mesHoy) {
           return null;
@@ -10936,8 +10953,11 @@ function pcshVisAsegurarNovedadMultaEstacionamiento(v, opts) {
         var cref = db.collection('meta').doc('correlativo');
         var vref = db.collection('visitas').doc(vid);
         return transaction.get(vref).then(function (vSnap) {
-          var vd = vSnap.exists ? vSnap.data() || {} : {};
+          if (!vSnap.exists) return null;
+          var vd = vSnap.data() || {};
           if (vd.multaNovedadCorrelativo) return Number(vd.multaNovedadCorrelativo);
+          if (exigeAbierta && vd.outAt) return null;
+          if (!vd.vehicular) return null;
           return transaction.get(cref).then(function (cSnap) {
             var n = cSnap.exists && cSnap.data() && cSnap.data().valor ? Number(cSnap.data().valor) : 1;
             if (!isFinite(n) || n < 1) n = 1;
@@ -10972,6 +10992,7 @@ function pcshVisAsegurarNovedadMultaEstacionamiento(v, opts) {
           });
         });
       });
+      if (cor == null || !isFinite(Number(cor))) return null;
       v.multaNovedadCorrelativo = cor;
       var novPub = {
         correlativo: cor,
@@ -11014,7 +11035,7 @@ function pcshVisRevisarMultasEstacionamientoPendientes() {
   if (typeof visitasList === 'undefined' || !Array.isArray(visitasList)) return;
   var mesHoy = typeof pcshMesCalendarioChile === 'function' ? pcshMesCalendarioChile() : '';
   visitasList.forEach(function (x) {
-    if (!x) return;
+    if (!x || !x.vehicular) return;
     if (x.multaNovedadCorrelativo) {
       if (x.outAt) {
         if (!pcshVisSalidaMultaYaSincronizada(x)) pcshCorregirFechaNovedadMultaVisita(x);
@@ -11024,6 +11045,7 @@ function pcshVisRevisarMultasEstacionamientoPendientes() {
       }
       return;
     }
+    if (x.outAt) return;
     if (typeof pcshVisPuedeAutogenerarNovedadMulta === 'function' && !pcshVisPuedeAutogenerarNovedadMulta(x)) return;
     pcshVisAsegurarNovedadMultaEstacionamiento(x);
   });
@@ -11309,6 +11331,8 @@ function pcshVisAvisarCorreoFase(v, fase, primeraVista) {
   if (!v || !v.vehicular || v.outAt || !v.id) return;
   if (fase !== 'warn' && fase !== 'grace' && fase !== 'fine') return;
   if (primeraVista && fase === 'fine') return;
+  var t0Mail = typeof pcshVisitAtToMs === 'function' ? pcshVisitAtToMs(v.at) : NaN;
+  if (!isFinite(t0Mail) || t0Mail <= 0) return;
   if (!v.correoAviso || typeof v.correoAviso !== 'object') v.correoAviso = {};
   if (v.correoAviso[fase]) return;
   var ahora = Date.now();
@@ -11391,8 +11415,8 @@ function pcshVisTrafficAlertsTick() {
     if (
       ph === 'fine' &&
       prev !== 'fine' &&
-      typeof pcshVehStateForMultaParte === 'function' &&
-      pcshVehStateForMultaParte(v) &&
+      typeof pcshVisPuedeAutogenerarNovedadMulta === 'function' &&
+      pcshVisPuedeAutogenerarNovedadMulta(v) &&
       typeof pcshVisAsegurarNovedadMultaEstacionamiento === 'function'
     ) {
       pcshVisAsegurarNovedadMultaEstacionamiento(v);
@@ -11975,7 +11999,9 @@ function pcshVisDocNormalizar(doc) {
   var o = doc.data();
   o.id = doc.id;
   if (o.at != null && o.at !== '') o.at = pcshVisitAtToIso(o.at);
+  else o.at = o.at || null;
   if (o.outAt != null && o.outAt !== '') o.outAt = pcshVisitAtToIso(o.outAt);
+  else o.outAt = null;
   return o;
 }
 function pcshVisPedirHistorico(diaVal, mesVal, anioVal) {
@@ -13138,15 +13164,31 @@ function listenVisitas(cb) {
       list.push(o);
     });
     list.sort(function (a, b) { return pcshVisitAtToMs(b.at) - pcshVisitAtToMs(a.at); });
-    var pend = window._pcshVisPendientes || {};
+    if (!window._pcshVisPendientes) window._pcshVisPendientes = {};
+    if (!window._pcshVisVistosSnap) window._pcshVisVistosSnap = {};
+    var pend = window._pcshVisPendientes;
+    var vistos = window._pcshVisVistosSnap;
     var ids = {};
     list.forEach(function (v) {
       if (!v || v.id == null || v.id === '') return;
-      ids[String(v.id)] = true;
-      delete pend[String(v.id)];
+      var id = String(v.id);
+      ids[id] = true;
+      vistos[id] = true;
+      delete pend[id];
     });
     Object.keys(pend).forEach(function (id) {
-      if (!ids[id] && pend[id]) list.unshift(pend[id]);
+      if (ids[id] || !pend[id]) return;
+      /* Ya estuvo en un snapshot y ahora no: eliminada o fuera de la ventana → no resucitar (evita multas fantasma). */
+      if (vistos[id]) {
+        delete pend[id];
+        return;
+      }
+      var age = Date.now() - (Number(pend[id]._pcshLocalAt) || 0);
+      if (!isFinite(age) || age > 120000) {
+        delete pend[id];
+        return;
+      }
+      list.unshift(pend[id]);
     });
     cb(list);
   }
@@ -13304,8 +13346,12 @@ function regVisitaSalida(id) {
   if (!v) { showMsg('Registro no encontrado.', 'error'); return; }
   if (visitIsPeatonal(v)) { showMsg('Las visitas peatonales no llevan salida.', 'info'); return; }
   function aplicarSalida() {
+    var vid = String(id);
+    if (window._pcshVisPendientes) delete window._pcshVisPendientes[vid];
+    if (window.__pcshVisVehPhaseSnap) delete window.__pcshVisVehPhaseSnap[vid];
+    v.outAt = new Date().toISOString();
     db.collection('visitas').doc(id).update({
-      outAt: new Date().toISOString(),
+      outAt: v.outAt,
       salidaRegistradoPor: conserjeNombreVis()
     }).then(function () { showMsg('Salida registrada.', 'success'); });
   }
@@ -13323,6 +13369,10 @@ function regVisitaSalida(id) {
 function eliminarVisita(id) {
   if (!esModoAdmin() || !id) return;
   showConfirmDialog('¿Eliminar este registro de visita?', function () {
+    var vid = String(id);
+    if (window._pcshVisPendientes) delete window._pcshVisPendientes[vid];
+    if (window._pcshVisVistosSnap) window._pcshVisVistosSnap[vid] = true;
+    if (window.__pcshVisVehPhaseSnap) delete window.__pcshVisVehPhaseSnap[vid];
     db.collection('visitas').doc(id).delete().then(function () { showMsg('Visita eliminada.', 'success'); });
   }, 'Eliminar visita', 'Sí, eliminar');
 }
